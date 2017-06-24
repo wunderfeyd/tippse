@@ -22,4 +22,6 @@ struct document_view {
   int showall;
 };
 
+void document_view_reset(struct document_view* view);
+
 #endif /* #ifndef __TIPPSE_DOCUMENTVIEW__ */

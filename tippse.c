@@ -296,6 +296,7 @@ int main (int argc, const char** argv) {
                     if (is_directory(relative)) {
                       if (focus==browser) {
                         document_file_name(browser->document.file, relative);
+                        document_view_reset(&browser->document.view);
                         document_directory(browser->document.file);
                       }
                     } else {
@@ -307,6 +308,7 @@ int main (int argc, const char** argv) {
                   }
 
                   if (new_document_doc) {
+                    document_view_reset(&document->document.view);
                     splitter_assign_document_file(document, new_document_doc, 1);
                   }
 

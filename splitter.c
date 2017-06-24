@@ -9,8 +9,6 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
   if (!side0 || !side1) {
     splitter->side[0] = NULL;
     splitter->side[1] = NULL;
-    splitter->foreground = foreground;
-    splitter->background = background;
     splitter->active = 0;
     splitter->foreground = foreground;
     splitter->background = background;
@@ -20,17 +18,8 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
     splitter->type = type;
     
     splitter->document.file = NULL;
-    splitter->document.view.offset = 0;
-    splitter->document.view.cursor_x = 0;
-    splitter->document.view.cursor_y = 0;
-    splitter->document.view.scroll_x = 0;
-    splitter->document.view.scroll_y = 0;
-    splitter->document.view.selection_start = ~0;
-    splitter->document.view.selection_end = ~0;
-    splitter->document.view.selection_low = ~0;
-    splitter->document.view.selection_high = ~0;
-    splitter->document.view.showall = 0;
     splitter->document.keep_status = 0;
+    document_view_reset(&splitter->document.view);
   } else {
     splitter->side[0] = side0;
     splitter->side[1] = side1;
