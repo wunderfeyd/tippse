@@ -66,6 +66,7 @@ void* list_remove(struct list* list, struct list_node* node) {
     node->prev->next = node->next;
   }
 
+  list->count--;
   free(node);
   return object;
 }
