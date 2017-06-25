@@ -170,9 +170,28 @@ int main (int argc, const char** argv) {
     splitter_draw_multiple(screen, splitters);
     screen_draw(screen);
     int in = 0;
-    in = read(STDIN_FILENO, &input_buffer[input_pos], sizeof(input_buffer)-input_pos);
-    if (in>0) {
-      input_pos += in;
+    while (in==0) {
+      fd_set set_read;
+      struct timeval tv;
+      tv.tv_sec = 0;
+      tv.tv_usec = 500*1000;
+      FD_ZERO(&set_read);
+      FD_SET(STDIN_FILENO, &set_read);
+
+      select(1, &set_read, NULL, NULL, &tv);
+      if (FD_ISSET(0, &set_read)) {
+        in = read(STDIN_FILENO, &input_buffer[input_pos], sizeof(input_buffer)-input_pos);
+        if (in>0) {
+          input_pos += in;
+        }
+      } else {
+        struct list_node* doc = documents->first;
+        while (doc) {
+          struct document_file* file = (struct document_file*)doc->object;
+          document_undo_chain(file);
+          doc = doc->next;
+        }
+      }
     }
 
     int check = 0;
@@ -253,12 +272,12 @@ int main (int argc, const char** argv) {
               focus->active = 0;
               focus = document;
               focus->active = 1;
-              document_search(last_document->document.file, &last_document->document.view, range_tree_next(search_text_buffers[1]), range_tree_distance_offset(search->document.file->buffer, search_text_buffers[1], search_text_buffers[2]), 1);
+              document_search(last_document, last_document->document.file, &last_document->document.view, range_tree_next(search_text_buffers[1]), range_tree_distance_offset(search->document.file->buffer, search_text_buffers[1], search_text_buffers[2]), 1);
             } else if (ansi_keys[pos].cp==TIPPSE_KEY_SEARCH_PREV) {
               focus->active = 0;
               focus = document;
               focus->active = 1;
-              document_search(last_document->document.file, &last_document->document.view, range_tree_next(search_text_buffers[1]), range_tree_distance_offset(search->document.file->buffer, search_text_buffers[1], search_text_buffers[2]), 0);
+              document_search(last_document, last_document->document.file, &last_document->document.view, range_tree_next(search_text_buffers[1]), range_tree_distance_offset(search->document.file->buffer, search_text_buffers[1], search_text_buffers[2]), 0);
             } else if (ansi_keys[pos].cp==TIPPSE_KEY_OPEN) {
               if (focus->document.view.selection_low!=focus->document.view.selection_high) {
                 struct list_node* views =document->document.file->views->first;

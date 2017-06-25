@@ -45,18 +45,16 @@ int document_compare(struct range_tree_node* left, file_offset_t buffer_pos_left
   return 0;
 }
 
-void document_search(struct document_file* file, struct document_view* view, struct range_tree_node* text, file_offset_t length, int forward) {
+void document_search(struct splitter* splitter, struct document_file* file, struct document_view* view, struct range_tree_node* text, file_offset_t length, int forward) {
   if (!text || !file->buffer || file->buffer->length==0) {
-    //document->keep_status = 1;
-    //splitter_status(splitter, "No text to search for!", 1);
-    printf("no text");
+    splitter->document.keep_status = 1;
+    splitter_status(splitter, "No text to search for!", 1);
     return;
   }
 
   if (length>file->buffer->length) {
-    //document->keep_status = 1;
-    //splitter_status(splitter, "Not found!", 1);
-    printf("not found\r\n");
+    splitter->document.keep_status = 1;
+    splitter_status(splitter, "Not found!", 1);
     return;
   }
 
@@ -133,8 +131,8 @@ void document_search(struct document_file* file, struct document_view* view, str
     }
   }
 
-  //document->keep_status = 1;
-  //splitter_status(splitter, "Not found!", 1);
+  splitter->document.keep_status = 1;
+  splitter_status(splitter, "Not found!", 1);
 }
 
 file_offset_t document_cursor_position(struct document_file* file, file_offset_t offset_search, int* cur_x, int* cur_y, int seek, int wrap, int cancel, int showall) {
@@ -505,7 +503,7 @@ void document_insert(struct document_file* file, file_offset_t offset, const cha
     return;
   }
 
-  document_undo_add(file, NULL, offset, length, 1);
+  document_undo_add(file, NULL, offset, length, TIPPSE_UNDO_TYPE_INSERT);
 
   struct list_node* views = file->views->first;
   while (views) {
@@ -535,7 +533,7 @@ void document_insert_buffer(struct document_file* file, file_offset_t offset, st
   }
 
   file->buffer = range_tree_paste(file->buffer, buffer, offset);
-  document_undo_add(file, NULL, offset, length, 1);
+  document_undo_add(file, NULL, offset, length, TIPPSE_UNDO_TYPE_INSERT);
 
   struct list_node* views = file->views->first;
   while (views) {
@@ -568,7 +566,7 @@ void document_delete(struct document_file* file, file_offset_t offset, file_offs
     return;
   }
   
-  document_undo_add(file, NULL, offset, length, 0);
+  document_undo_add(file, NULL, offset, length, TIPPSE_UNDO_TYPE_DELETE);
 
   file_offset_t old_length = file->buffer?file->buffer->length:0;
   file->buffer = range_tree_delete(file->buffer, offset, length, 0);
@@ -696,10 +694,12 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
     view->offset = document_cursor_position(file, view->offset, &view->cursor_x, &view->cursor_y, 1, 0, 1, view->showall);
   } else if (cp==TIPPSE_KEY_UNDO) {
     document_undo_execute(file, view, file->undos, file->redos);
+    while (document_undo_execute(file, view, file->undos, file->redos)) {}
     seek = 1;
     return;
   } else if (cp==TIPPSE_KEY_REDO) {
     document_undo_execute(file, view, file->redos, file->undos);
+    while (document_undo_execute(file, view, file->redos, file->undos)) {}
     seek = 1;
     return;
   } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
@@ -724,6 +724,7 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
     }
     reset_selection = (!(button_old&TIPPSE_MOUSE_LBUTTON) && (button&TIPPSE_MOUSE_LBUTTON))?1:0;
   } else if (cp==TIPPSE_KEY_TAB) {
+    document_undo_chain(file);
     if (view->selection_low==~0) {
       char utf8[8];
       file_offset_t size = TAB_WIDTH-(view->cursor_x%TAB_WIDTH);
@@ -761,8 +762,10 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
         cursor_y--;
       }
     }
+    document_undo_chain(file);
     seek = 1;
   } else if (cp==TIPPSE_KEY_UNTAB) {
+    document_undo_chain(file);
     if (view->selection_low==~0) {
     } else {
       int cursor_x = view->cursor_x;
@@ -805,8 +808,10 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
         cursor_y--;
       }
     }
+    document_undo_chain(file);
     seek = 1;
   } else if (cp==TIPPSE_KEY_COPY || cp==TIPPSE_KEY_CUT) {
+    document_undo_chain(file);
     if (view->selection_low==~0) {
     } else {
       clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low));
@@ -817,12 +822,15 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
         reset_selection = 0;
       }
     }
+    document_undo_chain(file);
     seek = 1;
   } else if (cp==TIPPSE_KEY_PASTE || cp==TIPPSE_KEY_BRACKET_PASTE_START) {
+    document_undo_chain(file);
     document_delete_selection(file, view);
     if (clipboard_get()) {
       document_insert_buffer(file, view->offset, clipboard_get());
     }
+    document_undo_chain(file);
     reset_selection = 1;
     seek = 1;
   } else if (cp>=0) {

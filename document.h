@@ -69,7 +69,7 @@ struct document {
 struct splitter;
 
 int document_compare(struct range_tree_node* left, file_offset_t buffer_pos_left, struct range_tree_node* right_root, file_offset_t length);
-void document_search(struct document_file* file, struct document_view* view, struct range_tree_node* text, file_offset_t length, int forward);
+void document_search(struct splitter* splitter, struct document_file* file, struct document_view* view, struct range_tree_node* text, file_offset_t length, int forward);
 file_offset_t document_cursor_position(struct document_file* file, file_offset_t offset_search, int* cur_x, int* cur_y, int seek, int wrap, int cancel, int showall);
 void document_draw(struct screen* screen, struct splitter* splitter);
 
