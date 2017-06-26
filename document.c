@@ -881,7 +881,8 @@ void document_directory(struct document_file* file) {
     char** sort1 = malloc(sizeof(char*)*files->count);
     char** sort2 = malloc(sizeof(char*)*files->count);
     struct list_node* name = files->first;
-    for (size_t n = 0; n<files->count && name; n++) {
+    size_t n;
+    for (n = 0; n<files->count && name; n++) {
       sort1[n] = (char*)name->object;
       name = name->next;
     }
@@ -890,7 +891,7 @@ void document_directory(struct document_file* file) {
 
     file->buffer = range_tree_delete(file->buffer, 0, file->buffer?file->buffer->length:0, TIPPSE_INSERTER_AUTO);
 
-    for (size_t n = 0; n<files->count; n++) {
+    for (n = 0; n<files->count; n++) {
       file->buffer = range_tree_insert_split(file->buffer, file->buffer?file->buffer->length:0, sort[n], strlen(sort[n]), TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
       file->buffer = range_tree_insert_split(file->buffer, file->buffer?file->buffer->length:0, "\n", 1, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
       
