@@ -34,7 +34,7 @@ struct screen* screen_init() {
   screen->buffer = (struct screen_char*)malloc(sizeof(struct screen_char)*screen->width*screen->height);
   screen->visible = (struct screen_char*)malloc(sizeof(struct screen_char)*screen->width*screen->height);
   screen->title = NULL;
-  screen->title_new = strdup("Cute");
+  screen->title_new = strdup("Tippse");
 
   for (y=0; y<screen->height; y++) {
     for (x=0; x<screen->width; x++) {

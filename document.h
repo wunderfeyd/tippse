@@ -8,11 +8,13 @@
 #include <dirent.h>
 #include "utf8.h"
 #include "misc.h"
+#include "trie.h"
 #include "rangetree.h"
 #include "screen.h"
 #include "documentview.h"
 #include "documentfile.h"
 #include "clipboard.h"
+#include "filetype.h"
 
 #define TAB_WIDTH 2
 
@@ -61,6 +63,7 @@
 struct document {
   struct document_file* file;
   struct document_view view;
+  struct file_type* type;
 
   int keep_status;
   int content_document;

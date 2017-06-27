@@ -229,14 +229,8 @@ file_offset_t document_cursor_position(struct document_file* file, file_offset_t
   return offset;
 }
 
-struct keywords {
-  const char* text;
-  size_t length;
-  int color;
-};
-
-/* TODO: Replace with a trie */
-int document_keyword(struct range_tree_node* buffer, file_offset_t buffer_pos, const char* keyword, size_t length, int whitespace) {
+int document_keyword(struct range_tree_node* buffer, file_offset_t buffer_pos, struct trie* trie, size_t* keyword_length) {
+  struct trie_node* parent = NULL;
   while (buffer) {
     if (buffer_pos>=buffer->length || !buffer->buffer) {
       buffer = range_tree_next(buffer);
@@ -245,79 +239,45 @@ int document_keyword(struct range_tree_node* buffer, file_offset_t buffer_pos, c
     }
 
     const char* text = buffer->buffer->buffer+buffer->offset+buffer_pos;
-    file_offset_t max = length;
-    if (buffer->length-buffer_pos<max) {
-      max = buffer->length-buffer_pos;
-    }
+    file_offset_t max = buffer->length-buffer_pos;
 
-    if (length==0) {
-      if (whitespace || ((*text<'a' || *text>'z') && (*text<'A' || *text>'Z') && (*text<'0' || *text>'9') && *text!='_')) {
-        return 1;
-      } else {
+    while (max>0 && (!parent || parent->type==0)) {
+      parent = trie_find_codepoint(trie, parent, *text);
+      (*keyword_length)++;
+      if (!parent) {
         return 0;
+      }
+
+      text++;
+      max--;
+
+      if (parent->type!=0) {
+        break;
       }
     }
 
-    if (strncmp(text, keyword, max)!=0) {
-      return 0;
+    while (max>0 && (parent && parent->type!=0)) {
+      if ((parent->type&SYNTAX_CONDITION_NOWHITESPACE_AFTER) || ((*text<'a' || *text>'z') && (*text<'A' || *text>'Z') && (*text<'0' || *text>'9') && *text!='_')) {
+        return parent->type;
+      } else {
+        return 0;
+      }
+
+      text++;
+      max--;
     }
 
     buffer_pos += max;
-    keyword += max;
-    length-= max;
   }
 
   return 0;
 }
 
-struct keywords keywords[] = {
-  {"int", 3, 120},
-  {"unsigned", 8, 120},
-  {"signed", 6, 120},
-  {"char", 4, 120},
-  {"short", 5, 120},
-  {"long", 4, 120},
-  {"void", 4, 120},
-  {"bool", 4, 120},
-  {"size_t", 6, 120},
-  {"int8_t", 6, 120},
-  {"uint8_t", 7, 120},
-  {"int16_t", 7, 120},
-  {"uint16_t", 8, 120},
-  {"int32_t", 7, 120},
-  {"uint32_t", 8, 120},
-  {"int64_t", 7, 120},
-  {"uint64_t", 8, 120},
-  {"nullptr", 7, 120},
-  {"const", 5, 120},
-  {"struct", 6, 120},
-  {"class", 5, 120},
-  {"public", 6, 120},
-  {"private", 7, 120},
-  {"protected", 9, 120},
-  {"virtual", 7, 120},
-  {"template", 8, 120},
-  {"static", 6, 120},
-  {"inline", 6, 120},
-  {"for", 3, 210},
-  {"do", 2, 210},
-  {"while", 5, 210},
-  {"if", 2, 210},
-  {"else", 4, 210},
-  {"return", 6, 210},
-  {"break", 5, 210},
-  {"continue", 8, 210},
-  {"using", 5, 210},
-  {"namespace", 9, 210},
-  {"new", 3, 210},
-  {"delete", 6, 210},
-  {NULL, 0, 0}
-};
-
 void document_draw(struct screen* screen, struct splitter* splitter) {
   struct document_file* file = splitter->document.file;
   struct document_view* view = &splitter->document.view;
   
+  struct trie* keywords = (*splitter->document.type->keywords)(splitter->document.type);
   int cursor_x;
   int cursor_y;
   
@@ -382,7 +342,9 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
       int color = splitter->foreground;
       int background = splitter->background;
       if (!(buffer->inserter&TIPPSE_INSERTER_READONLY)) {
-        if (quote==0 && comment==0 && document_keyword(buffer, buffer_pos, "//", 2, 1)) {
+        size_t new_length = 0;
+        int type = document_keyword(buffer, buffer_pos, keywords, &new_length);
+        if (quote==0 && comment==0 && (type&SYNTAX_MASK)==SYNTAX_LINECOMMENT) {
           comment = 1;
         }
         
@@ -398,12 +360,17 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
             color = 226;
           }
 
-          if (keyword_length==0 && quote_old==0 && quote==0 && (cp_last<'a' || cp_last>'z') && (cp_last<'A' || cp_last>'Z') && (cp_last<'0' || cp_last>'9') && cp_last!='_' && ((cp>='a' && cp<='z') || (cp>='A' && cp<='Z') || (cp>='0' && cp<='9') || cp=='_')) {
-            size_t keyword;
-            for (keyword=0; keywords[keyword].text; keyword++) {
-              if (document_keyword(buffer, buffer_pos, keywords[keyword].text, keywords[keyword].length, 0)) {
-                keyword_length = keywords[keyword].length;
-                keyword_color = keywords[keyword].color;
+          if (keyword_length==0 && quote_old==0 && quote==0 && (cp_last<'a' || cp_last>'z') && (cp_last<'A' || cp_last>'Z') && (cp_last<'0' || cp_last>'9') && cp_last!='_') {
+            if (type>0) {
+              keyword_length = new_length;
+              if ((type&SYNTAX_COLOR_MASK)==SYNTAX_COLOR_STRING) {
+                keyword_color = 226;
+              } else if ((type&SYNTAX_COLOR_MASK)==SYNTAX_COLOR_TYPE) {
+                keyword_color = 120;
+              } else if ((type&SYNTAX_COLOR_MASK)==SYNTAX_COLOR_KEYWORD) {
+                keyword_color = 210;
+              } else if ((type&SYNTAX_COLOR_MASK)==SYNTAX_COLOR_PREPROCESSOR) {
+                keyword_color = 103;
               }
             }
           }
