@@ -3,8 +3,10 @@
 #include "misc.h"
 
 char** merge_sort(char** sort1, char** sort2, size_t count) {
-  for (size_t m = 1; m<count; m<<=1) {
-    for (size_t n = 0; n<count; n+=m*2) {
+  size_t m;
+  for (m = 1; m<count; m<<=1) {
+    size_t n;
+    for (n = 0; n<count; n+=m*2) {
       size_t left = n;
       size_t left_end = n+m;
       if (left_end>count) {

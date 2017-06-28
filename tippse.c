@@ -24,6 +24,8 @@
 #include "documentview.h"
 #include "documentundo.h"
 #include "clipboard.h"
+#include "filetype.h"
+#include "filetype_c.h"
 
 struct tippse_ansi_key {
   const char* text;
@@ -90,16 +92,16 @@ int main (int argc, const char** argv) {
   struct screen* screen;
 
   const char* base_path = realpath(".", NULL);
-  tcgetattr( STDIN_FILENO, &original);
-  cfmakeraw (&raw);
-  tcsetattr (STDIN_FILENO, TCSANOW, &raw);
+  tcgetattr(STDIN_FILENO, &original);
+  cfmakeraw(&raw);
+  tcsetattr(STDIN_FILENO, TCSANOW, &raw);
 
-  write (STDOUT_FILENO, "\e[?47h", 6);
-  write (STDOUT_FILENO, "\e[?25l", 6);
-  write (STDOUT_FILENO, "\e[?7l", 5);
-  write (STDOUT_FILENO, "\e[?2004h", 8);
-  write (STDOUT_FILENO, "\e[?1003h", 8);
-  write (STDOUT_FILENO, "\e[?1005h", 8);
+  write(STDOUT_FILENO, "\e[?47h", 6);
+  write(STDOUT_FILENO, "\e[?25l", 6);
+  write(STDOUT_FILENO, "\e[?7l", 5);
+  write(STDOUT_FILENO, "\e[?2004h", 8);
+  write(STDOUT_FILENO, "\e[?1003h", 8);
+  write(STDOUT_FILENO, "\e[?1005h", 8);
 
   screen = screen_init();
 
@@ -404,13 +406,13 @@ int main (int argc, const char** argv) {
     input_pos -= check;
   }
 
-  write (STDOUT_FILENO, "\e[?1005l", 8);
-  write (STDOUT_FILENO, "\e[?1003l", 8);
-  write (STDOUT_FILENO, "\e[?2004l", 8);
-  write (STDOUT_FILENO, "\e[?7h", 5);
-  write (STDOUT_FILENO, "\e[?25h", 6);
-  write (STDOUT_FILENO, "\e[?47l", 6);
-  tcsetattr (STDIN_FILENO, TCSANOW, &original);
+  write(STDOUT_FILENO, "\e[?1005l", 8);
+  write(STDOUT_FILENO, "\e[?1003l", 8);
+  write(STDOUT_FILENO, "\e[?2004l", 8);
+  write(STDOUT_FILENO, "\e[?7h", 5);
+  write(STDOUT_FILENO, "\e[?25h", 6);
+  write(STDOUT_FILENO, "\e[?47l", 6);
+  tcsetattr(STDIN_FILENO, TCSANOW, &original);
 
   screen_free(screen);
 
