@@ -11,7 +11,7 @@ void document_undo_add(struct document_file* file, struct document_view* view, f
   undo->offset = offset;
   undo->length = length;
   undo->type = type;
-  undo->buffer = range_tree_copy(file->buffer, offset, length);
+  undo->buffer = range_tree_copy(file->buffer, file->type, offset, length);
   undo->cursor_delete = offset;
   undo->cursor_insert = offset+length;
 /*  undo->selection_start = view->selection_start;
@@ -67,7 +67,7 @@ int document_undo_execute(struct document_file* file, struct document_view* view
   file_offset_t offset = 0;
   struct document_undo* undo = (struct document_undo*)node->object;
   if (undo->type==TIPPSE_UNDO_TYPE_INSERT) {
-    file->buffer = range_tree_delete(file->buffer, undo->offset, undo->length, 0);
+    file->buffer = range_tree_delete(file->buffer, file->type, undo->offset, undo->length, 0);
     offset = undo->cursor_delete;
 
     struct list_node* views = file->views->first;
@@ -86,7 +86,7 @@ int document_undo_execute(struct document_file* file, struct document_view* view
     view->offset = offset;
     chain = 1;
   } else if (undo->type==TIPPSE_UNDO_TYPE_DELETE) {
-    file->buffer = range_tree_paste(file->buffer, undo->buffer, undo->offset);
+    file->buffer = range_tree_paste(file->buffer, file->type, undo->buffer, undo->offset);
     offset = undo->cursor_insert;
 
     struct list_node* views = file->views->first;

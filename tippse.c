@@ -129,12 +129,12 @@ int main (int argc, const char** argv) {
   
   struct range_tree_node* search_text_buffers[32];
   const char* search_text = " Search [\x7f]\n   CASE [\x7f] | SELECTION [\x7f] | REGEX [\x7f]\nReplace [\x7f]";
-  search_doc->buffer = range_tree_insert_split(search_doc->buffer, 0, search_text, strlen(search_text), TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, &search_text_buffers[0]);
+  search_doc->buffer = range_tree_insert_split(search_doc->buffer, search_doc->type, 0, search_text, strlen(search_text), TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, &search_text_buffers[0]);
   
   if (argc>=2) {
     document_file_load(document_doc, argv[1]);
   }
-
+ 
   struct splitter* splitters_left = splitter_create(TIPPSE_SPLITTER_VERT, 50, tabs, browser, 0, 0, "");
   struct splitter* splitters_right = splitter_create(TIPPSE_SPLITTER_VERT|TIPPSE_SPLITTER_FIXED1, 5, document, search, 0, 0, "");
   struct splitter* splitters = splitter_create(TIPPSE_SPLITTER_HORZ, 12, splitters_left, splitters_right, 0, 0, "");
@@ -153,18 +153,18 @@ int main (int argc, const char** argv) {
   int mouse_x = 0;
   int mouse_y = 0;
   
-  document_directory(browser_doc);
+  document_directory(&browser->document);
 
   int close = 0;
 
   while (!close) {
-    tabs_doc->buffer = range_tree_delete(tabs_doc->buffer, 0, tabs_doc->buffer?tabs_doc->buffer->length:0, TIPPSE_INSERTER_AUTO);
+    tabs_doc->buffer = range_tree_delete(tabs_doc->buffer, tabs_doc->type, 0, tabs_doc->buffer?tabs_doc->buffer->length:0, TIPPSE_INSERTER_AUTO);
     struct list_node* doc = documents->first;
     while (doc) {
       struct document_file* file = (struct document_file*)doc->object;
-      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->buffer?tabs_doc->buffer->length:0, file->modified?"+":" ", 1, TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
-      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->buffer?tabs_doc->buffer->length:0, file->filename, strlen(file->filename), TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
-      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->buffer?tabs_doc->buffer->length:0, "\n", 1, TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->type, tabs_doc->buffer?tabs_doc->buffer->length:0, file->modified?"+":" ", 1, TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->type, tabs_doc->buffer?tabs_doc->buffer->length:0, file->filename, strlen(file->filename), TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->type, tabs_doc->buffer?tabs_doc->buffer->length:0, "\n", 1, TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
       doc = doc->next;
     }
     
@@ -274,12 +274,12 @@ int main (int argc, const char** argv) {
               focus->active = 0;
               focus = document;
               focus->active = 1;
-              document_search(last_document, last_document->document.file, &last_document->document.view, range_tree_next(search_text_buffers[1]), range_tree_distance_offset(search->document.file->buffer, search_text_buffers[1], search_text_buffers[2]), 1);
+              document_search(last_document, &last_document->document, range_tree_next(search_text_buffers[1]), range_tree_distance_offset(search->document.file->buffer, search_text_buffers[1], search_text_buffers[2]), 1);
             } else if (ansi_keys[pos].cp==TIPPSE_KEY_SEARCH_PREV) {
               focus->active = 0;
               focus = document;
               focus->active = 1;
-              document_search(last_document, last_document->document.file, &last_document->document.view, range_tree_next(search_text_buffers[1]), range_tree_distance_offset(search->document.file->buffer, search_text_buffers[1], search_text_buffers[2]), 0);
+              document_search(last_document, &last_document->document, range_tree_next(search_text_buffers[1]), range_tree_distance_offset(search->document.file->buffer, search_text_buffers[1], search_text_buffers[2]), 0);
             } else if (ansi_keys[pos].cp==TIPPSE_KEY_OPEN) {
               if (focus->document.view.selection_low!=focus->document.view.selection_high) {
                 struct list_node* views =document->document.file->views->first;
@@ -318,7 +318,7 @@ int main (int argc, const char** argv) {
                       if (focus==browser) {
                         document_file_name(browser->document.file, relative);
                         document_view_reset(&browser->document.view);
-                        document_directory(browser->document.file);
+                        document_directory(&browser->document);
                       }
                     } else {
                       new_document_doc = document_file_create(1);

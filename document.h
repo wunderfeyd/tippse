@@ -63,7 +63,6 @@
 struct document {
   struct document_file* file;
   struct document_view view;
-  struct file_type* type;
 
   int keep_status;
   int content_document;
@@ -72,21 +71,21 @@ struct document {
 struct splitter;
 
 int document_compare(struct range_tree_node* left, file_offset_t buffer_pos_left, struct range_tree_node* right_root, file_offset_t length);
-void document_search(struct splitter* splitter, struct document_file* file, struct document_view* view, struct range_tree_node* text, file_offset_t length, int forward);
-file_offset_t document_cursor_position(struct document_file* file, file_offset_t offset_search, int* cur_x, int* cur_y, int seek, int wrap, int cancel, int showall);
+void document_search(struct splitter* splitter, struct document* document, struct range_tree_node* text, file_offset_t length, int forward);
+file_offset_t document_cursor_position(struct document* document, file_offset_t offset_search, int* cur_x, int* cur_y, int seek, int wrap, int cancel, int showall);
 void document_draw(struct screen* screen, struct splitter* splitter);
 
 void document_expand(file_offset_t* pos, file_offset_t offset, file_offset_t length);
-void document_insert(struct document_file* file, file_offset_t offset, const char* text, size_t length);
-void document_insert_buffer(struct document_file* file, file_offset_t offset, struct range_tree_node* buffer);
+void document_insert(struct document* document, file_offset_t offset, const char* text, size_t length);
+void document_insert_buffer(struct document* document, file_offset_t offset, struct range_tree_node* buffer);
 
 void document_reduce(file_offset_t* pos, file_offset_t offset, file_offset_t length);
-void document_delete(struct document_file* file, file_offset_t offset, file_offset_t length);
-int document_delete_selection(struct document_file* file, struct document_view* view);
+void document_delete(struct document* document, file_offset_t offset, file_offset_t length);
+int document_delete_selection(struct document* document);
 
 void document_keypress(struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y);
 
-void document_directory(struct document_file* file);
+void document_directory(struct document* document);
 
 #include "splitter.h"
 #include "documentundo.h"

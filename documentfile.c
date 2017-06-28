@@ -11,6 +11,7 @@ struct document_file* document_file_create(int save) {
   file->views = list_create();
   file->modified = 0;
   file->save = save;
+  file->type = file_type_c_create();
   return file;
 }
 
@@ -47,7 +48,7 @@ void document_file_load(struct document_file* file, const char* filename) {
         break;
       }
 
-      file->buffer = range_tree_insert_split(file->buffer, offset, &in[0], got, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, NULL);
+      file->buffer = range_tree_insert_split(file->buffer, file->type, offset, &in[0], got, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, NULL);
 
       offset += got;
       if (got<1024) {
