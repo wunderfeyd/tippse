@@ -10,13 +10,15 @@
 #include <unistd.h>
 #include "utf8.h"
 #include "list.h"
+#include "filetype_c.h"
 #include "rangetree.h"
 
 struct document_file {
   struct range_tree_node* buffer;
   struct list* undos;
   struct list* redos;
-  
+  struct file_type* type;
+
   char* filename;
   int modified;
   int save;

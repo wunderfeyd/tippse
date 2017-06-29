@@ -19,7 +19,6 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
     
     splitter->document.file = NULL;
     splitter->document.keep_status = 0;
-    splitter->document.type = file_type_c_create();
     document_view_reset(&splitter->document.view);
   } else {
     splitter->side[0] = side0;

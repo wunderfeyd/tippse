@@ -5,7 +5,6 @@
 #include "list.h"
 #include "screen.h"
 #include "document.h"
-#include "filetype_c.h"
 
 #define TIPPSE_SPLITTER_HORZ 1
 #define TIPPSE_SPLITTER_VERT 2
