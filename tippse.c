@@ -276,6 +276,10 @@ int main (int argc, const char** argv) {
               focus->active = 1;
               document_search(last_document, &last_document->document, range_tree_next(search_text_buffers[1]), range_tree_distance_offset(search->document.file->buffer, search_text_buffers[1], search_text_buffers[2]), 1);
             } else if (ansi_keys[pos].cp==TIPPSE_KEY_SEARCH_PREV) {
+/*              printf("\x1b[H\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n");
+              range_tree_print(last_document->document.file->buffer, 0, 0);
+              tcsetattr(STDIN_FILENO, TCSANOW, &original);
+              exit(0);*/
               focus->active = 0;
               focus = document;
               focus->active = 1;

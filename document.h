@@ -6,15 +6,18 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
+
+struct document;
+
 #include "utf8.h"
 #include "misc.h"
 #include "trie.h"
+#include "filetype.h"
 #include "rangetree.h"
 #include "screen.h"
+#include "clipboard.h"
 #include "documentview.h"
 #include "documentfile.h"
-#include "clipboard.h"
-#include "filetype.h"
 
 #define TAB_WIDTH 2
 
@@ -68,7 +71,8 @@ struct document {
   int content_document;
 };
 
-struct splitter;
+#include "splitter.h"
+#include "documentundo.h"
 
 int document_compare(struct range_tree_node* left, file_offset_t buffer_pos_left, struct range_tree_node* right_root, file_offset_t length);
 void document_search(struct splitter* splitter, struct document* document, struct range_tree_node* text, file_offset_t length, int forward);
@@ -86,8 +90,5 @@ int document_delete_selection(struct document* document);
 void document_keypress(struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y);
 
 void document_directory(struct document* document);
-
-#include "splitter.h"
-#include "documentundo.h"
 
 #endif /* #ifndef __TIPPSE_DOCUMENT__ */

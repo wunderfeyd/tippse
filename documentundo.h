@@ -2,6 +2,9 @@
 #define __TIPPSE_DOCUMENTUNDO__
 
 #include <stdlib.h>
+
+struct document_undo;
+
 #include "list.h"
 #include "rangetree.h"
 #include "documentview.h"

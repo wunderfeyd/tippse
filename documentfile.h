@@ -8,10 +8,13 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <unistd.h>
+
+struct document_file;
+
 #include "utf8.h"
 #include "list.h"
-#include "filetype_c.h"
 #include "rangetree.h"
+#include "filetype_c.h"
 
 struct document_file {
   struct range_tree_node* buffer;

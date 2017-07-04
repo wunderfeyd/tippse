@@ -2,6 +2,9 @@
 #define __TIPPSE_DOCUMENTVIEW__
 
 #include <stdlib.h>
+
+struct document_view;
+
 #include "rangetree.h"
 
 struct document_view {
