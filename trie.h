@@ -2,6 +2,11 @@
 #define __TIPPSE_TRIE__
 
 #include <stdlib.h>
+
+struct trie_static;
+struct trie_node;
+struct trie;
+
 #include "list.h"
 
 #define TRIE_NODES_PER_BUCKET 1024

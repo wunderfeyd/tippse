@@ -5,12 +5,14 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
-#include "utf8.h"
-#include "fragment.h"
-#include "filetype.h"
-#include "visualinfo.h"
 
 typedef uint64_t file_offset_t;
+struct range_tree_node;
+
+#include "utf8.h"
+#include "fragment.h"
+#include "visualinfo.h"
+#include "filetype.h"
 
 #define TREE_BLOCK_LENGTH_MAX 1024
 #define TREE_BLOCK_LENGTH_MIN 16
@@ -29,7 +31,8 @@ struct range_tree_node {
   file_offset_t length;
   size_t subs;
   file_offset_t characters;
-  file_offset_t column;
+  file_offset_t columns;
+  file_offset_t rows;
   file_offset_t lines;
   int depth;
   int inserter;
@@ -40,6 +43,7 @@ void range_tree_print(struct range_tree_node* node, int depth, int side);
 void range_tree_check(struct range_tree_node* node);
 void range_tree_print_root(struct range_tree_node* node, int depth, int side);
 void range_tree_update_calc(struct range_tree_node* node);
+void range_tree_update_calc_all(struct range_tree_node* node);
 void range_tree_clear(struct range_tree_node* node);
 struct range_tree_node* range_tree_new_node(struct range_tree_node* parent, struct range_tree_node* side0, struct range_tree_node* side1, struct fragment* buffer, file_offset_t offset, file_offset_t length, int inserter);
 struct range_tree_node* range_tree_first(struct range_tree_node* node);
@@ -50,12 +54,12 @@ void range_tree_exchange(struct range_tree_node* node, struct range_tree_node* o
 struct range_tree_node* range_tree_reorder(struct range_tree_node* node);
 struct range_tree_node* range_tree_update(struct range_tree_node* node);
 struct range_tree_node* range_tree_find_line_start(struct range_tree_node* node, int line, int column, file_offset_t* diff, file_offset_t* offset, int* x);
+struct range_tree_node* range_tree_find_row_start(struct range_tree_node* node, int row, int column, file_offset_t* offset, int* x, int* y, int* line);
 file_offset_t range_tree_offset(struct range_tree_node* node);
 file_offset_t range_tree_distance_offset(struct range_tree_node* root, struct range_tree_node* start, struct range_tree_node* end);
 int range_tree_find_line_offset(struct range_tree_node* node, file_offset_t offset);
 struct range_tree_node* range_tree_find_offset(struct range_tree_node* node, file_offset_t offset, file_offset_t* diff);
 int range_tree_simple_return(struct range_tree_node* node);
-void range_tree_invalidate_renderinfo(struct range_tree_node* node);
 void range_tree_retext(struct range_tree_node* node, struct file_type* type);
 struct range_tree_node* range_tree_compact(struct range_tree_node* root, struct file_type* type, struct range_tree_node* first, struct range_tree_node* last);
 struct range_tree_node* range_tree_insert(struct range_tree_node* root, struct file_type* type, file_offset_t offset, struct fragment* buffer, file_offset_t buffer_offset, file_offset_t buffer_length, int inserter);

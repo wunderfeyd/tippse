@@ -2,6 +2,9 @@
 #define __TIPPSE_SPLITTER__
 
 #include <stdlib.h>
+
+struct splitter;
+
 #include "list.h"
 #include "screen.h"
 #include "document.h"

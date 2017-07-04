@@ -3,19 +3,27 @@
 
 #include <stdlib.h>
 
-#define VISUAL_INFO_COMMENT0 0
-#define VISUAL_INFO_COMMENT1 1
-#define VISUAL_INFO_COMMENT2 2
-#define VISUAL_INFO_COMMENT3 3
-#define VISUAL_INFO_STRING0 4
-#define VISUAL_INFO_STRING1 5
-#define VISUAL_INFO_STRING2 6
-#define VISUAL_INFO_STRING3 7
-#define VISUAL_INFO_BRACKET0 8
-#define VISUAL_INFO_BRACKET1 9
-#define VISUAL_INFO_BRACKET2 10
-#define VISUAL_INFO_BRACKET3 11
-#define VISUAL_INFO_MAX 12
+#define VISUAL_INFO_COMMENT0 1
+#define VISUAL_INFO_COMMENT1 2
+#define VISUAL_INFO_COMMENT2 4
+#define VISUAL_INFO_COMMENT3 8
+#define VISUAL_INFO_STRING0 16
+#define VISUAL_INFO_STRING1 32
+#define VISUAL_INFO_STRING2 64
+#define VISUAL_INFO_STRING3 128
+#define VISUAL_INFO_STRINGESCAPE 256
+
+#define VISUAL_DIRTY_UPDATE 1
+#define VISUAL_DIRTY_LASTSPLIT 2
+#define VISUAL_DIRTY_SPLITTED 4
+#define VISUAL_DIRTY_LEFT 8
+
+#define VISUAL_FLAG_COLOR_STRING 1
+#define VISUAL_FLAG_COLOR_TYPE 2
+#define VISUAL_FLAG_COLOR_KEYWORD 3
+#define VISUAL_FLAG_COLOR_PREPROCESSOR 4
+#define VISUAL_FLAG_COLOR_LINECOMMENT 5
+#define VISUAL_FLAG_COLOR_BLOCKCOMMENT 6
 
 struct visual_info_detail {
   int in;
@@ -23,7 +31,9 @@ struct visual_info_detail {
 };
 
 struct visual_info {
-  struct visual_info_detail detail[VISUAL_INFO_MAX];
+  int detail_before;
+  int detail_after;
+  int dirty;
 };
 
 void visual_info_clear(struct visual_info* visuals);

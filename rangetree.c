@@ -9,7 +9,7 @@ void range_tree_print(struct range_tree_node* node, int depth, int side) {
     tab--;
   }
   
-  printf ("%d %5d %5d %s(%p-%p) %5d %5d (%p) [0](%p) [1](%p) [P](%p)", side, (int)node->length, (int)node->lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->side[0], node->side[1], node->parent);
+  printf ("%d %5d %5d %s(%p-%p) %5d %5d (%p) [0](%p) [1](%p) [P](%p) %d %d %d ", side, (int)node->length, (int)node->lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->side[0], node->side[1], node->parent, (int)node->rows, (int)node->columns, (int)node->visuals.dirty);
   printf("\r\n");
   if (node->side[0]) {
     range_tree_print(node->side[0], depth+1, 0);
@@ -62,12 +62,26 @@ void range_tree_update_calc(struct range_tree_node* node) {
   if (!node->buffer) {
     node->characters = node->side[0]->characters+node->side[1]->characters;
     node->lines = node->side[0]->lines+node->side[1]->lines;
+    node->rows = node->side[0]->rows+node->side[1]->rows;
+    if (node->side[1]->rows!=0) {
+      node->columns = node->side[1]->columns;
+    } else {
+      node->columns = node->side[0]->columns+node->side[1]->columns;
+    }
     node->length = node->side[0]->length+node->side[1]->length;
     node->depth = ((node->side[0]->depth>node->side[1]->depth)?node->side[0]->depth:node->side[1]->depth)+1;
     node->inserter = (node->side[0]?node->side[0]->inserter:0)&(node->side[1]?node->side[1]->inserter:0);
+    visual_info_combine(&node->visuals, &node->side[0]->visuals, &node->side[1]->visuals);
   }
 
   node->subs = (node->side[0]?node->side[0]->subs+1:0)+(node->side[1]?node->side[1]->subs+1:0);
+}
+
+void range_tree_update_calc_all(struct range_tree_node* node) {
+  range_tree_update_calc(node);
+  if (node->parent) {
+    range_tree_update_calc_all(node->parent);
+  }
 }
 
 void range_tree_clear(struct range_tree_node* node) {
@@ -98,8 +112,10 @@ struct range_tree_node* range_tree_new_node(struct range_tree_node* parent, stru
 
   node->offset = offset;
   node->length = length;
-  node->column = -1;
+  node->columns = 0;
+  node->rows = 0;
   node->inserter = inserter;
+  visual_info_clear(&node->visuals);
   range_tree_update_calc(node);
   return node;
 }
@@ -297,11 +313,13 @@ struct range_tree_node* range_tree_find_line_start(struct range_tree_node* node,
     }
     
     if (left==0) {
-      while (node && node->column<column && node->column!=-1) {
+      int columns = 0;
+      while (node && node->columns<columns && !node->visuals.dirty) {
         if (x) {
-          *x = node->column;
+          *x = columns;
         }
         location += node->length-pos;
+        columns += node->columns;
         pos = 0;
         node = range_tree_next(node);
         if (!node || node->lines!=0) {
@@ -313,6 +331,53 @@ struct range_tree_node* range_tree_find_line_start(struct range_tree_node* node,
   
   *diff = pos;
   *offset = location;
+  return node;
+}
+
+struct range_tree_node* range_tree_find_row_start(struct range_tree_node* node, int row, int column, file_offset_t* offset, int* x, int* y, int* line) {
+  file_offset_t location = 0;
+  int rows = 0;
+  int columns = 0;
+  int lines = 0;
+
+  while (node && !node->buffer) {
+    if ((node->side[0]->visuals.dirty&VISUAL_DIRTY_UPDATE) || (node->visuals.dirty&VISUAL_DIRTY_LASTSPLIT) || node->side[0]->rows+rows>row || (node->side[0]->rows+rows==row && node->side[0]->columns+columns>column)) {
+      node = node->side[0];
+    } else {
+      rows += node->side[0]->rows;
+      lines += node->side[0]->lines;
+
+      location += node->side[0]->length;
+      if (node->side[0]->rows!=0) {
+        columns = node->side[0]->columns;
+      } else {
+        columns += node->side[0]->columns;
+      }
+
+      node = node->side[1];
+    }
+  }
+
+  if (node && node->visuals.dirty) {
+    *x = 0;
+    *y = 0;
+    *offset = 0;
+    *line = 0;
+    return node;
+  }
+
+  // TODO: At the end of the file we should return a NULL
+/*  if (node && (node->rows+rows<row || (node->rows+rows==row && node->columns+columns<column))) {
+    return NULL;
+  }*/
+
+  if (node && node->buffer) {
+    *x = columns;
+    *y = rows;
+    *line = lines;
+    *offset = location;
+  }
+
   return node;
 }
 
@@ -390,27 +455,6 @@ int range_tree_simple_return(struct range_tree_node* node) {
   return (node->buffer->length==1 && node->buffer->buffer[node->offset]=='\n')?1:0;
 }
 
-void range_tree_invalidate_renderinfo(struct range_tree_node* node) {
-  node->column = -1;
-  struct range_tree_node* next = range_tree_next(node);
-  while (next && next->column!=-1) {
-    next->column = -1;
-    if (next->lines!=0) {
-      break;
-    }
-    next = range_tree_next(next);
-  }
-
-  struct range_tree_node* prev = range_tree_next(node);
-  while (prev && prev->column!=-1) {
-    prev->column = -1;
-    if (prev->lines!=0) {
-      break;
-    }
-    prev = range_tree_next(prev);
-  }
-}
-
 void range_tree_retext(struct range_tree_node* node, struct file_type* type) {
   if (!node || !node->buffer) {
     return;
@@ -442,9 +486,9 @@ void range_tree_retext(struct range_tree_node* node, struct file_type* type) {
     }
   }
 
+  node->visuals.dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
   node->lines = lines;
   node->characters = characters;
-  node->column = -1;
 }
 
 struct range_tree_node* range_tree_compact(struct range_tree_node* root, struct file_type* type, struct range_tree_node* first, struct range_tree_node* last) {
