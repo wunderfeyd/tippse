@@ -275,6 +275,8 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
   file_offset_t offset = 0;
   int rows = 0;
   int columns = 0;
+  int indentations = 0;
+  int indentation = 0;
   int lines = 0;
   int stop = 2;
   for (y=0; y<splitter->client_height; y++) {
@@ -288,18 +290,21 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
     int x_new = 0;
     int y_new = 0;
     int lines_new = 0;
-    struct range_tree_node* buffer_new = range_tree_find_row_start(file->buffer, y_real, view->scroll_x, &offset_new, &x_new, &y_new, &lines_new);
-    if (buffer_new && prev_buffer!=buffer_new && stop==2) {
+    int indentation_new = 0;
+    struct range_tree_node* buffer_new = range_tree_find_row_start(file->buffer, y_real, view->scroll_x, &offset_new, &x_new, &y_new, &lines_new, &indentation_new);
+//    if (buffer_new && prev_buffer!=buffer_new && stop==2) {
       visual_detail = buffer_new->visuals.detail_before;
       offset = offset_new;
       x = x_new;
       y_view = y_new;
       lines = lines_new;
+      indentation = indentation_new;
       buffer_pos = 0;
       rows = 0;
       columns = 0;
+      indentations = 0;
       buffer = buffer_new;
-    }
+//    }
 
 /*    struct range_tree_node* prev = buffer?range_tree_prev(buffer):NULL;
     char text[1024];
@@ -309,10 +314,12 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
     stop = 0;
     while (buffer) {
       if (buffer_pos>=buffer->length || !buffer->buffer) {
-        if (buffer->visuals.dirty) {
+        int dirty = (buffer->visuals.columns!=columns || buffer->visuals.rows!=rows || buffer->visuals.indentation!=indentations)?1:0;
+        if (buffer->visuals.dirty || dirty) {
           buffer->visuals.dirty = 0;
-          buffer->columns = columns;
-          buffer->rows = rows;
+          buffer->visuals.columns = columns;
+          buffer->visuals.rows = rows;
+          buffer->visuals.indentation = indentations;
           range_tree_update_calc_all(buffer);
         }
 
@@ -322,7 +329,7 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
         buffer = range_tree_next(buffer);
         buffer_pos = 0;
         if (buffer) {
-          if (visual_detail!=buffer->visuals.detail_before) {
+          if (visual_detail!=buffer->visuals.detail_before || dirty) {
             buffer->visuals.detail_before = visual_detail;
             buffer->visuals.dirty |= VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
             range_tree_update_calc_all(buffer);
@@ -351,6 +358,7 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
       if (!(buffer->inserter&TIPPSE_INSERTER_READONLY)) {
         if (keyword_length==0) {
           int visual_flag = 0;
+
           (*file->type->mark)(file->type, &visual_detail, buffer, buffer_pos, (y_view==y_real)?1:0, &keyword_length, &visual_flag);
 
           if (visual_flag==VISUAL_FLAG_COLOR_BLOCKCOMMENT) {
@@ -401,6 +409,11 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
         }
         x++;
         columns++;
+
+        if (visual_detail&VISUAL_INFO_INDENTATION) {
+          indentation++;
+          indentations++;
+        }
       }
 
       if (cp=='\t') {
@@ -417,18 +430,27 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
           }
           x++;
           columns++;
+          if (visual_detail&VISUAL_INFO_INDENTATION) {
+            indentation++;
+            indentations++;
+          }
         }
       }
 
       // TODO: uncomment for line wrapping test / results in invalid cursor positions because the repositioning should be done by the renderer too
       if (cp=='\n' /*|| x>=splitter->client_width*/) {
+        int x_set = 0;
         if (cp=='\n') {
           lines++;
+          indentations = 0;
+          indentation = 0;
+/*        } else if (x>=splitter->client_width) {
+          x_set = indentation;*/
         }
 
         rows++;
         y_view++;
-        x = 0;
+        x = x_set;
         columns = 0;
 
         if (y_view>y_real) {

@@ -86,7 +86,7 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct range_t
   }
   buffer_pos_prev--;
 
-  const char* text0 = node_prev?node_prev->buffer->buffer+node_prev->offset+buffer_pos_prev:" ";
+  const char* text0 = node_prev?node_prev->buffer->buffer+node_prev->offset+buffer_pos_prev:"\0";
 
   const char* text1 = node->buffer->buffer+node->offset+buffer_pos;
 
@@ -101,29 +101,34 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct range_t
 
   *length = 1;
   int before = *visual_detail;
+  int before_masked = before&(~VISUAL_INFO_INDENTATION);
   if ((*visual_detail)&VISUAL_INFO_STRINGESCAPE) {
     *visual_detail &= ~VISUAL_INFO_STRINGESCAPE;
-  } else if (*text1=='/' && *text2=='*' && *visual_detail==0) {
+  } else if (*text1=='/' && *text2=='*' && before_masked==0) {
     *length = 2;
     *visual_detail = VISUAL_INFO_COMMENT0;
-  } else if (*text1=='*' && *text2=='/' && *visual_detail==VISUAL_INFO_COMMENT0) {
+  } else if (*text1=='*' && *text2=='/' && before_masked==VISUAL_INFO_COMMENT0) {
     *length = 2;
     *visual_detail = 0;
-  } else if (*text1=='/' && *text2=='/' && *visual_detail==0) {
+  } else if (*text1=='/' && *text2=='/' && before_masked==0) {
     *length = 2;
     *visual_detail = VISUAL_INFO_COMMENT1;
-  } else if (*text1=='\n' && *visual_detail==VISUAL_INFO_COMMENT1) {
+  } else if (*text1=='\n' && before_masked==VISUAL_INFO_COMMENT1) {
     *visual_detail = 0;
-  } else if (*text1=='\\' && (*visual_detail==VISUAL_INFO_STRING0 || *visual_detail==VISUAL_INFO_STRING1)) {
+  } else if (*text1=='\\' && (before_masked==VISUAL_INFO_STRING0 || before_masked==VISUAL_INFO_STRING1)) {
     *visual_detail |= VISUAL_INFO_STRINGESCAPE;
-  } else if (*text1=='"' && *visual_detail==0) {
+  } else if (*text1=='"' && before_masked==0) {
     *visual_detail = VISUAL_INFO_STRING0;
-  } else if (*text1=='"' && *visual_detail==VISUAL_INFO_STRING0) {
+  } else if (*text1=='"' && before_masked==VISUAL_INFO_STRING0) {
     *visual_detail = 0;
-  } else if (*text1=='\'' && *visual_detail==0) {
+  } else if (*text1=='\'' && before_masked==0) {
     *visual_detail = VISUAL_INFO_STRING1;
-  } else if (*text1=='\'' && *visual_detail==VISUAL_INFO_STRING1) {
+  } else if (*text1=='\'' && before_masked==VISUAL_INFO_STRING1) {
     *visual_detail = 0;
+  } else if (*text1!='\t' && *text1!=' ' && before_masked==0) {
+    *visual_detail = 0;
+  } else if (*text0=='\0' || *text0=='\n' || before==VISUAL_INFO_INDENTATION) {
+    *visual_detail = VISUAL_INFO_INDENTATION;
   }
   int after = *visual_detail;
   if ((before|after)&(VISUAL_INFO_STRING0|VISUAL_INFO_STRING1)) {
@@ -132,6 +137,8 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct range_t
     *flags = VISUAL_FLAG_COLOR_BLOCKCOMMENT;
   } else if ((before|after)&(VISUAL_INFO_COMMENT1)) {
     *flags = VISUAL_FLAG_COLOR_LINECOMMENT;
+  } else if ((after)&(VISUAL_INFO_INDENTATION)) {
+    *flags = 0;
   } else {
     int cp = *text0;
     if (same_line && (cp<'a' || cp>'z') && (cp<'A' || cp>'Z') && (cp<'0' || cp>'9') && cp!='_') {

@@ -3,10 +3,10 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
 
-typedef uint64_t file_offset_t;
+#include "types.h"
+
 struct range_tree_node;
 
 #include "utf8.h"
@@ -31,8 +31,6 @@ struct range_tree_node {
   file_offset_t length;
   size_t subs;
   file_offset_t characters;
-  file_offset_t columns;
-  file_offset_t rows;
   file_offset_t lines;
   int depth;
   int inserter;
@@ -54,7 +52,7 @@ void range_tree_exchange(struct range_tree_node* node, struct range_tree_node* o
 struct range_tree_node* range_tree_reorder(struct range_tree_node* node);
 struct range_tree_node* range_tree_update(struct range_tree_node* node);
 struct range_tree_node* range_tree_find_line_start(struct range_tree_node* node, int line, int column, file_offset_t* diff, file_offset_t* offset, int* x);
-struct range_tree_node* range_tree_find_row_start(struct range_tree_node* node, int row, int column, file_offset_t* offset, int* x, int* y, int* line);
+struct range_tree_node* range_tree_find_row_start(struct range_tree_node* node, int row, int column, file_offset_t* offset, int* x, int* y, int* line, int* indentation);
 file_offset_t range_tree_offset(struct range_tree_node* node);
 file_offset_t range_tree_distance_offset(struct range_tree_node* root, struct range_tree_node* start, struct range_tree_node* end);
 int range_tree_find_line_offset(struct range_tree_node* node, file_offset_t offset);
