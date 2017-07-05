@@ -232,50 +232,6 @@ file_offset_t document_cursor_position(struct document* document, file_offset_t 
   return offset;
 }
 
-int document_keyword(struct range_tree_node* buffer, file_offset_t buffer_pos, struct trie* trie, size_t* keyword_length) {
-  struct trie_node* parent = NULL;
-  while (buffer) {
-    if (buffer_pos>=buffer->length || !buffer->buffer) {
-      buffer = range_tree_next(buffer);
-      buffer_pos = 0;
-      continue;
-    }
-
-    const char* text = buffer->buffer->buffer+buffer->offset+buffer_pos;
-    file_offset_t max = buffer->length-buffer_pos;
-
-    while (max>0 && (!parent || parent->type==0)) {
-      parent = trie_find_codepoint(trie, parent, *text);
-      (*keyword_length)++;
-      if (!parent) {
-        return 0;
-      }
-
-      text++;
-      max--;
-
-      if (parent->type!=0) {
-        break;
-      }
-    }
-
-    while (max>0 && (parent && parent->type!=0)) {
-      if ((*text<'a' || *text>'z') && (*text<'A' || *text>'Z') && (*text<'0' || *text>'9') && *text!='_') {
-        return parent->type;
-      } else {
-        return 0;
-      }
-
-      text++;
-      max--;
-    }
-
-    buffer_pos += max;
-  }
-
-  return 0;
-}
-
 void document_render(struct screen* screen, struct splitter* splitter, struct range_tree_node* buffer, int* x) {
 }
 
@@ -284,7 +240,6 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
   struct document_file* file = document->file;
   struct document_view* view = &document->view;
   
-  struct trie* keywords = (*file->type->keywords)(file->type);
   int cursor_x;
   int cursor_y;
   
@@ -324,9 +279,8 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
   int stop = 2;
   for (y=0; y<splitter->client_height; y++) {
     int y_real = y+view->scroll_y;
-    int cp_last = ' ';
 
-    size_t keyword_length = 0;
+    int keyword_length = 0;
     int keyword_color = 0;
 
     int visual_detail;
@@ -397,33 +351,20 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
       if (!(buffer->inserter&TIPPSE_INSERTER_READONLY)) {
         if (keyword_length==0) {
           int visual_flag = 0;
-          int visual_length = 0;
-          (*file->type->mark)(file->type, &visual_detail, buffer, buffer_pos, &visual_length, &visual_flag);
+          (*file->type->mark)(file->type, &visual_detail, buffer, buffer_pos, (y_view==y_real)?1:0, &keyword_length, &visual_flag);
 
-          size_t new_length = 0;
           if (visual_flag==VISUAL_FLAG_COLOR_BLOCKCOMMENT) {
-            color = 102;
+            keyword_color = 102;
           } else if (visual_flag==VISUAL_FLAG_COLOR_LINECOMMENT) {
-            color = 102;
+            keyword_color = 102;
           } else if (visual_flag==VISUAL_FLAG_COLOR_STRING) {
-            color = 226;
-          } else {
-            int type = document_keyword(buffer, buffer_pos, keywords, &new_length);
-
-            if ((cp_last<'a' || cp_last>'z') && (cp_last<'A' || cp_last>'Z') && (cp_last<'0' || cp_last>'9') && cp_last!='_') {
-              if (type>0) {
-                keyword_length = new_length;
-                if (type==VISUAL_FLAG_COLOR_STRING) {
-                  keyword_color = 226;
-                } else if (type==VISUAL_FLAG_COLOR_TYPE) {
-                  keyword_color = 120;
-                } else if (type==VISUAL_FLAG_COLOR_KEYWORD) {
-                  keyword_color = 210;
-                } else if (type==VISUAL_FLAG_COLOR_PREPROCESSOR) {
-                  keyword_color = 103;
-                }
-              }
-            }
+            keyword_color = 226;
+          } else if (visual_flag==VISUAL_FLAG_COLOR_TYPE) {
+            keyword_color = 120;
+          } else if (visual_flag==VISUAL_FLAG_COLOR_KEYWORD) {
+            keyword_color = 210;
+          } else if (visual_flag==VISUAL_FLAG_COLOR_PREPROCESSOR) {
+            keyword_color = 103;
           }
         }
 
@@ -438,21 +379,20 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
       buffer_pos += text-copy;
       offset += text-copy;
 
-      cp_last = cp;
       if (((cp!='\r' && cp!=0xfeff) || view->showall) && cp!='\t') {
-        if (cp<0x20 && cp!='\n') {
-          show = 0xfffd;
-        }
-
-        if (cp=='\n') {
-          show = view->showall?0x21a7:' ';
-        } else if (cp=='\r') {
-          show = view->showall?0x21a4:' ';
-        } else if (cp==0xfeff) {
-          show = view->showall?0x66d:' ';
-        }
-
         if (y_view==y_real) {
+          if (cp<0x20 && cp!='\n') {
+            show = 0xfffd;
+          }
+
+          if (cp=='\n') {
+            show = view->showall?0x21a7:' ';
+          } else if (cp=='\r') {
+            show = view->showall?0x21a4:' ';
+          } else if (cp==0xfeff) {
+            show = view->showall?0x66d:' ';
+          }
+
           if (!sel) {
             splitter_drawchar(screen, splitter, x-view->scroll_x, y, show, color, background);
           } else {
@@ -473,8 +413,8 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
             } else {
               splitter_drawchar(screen, splitter, x-view->scroll_x, y, show, background, splitter->foreground);
             }
+            show = ' ';
           }
-          show = ' ';
           x++;
           columns++;
         }

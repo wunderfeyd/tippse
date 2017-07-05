@@ -71,18 +71,37 @@ struct trie* file_type_c_keywords(struct file_type* base) {
   return this->keywords;
 }
 
-void file_type_c_mark(struct file_type* base, int* visual_detail, struct range_tree_node* node, file_offset_t buffer_pos, int* length, int* flags) {
+void file_type_c_mark(struct file_type* base, int* visual_detail, struct range_tree_node* node, file_offset_t buffer_pos, int same_line, int* length, int* flags) {
+  struct file_type_c* this = (struct file_type_c*)base;
+
+  struct range_tree_node* node_prev = node;
+  file_offset_t buffer_pos_prev = buffer_pos;
+  while (buffer_pos_prev==0) {
+    node_prev = range_tree_prev(node_prev);
+    if (!node_prev) {
+      break;
+    }
+
+    buffer_pos_prev = node_prev->length;
+  }
+  buffer_pos_prev--;
+
+  const char* text0 = node_prev?node_prev->buffer->buffer+node_prev->offset+buffer_pos_prev:" ";
+
   const char* text1 = node->buffer->buffer+node->offset+buffer_pos;
-  buffer_pos++;
-  if (buffer_pos==node->length) {
-    buffer_pos = 0;
-    node = range_tree_next(node);
+
+  struct range_tree_node* node_next = node;
+  file_offset_t buffer_pos_next = buffer_pos+1;
+  if (buffer_pos_next==node_next->length) {
+    buffer_pos_next = 0;
+    node_next = range_tree_next(node_next);
   }
 
-  const char* text2 = node?node->buffer->buffer+node->offset+buffer_pos:" ";
+  const char* text2 = node_next?node_next->buffer->buffer+node_next->offset+buffer_pos_next:" ";
+
+  *length = 1;
   int before = *visual_detail;
   if ((*visual_detail)&VISUAL_INFO_STRINGESCAPE) {
-    *length = 1;
     *visual_detail &= ~VISUAL_INFO_STRINGESCAPE;
   } else if (*text1=='/' && *text2=='*' && *visual_detail==0) {
     *length = 2;
@@ -94,22 +113,16 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct range_t
     *length = 2;
     *visual_detail = VISUAL_INFO_COMMENT1;
   } else if (*text1=='\n' && *visual_detail==VISUAL_INFO_COMMENT1) {
-    *length = 1;
     *visual_detail = 0;
   } else if (*text1=='\\' && (*visual_detail==VISUAL_INFO_STRING0 || *visual_detail==VISUAL_INFO_STRING1)) {
-    *length = 1;
     *visual_detail |= VISUAL_INFO_STRINGESCAPE;
   } else if (*text1=='"' && *visual_detail==0) {
-    *length = 1;
     *visual_detail = VISUAL_INFO_STRING0;
   } else if (*text1=='"' && *visual_detail==VISUAL_INFO_STRING0) {
-    *length = 1;
     *visual_detail = 0;
   } else if (*text1=='\'' && *visual_detail==0) {
-    *length = 1;
     *visual_detail = VISUAL_INFO_STRING1;
   } else if (*text1=='\'' && *visual_detail==VISUAL_INFO_STRING1) {
-    *length = 1;
     *visual_detail = 0;
   }
   int after = *visual_detail;
@@ -119,7 +132,13 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct range_t
     *flags = VISUAL_FLAG_COLOR_BLOCKCOMMENT;
   } else if ((before|after)&(VISUAL_INFO_COMMENT1)) {
     *flags = VISUAL_FLAG_COLOR_LINECOMMENT;
+  } else {
+    int cp = *text0;
+    if (same_line && (cp<'a' || cp>'z') && (cp<'A' || cp>'Z') && (cp<'0' || cp>'9') && cp!='_') {
+      *flags = file_type_keyword(node, buffer_pos, this->keywords, length);
+    }
+    if (*flags==0) {
+      *length = 0;
+    }
   }
-
-  // TODO: check keywords here
 }
