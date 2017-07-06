@@ -3,6 +3,8 @@
 #include "visualinfo.h"
 
 void visual_info_clear(struct visual_info* visuals) {
+  visuals->lines = 0;
+  visuals->characters = 0;
   visuals->columns = 0;
   visuals->rows = 0;
   visuals->indentation = 0;
@@ -12,12 +14,19 @@ void visual_info_clear(struct visual_info* visuals) {
 }
 
 void visual_info_combine(struct visual_info* visuals, const struct visual_info* left, const struct visual_info* right) {
+  visuals->characters = left->characters+right->characters;
+  visuals->lines = left->lines+right->lines;
+
   visuals->rows = left->rows+right->rows;
   if (right->rows!=0) {
     visuals->columns = right->columns;
-    visuals->indentation = right->indentation;
   } else {
     visuals->columns = left->columns+right->columns;
+  }
+
+  if (right->lines!=0) {
+    visuals->indentation = right->indentation;
+  } else {
     visuals->indentation = left->indentation+right->indentation;
   }
 

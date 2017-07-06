@@ -30,8 +30,6 @@ struct range_tree_node {
   file_offset_t offset;
   file_offset_t length;
   size_t subs;
-  file_offset_t characters;
-  file_offset_t lines;
   int depth;
   int inserter;
   struct visual_info visuals;

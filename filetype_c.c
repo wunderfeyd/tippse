@@ -127,7 +127,7 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct range_t
     *visual_detail = 0;
   } else if (*text1!='\t' && *text1!=' ' && before_masked==0) {
     *visual_detail = 0;
-  } else if (*text0=='\0' || *text0=='\n' || before==VISUAL_INFO_INDENTATION) {
+  } else if ((*text0=='\0' || *text0=='\n') && before==0) {
     *visual_detail = VISUAL_INFO_INDENTATION;
   }
   int after = *visual_detail;

@@ -159,8 +159,8 @@ file_offset_t document_cursor_position(struct document* document, file_offset_t 
     }
 
     if (file->buffer) {
-      if (y>=file->buffer->lines+1) {
-        y = file->buffer->lines;
+      if (y>=file->buffer->visuals.lines+1) {
+        y = file->buffer->visuals.lines;
         //if (wrap) {
           sx = 10000000;
         //}
@@ -236,6 +236,7 @@ void document_render(struct screen* screen, struct splitter* splitter, struct ra
 }
 
 void document_draw(struct screen* screen, struct splitter* splitter) {
+  int wrapping = 0;
   struct document* document = &splitter->document;
   struct document_file* file = document->file;
   struct document_view* view = &document->view;
@@ -259,8 +260,8 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
   if (cursor_y>=view->scroll_y+splitter->client_height-1) {
     view->scroll_y = cursor_y-(splitter->client_height-1);
   }
-  if (view->scroll_y+splitter->client_height>(file->buffer?file->buffer->lines+1:0)) {
-    view->scroll_y = (file->buffer?file->buffer->lines+1:0)-(splitter->client_height);
+  if (view->scroll_y+splitter->client_height>(file->buffer?file->buffer->visuals.lines+1:0)) {
+    view->scroll_y = (file->buffer?file->buffer->visuals.lines+1:0)-(splitter->client_height);
   }
   if (view->scroll_y<0) {
     view->scroll_y = 0;
@@ -279,6 +280,7 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
   int indentation = 0;
   int lines = 0;
   int stop = 2;
+  int mark_indentation = 0;
   for (y=0; y<splitter->client_height; y++) {
     int y_real = y+view->scroll_y;
 
@@ -292,29 +294,42 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
     int lines_new = 0;
     int indentation_new = 0;
     struct range_tree_node* buffer_new = range_tree_find_row_start(file->buffer, y_real, view->scroll_x, &offset_new, &x_new, &y_new, &lines_new, &indentation_new);
-//    if (buffer_new && prev_buffer!=buffer_new && stop==2) {
+    if (buffer_new && prev_buffer!=buffer_new && stop==2) {
       visual_detail = buffer_new->visuals.detail_before;
       offset = offset_new;
       x = x_new;
       y_view = y_new;
       lines = lines_new;
       indentation = indentation_new;
+      x += indentation;
+
+      if (indentation>0 && !(visual_detail&VISUAL_INFO_INDENTATION)) {
+        mark_indentation = 1;
+      } else {
+        mark_indentation = 0;
+      }
+
       buffer_pos = 0;
       rows = 0;
       columns = 0;
       indentations = 0;
       buffer = buffer_new;
-//    }
+    }
 
-/*    struct range_tree_node* prev = buffer?range_tree_prev(buffer):NULL;
-    char text[1024];
-    sprintf(&text[0], "%p - %d - %d - %d %d %s", buffer_new, x_new, y_new, prev?prev->visuals.dirty:0, buffer_new?buffer_new->visuals.detail_before:0, prev_buffer!=buffer_new?"R":" ");
-    splitter_drawtext(screen, splitter, 70, y, &text[0], strlen(&text[0]), 2, 0);*/
+//    struct range_tree_node* prev = buffer?range_tree_prev(buffer):NULL;
+//    char text[1024];
+//    sprintf(&text[0], "%p - %d - %d - %d %d %s", buffer_new, x_new, y_new, prev?prev->visuals.dirty:0, buffer_new?buffer_new->visuals.detail_before:0, prev_buffer!=buffer_new?"R":" ");
+//    sprintf(&text[0], "%d", indentation);
+//    splitter_drawtext(screen, splitter, 0, y, &text[0], strlen(&text[0]), 2, 0);
 
     stop = 0;
     while (buffer) {
       if (buffer_pos>=buffer->length || !buffer->buffer) {
         int dirty = (buffer->visuals.columns!=columns || buffer->visuals.rows!=rows || buffer->visuals.indentation!=indentations)?1:0;
+
+//        sprintf(&text[0], "%d", indentations);
+//        splitter_drawtext(screen, splitter, 10+(buffers++)*3, y, &text[0], strlen(&text[0]), 2, 0);
+
         if (buffer->visuals.dirty || dirty) {
           buffer->visuals.dirty = 0;
           buffer->visuals.columns = columns;
@@ -323,6 +338,7 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
           range_tree_update_calc_all(buffer);
         }
 
+        indentations = 0;
         rows = 0;
         columns = 0;
 
@@ -361,6 +377,10 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
 
           (*file->type->mark)(file->type, &visual_detail, buffer, buffer_pos, (y_view==y_real)?1:0, &keyword_length, &visual_flag);
 
+//          if (visual_detail&VISUAL_INFO_INDENTATION) {
+//            background = 2;
+//          }
+
           if (visual_flag==VISUAL_FLAG_COLOR_BLOCKCOMMENT) {
             keyword_color = 102;
           } else if (visual_flag==VISUAL_FLAG_COLOR_LINECOMMENT) {
@@ -387,6 +407,12 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
       buffer_pos += text-copy;
       offset += text-copy;
 
+      if (mark_indentation) {
+        splitter_drawchar(screen, splitter, x-view->scroll_x, y, 0x21aa, splitter->foreground, background);
+        x += 2;
+        mark_indentation = 0;
+      }
+
       if (((cp!='\r' && cp!=0xfeff) || view->showall) && cp!='\t') {
         if (y_view==y_real) {
           if (cp<0x20 && cp!='\n') {
@@ -407,12 +433,13 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
             splitter_drawchar(screen, splitter, x-view->scroll_x, y, show, background, color);
           }
         }
-        x++;
-        columns++;
 
+        x++;
         if (visual_detail&VISUAL_INFO_INDENTATION) {
           indentation++;
           indentations++;
+        } else {
+          columns++;
         }
       }
 
@@ -428,29 +455,30 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
             }
             show = ' ';
           }
+
           x++;
-          columns++;
           if (visual_detail&VISUAL_INFO_INDENTATION) {
             indentation++;
             indentations++;
+          } else {
+            columns++;
           }
         }
       }
 
-      // TODO: uncomment for line wrapping test / results in invalid cursor positions because the repositioning should be done by the renderer too
-      if (cp=='\n' /*|| x>=splitter->client_width*/) {
-        int x_set = 0;
+      if (cp=='\n' || (x>=splitter->client_width && wrapping)) {
         if (cp=='\n') {
           lines++;
           indentations = 0;
           indentation = 0;
-/*        } else if (x>=splitter->client_width) {
-          x_set = indentation;*/
+          mark_indentation = 0;
+        } else {
+          mark_indentation = 1;
         }
 
         rows++;
         y_view++;
-        x = x_set;
+        x = indentation;
         columns = 0;
 
         if (y_view>y_real) {
@@ -482,7 +510,7 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
 
   if (!splitter->document.keep_status) {
     char status[1024];
-    sprintf(&status[0], "%d/%d:%d - %d/%d byte - %d chars", (int)(file->buffer?file->buffer->lines+1:0), cursor_y+1, cursor_x+1, (int)view->offset, file->buffer?(int)file->buffer->length:0, file->buffer?(int)file->buffer->characters:0);
+    sprintf(&status[0], "%d/%d:%d - %d/%d byte - %d chars", (int)(file->buffer?file->buffer->visuals.lines+1:0), cursor_y+1, cursor_x+1, (int)view->offset, file->buffer?(int)file->buffer->length:0, file->buffer?(int)file->buffer->visuals.characters:0);
     splitter_status(splitter, &status[0], 0);
   }
 

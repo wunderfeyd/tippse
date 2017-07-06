@@ -28,6 +28,8 @@
 #define VISUAL_FLAG_COLOR_BLOCKCOMMENT 6
 
 struct visual_info {
+  file_offset_t characters;
+  file_offset_t lines;
   file_offset_t columns;
   file_offset_t rows;
   int indentation;
