@@ -23,6 +23,7 @@ struct document_view {
   int scroll_y;
   
   int showall;
+  int wrapping;
 };
 
 void document_view_reset(struct document_view* view);

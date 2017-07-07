@@ -332,9 +332,66 @@ struct range_tree_node* range_tree_find_row_start(struct range_tree_node* node, 
   int indentations = 0;
 
   while (node && !node->buffer) {
-    if ((node->side[0]->visuals.dirty&VISUAL_DIRTY_UPDATE) || (node->visuals.dirty&VISUAL_DIRTY_LASTSPLIT) || node->side[0]->visuals.rows+rows>row || (node->side[0]->visuals.rows+rows==row && node->side[0]->visuals.columns+columns>column)) {
+    if ((node->side[0]->visuals.dirty&VISUAL_DIRTY_UPDATE) || (node->visuals.dirty&VISUAL_DIRTY_LASTSPLIT) || node->side[0]->visuals.rows+rows>row || (node->side[0]->visuals.rows+rows==row && node->side[0]->visuals.indentation+node->side[0]->visuals.columns+columns>column)) {
       node = node->side[0];
     } else {
+      rows += node->side[0]->visuals.rows;
+      lines += node->side[0]->visuals.lines;
+
+      location += node->side[0]->length;
+      if (node->side[0]->visuals.rows!=0) {
+        columns = node->side[0]->visuals.columns;
+      } else {
+        columns += node->side[0]->visuals.columns;
+      }
+
+      if (node->side[0]->visuals.lines!=0) {
+        indentations = node->side[0]->visuals.indentation;
+      } else {
+        indentations += node->side[0]->visuals.indentation;
+      }
+
+      node = node->side[1];
+    }
+  }
+
+  if (node && node->visuals.dirty) {
+    *x = 0;
+    *y = 0;
+    *offset = 0;
+    *line = 0;
+    *indentation = 0;
+    return node;
+  }
+
+  // TODO: At the end of the file we should return a NULL
+/*  if (node && (node->visual.rows+rows<row || (node->visual.rows+rows==row && node->visuals.columns+columns<column))) {
+    return NULL;
+  }*/
+
+  if (node && node->buffer) {
+    *x = columns;
+    *y = rows;
+    *line = lines;
+    *offset = location;
+    *indentation = indentations;
+  }
+
+  return node;
+}
+
+struct range_tree_node* range_tree_find_row_offset(struct range_tree_node* node, file_offset_t search, file_offset_t* offset, int* x, int* y, int* line, int* indentation) {
+  file_offset_t location = 0;
+  int rows = 0;
+  int columns = 0;
+  int lines = 0;
+  int indentations = 0;
+
+  while (node && !node->buffer) {
+    if ((node->side[0]->visuals.dirty&VISUAL_DIRTY_UPDATE) || (node->visuals.dirty&VISUAL_DIRTY_LASTSPLIT) || search<node->side[0]->length) {
+      node = node->side[0];
+    } else {
+      search -= node->side[0]->length;
       rows += node->side[0]->visuals.rows;
       lines += node->side[0]->visuals.lines;
 
