@@ -14,7 +14,9 @@ int file_type_keyword(struct range_tree_node* buffer, file_offset_t buffer_pos, 
 
     while (max>0 && (!parent || parent->type==0)) {
       parent = trie_find_codepoint(trie, parent, *text);
+
       (*keyword_length)++;
+
       if (!parent) {
         return 0;
       }

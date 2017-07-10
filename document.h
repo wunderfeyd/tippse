@@ -84,16 +84,21 @@ struct document_render_info {
   int rows;
   int columns;
   int indentations;
+  int indentations_extra;
   int indentation;
+  int indentation_extra;
   int lines;
   int stop;
   int visual_detail;
   int mark_indentation;
+  int marked_indentation;
+  int draw_indentation;
   int width;
 };
 
 void document_render_info_clear(struct document_render_info* render_info, int width);
 void document_render_info_seek(struct document_render_info* render_info, struct range_tree_node* buffer, int x, int y, file_offset_t search);
+int document_render_lookahead_word_wrap(struct range_tree_node* buffer, file_offset_t buffer_pos, int max);
 int document_render_info_span(struct document_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, int x_find, int y_find, file_offset_t offset_find, int* x_out, int* y_out, file_offset_t* offset_out, int* x_min, int* x_max, int* line, int* column);
 
 int document_compare(struct range_tree_node* left, file_offset_t buffer_pos_left, struct range_tree_node* right_root, file_offset_t length);

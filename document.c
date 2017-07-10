@@ -144,13 +144,13 @@ file_offset_t document_cursor_position(struct splitter* splitter, file_offset_t 
 
   struct document_render_info render_info;
 
-  file_offset_t offset = ~0;
   int x = *cur_x;
   int y = *cur_y;
-  int x_min = 0;
-  int x_max = 0;
-  int line = 0;
-  int column = 0;
+  file_offset_t offset;
+  int x_min;
+  int x_max;
+  int line;
+  int column;
   if (!seek) {
     document_render_info_clear(&render_info, splitter->client_width);
     document_render_info_seek(&render_info, file->buffer, 0, 0, offset_search);
@@ -167,14 +167,9 @@ file_offset_t document_cursor_position(struct splitter* splitter, file_offset_t 
           x = 0;
           continue;
         } else if (y>0) {
-          if (file->buffer->visuals.rows==0) {
-            offset = 0;
-            y = 0;
-          } else {
-            y = file->buffer->visuals.rows-1;
-            x = 100000000;
-            continue;
-          }        
+          y = file->buffer?file->buffer->visuals.rows:0;
+          x = 100000000;
+          continue;
         }
       } else if (offset==~0) {
         if (x>x_min) {
@@ -201,7 +196,6 @@ file_offset_t document_cursor_position(struct splitter* splitter, file_offset_t 
       }
 
       break;
-
     }   
   }
 
@@ -221,32 +215,34 @@ void document_render_info_seek(struct document_render_info* render_info, struct 
   int y_new = 0;
   int lines_new = 0;
   int indentation_new = 0;
+  int indentation_extra_new = 0;
   struct range_tree_node* buffer_new;
 
-  if (search==~0) {
-    buffer_new = range_tree_find_row_start(buffer, y, x, &offset_new, &x_new, &y_new, &lines_new, &indentation_new);
-  } else {
-    buffer_new = range_tree_find_row_offset(buffer, search, &offset_new, &x_new, &y_new, &lines_new, &indentation_new);
-  }
+  buffer_new = range_tree_find_visual(buffer, search, y, x, &offset_new, &x_new, &y_new, &lines_new, &indentation_new, &indentation_extra_new);
 
-  if (buffer_new && render_info->buffer!=buffer_new && render_info->stop==2) {
+  if (buffer_new /*&& render_info->buffer!=buffer_new && render_info->stop==2*/) {
     render_info->visual_detail = buffer_new->visuals.detail_before;
     render_info->offset = offset_new;
+    render_info->indentation_extra = indentation_extra_new;
     render_info->indentation = indentation_new;
-    render_info->x = x_new+indentation_new;
+    render_info->x = x_new+render_info->indentation+render_info->indentation_extra;
     render_info->y_view = y_new;
     render_info->lines = lines_new;
 
-    if (render_info->indentation>0 && !(render_info->visual_detail&VISUAL_INFO_INDENTATION)) {
+    if (render_info->indentation+render_info->indentation_extra>0 && x_new==0 && !(render_info->visual_detail&VISUAL_INFO_INDENTATION)) {
       render_info->mark_indentation = 1;
     } else {
       render_info->mark_indentation = 0;
     }
 
+    render_info->marked_indentation = 0;
+    render_info->draw_indentation = 0;
+
     render_info->buffer_pos = 0;
     render_info->rows = 0;
     render_info->columns = 0;
     render_info->indentations = 0;
+    render_info->indentations_extra = 0;
     render_info->buffer = buffer_new;
   }
 
@@ -257,30 +253,59 @@ void document_render_info_seek(struct document_render_info* render_info, struct 
   } 
 }
 
+int document_render_lookahead_word_wrap(struct range_tree_node* buffer, file_offset_t buffer_pos, int max) {
+  int count = 0;
+  while (buffer && count<max) {
+    if (buffer_pos>=buffer->length || !buffer->buffer) {
+      buffer = range_tree_next(buffer);
+      buffer_pos = 0;
+      continue;
+    }
+
+    int cp = -1;
+    const char* text = buffer->buffer->buffer+buffer->offset+buffer_pos;
+    const char* end = buffer->buffer->buffer+buffer->offset+buffer->length;
+    const char* copy = text;
+    text = utf8_decode(&cp, text, end-text, 1);
+    if (cp==' ' || cp=='\t') {
+      break;
+    }
+
+    buffer_pos += text-copy;
+    count++;
+  }
+
+  return count;
+}
+
 int document_render_info_span(struct document_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, int x_find, int y_find, file_offset_t offset_find, int* x_out, int* y_out, file_offset_t* offset_out, int* x_min, int* x_max, int* line, int* column) {
+  *offset_out = ~0;
+  *x_min = 0;
+  *x_max = 0;
+  *line = 0;
+  *column = 0;
+
   int keyword_length = 0;
   int keyword_color = 0;
 
   int found = (offset_find!=~0)?0:1;
   int rendered = 0;
-  int marked_indentation = 0;
   render_info->stop = 0;
-  while (render_info->buffer) {
-    if (render_info->buffer_pos>=render_info->buffer->length || !render_info->buffer->buffer) {
-      int dirty = (render_info->buffer->visuals.columns!=render_info->columns || render_info->buffer->visuals.rows!=render_info->rows || render_info->buffer->visuals.indentation!=render_info->indentations)?1:0;
-
-//        sprintf(&text[0], "%d", indentations);
-//        splitter_drawtext(screen, splitter, 10+(buffers++)*3, y, &text[0], strlen(&text[0]), 2, 0);
+  while (1) {
+    if (render_info->buffer && (render_info->buffer_pos>=render_info->buffer->length || !render_info->buffer->buffer)) {
+      int dirty = (render_info->buffer->visuals.columns!=render_info->columns || render_info->buffer->visuals.rows!=render_info->rows || render_info->buffer->visuals.indentation!=render_info->indentations || render_info->buffer->visuals.indentation_extra!=render_info->indentations_extra || (render_info->rows==0 && render_info->buffer->visuals.dirty))?1:0;
 
       if (render_info->buffer->visuals.dirty || dirty) {
         render_info->buffer->visuals.dirty = 0;
         render_info->buffer->visuals.columns = render_info->columns;
         render_info->buffer->visuals.rows = render_info->rows;
         render_info->buffer->visuals.indentation = render_info->indentations;
+        render_info->buffer->visuals.indentation_extra = render_info->indentations_extra;
         range_tree_update_calc_all(render_info->buffer);
       }
 
       render_info->indentations = 0;
+      render_info->indentations_extra = 0;
       render_info->rows = 0;
       render_info->columns = 0;
 
@@ -296,24 +321,69 @@ int document_render_info_span(struct document_render_info* render_info, struct s
       continue;
     }
 
+    int cp = -1;
+    size_t length = 0;
+
+    int sel = (render_info->offset>=view->selection_low && render_info->offset<view->selection_high)?1:0;
+    if (render_info->buffer) {
+      const char* text = render_info->buffer->buffer->buffer+render_info->buffer->offset+render_info->buffer_pos;
+      const char* end = render_info->buffer->buffer->buffer+render_info->buffer->offset+render_info->buffer->length;
+      const char* copy = text;
+      text = utf8_decode(&cp, text, end-text, 1);
+      length = text-copy;
+    } else {
+      cp = ' ';
+    }
+
+    int show = cp;
+
+    if (render_info->mark_indentation) {
+      if (render_info->indentation_extra==0) {
+        render_info->indentations_extra = 2;
+        render_info->indentation_extra = 2;
+        render_info->x += 2;
+      }
+
+      render_info->draw_indentation = 1;
+    }
+
+    render_info->mark_indentation = 0;
+
+    if (render_info->y_view==render_info->y) {
+      *x_max = render_info->x;
+      *x_min = render_info->indentation+render_info->indentation_extra;
+      rendered = 1;
+    }
+
+    if ((render_info->offset==offset_find && offset_find!=~0) || (offset_find==~0 && render_info->y_view==y_find && render_info->x==x_find)) {
+      *x_out = render_info->x;
+      *y_out = render_info->y_view;
+      *offset_out = render_info->offset;
+      *line = render_info->lines;
+      *column = 0;
+      found = 1;
+    }
+
+     if (render_info->draw_indentation) {
+      if (screen && render_info->y_view==render_info->y) {
+        splitter_drawchar(screen, splitter, render_info->x-2-view->scroll_x, render_info->y-view->scroll_y, 0x21aa, splitter->foreground, splitter->background);
+      }
+    }
+
     if (render_info->stop==1) {
       break;
     } else if (render_info->stop==2) {
       render_info->buffer = NULL;
       break;
+    } else if (!render_info->buffer) {
+      break;
     }
 
-    const char* text = render_info->buffer->buffer->buffer+render_info->buffer->offset+render_info->buffer_pos;
-    const char* end = render_info->buffer->buffer->buffer+render_info->buffer->offset+render_info->buffer->length;
-    int sel = (render_info->offset>=view->selection_low && render_info->offset<view->selection_high)?1:0;
-    int cp = -1;
-    const char* copy = text;
-    text = utf8_decode(&cp, text, end-text, 1);
-    int show = cp;
+    render_info->draw_indentation = 0;
 
-    int color = splitter?splitter->foreground:0;
+    int color = render_info->buffer->visuals.dirty?2:15; //splitter?splitter->foreground:0; //((int)render_info->buffer&0xff); //
     int background = splitter?splitter->background:0;
-    if (!(render_info->buffer->inserter&TIPPSE_INSERTER_READONLY)) {
+    if (render_info->buffer && !(render_info->buffer->inserter&TIPPSE_INSERTER_READONLY)) {
       if (keyword_length==0) {
         int visual_flag = 0;
 
@@ -346,35 +416,8 @@ int document_render_info_span(struct document_render_info* render_info, struct s
       color = 102;
     }
 
-    if (render_info->mark_indentation && cp!='\r' && cp!='\n') {
-      if (screen && render_info->y_view==render_info->y) {
-        splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, 0x21aa, splitter->foreground, background);
-      }
-
-      render_info->x += 2;
-      render_info->columns += 2;
-      marked_indentation = 1;
-    }
-
-    render_info->mark_indentation = 0;
-
-    if (render_info->y_view==render_info->y) {
-      *x_max = render_info->x;
-      *x_min = render_info->indentation+(marked_indentation*2);
-      rendered = 1;
-    }
-
-    if ((render_info->offset==offset_find && offset_find!=~0) || (offset_find==~0 && render_info->y_view==y_find && render_info->x==x_find)) {
-      *x_out = render_info->x;
-      *y_out = render_info->y_view;
-      *offset_out = render_info->offset;
-      *line = render_info->lines;
-      *column = 0;
-      found = 1;
-    }
-
-    render_info->buffer_pos += text-copy;
-    render_info->offset += text-copy;
+    render_info->buffer_pos += length;
+    render_info->offset += length;
 
     if (((cp!='\r' && cp!=0xfeff) || view->showall) && cp!='\t') {
       if (screen && render_info->y_view==render_info->y) {
@@ -430,12 +473,19 @@ int document_render_info_span(struct document_render_info* render_info, struct s
       }
     }
 
-    if (cp=='\n' || (render_info->x>=render_info->width && view->wrapping)) {
-      marked_indentation = 0;
+    int word_length = 0;
+    if ((cp==' ' || cp=='\t') && !(render_info->visual_detail&VISUAL_INFO_INDENTATION) && view->wrapping) {
+      word_length = document_render_lookahead_word_wrap(render_info->buffer, render_info->buffer_pos, render_info->width-render_info->x);
+    }
+
+    if (cp=='\n' || (render_info->x+word_length>=render_info->width && view->wrapping)) {
+      render_info->marked_indentation = 0;
       if (cp=='\n') {
         render_info->lines++;
         render_info->indentations = 0;
+        render_info->indentations_extra = 0;
         render_info->indentation = 0;
+        render_info->indentation_extra = 0;
         render_info->mark_indentation = 0;
       } else {
         render_info->mark_indentation = 1;
@@ -443,7 +493,7 @@ int document_render_info_span(struct document_render_info* render_info, struct s
 
       render_info->rows++;
       render_info->y_view++;
-      render_info->x = render_info->indentation;
+      render_info->x = render_info->indentation+render_info->indentation_extra;
       render_info->columns = 0;
 
       if (found && render_info->y_view>render_info->y) {
@@ -483,7 +533,7 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
   if (cursor_y>=view->scroll_y+splitter->client_height-1) {
     view->scroll_y = cursor_y-(splitter->client_height-1);
   }
-  if (view->scroll_y+splitter->client_height>(file->buffer?file->buffer->visuals.rows+1:0)) {
+  if (view->scroll_y+splitter->client_height>(file->buffer?file->buffer->visuals.rows+1:0) && (file->buffer?file->buffer->visuals.dirty:0)==0) {
     view->scroll_y = (file->buffer?file->buffer->visuals.rows+1:0)-(splitter->client_height);
   }
   if (view->scroll_y<0) {
@@ -500,16 +550,15 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
   int y_out;
   int x_min;
   int x_max;
+  file_offset_t offset_out;
   for (y=0; y<splitter->client_height; y++) {
-    file_offset_t offset_out;
     document_render_info_seek(&render_info, file->buffer, view->scroll_x, y+view->scroll_y, ~0);
-//    struct range_tree_node* prev = buffer?range_tree_prev(buffer):NULL;
-//    char text[1024];
-//    sprintf(&text[0], "%p - %d - %d - %d %d %s", buffer_new, x_new, y_new, prev?prev->visuals.dirty:0, buffer_new?buffer_new->visuals.detail_before:0, prev_buffer!=buffer_new?"R":" ");
-//    sprintf(&text[0], "%d", indentation);
-//    splitter_drawtext(screen, splitter, 0, y, &text[0], strlen(&text[0]), 2, 0);
     document_render_info_span(&render_info, screen, splitter, view, file, cursor_x, cursor_y, ~0, &x_out, &y_out, &offset_out, &x_min, &x_max, &line, &column);
   }
+
+  document_render_info_clear(&render_info, splitter->client_width);
+  document_render_info_seek(&render_info, file->buffer, view->scroll_x, y+view->scroll_y, view->offset);
+  document_render_info_span(&render_info, screen, splitter, view, file, cursor_x, cursor_y, view->offset, &x_out, &y_out, &offset_out, &x_min, &x_max, &line, &column);
 
   size_t name_length = strlen(file->filename);
   char* title = malloc((name_length+file->modified*2+1)*sizeof(char));
@@ -526,7 +575,7 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
 
   if (!splitter->document.keep_status) {
     char status[1024];
-    sprintf(&status[0], "%d/%d:%d - %d/%d byte - %d chars", (int)(file->buffer?file->buffer->visuals.lines+1:0), line+1, column+1, (int)view->offset, file->buffer?(int)file->buffer->length:0, file->buffer?(int)file->buffer->visuals.characters:0);
+    sprintf(&status[0], "%d %d/%d:%d - %d/%d byte - %d chars", file->buffer?file->buffer->visuals.dirty:0, (int)(file->buffer?file->buffer->visuals.lines+1:0), line+1, column+1, (int)view->offset, file->buffer?(int)file->buffer->length:0, file->buffer?(int)file->buffer->visuals.characters:0);
     splitter_status(splitter, &status[0], 0);
   }
 

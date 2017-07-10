@@ -33,6 +33,7 @@ struct visual_info {
   file_offset_t columns;
   file_offset_t rows;
   int indentation;
+  int indentation_extra;
   int detail_before;
   int detail_after;
   int dirty;

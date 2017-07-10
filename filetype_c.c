@@ -142,8 +142,10 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct range_t
   } else {
     int cp = *text0;
     if (same_line && (cp<'a' || cp>'z') && (cp<'A' || cp>'Z') && (cp<'0' || cp>'9') && cp!='_') {
+      *length = 0;
       *flags = file_type_keyword(node, buffer_pos, this->keywords, length);
     }
+
     if (*flags==0) {
       *length = 0;
     }
