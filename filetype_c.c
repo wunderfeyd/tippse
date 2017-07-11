@@ -119,11 +119,11 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct range_t
     *visual_detail |= VISUAL_INFO_STRINGESCAPE;
   } else if (*text1=='"' && before_masked==0) {
     *visual_detail = VISUAL_INFO_STRING0;
-  } else if (*text1=='"' && before_masked==VISUAL_INFO_STRING0) {
+  } else if ((*text1=='"' || *text1=='\n') && before_masked==VISUAL_INFO_STRING0) {
     *visual_detail = 0;
   } else if (*text1=='\'' && before_masked==0) {
     *visual_detail = VISUAL_INFO_STRING1;
-  } else if (*text1=='\'' && before_masked==VISUAL_INFO_STRING1) {
+  } else if ((*text1=='\'' || *text1=='\n') && before_masked==VISUAL_INFO_STRING1) {
     *visual_detail = 0;
   } else if (*text1!='\t' && *text1!=' ' && before_masked==0) {
     *visual_detail = 0;
@@ -138,6 +138,7 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct range_t
   } else if ((before|after)&(VISUAL_INFO_COMMENT1)) {
     *flags = VISUAL_FLAG_COLOR_LINECOMMENT;
   } else if ((after)&(VISUAL_INFO_INDENTATION)) {
+    *length = 0;
     *flags = 0;
   } else {
     int cp = *text0;

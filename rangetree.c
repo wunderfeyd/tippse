@@ -9,7 +9,7 @@ void range_tree_print(struct range_tree_node* node, int depth, int side) {
     tab--;
   }
   
-  printf ("%d %5d %5d %s(%p-%p) %5d %5d (%p) [0](%p) [1](%p) [P](%p) %d %d %d ", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->side[0], node->side[1], node->parent, (int)node->visuals.rows, (int)node->visuals.columns, (int)node->visuals.dirty);
+  printf ("%d %5d %5d %s(%p-%p) %5d %5d (%p) [0](%p) [1](%p) [P](%p) %d %d %d ", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->side[0], node->side[1], node->parent, (int)node->visuals.ys, (int)node->visuals.xs, (int)node->visuals.dirty);
   printf("\r\n");
   if (node->side[0]) {
     range_tree_print(node->side[0], depth+1, 0);
@@ -324,44 +324,45 @@ struct range_tree_node* range_tree_find_line_start(struct range_tree_node* node,
   return node;
 }
 
-struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, file_offset_t search, int row, int column, file_offset_t* offset, int* x, int* y, int* line, int* indentation, int* indentation_extra) {
+struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int find_type, file_offset_t find_offset, int find_x, int find_y, int find_line, int find_column, file_offset_t* offset, int* x, int* y, int* line, int* column, int* indentation, int* indentation_extra) {
   file_offset_t location = 0;
-  int rows = 0;
-  int columns = 0;
+  int ys = 0;
+  int xs = 0;
   int lines = 0;
+  int columns = 0;
   int indentations = 0;
   int indentations_extra = 0;
 
   while (node && !node->buffer) {
+    int columns_new = columns;
     int indentations_new = indentations;
     int indentations_extra_new = indentations_extra;
     if (node->side[0]->visuals.lines!=0) {
+      columns_new = node->side[0]->visuals.columns;
       indentations_new = node->side[0]->visuals.indentation;
       indentations_extra_new = node->side[0]->visuals.indentation_extra;
     } else {
+      columns_new += node->side[0]->visuals.columns;
       indentations_new += node->side[0]->visuals.indentation;
       indentations_extra_new += node->side[0]->visuals.indentation_extra;
     }
 
-    int columns_new = columns;
-    if (node->side[0]->visuals.rows!=0) {
-      columns_new = node->side[0]->visuals.columns;
+    int xs_new = xs;
+    if (node->side[0]->visuals.ys!=0) {
+      xs_new = node->side[0]->visuals.xs;
     } else {
-      columns_new += node->side[0]->visuals.columns;
+      xs_new += node->side[0]->visuals.xs;
     }
 
-    if ((node->side[0]->visuals.dirty&VISUAL_DIRTY_UPDATE) || (node->visuals.dirty&VISUAL_DIRTY_LASTSPLIT) || (search==~0 && (node->side[0]->visuals.rows+rows>row || (node->side[0]->visuals.rows+rows==row && indentations_new+indentations_extra_new+columns_new>column))) || (search!=~0 && search<node->side[0]->length)) {
+    if ((node->side[0]->visuals.dirty&VISUAL_DIRTY_UPDATE) || (node->visuals.dirty&VISUAL_DIRTY_LASTSPLIT) || (find_type==VISUAL_SEEK_X_Y && (node->side[0]->visuals.ys+ys>find_y || (node->side[0]->visuals.ys+ys==find_y && indentations_new+indentations_extra_new+xs_new>find_x))) || (find_type==VISUAL_SEEK_OFFSET && location+node->side[0]->length>find_offset) || (find_type==VISUAL_SEEK_LINE_COLUMN && (node->side[0]->visuals.lines+lines>find_line || (node->side[0]->visuals.lines+lines==find_line && columns_new>find_column)))) {
       node = node->side[0];
     } else {
-      if (search!=~0) {
-        search -= node->side[0]->length;
-      }
-
       location += node->side[0]->length;
 
-      rows += node->side[0]->visuals.rows;
+      ys += node->side[0]->visuals.ys;
       lines += node->side[0]->visuals.lines;
 
+      xs = xs_new;
       columns = columns_new;
       indentations = indentations_new;
       indentations_extra = indentations_extra_new;
@@ -375,6 +376,7 @@ struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, fil
     *y = 0;
     *offset = 0;
     *line = 0;
+    *column = 0;
     *indentation = 0;
     *indentation_extra = 0;
     return node;
@@ -386,9 +388,10 @@ struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, fil
   }*/
 
   if (node && node->buffer) {
-    *x = columns;
-    *y = rows;
+    *x = xs;
+    *y = ys;
     *line = lines;
+    *column = columns;
     *offset = location;
     *indentation = indentations;
     *indentation_extra = indentations_extra;

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "types.h"
 
+// Flags for visual details (TODO: Rename me VISUAL_INFO->VISUAL_DETAIL)
 #define VISUAL_INFO_COMMENT0 1
 #define VISUAL_INFO_COMMENT1 2
 #define VISUAL_INFO_COMMENT2 4
@@ -15,11 +16,13 @@
 #define VISUAL_INFO_STRINGESCAPE 256
 #define VISUAL_INFO_INDENTATION 512
 
+// Flags for page dirtiness
 #define VISUAL_DIRTY_UPDATE 1
 #define VISUAL_DIRTY_LASTSPLIT 2
 #define VISUAL_DIRTY_SPLITTED 4
 #define VISUAL_DIRTY_LEFT 8
 
+// Return flags for document renderer 
 #define VISUAL_FLAG_COLOR_STRING 1
 #define VISUAL_FLAG_COLOR_TYPE 2
 #define VISUAL_FLAG_COLOR_KEYWORD 3
@@ -27,16 +30,24 @@
 #define VISUAL_FLAG_COLOR_LINECOMMENT 5
 #define VISUAL_FLAG_COLOR_BLOCKCOMMENT 6
 
+// Flags for page finding processes
+#define VISUAL_SEEK_NONE 0
+#define VISUAL_SEEK_OFFSET 1
+#define VISUAL_SEEK_X_Y 2
+#define VISUAL_SEEK_LINE_COLUMN 3
+
+// Block visualisation hints per page
 struct visual_info {
-  file_offset_t characters;
-  file_offset_t lines;
-  file_offset_t columns;
-  file_offset_t rows;
-  int indentation;
-  int indentation_extra;
-  int detail_before;
-  int detail_after;
-  int dirty;
+  file_offset_t characters; // Characters (with current encoding)
+  file_offset_t columns;    // Characters from last line in page
+  file_offset_t lines;      // Lines in page
+  file_offset_t xs;         // Size of last screen row in page
+  file_offset_t ys;         // Screen rows in page
+  int indentation;          // Common indentation of last screen row in page
+  int indentation_extra;    // Extra indentation of last screen row in page (for indentation marker)
+  int detail_before;        // Visual details after last page
+  int detail_after;         // Visual details after current page
+  int dirty;                // Mark page as dirty (not completely rendered yet)
 };
 
 void visual_info_clear(struct visual_info* visuals);
