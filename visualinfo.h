@@ -2,6 +2,7 @@
 #define __TIPPSE_VISUALINFO__
 
 #include <stdlib.h>
+#include "types.h"
 
 #define VISUAL_INFO_COMMENT0 1
 #define VISUAL_INFO_COMMENT1 2
@@ -12,6 +13,7 @@
 #define VISUAL_INFO_STRING2 64
 #define VISUAL_INFO_STRING3 128
 #define VISUAL_INFO_STRINGESCAPE 256
+#define VISUAL_INFO_INDENTATION 512
 
 #define VISUAL_DIRTY_UPDATE 1
 #define VISUAL_DIRTY_LASTSPLIT 2
@@ -25,12 +27,13 @@
 #define VISUAL_FLAG_COLOR_LINECOMMENT 5
 #define VISUAL_FLAG_COLOR_BLOCKCOMMENT 6
 
-struct visual_info_detail {
-  int in;
-  int out;
-};
-
 struct visual_info {
+  file_offset_t characters;
+  file_offset_t lines;
+  file_offset_t columns;
+  file_offset_t rows;
+  int indentation;
+  int indentation_extra;
   int detail_before;
   int detail_after;
   int dirty;

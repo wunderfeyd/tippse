@@ -3,14 +3,38 @@
 #include "visualinfo.h"
 
 void visual_info_clear(struct visual_info* visuals) {
+  visuals->lines = 0;
+  visuals->characters = 0;
+  visuals->columns = 0;
+  visuals->rows = 0;
+  visuals->indentation = 0;
+  visuals->indentation_extra = 0;
   visuals->detail_after = 0;
   visuals->detail_before = 0;
   visuals->dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
 }
 
 void visual_info_combine(struct visual_info* visuals, const struct visual_info* left, const struct visual_info* right) {
+  visuals->characters = left->characters+right->characters;
+  visuals->lines = left->lines+right->lines;
+  visuals->rows = left->rows+right->rows;
+  if (right->rows!=0) {
+    visuals->columns = right->columns;
+  } else {
+    visuals->columns = left->columns+right->columns;
+  }
+
+  if (right->lines!=0) {
+    visuals->indentation = right->indentation;
+    visuals->indentation_extra = right->indentation_extra;
+  } else {
+    visuals->indentation = left->indentation+right->indentation;
+    visuals->indentation_extra = left->indentation_extra+right->indentation_extra;
+  }
+
   visuals->detail_before = left->detail_before;
   visuals->detail_after = right->detail_after;
+
   int dirty = (left->dirty|right->dirty)&VISUAL_DIRTY_UPDATE;
   dirty |= (left->dirty)&(VISUAL_DIRTY_SPLITTED|VISUAL_DIRTY_LEFT);
 
