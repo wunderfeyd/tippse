@@ -94,22 +94,36 @@ struct document_render_info {
   int column;
   int stop;
   int visual_detail;
-  int mark_indentation;
-  int marked_indentation;
   int draw_indentation;
   int width;
-  int test_start;
-  int test_x;
+};
+
+// Document position structure
+struct document_render_info_position {
+  int type;                             // Visual seek type
+
+  struct range_tree_node* buffer;       // Page
+  file_offset_t buffer_pos;             // Offset in page
+
+  file_offset_t offset;                 // Offset in file
+
+  int x;                                // Position X of viewport
+  int y;                                // Position Y of viewport
+  int x_min;                            // Left margin
+  int x_max;                            // Right margin
+
+  int line;                             // Line in file
+  int column;                           // Column in line
 };
 
 void document_render_info_clear(struct document_render_info* render_info, int width);
-void document_render_info_seek(struct document_render_info* render_info, struct range_tree_node* buffer, int type, int x, int y, file_offset_t search);
+void document_render_info_seek(struct document_render_info* render_info, struct range_tree_node* buffer, struct document_render_info_position* in);
 int document_render_lookahead_word_wrap(struct range_tree_node* buffer, file_offset_t buffer_pos, int max);
-int document_render_info_span(struct document_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, int type, int x_find, int y_find, file_offset_t offset_find, int* x_out, int* y_out, file_offset_t* offset_out, int* x_min, int* x_max, int* line, int* column);
+int document_render_info_span(struct document_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, struct document_render_info_position* in, struct document_render_info_position* out);
 
 int document_compare(struct range_tree_node* left, file_offset_t buffer_pos_left, struct range_tree_node* right_root, file_offset_t length);
 void document_search(struct splitter* splitter, struct document* document, struct range_tree_node* text, file_offset_t length, int forward);
-file_offset_t document_cursor_position(struct splitter* splitter, file_offset_t offset_search, int* cur_x, int* cur_y, int type, int wrap, int cancel);
+file_offset_t document_cursor_position(struct splitter* splitter, struct document_render_info_position* in, struct document_render_info_position* out, int wrap, int cancel);
 void document_draw(struct screen* screen, struct splitter* splitter);
 
 void document_expand(file_offset_t* pos, file_offset_t offset, file_offset_t length);
