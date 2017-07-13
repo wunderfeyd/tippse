@@ -169,7 +169,7 @@ int main (int argc, const char** argv) {
     }
     
     
-    splitter_draw_multiple(screen, splitters);
+    splitter_draw_multiple(screen, splitters, 0);
     screen_draw(screen);
     int in = 0;
     while (in==0) {
@@ -193,6 +193,8 @@ int main (int argc, const char** argv) {
           document_undo_chain(file);
           doc = doc->next;
         }
+
+        splitter_draw_multiple(screen, splitters, 1);
       }
     }
 

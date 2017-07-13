@@ -137,6 +137,7 @@ void document_search(struct splitter* splitter, struct document* document, struc
   splitter_status(splitter, "Not found!", 1);
 }
 
+// Goto specified location, apply cursor clipping/wrapping and render dirty pages as necessary
 file_offset_t document_cursor_position(struct splitter* splitter, struct document_render_info_position* in, struct document_render_info_position* out, int wrap, int cancel) {
   struct document* document = &splitter->document;
   struct document_file* file = document->file;
@@ -147,7 +148,7 @@ file_offset_t document_cursor_position(struct splitter* splitter, struct documen
   while (1) {
     document_render_info_clear(&render_info, splitter->client_width);
     document_render_info_seek(&render_info, file->buffer, in);
-    int rendered = document_render_info_span(&render_info, NULL, NULL, view, file, in, out);
+    int rendered = document_render_info_span(&render_info, NULL, NULL, view, file, in, out, ~0);
 
     if (in->type==VISUAL_SEEK_OFFSET) {
       break;
@@ -208,6 +209,7 @@ file_offset_t document_cursor_position(struct splitter* splitter, struct documen
   return out->offset;
 }
 
+// Clear renderer state to ensure a restart at next seek
 void document_render_info_clear(struct document_render_info* render_info, int width) {
   memset(render_info, 0, sizeof(struct document_render_info));
   render_info->stop = 2;
@@ -215,6 +217,7 @@ void document_render_info_clear(struct document_render_info* render_info, int wi
   render_info->width = width;
 }
 
+// Update renderer state to restart at the given position or if possible to continue current cycle
 void document_render_info_seek(struct document_render_info* render_info, struct range_tree_node* buffer, struct document_render_info_position* in) {
   file_offset_t offset_new = 0;
   int x_new = 0;
@@ -262,6 +265,7 @@ void document_render_info_seek(struct document_render_info* render_info, struct 
   } 
 }
 
+// Get word length from specified position
 int document_render_lookahead_word_wrap(struct range_tree_node* buffer, file_offset_t buffer_pos, int max) {
   int count = 0;
   while (buffer && count<max) {
@@ -287,7 +291,8 @@ int document_render_lookahead_word_wrap(struct range_tree_node* buffer, file_off
   return count;
 }
 
-int document_render_info_span(struct document_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, struct document_render_info_position* in, struct document_render_info_position* out) {
+// Render some pages until the position is found or pages are no longer dirty
+int document_render_info_span(struct document_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, struct document_render_info_position* in, struct document_render_info_position* out, int dirty_pages) {
 
   // TODO: Following initializations shouldn't be needed since the caller should check the type / verify
   if (out) {
@@ -310,12 +315,17 @@ int document_render_info_span(struct document_render_info* render_info, struct s
 
   while (1) {
     if (render_info->buffer && (render_info->buffer_pos>=render_info->buffer->length || !render_info->buffer->buffer)) {
-      int dirty = (render_info->buffer->visuals.xs!=render_info->xs || render_info->buffer->visuals.ys!=render_info->ys || render_info->buffer->visuals.columns!=render_info->columns || render_info->buffer->visuals.indentation!=render_info->indentations || render_info->buffer->visuals.indentation_extra!=render_info->indentations_extra || (render_info->ys==0 && render_info->buffer->visuals.dirty))?1:0;
+      int dirty = (render_info->buffer->visuals.xs!=render_info->xs || render_info->buffer->visuals.ys!=render_info->ys ||  render_info->buffer->visuals.columns!=render_info->columns || render_info->buffer->visuals.indentation!=render_info->indentations || render_info->buffer->visuals.indentation_extra!=render_info->indentations_extra || (render_info->ys==0 && render_info->buffer->visuals.dirty))?1:0;
+
+      if (render_info->buffer->visuals.dirty && dirty_pages!=~0) {
+        dirty_pages--;
+      }
 
       if (render_info->buffer->visuals.dirty || dirty) {
         render_info->buffer->visuals.dirty = 0;
         render_info->buffer->visuals.xs = render_info->xs;
         render_info->buffer->visuals.ys = render_info->ys;
+        render_info->buffer->visuals.lines = render_info->lines;
         render_info->buffer->visuals.columns = render_info->columns;
         render_info->buffer->visuals.indentation = render_info->indentations;
         render_info->buffer->visuals.indentation_extra = render_info->indentations_extra;
@@ -390,6 +400,8 @@ int document_render_info_span(struct document_render_info* render_info, struct s
       render_info->buffer = NULL;
       break;
     } else if (!render_info->buffer) {
+      break;
+    } else if (dirty_pages==0) {
       break;
     }
 
@@ -492,7 +504,10 @@ int document_render_info_span(struct document_render_info* render_info, struct s
 
     int word_length = 0;
     if ((cp<=' ') && !(render_info->visual_detail&VISUAL_INFO_INDENTATION) && view->wrapping) {
-      word_length = document_render_lookahead_word_wrap(render_info->buffer, render_info->buffer_pos, render_info->width-render_info->x);
+      word_length = document_render_lookahead_word_wrap(render_info->buffer, render_info->buffer_pos, render_info->width+1);
+      if (word_length>render_info->width) {
+        word_length = 0;
+      }
     }
 
     if (cp=='\n' || (render_info->x+word_length>=render_info->width && view->wrapping)) {
@@ -542,6 +557,24 @@ int document_render_info_span(struct document_render_info* render_info, struct s
   return rendered;
 }
 
+// Find next dirty pages and rerender them (background task)
+void document_incremental_update(struct splitter* splitter) {
+  struct document* document = &splitter->document;
+  struct document_file* file = document->file;
+  struct document_view* view = &document->view;
+
+  struct document_render_info_position out;
+  struct document_render_info_position in;
+  in.type = VISUAL_SEEK_OFFSET;
+  in.offset = file->buffer?file->buffer->length:0;
+
+  struct document_render_info render_info;
+  document_render_info_clear(&render_info, splitter->client_width);
+  document_render_info_seek(&render_info, file->buffer, &in);
+  document_render_info_span(&render_info, NULL, NULL, view, file, &in, &out, 16);
+}
+
+// Draw entire visible screen space
 void document_draw(struct screen* screen, struct splitter* splitter) {
   struct document* document = &splitter->document;
   struct document_file* file = document->file;
@@ -590,14 +623,14 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
     in.y = y+view->scroll_y;
 
     document_render_info_seek(&render_info, file->buffer, &in);
-    document_render_info_span(&render_info, screen, splitter, view, file, &in, &out);
+    document_render_info_span(&render_info, screen, splitter, view, file, &in, &out, ~0);
   }
 
   document_render_info_clear(&render_info, splitter->client_width);
   in.type = VISUAL_SEEK_OFFSET;
   in.offset = view->offset;
   document_render_info_seek(&render_info, file->buffer, &in);
-  document_render_info_span(&render_info, screen, splitter, view, file, &in, &out);
+  document_render_info_span(&render_info, screen, splitter, view, file, &in, &out, ~0);
 
   size_t name_length = strlen(file->filename);
   char* title = malloc((name_length+file->modified*2+1)*sizeof(char));
@@ -614,7 +647,7 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
 
   if (!splitter->document.keep_status) {
     char status[1024];
-    sprintf(&status[0], "%d %d/%d:%d - %d/%d byte - %d chars", file->buffer?file->buffer->visuals.dirty:0, (int)(file->buffer?file->buffer->visuals.lines+1:0), out.line+1, out.column+1, (int)view->offset, file->buffer?(int)file->buffer->length:0, file->buffer?(int)file->buffer->visuals.characters:0);
+    sprintf(&status[0], "%s%d/%d:%d - %d/%d byte - %d chars", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), out.line+1, out.column+1, (int)view->offset, file->buffer?(int)file->buffer->length:0, file->buffer?(int)file->buffer->visuals.characters:0);
     splitter_status(splitter, &status[0], 0);
   }
 

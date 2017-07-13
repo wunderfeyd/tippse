@@ -164,7 +164,7 @@ void splitter_draw(struct screen* screen, struct splitter* splitter) {
   }
 }
 
-void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int width, int height, struct splitter* splitter) {
+void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int width, int height, struct splitter* splitter, int incremental) {
   if (splitter->side[0] && splitter->side[1]) {
     int size = (splitter->type&TIPPSE_SPLITTER_HORZ)?width:height;
     int size0 = size;
@@ -181,11 +181,11 @@ void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int w
     }
     
     if (splitter->type&TIPPSE_SPLITTER_HORZ) {
-      splitter_draw_multiple_recursive(screen, x, y, size0, height, splitter->side[0]);
-      splitter_draw_multiple_recursive(screen, x+size0, y, size1, height, splitter->side[1]);
+      splitter_draw_multiple_recursive(screen, x, y, size0, height, splitter->side[0], incremental);
+      splitter_draw_multiple_recursive(screen, x+size0, y, size1, height, splitter->side[1], incremental);
     } else {
-      splitter_draw_multiple_recursive(screen, x, y, width, size0, splitter->side[0]);
-      splitter_draw_multiple_recursive(screen, x, y+size0, width, size1, splitter->side[1]);
+      splitter_draw_multiple_recursive(screen, x, y, width, size0, splitter->side[0], incremental);
+      splitter_draw_multiple_recursive(screen, x, y+size0, width, size1, splitter->side[1], incremental);
     }
   } else {
     screen = screen;
@@ -195,12 +195,16 @@ void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int w
     splitter->height = height;
     splitter->client_width = width-2;
     splitter->client_height = height-2;
-    splitter_draw(screen, splitter);
+    if (!incremental) {
+      splitter_draw(screen, splitter);
+    } else {
+      document_incremental_update(splitter);
+    }
   }
 }
 
-void splitter_draw_multiple(struct screen* screen, struct splitter* splitters) {
-  splitter_draw_multiple_recursive(screen, 0, 0, screen->width, screen->height, splitters);
+void splitter_draw_multiple(struct screen* screen, struct splitter* splitters, int incremental) {
+  splitter_draw_multiple_recursive(screen, 0, 0, screen->width, screen->height, splitters, incremental);
 }
 
 struct splitter* splitter_by_coordinate(struct splitter* splitter, int x, int y) {
