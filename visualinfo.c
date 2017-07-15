@@ -13,6 +13,9 @@ void visual_info_clear(struct visual_info* visuals) {
   visuals->indentation_extra = 0;
   visuals->detail_after = 0;
   visuals->detail_before = 0;
+  visuals->keyword_length = 0;
+  visuals->keyword_color = 0;
+  visuals->displacement = 0;
   visuals->dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
 }
 

@@ -47,6 +47,9 @@ struct visual_info {
   int indentation_extra;    // Extra indentation of last screen row in page (for indentation marker)
   int detail_before;        // Visual details after last page
   int detail_after;         // Visual details after current page
+  int keyword_color;        // Color for current active keyword
+  int keyword_length;       // Length of current active keyword
+  file_offset_t displacement; // Offset to begin of first character
   int dirty;                // Mark page as dirty (not completely rendered yet)
 };
 

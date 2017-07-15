@@ -71,11 +71,14 @@ struct trie* file_type_c_keywords(struct file_type* base) {
   return this->keywords;
 }
 
-void file_type_c_mark(struct file_type* base, int* visual_detail, struct range_tree_node* node, file_offset_t buffer_pos, int same_line, int* length, int* flags) {
+void file_type_c_mark(struct file_type* base, int* visual_detail, struct encoding* encoding, struct encoding_stream stream, int same_line, int* length, int* flags) {
   struct file_type_c* this = (struct file_type_c*)base;
 
-  struct range_tree_node* node_prev = node;
-  file_offset_t buffer_pos_prev = buffer_pos;
+  struct encoding_stream copy = stream;
+
+  // TODO: the reverse lookup should be replaced by the visual state
+  struct range_tree_node* node_prev = stream.buffer;
+  file_offset_t buffer_pos_prev = stream.buffer_pos;
   while (buffer_pos_prev==0) {
     node_prev = range_tree_prev(node_prev);
     if (!node_prev) {
@@ -86,50 +89,45 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct range_t
   }
   buffer_pos_prev--;
 
-  const char* text0 = node_prev?node_prev->buffer->buffer+node_prev->offset+buffer_pos_prev:"\0";
+  int cp0 = node_prev?*(node_prev->buffer->buffer+node_prev->offset+buffer_pos_prev):'\0';
 
-  const char* text1 = node->buffer->buffer+node->offset+buffer_pos;
-
-  struct range_tree_node* node_next = node;
-  file_offset_t buffer_pos_next = buffer_pos+1;
-  if (buffer_pos_next==node_next->length) {
-    buffer_pos_next = 0;
-    node_next = range_tree_next(node_next);
-  }
-
-  const char* text2 = node_next?node_next->buffer->buffer+node_next->offset+buffer_pos_next:" ";
+  size_t cp_length = 0;
+  int cp1 = (*encoding->decode)(encoding, &stream, ~0, &cp_length);
+  encoding_stream_forward(&stream, cp_length);
+  int cp2 = (*encoding->decode)(encoding, &stream, ~0, &cp_length);
 
   *length = 1;
   int before = *visual_detail;
   int before_masked = before&(~VISUAL_INFO_INDENTATION);
   if ((*visual_detail)&VISUAL_INFO_STRINGESCAPE) {
     *visual_detail &= ~VISUAL_INFO_STRINGESCAPE;
-  } else if (*text1=='/' && *text2=='*' && before_masked==0) {
+  } else if (cp1=='/' && cp2=='*' && before_masked==0) {
     *length = 2;
     *visual_detail = VISUAL_INFO_COMMENT0;
-  } else if (*text1=='*' && *text2=='/' && before_masked==VISUAL_INFO_COMMENT0) {
+  } else if (cp1=='*' && cp2=='/' && before_masked==VISUAL_INFO_COMMENT0) {
     *length = 2;
     *visual_detail = 0;
-  } else if (*text1=='/' && *text2=='/' && before_masked==0) {
+  } else if (cp1=='/' && cp2=='/' && before_masked==0) {
     *length = 2;
     *visual_detail = VISUAL_INFO_COMMENT1;
-  } else if (*text1=='\n' && before_masked==VISUAL_INFO_COMMENT1) {
+  } else if (cp1=='\n' && before_masked==VISUAL_INFO_COMMENT1) {
     *visual_detail = 0;
-  } else if (*text1=='\\' && (before_masked==VISUAL_INFO_STRING0 || before_masked==VISUAL_INFO_STRING1)) {
+  } else if (cp1=='\\' && (before_masked==VISUAL_INFO_STRING0 || before_masked==VISUAL_INFO_STRING1)) {
     *visual_detail |= VISUAL_INFO_STRINGESCAPE;
-  } else if (*text1=='"' && before_masked==0) {
+  } else if (cp1=='"' && before_masked==0) {
     *visual_detail = VISUAL_INFO_STRING0;
-  } else if ((*text1=='"' || *text1=='\n') && before_masked==VISUAL_INFO_STRING0) {
+  } else if ((cp1=='"' || cp1=='\n') && before_masked==VISUAL_INFO_STRING0) {
     *visual_detail = 0;
-  } else if (*text1=='\'' && before_masked==0) {
+  } else if (cp1=='\'' && before_masked==0) {
     *visual_detail = VISUAL_INFO_STRING1;
-  } else if ((*text1=='\'' || *text1=='\n') && before_masked==VISUAL_INFO_STRING1) {
+  } else if ((cp1=='\'' || cp1=='\n') && before_masked==VISUAL_INFO_STRING1) {
     *visual_detail = 0;
-  } else if (*text1!='\t' && *text1!=' ' && before_masked==0) {
+  } else if (cp1!='\t' && cp1!=' ' && before_masked==0) {
     *visual_detail = 0;
-  } else if ((*text0=='\0' || *text0=='\n') && before==0) {
+  } else if ((cp0=='\0' || cp0=='\n') && before==0) {
     *visual_detail = VISUAL_INFO_INDENTATION;
   }
+
   int after = *visual_detail;
   if ((before|after)&(VISUAL_INFO_STRING0|VISUAL_INFO_STRING1)) {
     *flags = VISUAL_FLAG_COLOR_STRING;
@@ -141,10 +139,9 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct range_t
     *length = 0;
     *flags = 0;
   } else {
-    int cp = *text0;
-    if (same_line && (cp<'a' || cp>'z') && (cp<'A' || cp>'Z') && (cp<'0' || cp>'9') && cp!='_') {
+    if (same_line && (cp0<'a' || cp0>'z') && (cp0<'A' || cp0>'Z') && (cp0<'0' || cp0>'9') && cp0!='_') {
       *length = 0;
-      *flags = file_type_keyword(node, buffer_pos, this->keywords, length);
+      *flags = file_type_keyword(encoding, copy, this->keywords, length);
     }
 
     if (*flags==0) {

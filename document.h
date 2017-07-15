@@ -18,6 +18,7 @@ struct document;
 #include "clipboard.h"
 #include "documentview.h"
 #include "documentfile.h"
+#include "encoding.h"
 
 #define TAB_WIDTH 2
 
@@ -92,10 +93,15 @@ struct document_render_info {
   int line;
   int columns;
   int column;
+  file_offset_t characters;
+  file_offset_t character;
   int stop;
   int visual_detail;
   int draw_indentation;
   int width;
+  int keyword_color;
+  int keyword_length;
+  struct encoding_stream stream;
 };
 
 // Document position structure
@@ -114,11 +120,12 @@ struct document_render_info_position {
 
   int line;                             // Line in file
   int column;                           // Column in line
+  file_offset_t character;              // Character in file
 };
 
 void document_render_info_clear(struct document_render_info* render_info, int width);
 void document_render_info_seek(struct document_render_info* render_info, struct range_tree_node* buffer, struct document_render_info_position* in);
-int document_render_lookahead_word_wrap(struct range_tree_node* buffer, file_offset_t buffer_pos, int max);
+int document_render_lookahead_word_wrap(struct document_file* file, struct encoding_stream stream, int max);
 int document_render_info_span(struct document_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, struct document_render_info_position* in, struct document_render_info_position* out, int dirty_pages);
 
 int document_compare(struct range_tree_node* left, file_offset_t buffer_pos_left, struct range_tree_node* right_root, file_offset_t length);

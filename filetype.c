@@ -1,46 +1,31 @@
+/* Tippse - File type - Interface and helper functions for specialized document displaying and modification */
+
 #include "filetype.h"
 
-int file_type_keyword(struct range_tree_node* buffer, file_offset_t buffer_pos, struct trie* trie, int* keyword_length) {
+int file_type_keyword(struct encoding* encoding, struct encoding_stream stream, struct trie* trie, int* keyword_length) {
   struct trie_node* parent = NULL;
-  while (buffer) {
-    if (buffer_pos>=buffer->length || !buffer->buffer) {
-      buffer = range_tree_next(buffer);
-      buffer_pos = 0;
-      continue;
+  while (stream.buffer && (!parent || parent->type==0)) {
+    size_t length = 0;
+    int cp = (*encoding->decode)(encoding, &stream, ~0, &length);
+    parent = trie_find_codepoint(trie, parent, cp);
+
+    (*keyword_length)++;
+
+    if (!parent) {
+      return 0;
     }
 
-    const char* text = buffer->buffer->buffer+buffer->offset+buffer_pos;
-    file_offset_t max = buffer->length-buffer_pos;
-
-    while (max>0 && (!parent || parent->type==0)) {
-      parent = trie_find_codepoint(trie, parent, *text);
-
-      (*keyword_length)++;
-
-      if (!parent) {
-        return 0;
-      }
-
-      text++;
-      max--;
-
-      if (parent->type!=0) {
-        break;
-      }
-    }
-
-    while (max>0 && (parent && parent->type!=0)) {
-      if ((*text<'a' || *text>'z') && (*text<'A' || *text>'Z') && (*text<'0' || *text>'9') && *text!='_') {
+    if (parent->type!=0) {
+      encoding_stream_forward(&stream, length);
+      cp = (*encoding->decode)(encoding, &stream, ~0, &length);
+      if ((cp<'a' || cp>'z') && (cp<'A' || cp>'Z') && (cp<'0' || cp>'9') && cp!='_') {
         return parent->type;
       } else {
         return 0;
       }
-
-      text++;
-      max--;
     }
 
-    buffer_pos += max;
+    encoding_stream_forward(&stream, length);
   }
 
   return 0;

@@ -15,12 +15,14 @@ struct document_file;
 #include "list.h"
 #include "rangetree.h"
 #include "filetype_c.h"
+#include "encoding_utf8.h"
 
 struct document_file {
   struct range_tree_node* buffer;
   struct list* undos;
   struct list* redos;
   struct file_type* type;
+  struct encoding* encoding;
 
   char* filename;
   int modified;

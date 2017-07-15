@@ -12,6 +12,7 @@ struct document_file* document_file_create(int save) {
   file->modified = 0;
   file->save = save;
   file->type = file_type_c_create();
+  file->encoding = encoding_utf8_create();
   return file;
 }
 
@@ -28,6 +29,8 @@ void document_file_destroy(struct document_file* file) {
   list_destroy(file->redos);
   list_destroy(file->views);
   free(file->filename);
+  (*file->type->destroy)(file->type);
+  (*file->encoding->destroy)(file->encoding);
   free(file);
 }
 
@@ -40,10 +43,10 @@ void document_file_load(struct document_file* file, const char* filename) {
   document_file_clear(file);
   int f = open(filename, O_RDONLY);
   if (f!=-1) {
-    char in[1024];
+    char in[TREE_BLOCK_LENGTH_MAX];
     file_offset_t offset = 0;
     while (1) {
-      int got = read(f, &in[0], 1024);
+      int got = read(f, &in[0], TREE_BLOCK_LENGTH_MAX);
       if (got<=0) {
         break;
       }
@@ -51,7 +54,7 @@ void document_file_load(struct document_file* file, const char* filename) {
       file->buffer = range_tree_insert_split(file->buffer, file->type, offset, &in[0], got, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, NULL);
 
       offset += got;
-      if (got<1024) {
+      if (got<TREE_BLOCK_LENGTH_MAX) {
         break;
       }
     }

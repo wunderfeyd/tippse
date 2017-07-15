@@ -278,12 +278,13 @@ struct range_tree_node* range_tree_update(struct range_tree_node* node) {
   return last;
 }
 
-struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int find_type, file_offset_t find_offset, int find_x, int find_y, int find_line, int find_column, file_offset_t* offset, int* x, int* y, int* line, int* column, int* indentation, int* indentation_extra) {
+struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int find_type, file_offset_t find_offset, int find_x, int find_y, int find_line, int find_column, file_offset_t* offset, int* x, int* y, int* line, int* column, int* indentation, int* indentation_extra, file_offset_t* character) {
   file_offset_t location = 0;
   int ys = 0;
   int xs = 0;
   int lines = 0;
   int columns = 0;
+  file_offset_t characters = 0;
   int indentations = 0;
   int indentations_extra = 0;
 
@@ -315,6 +316,7 @@ struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int
 
       ys += node->side[0]->visuals.ys;
       lines += node->side[0]->visuals.lines;
+      characters += node->side[0]->visuals.characters;
 
       xs = xs_new;
       columns = columns_new;
@@ -328,9 +330,10 @@ struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int
   if (node && node->visuals.dirty) {
     *x = 0;
     *y = 0;
-    *offset = 0;
     *line = 0;
     *column = 0;
+    *character = 0;
+    *offset = 0;
     *indentation = 0;
     *indentation_extra = 0;
     return node;
@@ -346,6 +349,7 @@ struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int
     *y = ys;
     *line = lines;
     *column = columns;
+    *character = characters;
     *offset = location;
     *indentation = indentations;
     *indentation_extra = indentations_extra;
@@ -408,20 +412,7 @@ void range_tree_retext(struct range_tree_node* node, struct file_type* type) {
     node->offset = 0;
   }
   
-  const char* text = node->buffer->buffer+node->offset;
-  const char* end = node->buffer->buffer+node->offset+node->length;
-  file_offset_t characters = 0;
-  while (text!=end) {
-    characters++;
-    int cp = -1;
-    text = utf8_decode(&cp, text, end-text, 1);
-    if (cp==-1) {
-      cp = 0xfffd;
-    }
-  }
-
   node->visuals.dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
-  node->visuals.characters = characters;
 }
 
 struct range_tree_node* range_tree_compact(struct range_tree_node* root, struct file_type* type, struct range_tree_node* first, struct range_tree_node* last) {
