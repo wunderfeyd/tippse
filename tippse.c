@@ -26,6 +26,7 @@
 #include "clipboard.h"
 #include "filetype.h"
 #include "filetype_c.h"
+#include "encoding_utf8.h"
 
 struct tippse_ansi_key {
   const char* text;
@@ -68,6 +69,7 @@ struct tippse_ansi_key ansi_keys[] = {
   {"\x1b[1;2R", TIPPSE_KEY_SEARCH_PREV, 0},
   {"\x1a", TIPPSE_KEY_UNDO, 0},
   {"\x19", TIPPSE_KEY_REDO, 0},
+  {"\x02", TIPPSE_KEY_BROWSER, 0},
   {"\x03", TIPPSE_KEY_COPY, 0},
   {"\x18", TIPPSE_KEY_CUT, 0},
   {"\x1b[3;2~", TIPPSE_KEY_CUT, 0},
@@ -167,9 +169,29 @@ int main (int argc, const char** argv) {
       tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->type, tabs_doc->buffer?tabs_doc->buffer->length:0, "\n", 1, TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
       doc = doc->next;
     }
-    
-    
+
+    if (focus==search) {
+      splitters_right->split = 5;
+    } else {
+      splitters_right->split = 0;
+    }
+
+    if (focus==browser || focus==tabs) {
+      splitters->split = 12;
+    } else {
+      splitters->split = 0;
+    }
+
     splitter_draw_multiple(screen, splitters, 0);
+    int x;
+    for (x = 0; x<screen->width; x++) {
+      screen_setchar(screen, x, 0, 0x20, 102, 17);
+    }
+
+    screen_drawtext(screen, 0, 0, focus->name, screen->width, 102, 17);
+    int length = utf8_strlen(focus->status);
+    screen_drawtext(screen, screen->width-length, 0, focus->status, screen->width, 102, 17);
+
     screen_draw(screen);
     int in = 0;
     while (in==0) {
@@ -229,6 +251,12 @@ int main (int argc, const char** argv) {
               } else {
                 focus = document;
               }
+              focus->active = 1;
+            }
+
+            if (ansi_keys[pos].cp==TIPPSE_KEY_BROWSER) {
+              focus->active = 0;
+              focus = browser;
               focus->active = 1;
             }
 

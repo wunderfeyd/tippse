@@ -187,8 +187,6 @@ void screen_draw(struct screen* screen) {
 }
 
 void screen_drawtext(const struct screen* screen, int x, int y, const char* text, size_t length, int foreground, int background) {
-  struct screen_char* c;
-
   if (y<0 || y>=screen->height) {
     return;
   }
@@ -200,15 +198,28 @@ void screen_drawtext(const struct screen* screen, int x, int y, const char* text
       cp = 0xfffd;
     }
 
-    if (x>=0) {
-      c = &screen->buffer[y*screen->width+x];
-      c->character = cp;
-      c->foreground = foreground;
-      c->background = background;
-    }
+    screen_setchar(screen, x, y, cp, foreground, background);
 
     x++;
     length--;
   }
 }
 
+int screen_getchar(const struct screen* screen, int x, int y) {
+  if (y<0 || y>=screen->height || x<0 || x>=screen->width) {
+    return 0;
+  }
+
+  return screen->buffer[y*screen->width+x].character;
+}
+
+void screen_setchar(const struct screen* screen, int x, int y, int cp, int foreground, int background) {
+  if (y<0 || y>=screen->height || x<0 || x>=screen->width) {
+    return;
+  }
+
+  struct screen_char* c = &screen->buffer[y*screen->width+x];
+  c->character = cp;
+  c->foreground = foreground;
+  c->background = background;
+}

@@ -301,6 +301,8 @@ int document_render_info_span(struct document_render_info* render_info, struct s
     out->character = 0;
     out->buffer = NULL;
     out->buffer_pos = 0;
+    out->draw_start = ~0;
+    out->draw_end = ~0;
   }
 
   int found = (in->type==VISUAL_SEEK_OFFSET)?0:1;
@@ -356,10 +358,7 @@ int document_render_info_span(struct document_render_info* render_info, struct s
     int sel = (render_info->offset>=view->selection_low && render_info->offset<view->selection_high)?1:0;
 
     size_t length = 0;
-    int cp = (*file->encoding->decode)(file->encoding, &render_info->stream, ~0, &length);
-    if (!render_info->stream.buffer) {
-      cp = ' ';
-    }
+    int cp = render_info->stream.buffer?(*file->encoding->decode)(file->encoding, &render_info->stream, ~0, &length):' ';
 
     int show = cp;
 
@@ -459,6 +458,11 @@ int document_render_info_span(struct document_render_info* render_info, struct s
           show = view->showall?0x66d:' ';
         }
 
+        if (out->draw_start==~0) {
+          out->draw_start = render_info->offset;
+        }
+        out->draw_end = render_info->offset;
+
         if (!sel) {
           splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, show, color, background);
         } else {
@@ -480,6 +484,11 @@ int document_render_info_span(struct document_render_info* render_info, struct s
       show = view->showall?0x21a6:' ';
       while (tabbing-->0) {
         if (screen && render_info->y_view==render_info->y) {
+          if (out->draw_start==~0) {
+            out->draw_start = render_info->offset-length-length;
+          }
+          out->draw_end = render_info->offset;
+
           if (!sel) {
             splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, show, splitter->foreground, background);
           } else {
@@ -621,12 +630,21 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
 
   in.type = VISUAL_SEEK_X_Y;
   in.x = view->scroll_x;
+  file_offset_t start = ~0;
+  file_offset_t end = ~0;
 
   for (y=0; y<splitter->client_height; y++) {
     in.y = y+view->scroll_y;
 
     document_render_info_seek(&render_info, file->buffer, &in);
     document_render_info_span(&render_info, screen, splitter, view, file, &in, &out, ~0);
+    if (y==0) {
+      start = out.draw_start;
+    }
+
+    if (y==splitter->client_height-1) {
+      end = out.draw_end;
+    }
   }
 
   document_render_info_clear(&render_info, splitter->client_width);
@@ -648,13 +666,31 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
 
   splitter_cursor(screen, splitter, cursor_x-view->scroll_x, cursor_y-view->scroll_y);
 
-  if (!splitter->document.keep_status) {
+  if (!document->keep_status) {
     char status[1024];
     sprintf(&status[0], "%s%d/%d:%d - %d/%d byte - %d chars", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), out.line+1, out.column+1, (int)view->offset, file->buffer?(int)file->buffer->length:0, file->buffer?(int)file->buffer->visuals.characters:0);
     splitter_status(splitter, &status[0], 0);
   }
 
-  splitter->document.keep_status = 0;
+  document->keep_status = 0;
+
+  if (document->show_scrollbar) {
+    file_offset_t length = file->buffer?file->buffer->length:0;
+    if (end==~0) {
+      end = length+1;
+    }
+
+    int pos_start = (start*(file_offset_t)splitter->client_height)/(length+1);
+    int pos_end = (end*(file_offset_t)splitter->client_height)/(length+1);
+    for (y = 0; y<splitter->client_height; y++) {
+      if (y>=pos_start && y<=pos_end) {
+        splitter_drawchar(screen, splitter, splitter->client_width-1, y, 0x20, 17, 231);
+      } else {
+        splitter_drawchar(screen, splitter, splitter->client_width-1, y, 0x20, 17, 102);
+      }
+    }
+  }
+  document->show_scrollbar = 0;
 }
 
 void document_expand(file_offset_t* pos, file_offset_t offset, file_offset_t length) {
@@ -832,14 +868,17 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
 
   in_x_y.x = view->cursor_x;
   in_x_y.y = view->cursor_y;
+  document->show_scrollbar = 0;
   if (cp==TIPPSE_KEY_UP) {
     in_x_y.y--;
     view->offset = document_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
+    document->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_DOWN) {
     in_x_y.y++;
     view->offset = document_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
+    document->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_LEFT) {
     in_x_y.x--;
     view->offset = document_cursor_position(splitter, &in_x_y, &out, 1, 1);
@@ -858,12 +897,14 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
     view->scroll_y += page;
     view->offset = document_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
+    document->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_PAGEUP) {
     int page = ((splitter->height-2)/2)+1;
     in_x_y.y -= page;
     view->scroll_y -= page;
     view->offset = document_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
+    document->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_BACKSPACE) {
     if (!document_delete_selection(document)) {
       in_x_y.x--;
@@ -894,12 +935,14 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
     view->offset = document_cursor_position(splitter, &in_x_y, &out, 1, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
+    document->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_END) {
     in_x_y.x = 1000000000;
     in_x_y.y = 1000000000;
     view->offset = document_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
+    document->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_UNDO) {
     document_undo_execute(file, view, file->undos, file->redos);
     while (document_undo_execute(file, view, file->undos, file->redos)) {}

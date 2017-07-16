@@ -57,6 +57,7 @@ struct document;
 #define TIPPSE_KEY_OPEN -29
 #define TIPPSE_KEY_NEW_VERT_TAB -30
 #define TIPPSE_KEY_SHOWALL -31
+#define TIPPSE_KEY_BROWSER -32
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -68,6 +69,7 @@ struct document {
   struct document_file* file;
   struct document_view view;
 
+  int show_scrollbar;
   int keep_status;
   int content_document;
 };
@@ -112,6 +114,8 @@ struct document_render_info_position {
   file_offset_t buffer_pos;             // Offset in page
 
   file_offset_t offset;                 // Offset in file
+  file_offset_t draw_start;             // First offset drawn
+  file_offset_t draw_end;               // Last offset drawn
 
   int x;                                // Position X of viewport
   int y;                                // Position Y of viewport
