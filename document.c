@@ -630,21 +630,11 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
 
   in.type = VISUAL_SEEK_X_Y;
   in.x = view->scroll_x;
-  file_offset_t start = ~0;
-  file_offset_t end = ~0;
-
   for (y=0; y<splitter->client_height; y++) {
     in.y = y+view->scroll_y;
 
     document_render_info_seek(&render_info, file->buffer, &in);
     document_render_info_span(&render_info, screen, splitter, view, file, &in, &out, ~0);
-    if (y==0) {
-      start = out.draw_start;
-    }
-
-    if (y==splitter->client_height-1) {
-      end = out.draw_end;
-    }
   }
 
   document_render_info_clear(&render_info, splitter->client_width);
@@ -675,7 +665,10 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
   document->keep_status = 0;
 
   if (document->show_scrollbar) {
-    file_offset_t length = file->buffer?file->buffer->length:0;
+    file_offset_t start = view->scroll_y;
+    file_offset_t end = view->scroll_y+splitter->client_height;
+
+    file_offset_t length = file->buffer?file->buffer->visuals.lines:0;
     if (end==~0) {
       end = length+1;
     }
@@ -955,8 +948,8 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
     return;
   } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
-      in_x_y.x = x-splitter->x-1+view->scroll_x;
-      in_x_y.y = y-splitter->y-1+view->scroll_y;
+      in_x_y.x = x-splitter->x+view->scroll_x;
+      in_x_y.y = y-splitter->y+view->scroll_y;
       view->offset = document_cursor_position(splitter, &in_x_y, &out, 0, 1);
       view->cursor_x = out.x;
       view->cursor_y = out.y;
