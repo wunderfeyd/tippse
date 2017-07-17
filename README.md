@@ -13,5 +13,6 @@ Good to know:
 Ctrl+Q: Close text editor  
 Ctrl+S: Save files  
 Ctrl+F: Search  
+Ctrl+B: File browser  
  
 More to come...

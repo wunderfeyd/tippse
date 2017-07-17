@@ -49,12 +49,7 @@ void splitter_drawchar(struct screen* screen, const struct splitter* splitter, i
     return;
   }
 
-  if (splitter->active!=-1) {
-    c = &screen->buffer[(splitter->y+y+1)*screen->width+(splitter->x+x+1)];
-  } else {
-    c = &screen->buffer[(splitter->y+y)*screen->width+(splitter->x+x)];
-  }
-
+  c = &screen->buffer[(splitter->y+y)*screen->width+(splitter->x+x)];
   c->character = cp;
   c->foreground = foreground;
   c->background = background;
@@ -100,7 +95,7 @@ void splitter_cursor(struct screen* screen, const struct splitter* splitter, int
     return;
   }
 
-  struct screen_char* c = &screen->buffer[(splitter->y+y+1)*screen->width+(splitter->x+x+1)];
+  struct screen_char* c = &screen->buffer[(splitter->y+y)*screen->width+(splitter->x+x)];
   if (splitter->active) {
     c->foreground = screen_half_inverse_color(c->foreground);
     c->background = screen_half_inverse_color(c->background);
@@ -118,53 +113,69 @@ void splitter_assign_document_file(struct splitter* splitter, struct document_fi
 
 void splitter_draw(struct screen* screen, struct splitter* splitter) {
   int xx, yy;
-  for (yy=1; yy<splitter->height-1; yy++) {
-    for (xx=1; xx<splitter->width-1; xx++) {
-      screen_drawtext(screen, splitter->x+xx, splitter->y+yy, " ", ~0, splitter->foreground, splitter->background);
+  for (yy=0; yy<splitter->height; yy++) {
+    for (xx=0; xx<splitter->width; xx++) {
+      screen_setchar(screen, splitter->x+xx, splitter->y+yy, 0x20, splitter->foreground, splitter->background);
     }
   }
 
   document_draw(screen, splitter);
+}
 
-  for (xx=1; xx<splitter->width-1; xx++) {
-    screen_drawtext(screen, splitter->x+xx, splitter->y, splitter->active?"═":"─", ~0, splitter->foreground, splitter->background);
-    screen_drawtext(screen, splitter->x+xx, splitter->y+splitter->height-1, splitter->active?"═":"─", ~0, splitter->foreground, splitter->background);
+// TODO: hardcoded color values
+void splitter_draw_split_horizontal(struct screen* screen, int x, int y, int width) {
+  int n;
+  for (n = 0; n<width; n++) {
+    screen_setchar(screen, x+n, y, 0x2500, 231, 17);
   }
 
-  for (yy=1; yy<splitter->height-1; yy++) {
-    screen_drawtext(screen, splitter->x, splitter->y+yy, splitter->active?"║":"│", ~0, splitter->foreground, splitter->background);
-    screen_drawtext(screen, splitter->x+splitter->width-1, splitter->y+yy, splitter->active?"║":"│", ~0, splitter->foreground, splitter->background);
+  int left = screen_getchar(screen, x-1, y);
+  int right = screen_getchar(screen, x+width, y);
+  if (left==0x2502) {
+    left = 0x251c;
+  } else if (left==0x2524) {
+    left = 0x253c;
   }
 
-  screen_drawtext(screen, splitter->x, splitter->y, splitter->active?"╔":"┌", ~0, splitter->foreground, splitter->background);
-  screen_drawtext(screen, splitter->x+splitter->width-1, splitter->y, splitter->active?"╗":"┐", ~0, splitter->foreground, splitter->background);
-  screen_drawtext(screen, splitter->x, splitter->y+splitter->height-1, splitter->active?"╚":"└", ~0, splitter->foreground, splitter->background);
-  screen_drawtext(screen, splitter->x+splitter->width-1, splitter->y+splitter->height-1, splitter->active?"╝":"┘", ~0, splitter->foreground, splitter->background);
-
-  if (splitter->width>6) {
-    size_t slen = utf8_strlen(splitter->name);
-    if (slen>splitter->width-7) {
-      slen = splitter->width-7;
-    }
-
-    screen_drawtext(screen, splitter->x+1, splitter->y, splitter->active?"╡ ":"┤ ", ~0, splitter->foreground, splitter->background);
-    screen_drawtext(screen, splitter->x+3, splitter->y, splitter->name, slen, splitter->foreground, splitter->background);
-    screen_drawtext(screen, splitter->x+3+slen, splitter->y, splitter->active?" ╞":" ├", ~0, splitter->foreground, splitter->background);
+  if (right==0x2502) {
+    right = 0x2524;
+  } else if (right==0x251c) {
+    right = 0x253c;
   }
 
-  if (splitter->width>4) {
-    size_t slen = utf8_strlen(splitter->status);
-    if (slen>splitter->width-5) {
-      slen = splitter->width-5;
-    }
+  screen_setchar(screen, x-1, y, left, 231, 17);
+  screen_setchar(screen, x+width, y, right, 231, 17);
+}
 
-    screen_drawtext(screen, splitter->x+splitter->width-2, splitter->y+splitter->height-1, splitter->active?" ":" ", ~0, splitter->foreground, splitter->background);
-    screen_drawtext(screen, splitter->x+splitter->width-2-slen, splitter->y+splitter->height-1, splitter->status, slen, splitter->status_inverted?splitter->background:screen_half_color(splitter->foreground), splitter->status_inverted?splitter->foreground:splitter->background);
-    screen_drawtext(screen, splitter->x+splitter->width-3-slen, splitter->y+splitter->height-1, splitter->active?" ":" ", ~0, splitter->foreground, splitter->background);
+void splitter_draw_split_vertical(struct screen* screen, int x, int y, int height) {
+  int n;
+  for (n = 0; n<height; n++) {
+    screen_setchar(screen, x, y+n, 0x2502, 231, 17);
   }
+
+  int top = screen_getchar(screen, x, y-1);
+  int bottom = screen_getchar(screen, x, y+height);
+  if (top==0x2500) {
+    top = 0x252c;
+  } else if (top==0x2534) {
+    top = 0x253c;
+  }
+
+  if (bottom==0x2500) {
+    bottom = 0x2534;
+  } else if (bottom==0x252c) {
+    bottom = 0x253c;
+  }
+
+  screen_setchar(screen, x, y-1, top, 231, 17);
+  screen_setchar(screen, x, y+height, bottom, 231, 17);
 }
 
 void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int width, int height, struct splitter* splitter, int incremental) {
+  if (width<=0 && height<=0) {
+    return;
+  }
+
   if (splitter->side[0] && splitter->side[1]) {
     int size = (splitter->type&TIPPSE_SPLITTER_HORZ)?width:height;
     int size0 = size;
@@ -179,13 +190,30 @@ void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int w
       size0 = (size*splitter->split)/100;
       size1 = size-size0;
     }
-    
+
+    if (size1>0 && size0>0) {
+      size1--;
+    }
+
+    int base0 = size0;
+    if (base0>0) {
+      base0++;
+    }
+
     if (splitter->type&TIPPSE_SPLITTER_HORZ) {
+      if (size0>0 && size1>0) {
+        splitter_draw_split_vertical(screen, x+size0, y, height);
+      }
+
       splitter_draw_multiple_recursive(screen, x, y, size0, height, splitter->side[0], incremental);
-      splitter_draw_multiple_recursive(screen, x+size0, y, size1, height, splitter->side[1], incremental);
+      splitter_draw_multiple_recursive(screen, x+base0, y, size1, height, splitter->side[1], incremental);
     } else {
+      if (size0>0 && size1>0) {
+        splitter_draw_split_horizontal(screen, x, y+size0, width);
+      }
+
       splitter_draw_multiple_recursive(screen, x, y, width, size0, splitter->side[0], incremental);
-      splitter_draw_multiple_recursive(screen, x, y+size0, width, size1, splitter->side[1], incremental);
+      splitter_draw_multiple_recursive(screen, x, y+base0, width, size1, splitter->side[1], incremental);
     }
   } else {
     screen = screen;
@@ -193,8 +221,8 @@ void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int w
     splitter->y = y;
     splitter->width = width;
     splitter->height = height;
-    splitter->client_width = width-2;
-    splitter->client_height = height-2;
+    splitter->client_width = width;
+    splitter->client_height = height;
     if (!incremental) {
       splitter_draw(screen, splitter);
     } else {
@@ -204,7 +232,7 @@ void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int w
 }
 
 void splitter_draw_multiple(struct screen* screen, struct splitter* splitters, int incremental) {
-  splitter_draw_multiple_recursive(screen, 0, 0, screen->width, screen->height, splitters, incremental);
+  splitter_draw_multiple_recursive(screen, 0, 1, screen->width, screen->height-1, splitters, incremental);
 }
 
 struct splitter* splitter_by_coordinate(struct splitter* splitter, int x, int y) {

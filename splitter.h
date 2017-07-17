@@ -46,6 +46,8 @@ void splitter_status(struct splitter* splitter, const char* status, int status_i
 void splitter_cursor(struct screen* screen, const struct splitter* splitter, int x, int y);
 void splitter_assign_document_file(struct splitter* splitter, struct document_file* file, int content_document);
 void splitter_draw(struct screen* screen, struct splitter* splitter);
+void splitter_draw_split_horizontal(struct screen* screen, int x, int y, int width);
+void splitter_draw_split_vertical(struct screen* screen, int x, int y, int height);
 void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int width, int height, struct splitter* splitter, int incremental);
 void splitter_draw_multiple(struct screen* screen, struct splitter* splitters, int incremental);
 struct splitter* splitter_by_coordinate(struct splitter* splitter, int x, int y);

@@ -49,7 +49,7 @@ struct range_tree_node* range_tree_prev(struct range_tree_node* node);
 void range_tree_exchange(struct range_tree_node* node, struct range_tree_node* old, struct range_tree_node* new);
 struct range_tree_node* range_tree_reorder(struct range_tree_node* node);
 struct range_tree_node* range_tree_update(struct range_tree_node* node);
-struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int find_type, file_offset_t find_offset, int find_x, int find_y, int find_line, int find_column, file_offset_t* offset, int* x, int* y, int* line, int* column, int* indentation, int* indentation_extra);
+struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int find_type, file_offset_t find_offset, int find_x, int find_y, int find_line, int find_column, file_offset_t* offset, int* x, int* y, int* line, int* column, int* indentation, int* indentation_extra, file_offset_t* character);
 file_offset_t range_tree_offset(struct range_tree_node* node);
 file_offset_t range_tree_distance_offset(struct range_tree_node* root, struct range_tree_node* start, struct range_tree_node* end);
 struct range_tree_node* range_tree_find_offset(struct range_tree_node* node, file_offset_t offset, file_offset_t* diff);

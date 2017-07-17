@@ -8,15 +8,16 @@ struct file_type;
 #include "trie.h"
 #include "visualinfo.h"
 #include "rangetree.h"
+#include "encoding.h"
 
 struct file_type {
   struct file_type* (*create)();
   void (*destroy)(struct file_type*);
 
   struct trie* (*keywords)(struct file_type*);
-  void (*mark)(struct file_type*, int*, struct range_tree_node*, file_offset_t, int, int*, int*);
+  void (*mark)(struct file_type*, int*, struct encoding* encoding, struct encoding_stream stream, int, int*, int*);
 };
 
-int file_type_keyword(struct range_tree_node* buffer, file_offset_t buffer_pos, struct trie* trie, int* keyword_length);
+int file_type_keyword(struct encoding* encoding, struct encoding_stream stream, struct trie* trie, int* keyword_length);
 
 #endif  /* #ifndef __TIPPSE_FILETYPE__ */
