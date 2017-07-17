@@ -1098,7 +1098,7 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
   } else if (cp>=0) {
     document_delete_selection(document);
     char utf8[8];
-    size_t size = utf8_encode(cp, &utf8[0], 8)-&utf8[0];
+    size_t size = encoding_utf8_encode(NULL, cp, &utf8[0], 8);
     document_insert(document, view->offset, &utf8[0], size);
     seek = 1;
   }

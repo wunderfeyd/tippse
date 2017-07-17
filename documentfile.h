@@ -11,7 +11,6 @@
 
 struct document_file;
 
-#include "utf8.h"
 #include "list.h"
 #include "rangetree.h"
 #include "filetype_c.h"

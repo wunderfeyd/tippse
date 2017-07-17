@@ -76,21 +76,6 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct encodin
 
   struct encoding_stream copy = stream;
 
-  // TODO: the reverse lookup should be replaced by the visual state
-  struct range_tree_node* node_prev = stream.buffer;
-  file_offset_t buffer_pos_prev = stream.buffer_pos;
-  while (buffer_pos_prev==0) {
-    node_prev = range_tree_prev(node_prev);
-    if (!node_prev) {
-      break;
-    }
-
-    buffer_pos_prev = node_prev->length;
-  }
-  buffer_pos_prev--;
-
-  int cp0 = node_prev?*(node_prev->buffer->buffer+node_prev->offset+buffer_pos_prev):'\0';
-
   size_t cp_length = 0;
   int cp1 = (*encoding->decode)(encoding, &stream, ~0, &cp_length);
   encoding_stream_forward(&stream, cp_length);
@@ -98,37 +83,46 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct encodin
 
   *length = 1;
   int before = *visual_detail;
-  int before_masked = before&(~VISUAL_INFO_INDENTATION);
-  if ((*visual_detail)&VISUAL_INFO_STRINGESCAPE) {
-    *visual_detail &= ~VISUAL_INFO_STRINGESCAPE;
+  int before_masked = before&(~(VISUAL_INFO_INDENTATION|VISUAL_INFO_NEWLINE|VISUAL_INFO_WORD));
+  int after = before;
+
+  if (before_masked&VISUAL_INFO_STRINGESCAPE) {
+    after &= ~VISUAL_INFO_STRINGESCAPE;
   } else if (cp1=='/' && cp2=='*' && before_masked==0) {
     *length = 2;
-    *visual_detail = VISUAL_INFO_COMMENT0;
+    after = VISUAL_INFO_COMMENT0;
   } else if (cp1=='*' && cp2=='/' && before_masked==VISUAL_INFO_COMMENT0) {
     *length = 2;
-    *visual_detail = 0;
+    after = 0;
   } else if (cp1=='/' && cp2=='/' && before_masked==0) {
     *length = 2;
-    *visual_detail = VISUAL_INFO_COMMENT1;
+    after = VISUAL_INFO_COMMENT1;
   } else if (cp1=='\n' && before_masked==VISUAL_INFO_COMMENT1) {
-    *visual_detail = 0;
+    after = 0;
   } else if (cp1=='\\' && (before_masked==VISUAL_INFO_STRING0 || before_masked==VISUAL_INFO_STRING1)) {
-    *visual_detail |= VISUAL_INFO_STRINGESCAPE;
+    after |= VISUAL_INFO_STRINGESCAPE;
   } else if (cp1=='"' && before_masked==0) {
-    *visual_detail = VISUAL_INFO_STRING0;
+    after = VISUAL_INFO_STRING0;
   } else if ((cp1=='"' || cp1=='\n') && before_masked==VISUAL_INFO_STRING0) {
-    *visual_detail = 0;
+    after = 0;
   } else if (cp1=='\'' && before_masked==0) {
-    *visual_detail = VISUAL_INFO_STRING1;
+    after = VISUAL_INFO_STRING1;
   } else if ((cp1=='\'' || cp1=='\n') && before_masked==VISUAL_INFO_STRING1) {
-    *visual_detail = 0;
+    after = 0;
   } else if (cp1!='\t' && cp1!=' ' && before_masked==0) {
-    *visual_detail = 0;
-  } else if ((cp0=='\0' || cp0=='\n') && before==0) {
-    *visual_detail = VISUAL_INFO_INDENTATION;
+    after = 0;
+  } else if (before==VISUAL_INFO_NEWLINE) {
+    after = VISUAL_INFO_INDENTATION;
+  } else if ((cp1=='\0' || cp1=='\n')) {
+    after = VISUAL_INFO_NEWLINE;
   }
 
-  int after = *visual_detail;
+  if ((cp1>='a' && cp1<='z') || (cp1>='A' && cp1<='Z') || (cp1>='0' && cp1<='9') || cp1=='_') {
+    after |= VISUAL_INFO_WORD;
+  }
+
+  *visual_detail = after;
+
   if ((before|after)&(VISUAL_INFO_STRING0|VISUAL_INFO_STRING1)) {
     *flags = VISUAL_FLAG_COLOR_STRING;
   } else if ((before|after)&(VISUAL_INFO_COMMENT0)) {
@@ -139,7 +133,7 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct encodin
     *length = 0;
     *flags = 0;
   } else {
-    if (same_line && (cp0<'a' || cp0>'z') && (cp0<'A' || cp0>'Z') && (cp0<'0' || cp0>'9') && cp0!='_') {
+    if (!(before&VISUAL_INFO_WORD)) {
       *length = 0;
       *flags = file_type_keyword(encoding, copy, this->keywords, length);
     }

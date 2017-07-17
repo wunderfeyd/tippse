@@ -8,7 +8,6 @@
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
-#include "utf8.h"
 #include "screen.h"
 
 void screen_free(struct screen* screen) {
@@ -65,7 +64,7 @@ void screen_draw_char(struct screen* screen, char** pos, int n, int* w, int* for
     //*pos += sprintf(*pos, "\x1b[48;2;%d;%d;%dm", (c->background>>16)&255, (c->background>>8)&255, (c->background>>0)&255);
     *pos += sprintf(*pos, "\x1b[48;5;%dm", c->background);
   }
-  *pos = utf8_encode(c->character, (char*)*pos, ~0);
+  *pos += encoding_utf8_encode(NULL, c->character, (char*)*pos, ~0);
   *w = n;
 }
 
@@ -191,9 +190,15 @@ void screen_drawtext(const struct screen* screen, int x, int y, const char* text
     return;
   }
 
-  while (*text && length>0 && x<screen->width) {
-    int cp = -1;
-    text = utf8_decode(&cp, text, ~0, 1);
+  struct encoding_stream stream;
+  encoding_stream_from_plain(&stream, text);
+  while (length>0 && x<screen->width) {
+    size_t used;
+    int cp = encoding_utf8_decode(NULL, &stream, ~0, &used);
+    if (cp==0) {
+      break;
+    }
+
     if (cp==-1) {
       cp = 0xfffd;
     }
@@ -202,6 +207,7 @@ void screen_drawtext(const struct screen* screen, int x, int y, const char* text
 
     x++;
     length--;
+    encoding_stream_forward(&stream, used);
   }
 }
 

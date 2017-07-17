@@ -9,7 +9,6 @@
 
 struct document;
 
-#include "utf8.h"
 #include "misc.h"
 #include "trie.h"
 #include "filetype.h"

@@ -118,8 +118,8 @@ int encoding_utf8_decode(struct encoding* base, struct encoding_stream* stream, 
   return -1;
 }
 
-size_t encoding_utf8_encode(struct encoding* base, int cp, struct encoding_stream* stream, size_t size) {
-  /*if (cp<0x80) {
+size_t encoding_utf8_encode(struct encoding* base, int cp, char* text, size_t size) {
+  if (cp<0x80) {
     if (size<1) {
       return 0;
     }
@@ -153,7 +153,7 @@ size_t encoding_utf8_encode(struct encoding* base, int cp, struct encoding_strea
     *(unsigned char*)text++ = 0x80+(unsigned char)((cp>>6)&0x3f);
     *(unsigned char*)text++ = 0x80+(unsigned char)(cp&0x3f);
     return 4;
-  }*/
+  }
 
   return 0;
 }
