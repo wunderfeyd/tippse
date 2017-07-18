@@ -6,6 +6,7 @@ struct encoding* encoding_utf8_create() {
   struct encoding_utf8* this = malloc(sizeof(struct encoding_utf8));
   this->vtbl.create = encoding_utf8_create;
   this->vtbl.destroy = encoding_utf8_destroy;
+  this->vtbl.name = encoding_utf8_name;
   this->vtbl.character_length = encoding_utf8_character_length;
   this->vtbl.decode = encoding_utf8_decode;
   this->vtbl.next = encoding_utf8_next;
@@ -19,6 +20,10 @@ struct encoding* encoding_utf8_create() {
 void encoding_utf8_destroy(struct encoding* base) {
   struct encoding_utf8* this = (struct encoding_utf8*)base;
   free(this);
+}
+
+const char* encoding_utf8_name() {
+  return "UTF-8";
 }
 
 size_t encoding_utf8_character_length(struct encoding* base) {

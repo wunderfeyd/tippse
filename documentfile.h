@@ -13,8 +13,19 @@ struct document_file;
 
 #include "list.h"
 #include "rangetree.h"
-#include "filetype_c.h"
+#include "filetype/c.h"
+#include "filetype/cpp.h"
+#include "filetype/sql.h"
+#include "filetype/text.h"
+#include "filetype/lua.h"
+#include "filetype/php.h"
+#include "filetype/xml.h"
 #include "encoding_utf8.h"
+
+struct document_file_type {
+  const char* extension;
+  struct file_type* (*constructor)();
+};
 
 struct document_file {
   struct range_tree_node* buffer;

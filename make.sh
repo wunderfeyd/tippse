@@ -1,2 +1,2 @@
-gcc -Wall -Os -flto -s *.c -o tippse
+gcc -Wall -Os -flto -s *.c filetype/*.c -o tippse
 

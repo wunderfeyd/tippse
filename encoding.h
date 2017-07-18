@@ -23,6 +23,7 @@ struct encoding {
   struct encoding* (*create)();
   void (*destroy)(struct encoding*);
 
+  const char* (*name)();
   size_t (*character_length)(struct encoding*);
   int (*decode)(struct encoding*, struct encoding_stream*, size_t, size_t*);
   size_t (*next)(struct encoding*, struct encoding_stream*, size_t);
