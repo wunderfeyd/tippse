@@ -1,6 +1,11 @@
 #ifndef __TIPPSE_SCREEN__
 #define __TIPPSE_SCREEN__
 
+struct screen_char;
+struct screen;
+
+#include "encoding_utf8.h"
+
 struct screen_char {
   int character;
   int foreground;

@@ -234,6 +234,10 @@ void document_render_info_seek(struct document_render_info* render_info, struct 
   if (buffer_new && render_info->buffer!=buffer_new && render_info->stop==2) {
     render_info->visual_detail = buffer_new->visuals.detail_before;
     render_info->offset = offset_new;
+    if (offset_new==0) {
+      render_info->visual_detail |= VISUAL_INFO_NEWLINE;
+    }
+
     render_info->indentation_extra = indentation_extra_new;
     render_info->indentation = indentation_new;
     render_info->x = x_new+render_info->indentation+render_info->indentation_extra;
@@ -658,7 +662,7 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
 
   if (!document->keep_status) {
     char status[1024];
-    sprintf(&status[0], "%s%d/%d:%d - %d/%d byte - %d chars", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), out.line+1, out.column+1, (int)view->offset, file->buffer?(int)file->buffer->length:0, file->buffer?(int)file->buffer->visuals.characters:0);
+    sprintf(&status[0], "%s%d/%d:%d - %d/%d byte - %d chars - %s - %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), out.line+1, out.column+1, (int)view->offset, file->buffer?(int)file->buffer->length:0, file->buffer?(int)file->buffer->visuals.characters:0, (*file->type->name)(), (*file->encoding->name)());
     splitter_status(splitter, &status[0], 0);
   }
 
@@ -668,7 +672,7 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
     file_offset_t start = view->scroll_y;
     file_offset_t end = view->scroll_y+splitter->client_height;
 
-    file_offset_t length = file->buffer?file->buffer->visuals.lines:0;
+    file_offset_t length = file->buffer?file->buffer->visuals.ys:0;
     if (end==~0) {
       end = length+1;
     }
@@ -1098,7 +1102,7 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
   } else if (cp>=0) {
     document_delete_selection(document);
     char utf8[8];
-    size_t size = utf8_encode(cp, &utf8[0], 8)-&utf8[0];
+    size_t size = encoding_utf8_encode(NULL, cp, &utf8[0], 8);
     document_insert(document, view->offset, &utf8[0], size);
     seek = 1;
   }

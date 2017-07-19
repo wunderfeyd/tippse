@@ -13,7 +13,6 @@
 #include <fcntl.h>
 #include <dirent.h>
 
-#include "utf8.h"
 #include "list.h"
 #include "fragment.h"
 #include "rangetree.h"
@@ -24,8 +23,6 @@
 #include "documentview.h"
 #include "documentundo.h"
 #include "clipboard.h"
-#include "filetype.h"
-#include "filetype_c.h"
 #include "encoding_utf8.h"
 
 struct tippse_ansi_key {
@@ -98,12 +95,12 @@ int main (int argc, const char** argv) {
   cfmakeraw(&raw);
   tcsetattr(STDIN_FILENO, TCSANOW, &raw);
 
-  write(STDOUT_FILENO, "\e[?47h", 6);
-  write(STDOUT_FILENO, "\e[?25l", 6);
-  write(STDOUT_FILENO, "\e[?7l", 5);
-  write(STDOUT_FILENO, "\e[?2004h", 8);
-  write(STDOUT_FILENO, "\e[?1003h", 8);
-  write(STDOUT_FILENO, "\e[?1005h", 8);
+  write(STDOUT_FILENO, "\x1b[?47h", 6);
+  write(STDOUT_FILENO, "\x1b[?25l", 6);
+  write(STDOUT_FILENO, "\x1b[?7l", 5);
+  write(STDOUT_FILENO, "\x1b[?2004h", 8);
+  write(STDOUT_FILENO, "\x1b[?1003h", 8);
+  write(STDOUT_FILENO, "\x1b[?1005h", 8);
 
   screen = screen_init();
 
@@ -189,7 +186,9 @@ int main (int argc, const char** argv) {
     }
 
     screen_drawtext(screen, 0, 0, focus->name, screen->width, 102, 17);
-    int length = utf8_strlen(focus->status);
+    struct encoding_stream stream;
+    encoding_stream_from_plain(&stream, focus->status);
+    int length = encoding_utf8_strlen(NULL, &stream);
     screen_drawtext(screen, screen->width-length, 0, focus->status, screen->width, 102, 17);
 
     screen_draw(screen);
@@ -220,9 +219,9 @@ int main (int argc, const char** argv) {
       }
     }
 
-    int check = 0;
+    size_t check = 0;
     while (1) {
-      int used = 0;
+      size_t used = 0;
       int keep = 0;
       size_t pos;
       for (pos = 0; ansi_keys[pos].cp!=0; pos++) {
@@ -417,17 +416,17 @@ int main (int argc, const char** argv) {
       }
 
       if (!keep) {
-        const char* text = (const char*)&input_buffer[check];
-        int cp = -1;
-        text = utf8_decode(&cp, text, (const char*)&input_buffer[input_pos]-text, 0);
+        struct encoding_stream stream;
+        encoding_stream_from_plain(&stream, (const char*)&input_buffer[check]);
+        int cp = encoding_utf8_decode(NULL, &stream, (const char*)&input_buffer[input_pos]-(const char*)&input_buffer[check], &used);
         if (cp==-1) {
+          used = 0;
           break;
         }
 
         if (!bracket_paste) {
           document_keypress(focus, cp, 0, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
         }
-        used = text-(const char*)&input_buffer[check];
        }
       
       if (used==0) {
@@ -440,12 +439,13 @@ int main (int argc, const char** argv) {
     input_pos -= check;
   }
 
-  write(STDOUT_FILENO, "\e[?1005l", 8);
-  write(STDOUT_FILENO, "\e[?1003l", 8);
-  write(STDOUT_FILENO, "\e[?2004l", 8);
-  write(STDOUT_FILENO, "\e[?7h", 5);
-  write(STDOUT_FILENO, "\e[?25h", 6);
-  write(STDOUT_FILENO, "\e[?47l", 6);
+  write(STDOUT_FILENO, "\x1b[?1005l", 8);
+  write(STDOUT_FILENO, "\x1b[?1003l", 8);
+  write(STDOUT_FILENO, "\x1b[?2004l", 8);
+  write(STDOUT_FILENO, "\x1b[?7h", 5);
+  write(STDOUT_FILENO, "\x1b[?25h", 6);
+  write(STDOUT_FILENO, "\x1b[?47l", 6);
+  write(STDOUT_FILENO, "\x1b[39;49m", 8);
   tcsetattr(STDIN_FILENO, TCSANOW, &original);
 
   screen_free(screen);

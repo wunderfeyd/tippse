@@ -94,3 +94,17 @@ void trie_load_array(struct trie* trie, const struct trie_static* array) {
     array++;
   }
 }
+
+void trie_append_string_nocase(struct trie* trie, struct trie_node* parent, const char* text, int type) {
+  if (*text) {
+    trie_append_string_nocase(trie, trie_append_codepoint(trie, parent, *(unsigned char*)text, (text[1]=='\0')?type:0), text+1, type);
+    trie_append_string_nocase(trie, trie_append_codepoint(trie, parent, toupper(*(unsigned char*)text), (text[1]=='\0')?type:0), text+1, type);
+  }
+}
+
+void trie_load_array_nocase(struct trie* trie, const struct trie_static* array) {
+  while (array->text) {
+    trie_append_string_nocase(trie, NULL, array->text, array->type);
+    array++;
+  }
+}

@@ -39,8 +39,6 @@ void splitter_free(struct splitter* splitter) {
 }
 
 void splitter_drawchar(struct screen* screen, const struct splitter* splitter, int x, int y, int cp, int foreground, int background) {
-  struct screen_char* c;
-
   if (y<0 || y>=splitter->client_height) {
     return;
   }
@@ -49,25 +47,16 @@ void splitter_drawchar(struct screen* screen, const struct splitter* splitter, i
     return;
   }
 
-  c = &screen->buffer[(splitter->y+y)*screen->width+(splitter->x+x)];
-  c->character = cp;
-  c->foreground = foreground;
-  c->background = background;
+  screen_setchar(screen, splitter->x+x, splitter->y+y, cp, foreground, background);
 }
 
 void splitter_drawtext(struct screen* screen, const struct splitter* splitter, int x, int y, const char* text, size_t length, int foreground, int background) {
-  while (*text && length>0) {
-    int cp = -1;
-    text = utf8_decode(&cp, text, ~0, 1);
-    if (cp==-1) {
-      cp = 0xfffd;
-    }
-
-    splitter_drawchar(screen, splitter, x, y, cp, foreground, background);
-
-    x++;
-    length--;
+  size_t width = (size_t)(splitter->client_width-x);
+  if (width<length) {
+    length = width;
   }
+
+  screen_drawtext(screen, splitter->x+x, splitter->y+y, text, length, foreground, background);
 }
 
 void splitter_name(struct splitter* splitter, const char* name) {

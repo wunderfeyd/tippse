@@ -14,7 +14,7 @@ struct file_type {
   struct file_type* (*create)();
   void (*destroy)(struct file_type*);
 
-  struct trie* (*keywords)(struct file_type*);
+  const char* (*name)();
   void (*mark)(struct file_type*, int*, struct encoding* encoding, struct encoding_stream stream, int, int*, int*);
 };
 

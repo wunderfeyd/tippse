@@ -2,6 +2,21 @@
 
 #include "documentfile.h"
 
+// TODO: this has to be covered by the settings subsystem in future
+struct document_file_type document_file_types[] = {
+  {"c",  file_type_c_create},
+  {"h",  file_type_c_create},
+  {"cpp",  file_type_cpp_create},
+  {"hpp",  file_type_cpp_create},
+  {"cc",  file_type_cpp_create},
+  {"cxx",  file_type_cpp_create},
+  {"sql",  file_type_sql_create},
+  {"lua",  file_type_lua_create},
+  {"php",  file_type_php_create},
+  {"xml",  file_type_xml_create},
+  {NULL,  NULL}
+};
+
 struct document_file* document_file_create(int save) {
   struct document_file* file = (struct document_file*)malloc(sizeof(struct document_file));
   file->buffer = NULL;
@@ -11,7 +26,7 @@ struct document_file* document_file_create(int save) {
   file->views = list_create();
   file->modified = 0;
   file->save = save;
-  file->type = file_type_c_create();
+  file->type = file_type_text_create();
   file->encoding = encoding_utf8_create();
   return file;
 }
@@ -37,6 +52,30 @@ void document_file_destroy(struct document_file* file) {
 void document_file_name(struct document_file* file, const char* filename) {
   free(file->filename);
   file->filename = strdup(filename);
+
+  const char* search = filename;
+  const char* last = filename;
+  while (*search) {
+    if (*search=='.') {
+      last = search+1;
+    }
+
+    search++;
+  }
+
+  if (last==filename) {
+    last = search;
+  }
+
+  size_t n;
+  for (n = 0; document_file_types[n].extension; n++) {
+    printf("%d\r\n", (int)n);
+    if (strcasecmp(document_file_types[n].extension, last)==0) {
+      (*file->type->destroy)(file->type);
+      file->type = (*document_file_types[n].constructor)();
+      break;
+    }
+  }
 }
 
 void document_file_load(struct document_file* file, const char* filename) {

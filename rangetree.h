@@ -9,7 +9,6 @@
 
 struct range_tree_node;
 
-#include "utf8.h"
 #include "fragment.h"
 #include "visualinfo.h"
 #include "filetype.h"
