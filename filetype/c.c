@@ -42,6 +42,7 @@ struct trie_static keywords_preprocessor_language_c[] = {
   {"define", VISUAL_FLAG_COLOR_PREPROCESSOR},
   {"if", VISUAL_FLAG_COLOR_PREPROCESSOR},
   {"ifdef", VISUAL_FLAG_COLOR_PREPROCESSOR},
+  {"ifndef", VISUAL_FLAG_COLOR_PREPROCESSOR},
   {"else", VISUAL_FLAG_COLOR_PREPROCESSOR},
   {"elif", VISUAL_FLAG_COLOR_PREPROCESSOR},
   {"endif", VISUAL_FLAG_COLOR_PREPROCESSOR},
@@ -74,15 +75,11 @@ const char* file_type_c_name() {
   return "C";
 }
 
-void file_type_c_mark(struct file_type* base, int* visual_detail, struct encoding* encoding, struct encoding_stream stream, int same_line, int* length, int* flags) {
+void file_type_c_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int same_line, int* length, int* flags) {
   struct file_type_c* this = (struct file_type_c*)base;
 
-  struct encoding_stream copy = stream;
-
-  size_t cp_length = 0;
-  int cp1 = (*encoding->decode)(encoding, &stream, ~0, &cp_length);
-  encoding_stream_forward(&stream, cp_length);
-  int cp2 = (*encoding->decode)(encoding, &stream, ~0, &cp_length);
+  int cp1 = encoding_cache_find_codepoint(cache, 0);
+  int cp2 = encoding_cache_find_codepoint(cache, 1);
 
   *length = 1;
   int before = *visual_detail;
@@ -150,7 +147,7 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct encodin
       if (cp1>' ' && (before&VISUAL_INFO_PREPROCESSOR)) {
         after &= ~VISUAL_INFO_PREPROCESSOR;
         *length = 0;
-        *flags = file_type_keyword(encoding, copy, this->keywords_preprocessor, length);
+        *flags = file_type_keyword(cache, this->keywords_preprocessor, length);
       }
 
       if (*flags==0) {
@@ -164,7 +161,7 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct encodin
     } else {
       if (!(before&VISUAL_INFO_WORD) && (after&VISUAL_INFO_WORD)) {
         *length = 0;
-        *flags = file_type_keyword(encoding, copy, this->keywords, length);
+        *flags = file_type_keyword(cache, this->keywords, length);
       }
 
       if (*flags==0) {

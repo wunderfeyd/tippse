@@ -103,6 +103,7 @@ struct document_render_info {
   int keyword_color;
   int keyword_length;
   struct encoding_stream stream;
+  struct encoding_cache cache;
 };
 
 // Document position structure
@@ -128,13 +129,13 @@ struct document_render_info_position {
 
 void document_render_info_clear(struct document_render_info* render_info, int width);
 void document_render_info_seek(struct document_render_info* render_info, struct range_tree_node* buffer, struct document_render_info_position* in);
-int document_render_lookahead_word_wrap(struct document_file* file, struct encoding_stream stream, int max);
+int document_render_lookahead_word_wrap(struct document_file* file, struct encoding_cache* cache, int max);
 int document_render_info_span(struct document_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, struct document_render_info_position* in, struct document_render_info_position* out, int dirty_pages);
 
 int document_compare(struct range_tree_node* left, file_offset_t buffer_pos_left, struct range_tree_node* right_root, file_offset_t length);
 void document_search(struct splitter* splitter, struct document* document, struct range_tree_node* text, file_offset_t length, int forward);
 file_offset_t document_cursor_position(struct splitter* splitter, struct document_render_info_position* in, struct document_render_info_position* out, int wrap, int cancel);
-void document_incremental_update(struct splitter* splitter);
+int document_incremental_update(struct splitter* splitter);
 void document_draw(struct screen* screen, struct splitter* splitter);
 
 void document_expand(file_offset_t* pos, file_offset_t offset, file_offset_t length);

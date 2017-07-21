@@ -9,10 +9,6 @@
 
 struct range_tree_node;
 
-#include "fragment.h"
-#include "visualinfo.h"
-#include "filetype.h"
-
 #define TREE_BLOCK_LENGTH_MAX 1024
 #define TREE_BLOCK_LENGTH_MIN 16
 
@@ -22,9 +18,15 @@ struct range_tree_node;
 #define TIPPSE_INSERTER_ESCAPE 8
 #define TIPPSE_INSERTER_AUTO 16
 
+#include "fragment.h"
+#include "visualinfo.h"
+#include "filetype.h"
+
 struct range_tree_node {
   struct range_tree_node* parent;
   struct range_tree_node* side[2];
+  struct range_tree_node* next;
+  struct range_tree_node* prev;
   struct fragment* buffer;
   file_offset_t offset;
   file_offset_t length;
@@ -43,8 +45,10 @@ void range_tree_clear(struct range_tree_node* node);
 struct range_tree_node* range_tree_new_node(struct range_tree_node* parent, struct range_tree_node* side0, struct range_tree_node* side1, struct fragment* buffer, file_offset_t offset, file_offset_t length, int inserter);
 struct range_tree_node* range_tree_first(struct range_tree_node* node);
 struct range_tree_node* range_tree_last(struct range_tree_node* node);
-struct range_tree_node* range_tree_next(struct range_tree_node* node);
-struct range_tree_node* range_tree_prev(struct range_tree_node* node);
+inline struct range_tree_node* range_tree_next(struct range_tree_node* node) {return node->next;}
+inline struct range_tree_node* range_tree_prev(struct range_tree_node* node) {return node->prev;}
+//struct range_tree_node* range_tree_next(struct range_tree_node* node);
+//struct range_tree_node* range_tree_prev(struct range_tree_node* node);
 void range_tree_exchange(struct range_tree_node* node, struct range_tree_node* old, struct range_tree_node* new);
 struct range_tree_node* range_tree_reorder(struct range_tree_node* node);
 struct range_tree_node* range_tree_update(struct range_tree_node* node);

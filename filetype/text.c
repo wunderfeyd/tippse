@@ -21,9 +21,8 @@ const char* file_type_text_name() {
   return "Text";
 }
 
-void file_type_text_mark(struct file_type* base, int* visual_detail, struct encoding* encoding, struct encoding_stream stream, int same_line, int* length, int* flags) {
-  size_t cp_length = 0;
-  int cp1 = (*encoding->decode)(encoding, &stream, ~0, &cp_length);
+void file_type_text_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int same_line, int* length, int* flags) {
+  int cp1 = encoding_cache_find_codepoint(cache, 0);
 
   *length = 1;
   int before = *visual_detail;

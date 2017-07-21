@@ -15,9 +15,9 @@ struct file_type {
   void (*destroy)(struct file_type*);
 
   const char* (*name)();
-  void (*mark)(struct file_type*, int*, struct encoding* encoding, struct encoding_stream stream, int, int*, int*);
+  void (*mark)(struct file_type*, int*, struct encoding_cache* cache, int, int*, int*);
 };
 
-int file_type_keyword(struct encoding* encoding, struct encoding_stream stream, struct trie* trie, int* keyword_length);
+int file_type_keyword(struct encoding_cache* cache, struct trie* trie, int* keyword_length);
 
 #endif  /* #ifndef __TIPPSE_FILETYPE__ */

@@ -49,16 +49,12 @@ const char* file_type_lua_name() {
   return "Lua";
 }
 
-void file_type_lua_mark(struct file_type* base, int* visual_detail, struct encoding* encoding, struct encoding_stream stream, int same_line, int* length, int* flags) {
+void file_type_lua_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int same_line, int* length, int* flags) {
   struct file_type_lua* this = (struct file_type_lua*)base;
 
   // TODO: check for different block comments in future
-  struct encoding_stream copy = stream;
-
-  size_t cp_length = 0;
-  int cp1 = (*encoding->decode)(encoding, &stream, ~0, &cp_length);
-  encoding_stream_forward(&stream, cp_length);
-  int cp2 = (*encoding->decode)(encoding, &stream, ~0, &cp_length);
+  int cp1 = encoding_cache_find_codepoint(cache, 0);
+  int cp2 = encoding_cache_find_codepoint(cache, 1);
 
   *length = 1;
   int before = *visual_detail;
@@ -126,7 +122,7 @@ void file_type_lua_mark(struct file_type* base, int* visual_detail, struct encod
   } else {
     if (!(before&VISUAL_INFO_WORD) && (after&VISUAL_INFO_WORD)) {
       *length = 0;
-      *flags = file_type_keyword(encoding, copy, this->keywords, length);
+      *flags = file_type_keyword(cache, this->keywords, length);
     }
 
     if (*flags==0) {

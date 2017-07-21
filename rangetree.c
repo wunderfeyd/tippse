@@ -9,7 +9,7 @@ void range_tree_print(struct range_tree_node* node, int depth, int side) {
     tab--;
   }
   
-  printf ("%d %5d %5d %s(%p-%p) %5d %5d (%p) [0](%p) [1](%p) [P](%p) %d %d %d ", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->side[0], node->side[1], node->parent, (int)node->visuals.ys, (int)node->visuals.xs, (int)node->visuals.dirty);
+  printf ("%d %5d %5d %s(%p-%p) %5d %5d (%p) [0](%p) [1](%p) [P](%p) [U](%p) [d](%p) %d %d %d ", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->side[0], node->side[1], node->parent, node->next, node->prev, (int)node->visuals.ys, (int)node->visuals.xs, (int)node->visuals.dirty);
   printf("\r\n");
   if (node->side[0]) {
     range_tree_print(node->side[0], depth+1, 0);
@@ -98,6 +98,8 @@ struct range_tree_node* range_tree_new_node(struct range_tree_node* parent, stru
   node->side[0] = side0;
   node->side[1] = side1;
   node->buffer = buffer;
+  node->next = NULL;
+  node->prev = NULL;
   if (node->buffer) {
     fragment_reference(node->buffer);
   }
@@ -134,7 +136,7 @@ struct range_tree_node* range_tree_last(struct range_tree_node* node) {
   return node;
 }
 
-struct range_tree_node* range_tree_next(struct range_tree_node* node) {
+/*struct range_tree_node* range_tree_next(struct range_tree_node* node) {
   while (1) {
     struct range_tree_node* parent = node->parent;
     if (!parent) {
@@ -168,7 +170,8 @@ struct range_tree_node* range_tree_prev(struct range_tree_node* node) {
   }
   
   return range_tree_last(node);
-}
+  return node->prev;
+}*/
 
 void range_tree_exchange(struct range_tree_node* node, struct range_tree_node* old, struct range_tree_node* new) {
   if (!node) {
@@ -242,6 +245,14 @@ struct range_tree_node* range_tree_update(struct range_tree_node* node) {
       struct range_tree_node* parent = node->parent;
       if (parent) {
         range_tree_exchange(parent, node, NULL);
+      }
+
+      if (node->prev) {
+        node->prev->next = node->next;
+      }
+
+      if (node->next) {
+        node->next->prev = node->prev;
       }
 
       free(node);
@@ -480,10 +491,20 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, struct f
     struct range_tree_node* after = NULL;
 
     build1 = range_tree_new_node(NULL, NULL, NULL, buffer, buffer_offset, buffer_length, inserter);
+
     if (split==node->length && ((node->inserter&TIPPSE_INSERTER_AFTER) || (inserter&TIPPSE_INSERTER_AUTO))) {
       build0 = range_tree_new_node(node->parent, node, build1, NULL, 0, 0, 0);
       build1->parent = build0;
       node->parent = build0;
+
+      build1->next = node->next;
+      if (node->next) {
+        node->next->prev = build1;
+      }
+
+      node->next = build1;
+      build1->prev = node;
+
       range_tree_exchange(build0->parent, node, build0);  
       range_tree_retext(build1, type);
       range_tree_retext(node, type);
@@ -495,6 +516,15 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, struct f
       build0 = range_tree_new_node(node->parent, build1, node, NULL, 0, 0, 0);
       build1->parent = build0;
       node->parent = build0;
+
+      build1->prev = node->prev;
+      if (node->prev) {
+        node->prev->next = build1;
+      }
+
+      node->prev = build1;
+      build1->next = node;
+
       range_tree_exchange(build0->parent, node, build0);  
       range_tree_retext(build1, type);
       range_tree_retext(node, type);
@@ -510,6 +540,17 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, struct f
       build1->parent = build0;
       build0->parent = build3;
       node->parent = build3;
+
+      build2->prev = node->prev;
+      if (node->prev) {
+        node->prev->next = build2;
+      }
+
+      node->prev = build1;
+      build2->next = build1;
+      build1->prev = build2;
+      build1->next = node;
+
       range_tree_exchange(build3->parent, node, build3);
       node->offset += split;
       node->length -= split;
@@ -599,6 +640,15 @@ struct range_tree_node* range_tree_delete(struct range_tree_node* root, struct f
         build1->parent = build0;
         node->parent = build0;
         node->length = split;
+
+        build1->next = node->next;
+        if (node->next) {
+          node->next->prev = build1;
+        }
+
+        node->next = build1;
+        build1->prev = node;
+
         range_tree_exchange(build0->parent, node, build0);
         range_tree_retext(node, type);
         range_tree_retext(build1, type);
@@ -651,6 +701,11 @@ struct range_tree_node* range_tree_copy(struct range_tree_node* root, struct fil
       build0 = range_tree_new_node(last->parent, last, build1, NULL, 0, 0, 0);
       build1->parent = build0;
       last->parent = build0;
+
+      build1->next = last->next;
+      last->next = build1;
+      build1->prev = last;
+
       range_tree_exchange(build0->parent, last, build0);  
       range_tree_update(build1);
       copy = range_tree_update(last);
@@ -708,4 +763,3 @@ char* range_tree_raw(struct range_tree_node* root, file_offset_t start, file_off
   *(text+offset) = '\0';
   return text;
 }
-

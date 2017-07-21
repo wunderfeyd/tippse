@@ -156,6 +156,12 @@ int main (int argc, const char** argv) {
 
   int close = 0;
 
+  // Performance tests
+  int perf_test = 0;
+  if (perf_test) {
+    goto end;
+  }
+
   while (!close) {
     tabs_doc->buffer = range_tree_delete(tabs_doc->buffer, tabs_doc->type, 0, tabs_doc->buffer?tabs_doc->buffer->length:0, TIPPSE_INSERTER_AUTO);
     struct list_node* doc = documents->first;
@@ -187,7 +193,7 @@ int main (int argc, const char** argv) {
 
     screen_drawtext(screen, 0, 0, focus->name, screen->width, 102, 17);
     struct encoding_stream stream;
-    encoding_stream_from_plain(&stream, focus->status);
+    encoding_stream_from_plain(&stream, focus->status, ~0);
     int length = encoding_utf8_strlen(NULL, &stream);
     screen_drawtext(screen, screen->width-length, 0, focus->status, screen->width, 102, 17);
 
@@ -275,7 +281,7 @@ int main (int argc, const char** argv) {
                 mouse_buttons |= TIPPSE_MOUSE_MBUTTON;
               }
               
-              mouse_buttons &= ~TIPPSE_MOUSE_WHEEL_UP && ~TIPPSE_MOUSE_WHEEL_DOWN;
+              mouse_buttons &= ~TIPPSE_MOUSE_WHEEL_UP & ~TIPPSE_MOUSE_WHEEL_DOWN;
               if (buttons==96) {
                 mouse_buttons |= TIPPSE_MOUSE_WHEEL_UP;
               } else if (buttons==97) {
@@ -417,8 +423,8 @@ int main (int argc, const char** argv) {
 
       if (!keep) {
         struct encoding_stream stream;
-        encoding_stream_from_plain(&stream, (const char*)&input_buffer[check]);
-        int cp = encoding_utf8_decode(NULL, &stream, (const char*)&input_buffer[input_pos]-(const char*)&input_buffer[check], &used);
+        encoding_stream_from_plain(&stream, (const char*)&input_buffer[check], (const char*)&input_buffer[input_pos]-(const char*)&input_buffer[check]);
+        int cp = encoding_utf8_decode(NULL, &stream, &used);
         if (cp==-1) {
           used = 0;
           break;
@@ -439,6 +445,7 @@ int main (int argc, const char** argv) {
     input_pos -= check;
   }
 
+end:;
   write(STDOUT_FILENO, "\x1b[?1005l", 8);
   write(STDOUT_FILENO, "\x1b[?1003l", 8);
   write(STDOUT_FILENO, "\x1b[?2004l", 8);
@@ -447,6 +454,18 @@ int main (int argc, const char** argv) {
   write(STDOUT_FILENO, "\x1b[?47l", 6);
   write(STDOUT_FILENO, "\x1b[39;49m", 8);
   tcsetattr(STDIN_FILENO, TCSANOW, &original);
+
+  if (perf_test) {
+    int64_t time_start = tick_count();
+    while (1) {
+      if (document_incremental_update(document)==0) {
+        break;
+      }
+    }
+    printf("Tippse test - Runtime %lld\r\n", (long long)(tick_count()-time_start));
+    printf("Node ratio %3.3f\r\n", (float)sizeof(struct range_tree_node)/(float)TREE_BLOCK_LENGTH_MAX);
+//    range_tree_print(document->document.file->buffer, 0, 0);
+  }
 
   screen_free(screen);
 

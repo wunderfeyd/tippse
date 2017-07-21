@@ -69,7 +69,6 @@ void document_file_name(struct document_file* file, const char* filename) {
 
   size_t n;
   for (n = 0; document_file_types[n].extension; n++) {
-    printf("%d\r\n", (int)n);
     if (strcasecmp(document_file_types[n].extension, last)==0) {
       (*file->type->destroy)(file->type);
       file->type = (*document_file_types[n].constructor)();
