@@ -41,7 +41,7 @@ void visual_info_combine(struct visual_info* visuals, const struct visual_info* 
   }
 
   visuals->detail_before = left->detail_before;
-  visuals->detail_after = right->detail_after;
+  visuals->detail_after = ((left->detail_after&right->detail_after)&VISUAL_INFO_WHITESPACED_COMPLETE)|((left->detail_after|right->detail_after)&VISUAL_INFO_WHITESPACED_START);
 
   int dirty = (left->dirty|right->dirty)&VISUAL_DIRTY_UPDATE;
   dirty |= (left->dirty)&(VISUAL_DIRTY_SPLITTED|VISUAL_DIRTY_LEFT);

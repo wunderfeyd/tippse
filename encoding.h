@@ -13,7 +13,7 @@ struct encoding_cache_codepoint;
 #define ENCODING_STREAM_PLAIN 0
 #define ENCODING_STREAM_PAGED 1
 
-#define ENCODING_CACHE_SIZE 512
+#define ENCODING_CACHE_SIZE 1024
 
 struct encoding_cache_codepoint {
   int cp;

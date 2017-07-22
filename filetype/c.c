@@ -83,7 +83,7 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct encodin
 
   *length = 1;
   int before = *visual_detail;
-  int before_masked = before&(~(VISUAL_INFO_INDENTATION|VISUAL_INFO_NEWLINE|VISUAL_INFO_WORD));
+  int before_masked = before&(~(VISUAL_INFO_INDENTATION|VISUAL_INFO_NEWLINE|VISUAL_INFO_WORD|VISUAL_INFO_WHITESPACED_COMPLETE|VISUAL_INFO_WHITESPACED_START));
   int after = before;
 
   if (before_masked&VISUAL_INFO_STRINGESCAPE) {

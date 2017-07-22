@@ -52,6 +52,7 @@ struct range_tree_node* range_tree_rotate(struct range_tree_node* node, int side
 struct range_tree_node* range_tree_balance(struct range_tree_node* node);
 struct range_tree_node* range_tree_update(struct range_tree_node* node);
 struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int find_type, file_offset_t find_offset, int find_x, int find_y, int find_line, int find_column, file_offset_t* offset, int* x, int* y, int* line, int* column, int* indentation, int* indentation_extra, file_offset_t* character);
+int range_tree_find_whitespaced(struct range_tree_node* node);
 file_offset_t range_tree_offset(struct range_tree_node* node);
 file_offset_t range_tree_distance_offset(struct range_tree_node* root, struct range_tree_node* start, struct range_tree_node* end);
 struct range_tree_node* range_tree_find_offset(struct range_tree_node* node, file_offset_t offset, file_offset_t* diff);

@@ -332,6 +332,42 @@ struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int
   return node;
 }
 
+// Check if whitespacing stops at line end
+int range_tree_find_whitespaced(struct range_tree_node* node) {
+  if (node->visuals.detail_after&VISUAL_INFO_WHITESPACED_START) {
+    return 1;
+  }
+
+  if (!(node->visuals.detail_after&VISUAL_INFO_WHITESPACED_COMPLETE)) {
+    return 0;
+  }
+
+  while (node->parent) {
+    if (node->parent->side[0]==node) {
+      if (!(node->parent->side[1]->visuals.detail_after&VISUAL_INFO_WHITESPACED_COMPLETE)) {
+        node = node->parent->side[1];
+        break;
+      }
+    }
+
+    node = node->parent;
+  }
+
+  if (!node->parent) {
+    return 1;
+  }
+
+  while (!node->buffer) {
+    if (!(node->side[0]->visuals.detail_after&VISUAL_INFO_WHITESPACED_COMPLETE)) {
+      node = node->side[0];
+    } else {
+      node = node->side[1];
+    }
+  }
+
+  return (node->visuals.detail_after&(VISUAL_INFO_WHITESPACED_COMPLETE|VISUAL_INFO_WHITESPACED_START))?1:0;
+}
+
 // Return base offset of given node
 file_offset_t range_tree_offset(struct range_tree_node* node) {
   file_offset_t offset = 0;

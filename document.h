@@ -102,6 +102,7 @@ struct document_render_info {
   int width;
   int keyword_color;
   int keyword_length;
+  int whitespaced;
   struct encoding_stream stream;
   struct encoding_cache cache;
 };
