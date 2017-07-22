@@ -464,6 +464,7 @@ end:;
     }
     printf("Tippse test - Runtime %lld\r\n", (long long)(tick_count()-time_start));
     printf("Node ratio %3.3f\r\n", (float)sizeof(struct range_tree_node)/(float)TREE_BLOCK_LENGTH_MAX);
+    printf("Trie bucket size %d\r\n", (int)(sizeof(struct trie_node)*TRIE_NODES_PER_BUCKET));
 //    range_tree_print(document->document.file->buffer, 0, 0);
   }
 

@@ -229,43 +229,45 @@ void document_render_info_seek(struct document_render_info* render_info, struct 
   file_offset_t characters_new = 0;
   struct range_tree_node* buffer_new;
 
-  buffer_new = range_tree_find_visual(buffer, in->type, in->offset, in->x, in->y, in->line, in->column, &offset_new, &x_new, &y_new, &lines_new, &columns_new, &indentation_new, &indentation_extra_new, &characters_new);
+  if (render_info->stop==2) {
+    buffer_new = range_tree_find_visual(buffer, in->type, in->offset, in->x, in->y, in->line, in->column, &offset_new, &x_new, &y_new, &lines_new, &columns_new, &indentation_new, &indentation_extra_new, &characters_new);
 
-  if (buffer_new && render_info->buffer!=buffer_new && render_info->stop==2) {
-    render_info->visual_detail = buffer_new->visuals.detail_before;
-    render_info->offset = offset_new;
-    if (offset_new==0) {
-      render_info->visual_detail |= VISUAL_INFO_NEWLINE;
+    if (buffer_new && render_info->buffer!=buffer_new) {
+      render_info->visual_detail = buffer_new->visuals.detail_before;
+      render_info->offset = offset_new;
+      if (offset_new==0) {
+        render_info->visual_detail |= VISUAL_INFO_NEWLINE;
+      }
+
+      render_info->indentation_extra = indentation_extra_new;
+      render_info->indentation = indentation_new;
+      render_info->x = x_new+render_info->indentation+render_info->indentation_extra;
+      render_info->y_view = y_new;
+      render_info->line = lines_new;
+      render_info->column = columns_new;
+      render_info->character = characters_new;
+
+      if (render_info->indentation+render_info->indentation_extra>0 && x_new==0 && !(render_info->visual_detail&VISUAL_INFO_INDENTATION)) {
+        render_info->draw_indentation = 1;
+      } else {
+        render_info->draw_indentation = 0;
+      }
+
+      render_info->buffer_pos = buffer_new->visuals.displacement;
+      render_info->xs = 0;
+      render_info->ys = 0;
+      render_info->lines = 0;
+      render_info->columns = 0;
+      render_info->characters = 0;
+      render_info->indentations = 0;
+      render_info->indentations_extra = 0;
+      render_info->buffer = buffer_new;
+      render_info->keyword_color = buffer_new->visuals.keyword_color;
+      render_info->keyword_length = buffer_new->visuals.keyword_length;
+
+      encoding_stream_from_page(&render_info->stream, render_info->buffer, render_info->buffer_pos);
+      encoding_cache_clear(&render_info->cache);
     }
-
-    render_info->indentation_extra = indentation_extra_new;
-    render_info->indentation = indentation_new;
-    render_info->x = x_new+render_info->indentation+render_info->indentation_extra;
-    render_info->y_view = y_new;
-    render_info->line = lines_new;
-    render_info->column = columns_new;
-    render_info->character = characters_new;
-
-    if (render_info->indentation+render_info->indentation_extra>0 && x_new==0 && !(render_info->visual_detail&VISUAL_INFO_INDENTATION)) {
-      render_info->draw_indentation = 1;
-    } else {
-      render_info->draw_indentation = 0;
-    }
-
-    render_info->buffer_pos = buffer_new->visuals.displacement;
-    render_info->xs = 0;
-    render_info->ys = 0;
-    render_info->lines = 0;
-    render_info->columns = 0;
-    render_info->characters = 0;
-    render_info->indentations = 0;
-    render_info->indentations_extra = 0;
-    render_info->buffer = buffer_new;
-    render_info->keyword_color = buffer_new->visuals.keyword_color;
-    render_info->keyword_length = buffer_new->visuals.keyword_length;
-
-    encoding_stream_from_page(&render_info->stream, render_info->buffer, render_info->buffer_pos);
-    encoding_cache_clear(&render_info->cache);
   }
 
   if (in->type==VISUAL_SEEK_X_Y) {

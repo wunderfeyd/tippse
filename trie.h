@@ -21,7 +21,7 @@ struct trie_static {
 struct trie_node {
   int type;
   struct trie_node* parent;
-  struct trie_node* side[2];
+  struct trie_node* side[16];
 };
 
 struct trie {

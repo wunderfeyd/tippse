@@ -33,7 +33,7 @@ struct document_file* document_file_create(int save) {
 
 void document_file_clear(struct document_file* file) {
   if (file->buffer) {
-    range_tree_clear(file->buffer);
+    range_tree_destroy(file->buffer);
     file->buffer = NULL;
   }
 }

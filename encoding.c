@@ -2,6 +2,7 @@
 
 #include "encoding.h"
 
+// Build streaming view into plain memory
 void encoding_stream_from_plain(struct encoding_stream* stream, const char* plain, size_t size) {
   stream->type = ENCODING_STREAM_PLAIN;
   stream->plain = plain;
@@ -9,6 +10,7 @@ void encoding_stream_from_plain(struct encoding_stream* stream, const char* plai
   stream->cache_length = size;
 }
 
+// Build streaming view onto a range tree
 void encoding_stream_from_page(struct encoding_stream* stream, struct range_tree_node* buffer, file_offset_t buffer_pos) {
   stream->type = ENCODING_STREAM_PAGED;
   stream->buffer = buffer;
@@ -17,6 +19,7 @@ void encoding_stream_from_page(struct encoding_stream* stream, struct range_tree
   stream->plain = buffer?(buffer->buffer->buffer+buffer->offset+buffer_pos):NULL;
 }
 
+// Return streaming data that cannot peeked directly
 uint8_t encoding_stream_peek_oob(struct encoding_stream* stream, size_t offset) {
   if (stream->type==ENCODING_STREAM_PLAIN) {
     return 0;
@@ -36,6 +39,7 @@ uint8_t encoding_stream_peek_oob(struct encoding_stream* stream, size_t offset) 
   }
 }
 
+// Forward to next leaf in tree if direct forward failed
 void encoding_stream_forward_oob(struct encoding_stream* stream, size_t length) {
   if (stream->type==ENCODING_STREAM_PLAIN) {
     stream->cache_length = 0;
@@ -60,11 +64,13 @@ void encoding_stream_forward_oob(struct encoding_stream* stream, size_t length) 
   }
 }
 
+// Reset code point cache
 void encoding_cache_clear(struct encoding_cache* cache) {
   cache->start = 0;
   cache->end = 0;
 }
 
+// Fill code point cache
 void encoding_cache_fill(struct encoding_cache* cache, struct encoding* encoding, struct encoding_stream* stream, size_t advance) {
   cache->start += advance;
 
@@ -78,10 +84,12 @@ void encoding_cache_fill(struct encoding_cache* cache, struct encoding* encoding
   }
 }
 
+// Returned code point from relative offset
 int encoding_cache_find_codepoint(struct encoding_cache* cache, size_t offset) {
   return cache->cache[(cache->start+offset)%ENCODING_CACHE_SIZE].cp;
 }
 
+// Returned code point byte length from relative offset
 size_t encoding_cache_find_length(struct encoding_cache* cache, size_t offset) {
   return cache->cache[(cache->start+offset)%ENCODING_CACHE_SIZE].length;
 }

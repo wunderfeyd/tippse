@@ -88,29 +88,43 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct encodin
 
   if (before_masked&VISUAL_INFO_STRINGESCAPE) {
     after &= ~VISUAL_INFO_STRINGESCAPE;
-  } else if (cp1=='/' && cp2=='*' && before_masked==0) {
-    *length = 2;
-    after |= VISUAL_INFO_COMMENT0;
-  } else if (cp1=='*' && cp2=='/' && before_masked==VISUAL_INFO_COMMENT0) {
-    *length = 2;
-    after &= ~VISUAL_INFO_COMMENT0;
-  } else if (cp1=='/' && cp2=='/' && before_masked==0) {
-    *length = 2;
-    after |= VISUAL_INFO_COMMENT1;
-  } else if (cp1=='\n' && before_masked==VISUAL_INFO_COMMENT1) {
-    after &= ~VISUAL_INFO_COMMENT1;
-  } else if (cp1=='\\' && (before_masked==VISUAL_INFO_STRING0 || before_masked==VISUAL_INFO_STRING1)) {
-    after |= VISUAL_INFO_STRINGESCAPE;
-  } else if (cp1=='"' && before_masked==0) {
-    after |= VISUAL_INFO_STRING0;
-  } else if ((cp1=='"' || cp1=='\n') && before_masked==VISUAL_INFO_STRING0) {
-    after &= ~VISUAL_INFO_STRING0;
-  } else if (cp1=='\'' && before_masked==0) {
-    after |= VISUAL_INFO_STRING1;
-  } else if ((cp1=='\'' || cp1=='\n') && before_masked==VISUAL_INFO_STRING1) {
-    after &= ~VISUAL_INFO_STRING1;
-  } else if (cp1=='#' && (before&(VISUAL_INFO_INDENTATION|VISUAL_INFO_NEWLINE))) {
-    after |= VISUAL_INFO_PREPROCESSOR;
+  } else {
+    if (cp1=='/') {
+      if (before_masked==0) {
+        if (cp2=='*') {
+          *length = 2;
+          after |= VISUAL_INFO_COMMENT0;
+        } else if (cp2=='/') {
+          *length = 2;
+          after |= VISUAL_INFO_COMMENT1;
+        }
+      }
+    } else if (cp1=='*') {
+      if (cp2=='/' && before_masked==VISUAL_INFO_COMMENT0) {
+        *length = 2;
+        after &= ~VISUAL_INFO_COMMENT0;
+      }
+    } else if (cp1=='\\') {
+      if (before_masked==VISUAL_INFO_STRING0 || before_masked==VISUAL_INFO_STRING1) {
+        after |= VISUAL_INFO_STRINGESCAPE;
+      }
+    } else if (cp1=='"') {
+      if (before_masked==0) {
+        after |= VISUAL_INFO_STRING0;
+      } else if (before_masked==VISUAL_INFO_STRING0) {
+        after &= ~VISUAL_INFO_STRING0;
+      }
+    } else if (cp1=='\'') {
+      if (before_masked==0) {
+        after |= VISUAL_INFO_STRING1;
+      } else if (before_masked==VISUAL_INFO_STRING1) {
+        after &= ~VISUAL_INFO_STRING1;
+      }
+    } else if (cp1=='#') {
+      if (before&(VISUAL_INFO_INDENTATION|VISUAL_INFO_NEWLINE)) {
+        after |= VISUAL_INFO_PREPROCESSOR;
+      }
+    }
   }
   
   if (before&VISUAL_INFO_NEWLINE) {
@@ -124,7 +138,7 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct encodin
 
   if (cp1=='\0' || cp1=='\n') {
     after |= VISUAL_INFO_NEWLINE;
-    after &= ~VISUAL_INFO_PREPROCESSOR;
+    after &= ~(VISUAL_INFO_PREPROCESSOR|VISUAL_INFO_STRING0|VISUAL_INFO_STRING1|VISUAL_INFO_COMMENT1);
   }
 
   if ((cp1>='a' && cp1<='z') || (cp1>='A' && cp1<='Z') || (cp1>='0' && cp1<='9') || cp1=='_') {

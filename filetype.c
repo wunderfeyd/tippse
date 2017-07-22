@@ -9,8 +9,6 @@ int file_type_keyword(struct encoding_cache* cache, struct trie* trie, int* keyw
     int cp = encoding_cache_find_codepoint(cache, pos++);
     parent = trie_find_codepoint(trie, parent, cp);
 
-    (*keyword_length)++;
-
     if (!parent) {
       return 0;
     }
@@ -18,6 +16,8 @@ int file_type_keyword(struct encoding_cache* cache, struct trie* trie, int* keyw
     if (parent->type!=0) {
       int cp = encoding_cache_find_codepoint(cache, pos);
       if ((cp<'a' || cp>'z') && (cp<'A' || cp>'Z') && (cp<'0' || cp>'9') && cp!='_') {
+        *keyword_length = pos;
+
         return parent->type;
       }
 
