@@ -235,7 +235,7 @@ void document_render_info_seek(struct document_render_info* render_info, struct 
 
   buffer_new = range_tree_find_visual(buffer, in->type, in->offset, in->x, in->y, in->line, in->column, &offset_new, &x_new, &y_new, &lines_new, &columns_new, &indentation_new, &indentation_extra_new, &characters_new);
 
-  if (buffer_new && (render_info->buffer!=buffer_new/* || (in->type==VISUAL_SEEK_OFFSET && render_info->offset!=in->offset) || (in->type==VISUAL_SEEK_X_Y && render_info->x!=in->x && render_info->y!=in->y) || (in->type==VISUAL_SEEK_LINE_COLUMN && render_info->line!=in->line && render_info->column!=in->column)*/)) {
+  if (buffer_new /*&& (render_info->buffer!=buffer_new || (in->type==VISUAL_SEEK_OFFSET && render_info->offset!=in->offset) || (in->type==VISUAL_SEEK_X_Y && render_info->x!=in->x && render_info->y!=in->y) || (in->type==VISUAL_SEEK_LINE_COLUMN && render_info->line!=in->line && render_info->column!=in->column))*/) {
     render_info->visual_detail = buffer_new->visuals.detail_before;
     render_info->offset = offset_new;
     if (offset_new==0) {
@@ -404,7 +404,7 @@ int document_render_info_span(struct document_render_info* render_info, struct s
     int show = cp;
 
     if (out && !in->clip) {
-      if (in->type==VISUAL_SEEK_X_Y && render_info->y_view==render_info->y) {
+      if (in->type==VISUAL_SEEK_X_Y && render_info->y_view==in->y) {
         out->x_max = render_info->x;
         out->x_min = render_info->indentation+render_info->indentation_extra;
         out->y_drawn = 1;
