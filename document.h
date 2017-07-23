@@ -96,7 +96,6 @@ struct document_render_info {
   int column;
   file_offset_t characters;
   file_offset_t character;
-  int stop;
   int visual_detail;
   int draw_indentation;
   int width;
@@ -110,6 +109,7 @@ struct document_render_info {
 // Document position structure
 struct document_render_info_position {
   int type;                             // Visual seek type
+  int clip;                             // Clip to screen
 
   struct range_tree_node* buffer;       // Page
   file_offset_t buffer_pos;             // Offset in page
@@ -119,9 +119,11 @@ struct document_render_info_position {
   file_offset_t draw_end;               // Last offset drawn
 
   int x;                                // Position X of viewport
-  int y;                                // Position Y of viewport
   int x_min;                            // Left margin
   int x_max;                            // Right margin
+
+  int y;                                // Position Y of viewport
+  int y_drawn;                          // Target row/line was found
 
   int line;                             // Line in file
   int column;                           // Column in line
