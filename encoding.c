@@ -65,31 +65,21 @@ void encoding_stream_forward_oob(struct encoding_stream* stream, size_t length) 
 }
 
 // Reset code point cache
-void encoding_cache_clear(struct encoding_cache* cache) {
+void encoding_cache_clear(struct encoding_cache* cache, struct encoding* encoding, struct encoding_stream* stream) {
   cache->start = 0;
   cache->end = 0;
+  cache->encoding = encoding;
+  cache->stream = stream;
 }
 
 // Fill code point cache
-void encoding_cache_fill(struct encoding_cache* cache, struct encoding* encoding, struct encoding_stream* stream, size_t advance) {
-  cache->start += advance;
-
-  while (cache->end-cache->start<ENCODING_CACHE_SIZE) {
+void encoding_cache_buffer(struct encoding_cache* cache, size_t offset) {
+  while (cache->end-cache->start<=offset) {
     size_t pos = cache->end%ENCODING_CACHE_SIZE;
-    cache->cache[pos].cp = (*encoding->decode)(encoding, stream, &cache->cache[pos].length);
+    cache->codepoints[pos] = (*cache->encoding->decode)(cache->encoding, cache->stream, &cache->lengths[pos]);
 
-    encoding_stream_forward(stream, cache->cache[pos].length);
+    encoding_stream_forward(cache->stream, cache->lengths[pos]);
 
     cache->end++;
   }
-}
-
-// Returned code point from relative offset
-int encoding_cache_find_codepoint(struct encoding_cache* cache, size_t offset) {
-  return cache->cache[(cache->start+offset)%ENCODING_CACHE_SIZE].cp;
-}
-
-// Returned code point byte length from relative offset
-size_t encoding_cache_find_length(struct encoding_cache* cache, size_t offset) {
-  return cache->cache[(cache->start+offset)%ENCODING_CACHE_SIZE].length;
 }

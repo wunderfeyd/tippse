@@ -15,11 +15,6 @@ struct encoding_cache_codepoint;
 
 #define ENCODING_CACHE_SIZE 1024
 
-struct encoding_cache_codepoint {
-  int cp;
-  size_t length;
-};
-
 struct encoding_stream {
   int type;
 
@@ -33,10 +28,10 @@ struct encoding_stream {
 struct encoding_cache {
   size_t start;
   size_t end;
-  int empty;
   struct encoding* encoding;
   struct encoding_stream* stream;
-  struct encoding_cache_codepoint cache[ENCODING_CACHE_SIZE];
+  int codepoints[ENCODING_CACHE_SIZE];
+  size_t lengths[ENCODING_CACHE_SIZE];
 };
 
 struct encoding {
@@ -74,9 +69,33 @@ inline void encoding_stream_forward(struct encoding_stream* stream, size_t lengt
   }
 }
 
-void encoding_cache_clear(struct encoding_cache* cache);
-void encoding_cache_fill(struct encoding_cache* cache, struct encoding* encoding, struct encoding_stream* stream, size_t advance);
-int encoding_cache_find_codepoint(struct encoding_cache* cache, size_t offset);
-size_t encoding_cache_find_length(struct encoding_cache* cache, size_t offset);
+void encoding_cache_clear(struct encoding_cache* cache, struct encoding* encoding, struct encoding_stream* stream);
+// Skip code points and rebase absolute offset
+inline void encoding_cache_advance(struct encoding_cache* cache, size_t advance) {
+  cache->start += advance;
+  if (cache->end<=cache->start) {
+    cache->end = 0;
+    cache->start = 0;
+  }
+}
+
+void encoding_cache_buffer(struct encoding_cache* cache, size_t offset);
+// Returned code point from relative offset
+inline int encoding_cache_find_codepoint(struct encoding_cache* cache, size_t offset) {
+  if (offset+cache->start>=cache->end) {
+    encoding_cache_buffer(cache, offset);
+  }
+
+  return cache->codepoints[(cache->start+offset)%ENCODING_CACHE_SIZE];
+}
+
+// Returned code point byte length from relative offset
+inline size_t encoding_cache_find_length(struct encoding_cache* cache, size_t offset) {
+  if (offset+cache->start>=cache->end) {
+    encoding_cache_buffer(cache, offset);
+  }
+
+  return cache->lengths[(cache->start+offset)%ENCODING_CACHE_SIZE];
+}
 
 #endif  /* #ifndef __TIPPSE_ENCODING__ */

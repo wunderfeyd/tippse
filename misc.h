@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <unistd.h>
+#include "types.h"
 
 char** merge_sort(char** sort1, char** sort2, size_t count);
 
