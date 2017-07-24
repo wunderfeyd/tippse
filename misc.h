@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <unistd.h>
@@ -18,5 +19,7 @@ char* combine_path_file(const char* path, const char* file);
 char* correct_path(const char* path);
 char* relativate_path(const char* base, const char* path);
 int is_directory(const char* path);
+
+int64_t tick_count();
 
 #endif /* #ifndef __TIPPSE_MISC__ */

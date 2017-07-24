@@ -49,7 +49,7 @@ void document_undo_empty(struct list* list) {
 
     struct document_undo* undo = (struct document_undo*)node->object;
     if (undo->buffer) {
-      range_tree_clear(undo->buffer);
+      range_tree_destroy(undo->buffer);
     }
 
     list_remove(list, node);

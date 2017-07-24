@@ -6,7 +6,7 @@ struct range_tree_node* clipboard = NULL;
 
 void clipboard_set(struct range_tree_node* data) {
   if (clipboard) {
-    range_tree_clear(clipboard);
+    range_tree_destroy(clipboard);
     clipboard = NULL;
   }
   

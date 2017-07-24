@@ -33,7 +33,7 @@ struct document_file* document_file_create(int save) {
 
 void document_file_clear(struct document_file* file) {
   if (file->buffer) {
-    range_tree_clear(file->buffer);
+    range_tree_destroy(file->buffer);
     file->buffer = NULL;
   }
 }
@@ -69,7 +69,6 @@ void document_file_name(struct document_file* file, const char* filename) {
 
   size_t n;
   for (n = 0; document_file_types[n].extension; n++) {
-    printf("%d\r\n", (int)n);
     if (strcasecmp(document_file_types[n].extension, last)==0) {
       (*file->type->destroy)(file->type);
       file->type = (*document_file_types[n].constructor)();

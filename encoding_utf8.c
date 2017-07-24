@@ -1,4 +1,4 @@
-/* Tippse - Encoding UTF8 - Encode/Decode of UTF8 codepoints */
+/* Tippse - Encoding UTF-8 - Encode/Decode of UTF-8 codepoints */
 
 #include "encoding_utf8.h"
 
@@ -30,25 +30,20 @@ size_t encoding_utf8_character_length(struct encoding* base) {
   return 4;
 }
 
-int encoding_utf8_decode(struct encoding* base, struct encoding_stream* stream, size_t size, size_t* used) {
-  if (size==0) {
-    *used = 0;
-    return -1;
-  }
-
-  unsigned char c = encoding_stream_peek(stream, 0);
+int encoding_utf8_decode(struct encoding* base, struct encoding_stream* stream, size_t* used) {
+  uint8_t c = encoding_stream_peek(stream, 0);
   if ((c&0x80)==0) {
     *used = 1;
     return (int)c;
   }
 
-  if ((c&0xe0)==0xc0 && size>1) {
+  if ((c&0xe0)==0xc0) {
     if ((c&0x1f)<2) {
       *used = 1;
       return -1;
     }
 
-    unsigned char c1 = encoding_stream_peek(stream, 1);
+    uint8_t c1 = encoding_stream_peek(stream, 1);
     if ((c1&0xc0)!=0x80) {
       *used = 1;
       return -1;
@@ -56,8 +51,8 @@ int encoding_utf8_decode(struct encoding* base, struct encoding_stream* stream, 
 
     *used = 2;
     return ((c&0x1f)<<6)|((c1&0x7f)<<0);
-  } else if ((c&0xf0)==0xe0 && size>2) {
-    unsigned char c1 = encoding_stream_peek(stream, 1);
+  } else if ((c&0xf0)==0xe0) {
+    uint8_t c1 = encoding_stream_peek(stream, 1);
     if ((c1&0xc0)!=0x80) {
       *used = 1;
       return -1;
@@ -73,7 +68,7 @@ int encoding_utf8_decode(struct encoding* base, struct encoding_stream* stream, 
       return -1;
     }
 
-    unsigned char c2 = encoding_stream_peek(stream, 2);
+    uint8_t c2 = encoding_stream_peek(stream, 2);
     if ((c2&0xc0)!=0x80) {
       *used = 1;
       return -1;
@@ -81,13 +76,13 @@ int encoding_utf8_decode(struct encoding* base, struct encoding_stream* stream, 
 
     *used = 3;
     return ((c&0x0f)<<12)|((c1&0x7f)<<6)|((c2&0x7f)<<0);
-  } else if ((c&0xf8)==0xf0 && size>3) {
+  } else if ((c&0xf8)==0xf0) {
     if (c>0xf4) {
       *used = 1;
       return -1;
     }
 
-    unsigned char c1 = encoding_stream_peek(stream, 1);
+    uint8_t c1 = encoding_stream_peek(stream, 1);
     if ((c1&0xc0)!=0x80) {
       *used = 1;
       return -1;
@@ -103,13 +98,13 @@ int encoding_utf8_decode(struct encoding* base, struct encoding_stream* stream, 
       return -1;
     }
 
-    unsigned char c2 = encoding_stream_peek(stream, 2);
+    uint8_t c2 = encoding_stream_peek(stream, 2);
     if ((c2&0xc0)!=0x80) {
       *used = 1;
       return -1;
     }
 
-    unsigned char c3 = encoding_stream_peek(stream, 3);
+    uint8_t c3 = encoding_stream_peek(stream, 3);
     if ((c3&0xc0)!=0x80) {
       *used = 1;
       return -1;
@@ -129,63 +124,59 @@ size_t encoding_utf8_encode(struct encoding* base, int cp, char* text, size_t si
       return 0;
     }
 
-    *(unsigned char*)text++ = (unsigned char)cp;
+    *(uint8_t*)text++ = (uint8_t)cp;
     return 1;
   } else if (cp<0x800) {
     if (size<2) {
       return 0;
     }
 
-    *(unsigned char*)text++ = 0xc0+(unsigned char)(cp>>6);
-    *(unsigned char*)text++ = 0x80+(unsigned char)(cp&0x3f);
+    *(uint8_t*)text++ = 0xc0+(uint8_t)(cp>>6);
+    *(uint8_t*)text++ = 0x80+(uint8_t)(cp&0x3f);
     return 2;
   } else if (cp<0x10000) {
     if (size<3) {
       return 0;
     }
 
-    *(unsigned char*)text++ = 0xe0+(unsigned char)(cp>>12);
-    *(unsigned char*)text++ = 0x80+(unsigned char)((cp>>6)&0x3f);
-    *(unsigned char*)text++ = 0x80+(unsigned char)(cp&0x3f);
+    *(uint8_t*)text++ = 0xe0+(uint8_t)(cp>>12);
+    *(uint8_t*)text++ = 0x80+(uint8_t)((cp>>6)&0x3f);
+    *(uint8_t*)text++ = 0x80+(uint8_t)(cp&0x3f);
     return 3;
   } else if (cp<0x101000) {
     if (size<4) {
       return 0;
     }
 
-    *(unsigned char*)text++ = 0xf0+(unsigned char)(cp>>18);
-    *(unsigned char*)text++ = 0x80+(unsigned char)((cp>>12)&0x3f);
-    *(unsigned char*)text++ = 0x80+(unsigned char)((cp>>6)&0x3f);
-    *(unsigned char*)text++ = 0x80+(unsigned char)(cp&0x3f);
+    *(uint8_t*)text++ = 0xf0+(uint8_t)(cp>>18);
+    *(uint8_t*)text++ = 0x80+(uint8_t)((cp>>12)&0x3f);
+    *(uint8_t*)text++ = 0x80+(uint8_t)((cp>>6)&0x3f);
+    *(uint8_t*)text++ = 0x80+(uint8_t)(cp&0x3f);
     return 4;
   }
 
   return 0;
 }
 
-size_t encoding_utf8_next(struct encoding* base, struct encoding_stream* stream, size_t size) {
-  if (size==0) {
-    return 0;
-  }
-
-  unsigned char c = encoding_stream_peek(stream, 0);
+size_t encoding_utf8_next(struct encoding* base, struct encoding_stream* stream) {
+  uint8_t c = encoding_stream_peek(stream, 0);
   if ((c&0x80)==0) {
     return 1;
   }
 
-  if ((c&0xe0)==0xc0 && size>1) {
+  if ((c&0xe0)==0xc0) {
     if ((c&0x1f)<2) {
       return 1;
     }
 
-    unsigned char c1 = encoding_stream_peek(stream, 1);
+    uint8_t c1 = encoding_stream_peek(stream, 1);
     if ((c1&0xc0)!=0x80) {
       return 1;
     }
 
     return 2;
-  } else if ((c&0xf0)==0xe0 && size>2) {
-    unsigned char c1 = encoding_stream_peek(stream, 1);
+  } else if ((c&0xf0)==0xe0) {
+    uint8_t c1 = encoding_stream_peek(stream, 1);
     if ((c1&0xc0)!=0x80) {
       return 1;
     }
@@ -198,18 +189,18 @@ size_t encoding_utf8_next(struct encoding* base, struct encoding_stream* stream,
       return 1;
     }
 
-    unsigned char c2 = encoding_stream_peek(stream, 2);
+    uint8_t c2 = encoding_stream_peek(stream, 2);
     if ((c2&0xc0)!=0x80) {
       return 1;
     }
 
     return 3;
-  } else if ((c&0xf8)==0xf0 && size>3) {
+  } else if ((c&0xf8)==0xf0) {
     if (c>0xf4) {
       return 1;
     }
 
-    unsigned char c1 = encoding_stream_peek(stream, 1);
+    uint8_t c1 = encoding_stream_peek(stream, 1);
     if ((c1&0xc0)!=0x80) {
       return 1;
     }
@@ -221,12 +212,12 @@ size_t encoding_utf8_next(struct encoding* base, struct encoding_stream* stream,
       return 1;
     }
 
-    unsigned char c2 = encoding_stream_peek(stream, 2);
+    uint8_t c2 = encoding_stream_peek(stream, 2);
     if ((c2&0xc0)!=0x80) {
       return 1;
     }
 
-    unsigned char c3 = encoding_stream_peek(stream, 3);
+    uint8_t c3 = encoding_stream_peek(stream, 3);
     if ((c3&0xc0)!=0x80) {
       return 1;
     }
@@ -240,7 +231,7 @@ size_t encoding_utf8_next(struct encoding* base, struct encoding_stream* stream,
 size_t encoding_utf8_strnlen(struct encoding* base, struct encoding_stream* stream, size_t size) {
   size_t length = 0;
   while (size!=0) {
-    size_t next = encoding_utf8_next(base, stream, size);
+    size_t next = encoding_utf8_next(base, stream);
     if (next>size) {
       size = 0;
     } else {
@@ -258,7 +249,7 @@ size_t encoding_utf8_strlen(struct encoding* base, struct encoding_stream* strea
   size_t length = 0;
   while (1) {
     size_t next;
-    int cp = encoding_utf8_decode(base, stream, ~0, &next);
+    int cp = encoding_utf8_decode(base, stream, &next);
     if (cp==0) {
       break;
     }
@@ -273,7 +264,7 @@ size_t encoding_utf8_strlen(struct encoding* base, struct encoding_stream* strea
 size_t encoding_utf8_seek(struct encoding* base, struct encoding_stream* stream, size_t pos) {
   size_t current = 0;
   while (pos!=0) {
-    size_t next = encoding_utf8_next(base, stream, ~0);
+    size_t next = encoding_utf8_next(base, stream);
     current += next;
     encoding_stream_forward(stream, next);
     pos--;

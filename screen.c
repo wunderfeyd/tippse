@@ -39,7 +39,7 @@ struct screen* screen_init() {
     for (x=0; x<screen->width; x++) {
       c = &screen->buffer[y*screen->width+x];
       c->character = ' ';
-      c->foreground = 255;
+      c->foreground = 15;
       c->background = 0;
     }
   }
@@ -191,10 +191,10 @@ void screen_drawtext(const struct screen* screen, int x, int y, const char* text
   }
 
   struct encoding_stream stream;
-  encoding_stream_from_plain(&stream, text);
+  encoding_stream_from_plain(&stream, text, length);
   while (length>0 && x<screen->width) {
     size_t used;
-    int cp = encoding_utf8_decode(NULL, &stream, ~0, &used);
+    int cp = encoding_utf8_decode(NULL, &stream, &used);
     if (cp==0) {
       break;
     }

@@ -29,41 +29,51 @@ const char* file_type_xml_name() {
   return "XML";
 }
 
-void file_type_xml_mark(struct file_type* base, int* visual_detail, struct encoding* encoding, struct encoding_stream stream, int same_line, int* length, int* flags) {
+void file_type_xml_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int same_line, int* length, int* flags) {
   struct file_type_xml* this = (struct file_type_xml*)base;
 
-  struct encoding_stream copy = stream;
-
-  size_t cp_length = 0;
-  int cp1 = (*encoding->decode)(encoding, &stream, ~0, &cp_length);
-  encoding_stream_forward(&stream, cp_length);
-  int cp2 = (*encoding->decode)(encoding, &stream, ~0, &cp_length);
+  int cp1 = encoding_cache_find_codepoint(cache, 0);
+  int cp2 = encoding_cache_find_codepoint(cache, 1);
 
   *length = 1;
   int before = *visual_detail;
-  int before_masked = before&(~(VISUAL_INFO_INDENTATION|VISUAL_INFO_NEWLINE|VISUAL_INFO_WORD));
+  int before_masked = before&(~(VISUAL_INFO_INDENTATION|VISUAL_INFO_NEWLINE|VISUAL_INFO_WORD|VISUAL_INFO_WHITESPACED_COMPLETE|VISUAL_INFO_WHITESPACED_START));
   int after = before;
 
   if (before_masked&VISUAL_INFO_STRINGESCAPE) {
     after &= ~VISUAL_INFO_STRINGESCAPE;
-  } else if (cp1=='<' && before_masked==0) {
-    after |= VISUAL_INFO_COMMENT2;
-  } else if (cp1=='>' && before_masked==VISUAL_INFO_COMMENT2) {
-    after &= ~VISUAL_INFO_COMMENT2;
-  } else if (cp1=='-' && cp2=='-' && before_masked==VISUAL_INFO_COMMENT2) {
-    *length = 2;
-    after |= VISUAL_INFO_COMMENT0;
-  } else if (cp1=='-' && cp2=='-' && before_masked==(VISUAL_INFO_COMMENT2|VISUAL_INFO_COMMENT0)) {
-    *length = 2;
-    after &= ~VISUAL_INFO_COMMENT0;
-  } else if (cp1=='"' && before_masked==VISUAL_INFO_COMMENT2) {
-    after |= VISUAL_INFO_STRING0;
-  } else if ((cp1=='"' || cp1=='\n') && (before_masked&VISUAL_INFO_STRING0)) {
-    after &= ~VISUAL_INFO_STRING0;
-  } else if (cp1=='\'' && before_masked==0) {
-    after |= VISUAL_INFO_STRING1;
-  } else if ((cp1=='\'' || cp1=='\n') && (before_masked&VISUAL_INFO_STRING1)) {
-    after &= ~VISUAL_INFO_STRING1;
+  } else {
+    if (cp1=='<') {
+      if (before_masked==0) {
+        after |= VISUAL_INFO_COMMENT2;
+      }
+    } else if (cp1=='>') {
+      if (before_masked==VISUAL_INFO_COMMENT2) {
+        after &= ~VISUAL_INFO_COMMENT2;
+      }
+    } else if (cp1=='-') {
+      if (cp2=='-') {
+        if (before_masked==VISUAL_INFO_COMMENT2) {
+          *length = 2;
+          after |= VISUAL_INFO_COMMENT0;
+        } else if (before_masked==(VISUAL_INFO_COMMENT2|VISUAL_INFO_COMMENT0)) {
+          *length = 2;
+          after &= ~VISUAL_INFO_COMMENT0;
+        }
+      }
+    } else if (cp1=='"') {
+      if (before_masked&VISUAL_INFO_STRING0) {
+        after &= ~VISUAL_INFO_STRING0;
+      } else if (before_masked==VISUAL_INFO_COMMENT2) {
+        after |= VISUAL_INFO_STRING0;
+      }
+    } else if (cp1=='\'') {
+      if (before_masked&VISUAL_INFO_STRING1) {
+        after &= ~VISUAL_INFO_STRING1;
+      } else if (before_masked==VISUAL_INFO_COMMENT2) {
+        after |= VISUAL_INFO_STRING1;
+      }
+    }
   }
   
   if (before&VISUAL_INFO_NEWLINE) {
@@ -77,6 +87,7 @@ void file_type_xml_mark(struct file_type* base, int* visual_detail, struct encod
 
   if (cp1=='\0' || cp1=='\n') {
     after |= VISUAL_INFO_NEWLINE;
+    after &= ~(VISUAL_INFO_STRING0|VISUAL_INFO_STRING1);
   }
 
   if ((cp1>='a' && cp1<='z') || (cp1>='A' && cp1<='Z') || (cp1>='0' && cp1<='9') || cp1=='_') {
@@ -97,7 +108,7 @@ void file_type_xml_mark(struct file_type* base, int* visual_detail, struct encod
   } else {
     if (!(before&VISUAL_INFO_WORD) && (after&VISUAL_INFO_WORD)) {
       *length = 0;
-      *flags = file_type_keyword(encoding, copy, this->keywords, length);
+      *flags = file_type_keyword(cache, this->keywords, length);
     }
 
     if (*flags==0) {

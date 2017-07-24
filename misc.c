@@ -171,3 +171,8 @@ int is_directory(const char* path) {
   return S_ISDIR(statbuf.st_mode);
 }
 
+int64_t tick_count() {
+  struct timeval t;
+  gettimeofday(&t, NULL);
+  return (int64_t)t.tv_sec*1000000+(int64_t)t.tv_usec;
+}
