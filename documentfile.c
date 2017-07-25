@@ -81,23 +81,27 @@ void document_file_load(struct document_file* file, const char* filename) {
   document_file_clear(file);
   int f = open(filename, O_RDONLY);
   if (f!=-1) {
-    char in[TREE_BLOCK_LENGTH_MAX];
     file_offset_t offset = 0;
     while (1) {
-      int got = read(f, &in[0], TREE_BLOCK_LENGTH_MAX);
+      char* copy = (char*)malloc(TREE_BLOCK_LENGTH_MAX);
+      int got = read(f, copy, TREE_BLOCK_LENGTH_MAX);
       if (got<=0) {
+        free(copy);
         break;
       }
 
-      file->buffer = range_tree_insert_split(file->buffer, file->type, offset, &in[0], got, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, NULL);
+      struct fragment* buffer = fragment_create_memory(copy, got);
+      file->buffer = range_tree_insert(file->buffer, file->type, offset, buffer, 0, buffer->length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
 
       offset += got;
       if (got<TREE_BLOCK_LENGTH_MAX) {
         break;
       }
     }
+
     close(f);
   }
+
   document_file_name(file, filename);
   file->modified = 0;
 }

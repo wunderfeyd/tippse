@@ -275,6 +275,9 @@ void document_render_info_seek(struct document_render_info* render_info, struct 
 
     encoding_stream_from_page(&render_info->stream, render_info->buffer, render_info->buffer_pos);
     encoding_cache_clear(&render_info->cache, encoding, &render_info->stream);
+  } else {
+    encoding_stream_from_page(&render_info->stream, NULL, 0);
+    encoding_cache_clear(&render_info->cache, encoding, &render_info->stream);
   }
 
   if (in->type==VISUAL_SEEK_X_Y) {
@@ -322,9 +325,9 @@ int document_render_info_span(struct document_render_info* render_info, struct s
 
   while (1) {
     int boundary = 0;
-    while (render_info->buffer && (render_info->buffer_pos>=render_info->buffer->length || !render_info->buffer->buffer)) {
+    while (render_info->buffer && render_info->buffer_pos>=render_info->buffer->length) {
       boundary = 1;
-      int dirty = (render_info->buffer->visuals.xs!=render_info->xs || render_info->buffer->visuals.ys!=render_info->ys ||  render_info->buffer->visuals.columns!=render_info->columns || render_info->buffer->visuals.indentation!=render_info->indentations || render_info->buffer->visuals.indentation_extra!=render_info->indentations_extra || render_info->buffer->visuals.detail_after!=render_info->visual_detail || (render_info->ys==0 && render_info->buffer->visuals.dirty))?1:0;
+      int dirty = (render_info->buffer->visuals.xs!=render_info->xs || render_info->buffer->visuals.ys!=render_info->ys || render_info->buffer->visuals.lines!=render_info->lines ||  render_info->buffer->visuals.columns!=render_info->columns || render_info->buffer->visuals.indentation!=render_info->indentations || render_info->buffer->visuals.indentation_extra!=render_info->indentations_extra || render_info->buffer->visuals.detail_after!=render_info->visual_detail || (render_info->ys==0 && render_info->buffer->visuals.dirty && view->wrapping))?1:0;
 
       if (render_info->buffer->visuals.dirty || dirty) {
         if (dirty_pages!=~0) {
@@ -335,16 +338,29 @@ int document_render_info_span(struct document_render_info* render_info, struct s
         }
       } else {
         if (dirty_pages==~0) {
-/*          if (page_count>0 && !stop) { // TODO: Check page count - greater than zero should be enough
-            rendered = 0;
-            stop = 1;
-          }*/
+          if (page_count>0 && !stop) {
+            if (!in->clip || render_info->y_view<in->y || render_info->x<in->x) {
+              rendered = 0;
+              stop = 1;
+            }
+          }
         }
 
         page_count++;
       }
 
       if (render_info->buffer->visuals.dirty || dirty) {
+        /*printf("dirty %p %d %d %d %d %d %d %d %d %lld\r\n", render_info->buffer, 
+          (render_info->buffer->visuals.xs!=render_info->xs)?1:0, 
+          (render_info->buffer->visuals.ys!=render_info->ys)?1:0, 
+          (render_info->buffer->visuals.lines!=render_info->lines)?1:0, 
+          (render_info->buffer->visuals.columns!=render_info->columns)?1:0, 
+          (render_info->buffer->visuals.indentation!=render_info->indentations)?1:0, 
+          (render_info->buffer->visuals.indentation_extra!=render_info->indentations_extra)?1:0, 
+          (render_info->buffer->visuals.detail_after!=render_info->visual_detail)?1:0, 
+          (render_info->ys==0 && render_info->buffer->visuals.dirty && view->wrapping)?1:0,
+          render_info->offset
+        );*/
         render_info->buffer->visuals.dirty = 0;
         render_info->buffer->visuals.xs = render_info->xs;
         render_info->buffer->visuals.ys = render_info->ys;
@@ -632,6 +648,7 @@ int document_render_info_span(struct document_render_info* render_info, struct s
     }
   }
 
+  //printf("%p %p %d %d - %d\r\n", render_info->buffer, old, rendered, stop, page_count);
   return rendered;
 }
 
