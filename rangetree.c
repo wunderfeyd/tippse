@@ -419,7 +419,7 @@ void range_tree_shrink(struct range_tree_node* node, struct file_type* type) {
 
   if (node->buffer->count==1 && (node->offset!=0 || node->length!=node->buffer->length) && node->length>0) {
     if (node->buffer->type==FRAGMENT_MEMORY) {
-      char* text = malloc(node->length);
+      uint8_t* text = malloc(node->length);
       memcpy(text, node->buffer->buffer+node->offset, node->length);
       free(node->buffer->buffer);
       node->buffer->buffer = text;
@@ -448,7 +448,7 @@ struct range_tree_node* range_tree_fuse(struct range_tree_node* root, struct fil
       if (first->length+next->length<TREE_BLOCK_LENGTH_MAX) {
         // TODO: Think about to allow merging fragments from different locations in future
         if (first->buffer->type==FRAGMENT_MEMORY && next->buffer->type==FRAGMENT_MEMORY) {
-          char* copy = (char*)malloc(first->length+next->length);
+          uint8_t* copy = (uint8_t*)malloc(first->length+next->length);
           memcpy(copy, first->buffer->buffer+first->offset, first->length);
           memcpy(copy+first->length, next->buffer->buffer+next->offset, next->length);
           struct fragment* buffer = fragment_create_memory(copy, first->length+next->length);
@@ -590,12 +590,12 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, struct f
 }
 
 // Helper for textual insertions
-struct range_tree_node* range_tree_insert_split(struct range_tree_node* root, struct file_type* type, file_offset_t offset, const char* text, size_t length, int inserter, struct range_tree_node** inserts) {
+struct range_tree_node* range_tree_insert_split(struct range_tree_node* root, struct file_type* type, file_offset_t offset, const uint8_t* text, size_t length, int inserter, struct range_tree_node** inserts) {
   file_offset_t pos = 0;
   file_offset_t old = 0;
   while (1) {
     if (pos==length || pos-old>TREE_BLOCK_LENGTH_MAX || ((inserter&TIPPSE_INSERTER_ESCAPE) && text[pos]=='\x7f')) {
-      char* copy = (char*)malloc(pos-old);
+      uint8_t* copy = (uint8_t*)malloc(pos-old);
       memcpy(copy, text+old, pos-old);
       if (inserts) {
         *inserts = range_tree_last(root);
@@ -745,13 +745,13 @@ struct range_tree_node* range_tree_paste(struct range_tree_node* root, struct fi
 }
 
 // Copy specific range from tree into a buffer
-char* range_tree_raw(struct range_tree_node* root, file_offset_t start, file_offset_t end) {
+uint8_t* range_tree_raw(struct range_tree_node* root, file_offset_t start, file_offset_t end) {
   if (!root) {
-    return strdup("");
+    return (uint8_t*)strdup("");
   }
 
   file_offset_t length = end-start;
-  char* text = malloc(sizeof(char)*(length+1));
+  uint8_t* text = malloc(sizeof(uint8_t)*(length+1));
   file_offset_t offset = 0;
 
   while (length>0) {

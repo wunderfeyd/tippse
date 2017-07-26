@@ -18,7 +18,7 @@ struct encoding_cache_codepoint;
 struct encoding_stream {
   int type;
 
-  const char* plain;
+  const uint8_t* plain;
   struct range_tree_node* buffer;
 
   size_t buffer_pos;
@@ -48,7 +48,7 @@ struct encoding {
   size_t (*encode)(struct encoding*, int, struct encoding_stream*, size_t);
 };
 
-void encoding_stream_from_plain(struct encoding_stream* stream, const char* plain, size_t size);
+void encoding_stream_from_plain(struct encoding_stream* stream, const uint8_t* plain, size_t size);
 void encoding_stream_from_page(struct encoding_stream* stream, struct range_tree_node* buffer, file_offset_t buffer_pos);
 uint8_t encoding_stream_peek_oob(struct encoding_stream* stream, size_t offset);
 inline uint8_t encoding_stream_peek(struct encoding_stream* stream, size_t offset) {

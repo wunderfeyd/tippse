@@ -118,40 +118,40 @@ int encoding_utf8_decode(struct encoding* base, struct encoding_stream* stream, 
   return -1;
 }
 
-size_t encoding_utf8_encode(struct encoding* base, int cp, char* text, size_t size) {
+size_t encoding_utf8_encode(struct encoding* base, int cp, uint8_t* text, size_t size) {
   if (cp<0x80) {
     if (size<1) {
       return 0;
     }
 
-    *(uint8_t*)text++ = (uint8_t)cp;
+    *text++ = (uint8_t)cp;
     return 1;
   } else if (cp<0x800) {
     if (size<2) {
       return 0;
     }
 
-    *(uint8_t*)text++ = 0xc0+(uint8_t)(cp>>6);
-    *(uint8_t*)text++ = 0x80+(uint8_t)(cp&0x3f);
+    *text++ = 0xc0+(uint8_t)(cp>>6);
+    *text++ = 0x80+(uint8_t)(cp&0x3f);
     return 2;
   } else if (cp<0x10000) {
     if (size<3) {
       return 0;
     }
 
-    *(uint8_t*)text++ = 0xe0+(uint8_t)(cp>>12);
-    *(uint8_t*)text++ = 0x80+(uint8_t)((cp>>6)&0x3f);
-    *(uint8_t*)text++ = 0x80+(uint8_t)(cp&0x3f);
+    *text++ = 0xe0+(uint8_t)(cp>>12);
+    *text++ = 0x80+(uint8_t)((cp>>6)&0x3f);
+    *text++ = 0x80+(uint8_t)(cp&0x3f);
     return 3;
   } else if (cp<0x101000) {
     if (size<4) {
       return 0;
     }
 
-    *(uint8_t*)text++ = 0xf0+(uint8_t)(cp>>18);
-    *(uint8_t*)text++ = 0x80+(uint8_t)((cp>>12)&0x3f);
-    *(uint8_t*)text++ = 0x80+(uint8_t)((cp>>6)&0x3f);
-    *(uint8_t*)text++ = 0x80+(uint8_t)(cp&0x3f);
+    *text++ = 0xf0+(uint8_t)(cp>>18);
+    *text++ = 0x80+(uint8_t)((cp>>12)&0x3f);
+    *text++ = 0x80+(uint8_t)((cp>>6)&0x3f);
+    *text++ = 0x80+(uint8_t)(cp&0x3f);
     return 4;
   }
 

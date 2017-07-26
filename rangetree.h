@@ -59,10 +59,10 @@ struct range_tree_node* range_tree_find_offset(struct range_tree_node* node, fil
 void range_tree_shrink(struct range_tree_node* node, struct file_type* type);
 struct range_tree_node* range_tree_fuse(struct range_tree_node* root, struct file_type* type, struct range_tree_node* first, struct range_tree_node* last);
 struct range_tree_node* range_tree_insert(struct range_tree_node* root, struct file_type* type, file_offset_t offset, struct fragment* buffer, file_offset_t buffer_offset, file_offset_t buffer_length, int inserter);
-struct range_tree_node* range_tree_insert_split(struct range_tree_node* root, struct file_type* type, file_offset_t offset, const char* text, size_t length, int inserter, struct range_tree_node** inserts);
+struct range_tree_node* range_tree_insert_split(struct range_tree_node* root, struct file_type* type, file_offset_t offset, const uint8_t* text, size_t length, int inserter, struct range_tree_node** inserts);
 struct range_tree_node* range_tree_delete(struct range_tree_node* root, struct file_type* type, file_offset_t offset, file_offset_t length, int inserter);
 struct range_tree_node* range_tree_copy(struct range_tree_node* root, struct file_type* type, file_offset_t offset, file_offset_t length);
 struct range_tree_node* range_tree_paste(struct range_tree_node* root, struct file_type* type, struct range_tree_node* copy, file_offset_t offset);
-char* range_tree_raw(struct range_tree_node* root, file_offset_t start, file_offset_t end);
+uint8_t* range_tree_raw(struct range_tree_node* root, file_offset_t start, file_offset_t end);
 
 #endif /* #ifndef __TIPPSE_RANGETREE__ */

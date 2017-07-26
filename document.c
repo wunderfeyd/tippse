@@ -19,8 +19,8 @@ int document_compare(struct range_tree_node* left, file_offset_t buffer_pos_left
       continue;
     }
 
-    const char* text_left = left->buffer->buffer+left->offset+buffer_pos_left;
-    const char* text_right = right->buffer->buffer+right->offset+buffer_pos_right;
+    uint8_t* text_left = left->buffer->buffer+left->offset+buffer_pos_left;
+    uint8_t* text_right = right->buffer->buffer+right->offset+buffer_pos_right;
     file_offset_t max = length;
     if (left->length-buffer_pos_left<max) {
       max = left->length-buffer_pos_left;
@@ -30,7 +30,7 @@ int document_compare(struct range_tree_node* left, file_offset_t buffer_pos_left
       max = right->length-buffer_pos_right;
     }
 
-    if (strncmp(text_left, text_right, max)!=0) {
+    if (strncmp((char*)text_left, (char*)text_right, max)!=0) {
       return 0;
     }
 
@@ -803,7 +803,7 @@ void document_expand(file_offset_t* pos, file_offset_t offset, file_offset_t len
   }
 }
 
-void document_insert(struct document* document, file_offset_t offset, const char* text, size_t length) {
+void document_insert(struct document* document, file_offset_t offset, const uint8_t* text, size_t length) {
   struct document_file* file = document->file;
   if (file->buffer && offset>file->buffer->length) {
     return;
@@ -826,7 +826,7 @@ void document_insert(struct document* document, file_offset_t offset, const char
     document_expand(&view->selection_low, offset, length);
     document_expand(&view->selection_high, offset, length);
     document_expand(&view->offset, offset, length);
-    
+
     views = views->next;
   }
 
@@ -1069,7 +1069,7 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
       int page = ((splitter->height-2)/3)+1;
       in_x_y.y += page;
       view->scroll_y += page;
-      view->offset = document_cursor_position(splitter, &in_x_y, &out, 1, 1);      
+      view->offset = document_cursor_position(splitter, &in_x_y, &out, 1, 1);
       view->cursor_x = out.x;
       view->cursor_y = out.y;
     } else if (button&TIPPSE_MOUSE_WHEEL_UP) {
@@ -1084,7 +1084,7 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
   } else if (cp==TIPPSE_KEY_TAB) {
     document_undo_chain(file);
     if (view->selection_low==~0) {
-      char utf8[8];
+      uint8_t utf8[8];
       file_offset_t size = TAB_WIDTH-(view->cursor_x%TAB_WIDTH);
       file_offset_t spaces;
       for (spaces = 0; spaces<size; spaces++) {
@@ -1100,7 +1100,7 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
       document_cursor_position(splitter, &in_offset, &out_start, 0, 1);
       in_offset.offset = view->selection_high-1;
       document_cursor_position(splitter, &in_offset, &out_end, 0, 1);
-      
+
       reset_selection = 0;
       while(out_end.line>=out_start.line) {
         in_line_column.column = 0;
@@ -1111,14 +1111,14 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
         file_offset_t buffer_pos = out.buffer_pos;
         file_offset_t offset = out.offset;
 
-        char utf8[8];
+        uint8_t utf8[8];
         file_offset_t size = TAB_WIDTH-(out.column%TAB_WIDTH);
         file_offset_t spaces;
         for (spaces = 0; spaces<size; spaces++) {
           utf8[spaces] = ' ';
         }
-        
-        const char* text = buffer->buffer->buffer+buffer->offset+buffer_pos;
+
+        const uint8_t* text = buffer->buffer->buffer+buffer->offset+buffer_pos;
         if (*text!='\r' && *text!='\n') {
           document_insert(document, offset, &utf8[0], size);
         }
@@ -1139,7 +1139,7 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
       document_cursor_position(splitter, &in_offset, &out_start, 0, 1);
       in_offset.offset = view->selection_high-1;
       document_cursor_position(splitter, &in_offset, &out_end, 0, 1);
-      
+
       reset_selection = 0;
       while(out_end.line>=out_start.line) {
         in_line_column.column = 0;
@@ -1158,11 +1158,11 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
             continue;
           }
 
-          const char* text = buffer->buffer->buffer+buffer->offset+buffer_pos;
+          const uint8_t* text = buffer->buffer->buffer+buffer->offset+buffer_pos;
           if (*text!='\t' && *text!=' ') {
             break;
           }
-          
+
           length++;
           if (*text=='\t' || length>=TAB_WIDTH) {
             break;
@@ -1170,7 +1170,7 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
 
           buffer_pos++;
         }
-        
+
         if (length>0) {
           document_delete(document, offset, length);
         }
@@ -1205,7 +1205,7 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
     seek = 1;
   } else if (cp>=0) {
     document_delete_selection(document);
-    char utf8[8];
+    uint8_t utf8[8];
     size_t size = encoding_utf8_encode(NULL, cp, &utf8[0], 8);
     document_insert(document, view->offset, &utf8[0], size);
     seek = 1;
@@ -1246,7 +1246,7 @@ void document_directory(struct document* document) {
       if (!entry) {
         break;
       }
-      
+
       list_insert(files, NULL, strdup(&entry->d_name[0]));
     }
 
@@ -1260,18 +1260,18 @@ void document_directory(struct document* document) {
       sort1[n] = (char*)name->object;
       name = name->next;
     }
-    
+
     char** sort = merge_sort(sort1, sort2, files->count);
 
     file->buffer = range_tree_delete(file->buffer, file->type, 0, file->buffer?file->buffer->length:0, TIPPSE_INSERTER_AUTO);
 
     for (n = 0; n<files->count; n++) {
-      file->buffer = range_tree_insert_split(file->buffer, file->type, file->buffer?file->buffer->length:0, sort[n], strlen(sort[n]), TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
-      file->buffer = range_tree_insert_split(file->buffer, file->type, file->buffer?file->buffer->length:0, "\n", 1, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
-      
+      file->buffer = range_tree_insert_split(file->buffer, file->type, file->buffer?file->buffer->length:0, (uint8_t*)sort[n], strlen(sort[n]), TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+      file->buffer = range_tree_insert_split(file->buffer, file->type, file->buffer?file->buffer->length:0, (uint8_t*)"\n", 1, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+
       free(sort[n]);
     }
-    
+
     free(sort2);
     free(sort1);
   }
