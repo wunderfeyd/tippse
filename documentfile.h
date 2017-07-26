@@ -13,6 +13,7 @@ struct document_file;
 
 #include "list.h"
 #include "rangetree.h"
+#include "filetype.h"
 #include "filetype/c.h"
 #include "filetype/cpp.h"
 #include "filetype/sql.h"
@@ -37,7 +38,7 @@ struct document_file {
   char* filename;
   int modified;
   int save;
-  
+
   struct list* views;
 };
 

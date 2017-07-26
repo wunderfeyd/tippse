@@ -88,7 +88,6 @@ int main (int argc, const char** argv) {
   size_t input_pos = 0;
 
   struct termios original, raw;
-  struct screen* screen;
 
   const char* base_path = realpath(".", NULL);
   tcgetattr(STDIN_FILENO, &original);
@@ -102,7 +101,7 @@ int main (int argc, const char** argv) {
   write(STDOUT_FILENO, "\x1b[?1003h", 8);
   write(STDOUT_FILENO, "\x1b[?1005h", 8);
 
-  screen = screen_init();
+  struct screen* screen = screen_init();
 
   struct list* documents = list_create();
   
@@ -433,12 +432,12 @@ int main (int argc, const char** argv) {
         if (!bracket_paste) {
           document_keypress(focus, cp, 0, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
         }
-       }
-      
+      }
+
       if (used==0) {
         break;
       }
-      
+
       check += used;
     }
     memcpy(&input_buffer[0], &input_buffer[input_pos], input_pos-check);
@@ -456,15 +455,27 @@ end:;
   tcsetattr(STDIN_FILENO, TCSANOW, &original);
 
   if (perf_test) {
+    document->client_width = 200;
+    document->client_height = 40;
     int64_t time_start = tick_count();
     while (1) {
       if (document_incremental_update(document)==0) {
         break;
       }
     }
-    printf("Tippse test - Runtime %lld\r\n", (long long)(tick_count()-time_start));
+
+    printf("Update - Runtime %lld\r\n", (long long)(tick_count()-time_start));
     printf("Node ratio %3.3f\r\n", (float)sizeof(struct range_tree_node)/(float)TREE_BLOCK_LENGTH_MAX);
     printf("Trie bucket size %d\r\n", (int)(sizeof(struct trie_node)*TRIE_NODES_PER_BUCKET));
+
+    time_start = tick_count();
+    int test;
+    for (test = 0; test<1000; test++) {
+      document_draw(screen, document);
+//      screen_draw(screen);
+    }
+
+    printf("Draw - Runtime %lld - %dx%d\r\n", (long long)(tick_count()-time_start), document->client_width, document->client_height);
 //    range_tree_print(document->document.file->buffer, 0, 0);
   }
 
