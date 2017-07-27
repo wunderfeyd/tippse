@@ -83,7 +83,7 @@ void document_file_load(struct document_file* file, const char* filename) {
   if (f!=-1) {
     file_offset_t offset = 0;
     while (1) {
-      char* copy = (char*)malloc(TREE_BLOCK_LENGTH_MAX);
+      uint8_t* copy = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MAX);
       int got = read(f, copy, TREE_BLOCK_LENGTH_MAX);
       if (got<=0) {
         free(copy);
@@ -98,6 +98,23 @@ void document_file_load(struct document_file* file, const char* filename) {
         break;
       }
     }
+
+/*    struct file_cache* cache = file_cache_create(filename);
+
+    file_offset_t length = (file_offset_t)lseek(f, 0, SEEK_END);
+    file_offset_t offset = 0;
+    while (offset<length) {
+      file_offset_t block = length-offset;
+      if (block>TREE_BLOCK_LENGTH_MAX) {
+        block = TREE_BLOCK_LENGTH_MAX;
+      }
+
+      struct fragment* buffer = fragment_create_file(cache, offset, (size_t)block);
+      file->buffer = range_tree_insert(file->buffer, file->type, offset, buffer, 0, buffer->length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
+      offset += block;
+    }
+
+    file_cache_dereference(cache);*/
 
     close(f);
   }

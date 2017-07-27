@@ -141,7 +141,7 @@ int document_incremental_update(struct splitter* splitter);
 void document_draw(struct screen* screen, struct splitter* splitter);
 
 void document_expand(file_offset_t* pos, file_offset_t offset, file_offset_t length);
-void document_insert(struct document* document, file_offset_t offset, const char* text, size_t length);
+void document_insert(struct document* document, file_offset_t offset, const uint8_t* text, size_t length);
 void document_insert_buffer(struct document* document, file_offset_t offset, struct range_tree_node* buffer);
 
 void document_reduce(file_offset_t* pos, file_offset_t offset, file_offset_t length);

@@ -64,7 +64,7 @@ void screen_draw_char(struct screen* screen, char** pos, int n, int* w, int* for
     //*pos += sprintf(*pos, "\x1b[48;2;%d;%d;%dm", (c->background>>16)&255, (c->background>>8)&255, (c->background>>0)&255);
     *pos += sprintf(*pos, "\x1b[48;5;%dm", c->background);
   }
-  *pos += encoding_utf8_encode(NULL, c->character, (char*)*pos, ~0);
+  *pos += encoding_utf8_encode(NULL, c->character, (uint8_t*)*pos, ~0);
   *w = n;
 }
 
@@ -88,7 +88,7 @@ void screen_title(struct screen* screen, const char* title) {
   if (screen->title_new) {
     free(screen->title_new);
   }
-  
+
   screen->title_new = strdup(title);
 }
 
@@ -151,7 +151,7 @@ void screen_draw(struct screen* screen) {
       if (screen->title) {
         free(screen->title);
       }
-      
+
       screen->title = screen->title_new;
       screen->title_new = NULL;
       pos += sprintf(pos, "\x1b[0;%s\x07", screen->title);
@@ -191,7 +191,7 @@ void screen_drawtext(const struct screen* screen, int x, int y, const char* text
   }
 
   struct encoding_stream stream;
-  encoding_stream_from_plain(&stream, text, length);
+  encoding_stream_from_plain(&stream, (uint8_t*)text, length);
   while (length>0 && x<screen->width) {
     size_t used;
     int cp = encoding_utf8_decode(NULL, &stream, &used);

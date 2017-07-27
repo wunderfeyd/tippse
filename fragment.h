@@ -8,20 +8,22 @@ struct fragment;
 
 #include <stdlib.h>
 #include "types.h"
-//#include "documentfile.h"
+#include "filecache.h"
 
 struct fragment {
   int count;
   int type;
-  char* buffer;
+  uint8_t* buffer;
   file_offset_t offset;
-  struct document_file* file;
+  struct file_cache* cache;
+  struct file_cache_node* cache_node;
 
   size_t length;
 };
 
-struct fragment* fragment_create_memory(char* buffer, size_t length);
-struct fragment* fragment_create_file(struct document_file* file, file_offset_t offset, size_t length);
+struct fragment* fragment_create_memory(uint8_t* buffer, size_t length);
+struct fragment* fragment_create_file(struct file_cache* cache, file_offset_t offset, size_t length);
+void fragment_cache(struct fragment* node);
 void fragment_reference(struct fragment* node);
 void fragment_dereference(struct fragment* node);
 

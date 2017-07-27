@@ -3,7 +3,7 @@
 #include "encoding.h"
 
 // Build streaming view into plain memory
-void encoding_stream_from_plain(struct encoding_stream* stream, const char* plain, size_t size) {
+void encoding_stream_from_plain(struct encoding_stream* stream, const uint8_t* plain, size_t size) {
   stream->type = ENCODING_STREAM_PLAIN;
   stream->plain = plain;
   stream->buffer_pos = 0;
@@ -16,6 +16,10 @@ void encoding_stream_from_page(struct encoding_stream* stream, struct range_tree
   stream->buffer = buffer;
   stream->buffer_pos = buffer_pos;
   stream->cache_length = buffer?(buffer->length-buffer_pos):0;
+  if (buffer) {
+    fragment_cache(buffer->buffer);
+  }
+
   stream->plain = buffer?(buffer->buffer->buffer+buffer->offset+buffer_pos):NULL;
 }
 
@@ -33,6 +37,7 @@ uint8_t encoding_stream_peek_oob(struct encoding_stream* stream, size_t offset) 
   }
 
   if (buffer) {
+    fragment_cache(buffer->buffer);
     return *(buffer->buffer->buffer+buffer->offset+buffer_pos);
   } else {
     return 0;
@@ -58,6 +63,7 @@ void encoding_stream_forward_oob(struct encoding_stream* stream, size_t length) 
       }
 
       stream->cache_length = stream->buffer->length-stream->buffer_pos;
+      fragment_cache(stream->buffer->buffer);
       stream->plain = stream->buffer->buffer->buffer+stream->buffer->offset+stream->buffer_pos;
       break;
     }

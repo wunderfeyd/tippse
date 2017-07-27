@@ -119,20 +119,20 @@ int main (int argc, const char** argv) {
   document_file_name(document_doc, "Untitled");
   struct splitter* document = splitter_create(0, 0, NULL, NULL, 231, 17, "Document");
   splitter_assign_document_file(document, document_doc, 1);
-  
+
   struct document_file* search_doc = document_file_create(0);
   document_file_name(search_doc, "Search");
   struct splitter* search = splitter_create(0, 0, NULL, NULL, 231, 17, "Find");
   splitter_assign_document_file(search, search_doc, 0);
-  
+
   struct range_tree_node* search_text_buffers[32];
   const char* search_text = " Search [\x7f]\n   CASE [\x7f] | SELECTION [\x7f] | REGEX [\x7f]\nReplace [\x7f]";
-  search_doc->buffer = range_tree_insert_split(search_doc->buffer, search_doc->type, 0, search_text, strlen(search_text), TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, &search_text_buffers[0]);
-  
+  search_doc->buffer = range_tree_insert_split(search_doc->buffer, search_doc->type, 0, (uint8_t*)search_text, strlen(search_text), TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, &search_text_buffers[0]);
+
   if (argc>=2) {
     document_file_load(document_doc, argv[1]);
   }
- 
+
   struct splitter* splitters_left = splitter_create(TIPPSE_SPLITTER_VERT, 50, tabs, browser, 0, 0, "");
   struct splitter* splitters_right = splitter_create(TIPPSE_SPLITTER_VERT|TIPPSE_SPLITTER_FIXED1, 5, document, search, 0, 0, "");
   struct splitter* splitters = splitter_create(TIPPSE_SPLITTER_HORZ, 12, splitters_left, splitters_right, 0, 0, "");
@@ -150,7 +150,7 @@ int main (int argc, const char** argv) {
   int mouse_buttons_old = 0;
   int mouse_x = 0;
   int mouse_y = 0;
-  
+
   document_directory(&browser->document);
 
   int close = 0;
@@ -166,9 +166,9 @@ int main (int argc, const char** argv) {
     struct list_node* doc = documents->first;
     while (doc) {
       struct document_file* file = (struct document_file*)doc->object;
-      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->type, tabs_doc->buffer?tabs_doc->buffer->length:0, file->modified?"+":" ", 1, TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
-      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->type, tabs_doc->buffer?tabs_doc->buffer->length:0, file->filename, strlen(file->filename), TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
-      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->type, tabs_doc->buffer?tabs_doc->buffer->length:0, "\n", 1, TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->type, tabs_doc->buffer?tabs_doc->buffer->length:0, (uint8_t*)(file->modified?"+":" "), 1, TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->type, tabs_doc->buffer?tabs_doc->buffer->length:0, (uint8_t*)file->filename, strlen(file->filename), TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->type, tabs_doc->buffer?tabs_doc->buffer->length:0, (uint8_t*)"\n", 1, TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
       doc = doc->next;
     }
 
@@ -192,7 +192,7 @@ int main (int argc, const char** argv) {
 
     screen_drawtext(screen, 0, 0, focus->name, screen->width, 102, 17);
     struct encoding_stream stream;
-    encoding_stream_from_plain(&stream, focus->status, ~0);
+    encoding_stream_from_plain(&stream, (uint8_t*)focus->status, ~0);
     int length = encoding_utf8_strlen(NULL, &stream);
     screen_drawtext(screen, screen->width-length, 0, focus->status, screen->width, 102, 17);
 
@@ -268,7 +268,7 @@ int main (int argc, const char** argv) {
               int buttons = input_buffer[3];
               mouse_x = input_buffer[4]-33;
               mouse_y = input_buffer[5]-33;
-              
+
               mouse_buttons_old = mouse_buttons;
               if (buttons==35) {
                 mouse_buttons &= ~TIPPSE_MOUSE_LBUTTON & ~TIPPSE_MOUSE_RBUTTON & ~TIPPSE_MOUSE_MBUTTON;
@@ -279,14 +279,14 @@ int main (int argc, const char** argv) {
               } else if (buttons==34) {
                 mouse_buttons |= TIPPSE_MOUSE_MBUTTON;
               }
-              
+
               mouse_buttons &= ~TIPPSE_MOUSE_WHEEL_UP & ~TIPPSE_MOUSE_WHEEL_DOWN;
               if (buttons==96) {
                 mouse_buttons |= TIPPSE_MOUSE_WHEEL_UP;
               } else if (buttons==97) {
                 mouse_buttons |= TIPPSE_MOUSE_WHEEL_DOWN;
               }
-              
+
               if (mouse_buttons!=0 && mouse_buttons_old==0) {
                 struct splitter* select = splitter_by_coordinate(splitters, mouse_x, mouse_y);
                 if (select) {
@@ -331,7 +331,7 @@ int main (int argc, const char** argv) {
                   views = views->next;
                 }
 
-                char* name = range_tree_raw(focus->document.file->buffer, focus->document.view.selection_low, focus->document.view.selection_high);
+                char* name = (char*)range_tree_raw(focus->document.file->buffer, focus->document.view.selection_low, focus->document.view.selection_high);
                 if (*name) {
                   char* path_only = (focus==browser)?strdup(focus->document.file->filename):strip_file_name(focus->document.file->filename);
                   char* combined = combine_path_file(path_only, name);
@@ -382,7 +382,7 @@ int main (int argc, const char** argv) {
               struct splitter* parent = document->parent;
               struct splitter* split = document;
               document = splitter_create(0, 0, NULL, NULL, 231, 17, "Document");
-              
+
               splitter_assign_document_file(document, split->document.file, split->document.content_document);
 
               struct splitter* splitter = splitter_create(TIPPSE_SPLITTER_HORZ, 50, split, document, 0, 0, "");
@@ -422,7 +422,7 @@ int main (int argc, const char** argv) {
 
       if (!keep) {
         struct encoding_stream stream;
-        encoding_stream_from_plain(&stream, (const char*)&input_buffer[check], (const char*)&input_buffer[input_pos]-(const char*)&input_buffer[check]);
+        encoding_stream_from_plain(&stream, (const uint8_t*)&input_buffer[check], (const uint8_t*)&input_buffer[input_pos]-(const uint8_t*)&input_buffer[check]);
         int cp = encoding_utf8_decode(NULL, &stream, &used);
         if (cp==-1) {
           used = 0;
