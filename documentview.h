@@ -9,7 +9,7 @@ struct document_view;
 
 struct document_view {
   file_offset_t offset;
-  
+
   int cursor_x;
   int cursor_y;
 
@@ -21,7 +21,10 @@ struct document_view {
 
   int scroll_x;
   int scroll_y;
-  
+
+  int scroll_x_old;
+  int scroll_y_old;
+
   int showall;
   int wrapping;
 };

@@ -149,7 +149,7 @@ file_offset_t document_cursor_position(struct splitter* splitter, struct documen
   while (1) {
     while (1) {
       document_render_info_seek(&render_info, file->buffer, file->encoding, in);
-      if (document_render_info_span(&render_info, NULL, NULL, view, file, in, out, ~0)) {
+      if (document_render_info_span(&render_info, NULL, NULL, view, file, in, out, ~0, cancel)) {
         break;
       }
     }
@@ -303,7 +303,7 @@ int document_render_lookahead_word_wrap(struct document_file* file, struct encod
 }
 
 // Render some pages until the position is found or pages are no longer dirty
-int document_render_info_span(struct document_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, struct document_render_info_position* in, struct document_render_info_position* out, int dirty_pages) {
+int document_render_info_span(struct document_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, struct document_render_info_position* in, struct document_render_info_position* out, int dirty_pages, int cancel) {
   // TODO: Following initializations shouldn't be needed since the caller should check the type / verify
   if (out) {
     out->type = VISUAL_SEEK_NONE;
@@ -422,15 +422,33 @@ int document_render_info_span(struct document_render_info* render_info, struct s
         out->y_drawn = 1;
       }
 
-      if (((in->type==VISUAL_SEEK_OFFSET && render_info->offset==in->offset) || (in->type==VISUAL_SEEK_X_Y && render_info->y_view==in->y && render_info->x==in->x) || (in->type==VISUAL_SEEK_LINE_COLUMN && render_info->line==in->line && render_info->column==in->column))) {
-        out->x = render_info->x;
-        out->y = render_info->y_view;
-        out->offset = render_info->offset;
-        out->line = render_info->line;
-        out->column = render_info->column;
-        out->buffer = render_info->buffer;
-        out->buffer_pos = render_info->buffer_pos;
-        out->character = render_info->character;
+      if (!cancel) {
+        if (out->type==VISUAL_SEEK_NONE) {
+          if (((in->type==VISUAL_SEEK_OFFSET && render_info->offset>=in->offset) || (in->type==VISUAL_SEEK_X_Y && (render_info->y_view>in->y || (render_info->y_view==in->y && render_info->x>=in->x))) || (in->type==VISUAL_SEEK_LINE_COLUMN && (render_info->line>in->line || (render_info->line==in->line && render_info->column>=in->column))))) {
+            out->type = in->type;
+            out->x = render_info->x;
+            out->y = render_info->y_view;
+            out->offset = render_info->offset;
+            out->line = render_info->line;
+            out->column = render_info->column;
+            out->buffer = render_info->buffer;
+            out->buffer_pos = render_info->buffer_pos;
+            out->character = render_info->character;
+          }
+        }
+      } else {
+        if (((in->type==VISUAL_SEEK_OFFSET && render_info->offset<=in->offset) || (in->type==VISUAL_SEEK_X_Y && (render_info->y_view<in->y || (render_info->y_view==in->y && render_info->x<=in->x))) || (in->type==VISUAL_SEEK_LINE_COLUMN && (render_info->line<in->line || (render_info->line==in->line && render_info->column<=in->column))))) {
+          // TODO: duplicated code ... merge conditions / this condition fires more than once ... think about a different approach
+          out->type = in->type;
+          out->x = render_info->x;
+          out->y = render_info->y_view;
+          out->offset = render_info->offset;
+          out->line = render_info->line;
+          out->column = render_info->column;
+          out->buffer = render_info->buffer;
+          out->buffer_pos = render_info->buffer_pos;
+          out->character = render_info->character;
+        }
       }
     }
 
@@ -666,7 +684,7 @@ int document_incremental_update(struct splitter* splitter) {
   struct document_render_info render_info;
   document_render_info_clear(&render_info, splitter->client_width);
   document_render_info_seek(&render_info, file->buffer, file->encoding, &in);
-  document_render_info_span(&render_info, NULL, NULL, view, file, &in, NULL, 16);
+  document_render_info_span(&render_info, NULL, NULL, view, file, &in, NULL, 16, 1);
 
   return file->buffer?file->buffer->visuals.dirty:0;
 }
@@ -728,10 +746,16 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
 
     while (1) {
       document_render_info_seek(&render_info, file->buffer, file->encoding, &in);
-      if (document_render_info_span(&render_info, NULL, splitter, view, file, &in, NULL, ~0)) {
+      if (document_render_info_span(&render_info, NULL, splitter, view, file, &in, NULL, ~0, 1)) {
         break;
       }
     }
+  }
+
+  if (view->scroll_x_old!=view->scroll_x || view->scroll_y_old!=view->scroll_y) {
+    view->scroll_x_old = view->scroll_x;
+    view->scroll_y_old = view->scroll_y;
+    document->show_scrollbar = 1;
   }
 
   document_render_info_clear(&render_info, splitter->client_width);
@@ -743,7 +767,7 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
 
     while (1) {
       document_render_info_seek(&render_info, file->buffer, file->encoding, &in);
-      if (document_render_info_span(&render_info, screen, splitter, view, file, &in, NULL, ~0)) {
+      if (document_render_info_span(&render_info, screen, splitter, view, file, &in, NULL, ~0, 1)) {
         break;
       }
     }
@@ -969,7 +993,6 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
 
   in_x_y.x = view->cursor_x;
   in_x_y.y = view->cursor_y;
-  document->show_scrollbar = 0;
   if (cp==TIPPSE_KEY_UP) {
     in_x_y.y--;
     view->offset = document_cursor_position(splitter, &in_x_y, &out, 0, 1);
@@ -1072,6 +1095,7 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
       view->offset = document_cursor_position(splitter, &in_x_y, &out, 1, 1);
       view->cursor_x = out.x;
       view->cursor_y = out.y;
+      document->show_scrollbar = 1;
     } else if (button&TIPPSE_MOUSE_WHEEL_UP) {
       int page = ((splitter->height-2)/3)+1;
       in_x_y.y -= page;
@@ -1079,7 +1103,9 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
       view->offset = document_cursor_position(splitter, &in_x_y, &out, 1, 1);
       view->cursor_x = out.x;
       view->cursor_y = out.y;
+      document->show_scrollbar = 1;
     }
+
     reset_selection = (!(button_old&TIPPSE_MOUSE_LBUTTON) && (button&TIPPSE_MOUSE_LBUTTON))?1:0;
   } else if (cp==TIPPSE_KEY_TAB) {
     document_undo_chain(file);
