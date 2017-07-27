@@ -8,6 +8,8 @@ void document_view_reset(struct document_view* view) {
   view->cursor_y = 0;
   view->scroll_x = 0;
   view->scroll_y = 0;
+  view->scroll_x_old = 0;
+  view->scroll_y_old = 0;
   view->selection_start = ~0;
   view->selection_end = ~0;
   view->selection_low = ~0;
