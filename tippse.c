@@ -107,22 +107,22 @@ int main (int argc, const char** argv) {
   
   struct document_file* tabs_doc = document_file_create(0);
   document_file_name(tabs_doc, "Open");
-  struct splitter* tabs = splitter_create(0, 0, NULL, NULL, 231, 17, "Tabs");
+  struct splitter* tabs = splitter_create(0, 0, NULL, NULL, 231, TIPPSE_SCREEN_BACKGROUND, "Tabs");
   splitter_assign_document_file(tabs, tabs_doc, 0);
 
   struct document_file* browser_doc = document_file_create(0);
   document_file_name(browser_doc, base_path);
-  struct splitter* browser = splitter_create(0, 0, NULL, NULL, 231, 17, "Browser");
+  struct splitter* browser = splitter_create(0, 0, NULL, NULL, 231, TIPPSE_SCREEN_BACKGROUND, "Browser");
   splitter_assign_document_file(browser, browser_doc, 0);
 
   struct document_file* document_doc = document_file_create(1);
   document_file_name(document_doc, "Untitled");
-  struct splitter* document = splitter_create(0, 0, NULL, NULL, 231, 17, "Document");
+  struct splitter* document = splitter_create(0, 0, NULL, NULL, 231, TIPPSE_SCREEN_BACKGROUND, "Document");
   splitter_assign_document_file(document, document_doc, 1);
 
   struct document_file* search_doc = document_file_create(0);
   document_file_name(search_doc, "Search");
-  struct splitter* search = splitter_create(0, 0, NULL, NULL, 231, 17, "Find");
+  struct splitter* search = splitter_create(0, 0, NULL, NULL, 231, TIPPSE_SCREEN_BACKGROUND, "Find");
   splitter_assign_document_file(search, search_doc, 0);
 
   struct range_tree_node* search_text_buffers[32];
@@ -187,14 +187,14 @@ int main (int argc, const char** argv) {
     splitter_draw_multiple(screen, splitters, 0);
     int x;
     for (x = 0; x<screen->width; x++) {
-      screen_setchar(screen, x, 0, 0x20, 102, 17);
+      screen_setchar(screen, x, 0, 0x20, 102, TIPPSE_SCREEN_BACKGROUND);
     }
 
-    screen_drawtext(screen, 0, 0, focus->name, screen->width, 102, 17);
+    screen_drawtext(screen, 0, 0, focus->name, screen->width, 102, TIPPSE_SCREEN_BACKGROUND);
     struct encoding_stream stream;
     encoding_stream_from_plain(&stream, (uint8_t*)focus->status, ~0);
     int length = encoding_utf8_strlen(NULL, &stream);
-    screen_drawtext(screen, screen->width-length, 0, focus->status, screen->width, 102, 17);
+    screen_drawtext(screen, screen->width-length, 0, focus->status, screen->width, 102, TIPPSE_SCREEN_BACKGROUND);
 
     screen_draw(screen);
     int in = 0;
@@ -381,7 +381,7 @@ int main (int argc, const char** argv) {
             } else if (ansi_keys[pos].cp==TIPPSE_KEY_NEW_VERT_TAB) {
               struct splitter* parent = document->parent;
               struct splitter* split = document;
-              document = splitter_create(0, 0, NULL, NULL, 231, 17, "Document");
+              document = splitter_create(0, 0, NULL, NULL, 231, TIPPSE_SCREEN_BACKGROUND, "Document");
 
               splitter_assign_document_file(document, split->document.file, split->document.content_document);
 

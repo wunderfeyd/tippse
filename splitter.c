@@ -115,7 +115,7 @@ void splitter_draw(struct screen* screen, struct splitter* splitter) {
 void splitter_draw_split_horizontal(struct screen* screen, int x, int y, int width) {
   int n;
   for (n = 0; n<width; n++) {
-    screen_setchar(screen, x+n, y, 0x2500, 231, 17);
+    screen_setchar(screen, x+n, y, 0x2500, 231, TIPPSE_SCREEN_BACKGROUND);
   }
 
   int left = screen_getchar(screen, x-1, y);
@@ -132,14 +132,14 @@ void splitter_draw_split_horizontal(struct screen* screen, int x, int y, int wid
     right = 0x253c;
   }
 
-  screen_setchar(screen, x-1, y, left, 231, 17);
-  screen_setchar(screen, x+width, y, right, 231, 17);
+  screen_setchar(screen, x-1, y, left, 231, TIPPSE_SCREEN_BACKGROUND);
+  screen_setchar(screen, x+width, y, right, 231, TIPPSE_SCREEN_BACKGROUND);
 }
 
 void splitter_draw_split_vertical(struct screen* screen, int x, int y, int height) {
   int n;
   for (n = 0; n<height; n++) {
-    screen_setchar(screen, x, y+n, 0x2502, 231, 17);
+    screen_setchar(screen, x, y+n, 0x2502, 231, TIPPSE_SCREEN_BACKGROUND);
   }
 
   int top = screen_getchar(screen, x, y-1);
@@ -156,8 +156,8 @@ void splitter_draw_split_vertical(struct screen* screen, int x, int y, int heigh
     bottom = 0x253c;
   }
 
-  screen_setchar(screen, x, y-1, top, 231, 17);
-  screen_setchar(screen, x, y+height, bottom, 231, 17);
+  screen_setchar(screen, x, y-1, top, 231, TIPPSE_SCREEN_BACKGROUND);
+  screen_setchar(screen, x, y+height, bottom, 231, TIPPSE_SCREEN_BACKGROUND);
 }
 
 void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int width, int height, struct splitter* splitter, int incremental) {
