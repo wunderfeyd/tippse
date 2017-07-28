@@ -413,6 +413,14 @@ int document_render_info_span(struct document_render_info* render_info, struct s
 
     int show = cp;
 
+    if (cp!=0xfeff && cp!='\r' && cp!='\n') {
+      render_info->visual_detail &= ~VISUAL_INFO_CONTROLCHARACTER;
+    }
+
+    if (cp==0xfeff) {
+      render_info->visual_detail |= VISUAL_INFO_CONTROLCHARACTER;
+    }
+
     if (out && !in->clip) {
       if (in->type==VISUAL_SEEK_X_Y && render_info->y_view==in->y) {
         out->x_max = render_info->x;
@@ -422,9 +430,24 @@ int document_render_info_span(struct document_render_info* render_info, struct s
         out->y_drawn = 1;
       }
 
-      if (!cancel) {
-        if (out->type==VISUAL_SEEK_NONE) {
-          if (((in->type==VISUAL_SEEK_OFFSET && render_info->offset>=in->offset) || (in->type==VISUAL_SEEK_X_Y && (render_info->y_view>in->y || (render_info->y_view==in->y && render_info->x>=in->x))) || (in->type==VISUAL_SEEK_LINE_COLUMN && (render_info->line>in->line || (render_info->line==in->line && render_info->column>=in->column))))) {
+      if ((render_info->visual_detail&VISUAL_INFO_CONTROLCHARACTER)==0) {
+        if (!cancel) {
+          if (out->type==VISUAL_SEEK_NONE) {
+            if (((in->type==VISUAL_SEEK_OFFSET && render_info->offset>=in->offset) || (in->type==VISUAL_SEEK_X_Y && (render_info->y_view>in->y || (render_info->y_view==in->y && render_info->x>=in->x))) || (in->type==VISUAL_SEEK_LINE_COLUMN && (render_info->line>in->line || (render_info->line==in->line && render_info->column>=in->column))))) {
+              out->type = in->type;
+              out->x = render_info->x;
+              out->y = render_info->y_view;
+              out->offset = render_info->offset;
+              out->line = render_info->line;
+              out->column = render_info->column;
+              out->buffer = render_info->buffer;
+              out->buffer_pos = render_info->buffer_pos;
+              out->character = render_info->character;
+            }
+          }
+        } else {
+          if (out->type==VISUAL_SEEK_NONE || ((in->type==VISUAL_SEEK_OFFSET && render_info->offset<=in->offset) || (in->type==VISUAL_SEEK_X_Y && (render_info->y_view<in->y || (render_info->y_view==in->y && render_info->x<=in->x))) || (in->type==VISUAL_SEEK_LINE_COLUMN && (render_info->line<in->line || (render_info->line==in->line && render_info->column<=in->column))))) {
+            // TODO: duplicated code ... merge conditions / this condition fires more than once ... think about a different approach
             out->type = in->type;
             out->x = render_info->x;
             out->y = render_info->y_view;
@@ -436,20 +459,15 @@ int document_render_info_span(struct document_render_info* render_info, struct s
             out->character = render_info->character;
           }
         }
-      } else {
-        if (((in->type==VISUAL_SEEK_OFFSET && render_info->offset<=in->offset) || (in->type==VISUAL_SEEK_X_Y && (render_info->y_view<in->y || (render_info->y_view==in->y && render_info->x<=in->x))) || (in->type==VISUAL_SEEK_LINE_COLUMN && (render_info->line<in->line || (render_info->line==in->line && render_info->column<=in->column))))) {
-          // TODO: duplicated code ... merge conditions / this condition fires more than once ... think about a different approach
-          out->type = in->type;
-          out->x = render_info->x;
-          out->y = render_info->y_view;
-          out->offset = render_info->offset;
-          out->line = render_info->line;
-          out->column = render_info->column;
-          out->buffer = render_info->buffer;
-          out->buffer_pos = render_info->buffer_pos;
-          out->character = render_info->character;
-        }
       }
+    }
+
+    if (cp=='\r') {
+      render_info->visual_detail |= VISUAL_INFO_CONTROLCHARACTER;
+    }
+
+    if (cp=='\n') {
+      render_info->visual_detail &= ~VISUAL_INFO_CONTROLCHARACTER;
     }
 
     if (render_info->draw_indentation) {
@@ -645,7 +663,7 @@ int document_render_info_span(struct document_render_info* render_info, struct s
       render_info->xs = 0;
     }
 
-    if (cp!='\t' && cp!=' ' && cp!='\r') {
+    if (cp!='\t' && cp!=' ') {
       render_info->visual_detail &= ~VISUAL_INFO_WHITESPACED_COMPLETE;
     }
 
