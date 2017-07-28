@@ -792,7 +792,7 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
 
   if (!document->keep_status) {
     char status[1024];
-    sprintf(&status[0], "%s%d/%d:%d - %d/%d byte - %d chars - %s - %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), cursor.line+1, cursor.column+1, (int)view->offset, file->buffer?(int)file->buffer->length:0, file->buffer?(int)file->buffer->visuals.characters:0, (*file->type->name)(), (*file->encoding->name)());
+    sprintf(&status[0], "%s%s%d/%d:%d - %d/%d byte - %d chars - %s - %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), cursor.line+1, cursor.column+1, (int)view->offset, file->buffer?(int)file->buffer->length:0, file->buffer?(int)file->buffer->visuals.characters:0, (*file->type->name)(), (*file->encoding->name)());
     splitter_status(splitter, &status[0], 0);
   }
 

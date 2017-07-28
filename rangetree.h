@@ -17,6 +17,7 @@ struct range_tree_node;
 #define TIPPSE_INSERTER_READONLY 4
 #define TIPPSE_INSERTER_ESCAPE 8
 #define TIPPSE_INSERTER_AUTO 16
+#define TIPPSE_INSERTER_FILE 32
 
 #include "fragment.h"
 #include "visualinfo.h"

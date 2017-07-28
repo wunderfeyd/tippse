@@ -66,8 +66,14 @@ void range_tree_update_calc(struct range_tree_node* node) {
   if (!node->buffer) {
     node->length = node->side[0]->length+node->side[1]->length;
     node->depth = ((node->side[0]->depth>node->side[1]->depth)?node->side[0]->depth:node->side[1]->depth)+1;
-    node->inserter = (node->side[0]?node->side[0]->inserter:0)&(node->side[1]?node->side[1]->inserter:0);
+    node->inserter = (node->side[0]?node->side[0]->inserter:0)|(node->side[1]?node->side[1]->inserter:0);
     visual_info_combine(&node->visuals, &node->side[0]->visuals, &node->side[1]->visuals);
+  } else {
+    if (node->buffer->type==FRAGMENT_FILE) {
+      node->inserter |= TIPPSE_INSERTER_FILE;
+    } else {
+      node->inserter &= ~TIPPSE_INSERTER_FILE;
+    }
   }
 
   node->subs = (node->side[0]?node->side[0]->subs+1:0)+(node->side[1]?node->side[1]->subs+1:0);
