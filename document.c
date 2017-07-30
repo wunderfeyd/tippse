@@ -239,7 +239,7 @@ void document_render_info_seek(struct document_render_info* render_info, struct 
     render_info->visual_detail = buffer_new->visuals.detail_before;
     render_info->offset = offset_new;
     if (offset_new==0) {
-      render_info->visual_detail |= VISUAL_INFO_NEWLINE;
+      render_info->visual_detail = VISUAL_INFO_NEWLINE;
     }
 
     render_info->whitespaced = range_tree_find_whitespaced(buffer_new);

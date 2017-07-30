@@ -423,6 +423,31 @@ void range_tree_shrink(struct range_tree_node* node, struct file_type* type) {
     return;
   }
 
+  node->visuals.dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
+  struct range_tree_node* invalidate = range_tree_next(node);
+  if (invalidate) {
+    invalidate->visuals.dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
+    range_tree_update_calc_all(invalidate);
+  }
+
+  invalidate = node;
+
+  file_offset_t predirt = invalidate->visuals.keyword_length;
+  while (1) {
+    invalidate = range_tree_prev(invalidate);
+    if (!invalidate) {
+      break;
+    }
+
+    invalidate->visuals.dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
+    range_tree_update_calc_all(invalidate);
+    if (invalidate->length>predirt) {
+      break;
+    }
+
+    predirt -= invalidate->length;
+  }
+
   if (node->buffer->count==1 && (node->offset!=0 || node->length!=node->buffer->length) && node->length>0) {
     if (node->buffer->type==FRAGMENT_MEMORY) {
       uint8_t* text = malloc(node->length);
@@ -433,8 +458,6 @@ void range_tree_shrink(struct range_tree_node* node, struct file_type* type) {
       node->offset = 0;
     }
   }
-
-  node->visuals.dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
 }
 
 // Try to merge range of nodes which are below the maximum page size
@@ -681,12 +704,13 @@ struct range_tree_node* range_tree_delete(struct range_tree_node* root, struct f
 
     length -= sub;
 
+    range_tree_shrink(node, type);
+
     if (node->length<=0) {
       fragment_dereference(node->buffer);
       node->buffer = NULL;
     }
 
-    range_tree_shrink(node, type);
     root = range_tree_update(node);
     if (root) {
       root = range_tree_fuse(root, type, before, after);
