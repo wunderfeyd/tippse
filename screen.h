@@ -9,7 +9,8 @@ struct screen;
 #define TIPPSE_SCREEN_BACKGROUND 17
 
 struct screen_char {
-  int character;
+  int codepoints[8];
+  size_t length;
   int foreground;
   int background;
 };
@@ -34,6 +35,6 @@ int screen_half_color(int color);
 void screen_draw(struct screen* screen);
 void screen_drawtext(const struct screen* screen, int x, int y, const char* text, size_t length, int foreground, int background);
 int screen_getchar(const struct screen* screen, int x, int y);
-void screen_setchar(const struct screen* screen, int x, int y, int cp, int foreground, int background);
+void screen_setchar(const struct screen* screen, int x, int y, int* codepoints, size_t length, int foreground, int background);
 
 #endif /* #ifndef __TIPPSE_SCREEN__ */

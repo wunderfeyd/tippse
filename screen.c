@@ -38,7 +38,7 @@ struct screen* screen_init() {
   for (y=0; y<screen->height; y++) {
     for (x=0; x<screen->width; x++) {
       c = &screen->buffer[y*screen->width+x];
-      c->character = ' ';
+      c->length = 0;
       c->foreground = 15;
       c->background = 0;
     }
@@ -64,7 +64,17 @@ void screen_draw_char(struct screen* screen, char** pos, int n, int* w, int* for
     //*pos += sprintf(*pos, "\x1b[48;2;%d;%d;%dm", (c->background>>16)&255, (c->background>>8)&255, (c->background>>0)&255);
     *pos += sprintf(*pos, "\x1b[48;5;%dm", c->background);
   }
-  *pos += encoding_utf8_encode(NULL, c->character, (uint8_t*)*pos, ~0);
+
+  size_t copy;
+  for (copy = 0; copy<c->length; copy++) {
+    *pos += encoding_utf8_encode(NULL, c->codepoints[copy], (uint8_t*)*pos, ~0);
+  }
+
+  if (copy==0) {
+    **pos = 0x20;
+    *pos += 1;
+  }
+
   *w = n;
 }
 
@@ -172,11 +182,30 @@ void screen_draw(struct screen* screen) {
   for (n=0; n<screen->width*screen->height; n++) {
     c = &screen->buffer[n];
     v = &screen->visible[n];
-    if (v->character!=c->character || v->foreground!=c->foreground || v->background!=c->background) {
+    int modified = 0;
+    if (v->length!=c->length) {
+      modified = 1;
+    } else {
+      size_t check;
+      for (check = 0; check<c->length; check++) {
+        if (v->codepoints[check]!=c->codepoints[check]) {
+          modified = 1;
+          break;
+        }
+      }
+    }
+
+    if (modified || v->foreground!=c->foreground || v->background!=c->background) {
       screen_draw_update(screen, &pos, old, n, &w, &foreground_old, &background_old);
       old = n+1;
       screen_draw_char(screen, &pos, n, &w, &foreground_old, &background_old);
-      *v = *c;
+      v->length = c->length;
+      v->foreground = c->foreground;
+      v->background = c->background;
+      size_t copy;
+      for (copy = 0; copy<c->length; copy++) {
+        v->codepoints[copy] = c->codepoints[copy];
+      }
     }
   }
 
@@ -203,7 +232,7 @@ void screen_drawtext(const struct screen* screen, int x, int y, const char* text
       cp = 0xfffd;
     }
 
-    screen_setchar(screen, x, y, cp, foreground, background);
+    screen_setchar(screen, x, y, &cp, 1, foreground, background);
 
     x++;
     length--;
@@ -216,16 +245,21 @@ int screen_getchar(const struct screen* screen, int x, int y) {
     return 0;
   }
 
-  return screen->buffer[y*screen->width+x].character;
+  return screen->buffer[y*screen->width+x].codepoints[0];
 }
 
-void screen_setchar(const struct screen* screen, int x, int y, int cp, int foreground, int background) {
+void screen_setchar(const struct screen* screen, int x, int y, int* codepoints, size_t length, int foreground, int background) {
   if (y<0 || y>=screen->height || x<0 || x>=screen->width) {
     return;
   }
 
   struct screen_char* c = &screen->buffer[y*screen->width+x];
-  c->character = cp;
+  size_t copy;
+  for (copy = 0; copy<length; copy++) {
+    c->codepoints[copy] = codepoints[copy];
+  }
+
+  c->length = length;
   c->foreground = foreground;
   c->background = background;
 }

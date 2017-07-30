@@ -19,6 +19,7 @@ struct document;
 #include "documentview.h"
 #include "documentfile.h"
 #include "encoding.h"
+#include "unicode.h"
 
 #define TAB_WIDTH 2
 

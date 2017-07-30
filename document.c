@@ -262,6 +262,11 @@ void document_render_info_seek(struct document_render_info* render_info, struct 
     }
 
     render_info->buffer_pos = buffer_new->visuals.displacement;
+/*    render_info->codepoint_length = buffer_new->visuals.displacement_rewind+buffer_new->visuals.displacement;
+    if (offset_new==0) {
+      render_info->codepoint_length = 0;
+    }*/
+
     render_info->xs = 0;
     render_info->ys = 0;
     render_info->lines = 0;
@@ -373,6 +378,7 @@ int document_render_info_span(struct document_render_info* render_info, struct s
         range_tree_update_calc_all(render_info->buffer);
       }
 
+      //size_t displacement_rewind = render_info->buffer->length-(render_info->buffer_pos-render_info->codepoint_length);
       render_info->buffer_pos -= render_info->buffer->length;
       render_info->buffer = range_tree_next(render_info->buffer);
 
@@ -382,6 +388,7 @@ int document_render_info_span(struct document_render_info* render_info, struct s
           render_info->buffer->visuals.keyword_color = render_info->keyword_color;
           render_info->buffer->visuals.detail_before = render_info->visual_detail;
           render_info->buffer->visuals.displacement = render_info->buffer_pos;
+          //render_info->buffer->visuals.displacement_rewind = render_info->codepoint_length;
           render_info->buffer->visuals.dirty |= VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
           range_tree_update_calc_all(render_info->buffer);
         }
@@ -403,15 +410,23 @@ int document_render_info_span(struct document_render_info* render_info, struct s
 
     int sel = (render_info->offset>=view->selection_low && render_info->offset<view->selection_high)?1:0;
 
-    size_t length = encoding_cache_find_length(&render_info->cache, 0);
-    int cp = encoding_cache_find_codepoint(&render_info->cache, 0);
+    int codepoints[8];
+    size_t advance = 1;
+    size_t length = 1;
+    size_t read = unicode_read_combined_sequence(&render_info->cache, 0, &codepoints[0], 8, &advance, &length);
+
+    int cp = codepoints[0];
+
+//    size_t length = encoding_cache_find_length(&render_info->cache, 0);
+//    int cp = encoding_cache_find_codepoint(&render_info->cache, 0);
+
 //    printf("%d %d %d\r\n", (int)length, cp, (int)render_info->offset);
 //    size_t length = 0;
 //    int cp = (*file->encoding->decode)(file->encoding, &render_info->stream, ~0, &length);
 //    size_t length = 1;
 //    int cp = ' ';
 
-    int show = cp;
+    int show = -1;
 
     if (cp!=0xfeff && cp!='\r' && cp!='\n') {
       render_info->visual_detail &= ~VISUAL_INFO_CONTROLCHARACTER;
@@ -472,7 +487,8 @@ int document_render_info_span(struct document_render_info* render_info, struct s
 
     if (render_info->draw_indentation) {
       if (screen && render_info->y_view==render_info->y) {
-        splitter_drawchar(screen, splitter, render_info->x-2-view->scroll_x, render_info->y-view->scroll_y, 0x21aa, splitter->foreground, splitter->background);
+        int cp = 0x21aa;
+        splitter_drawchar(screen, splitter, render_info->x-2-view->scroll_x, render_info->y-view->scroll_y, &cp, 1, splitter->foreground, splitter->background);
       }
     }
 
@@ -552,6 +568,7 @@ int document_render_info_span(struct document_render_info* render_info, struct s
       }
     }
 
+//    render_info->codepoint_length = length;
     render_info->buffer_pos += length;
     render_info->offset += length;
 
@@ -570,9 +587,9 @@ int document_render_info_span(struct document_render_info* render_info, struct s
         }
 
         if (!sel) {
-          splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, show, color, background);
+          splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, (show==-1)?&codepoints[0]:&show, (show==-1)?read:1, color, background);
         } else {
-          splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, show, background, color);
+          splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, (show==-1)?&codepoints[0]:&show, (show==-1)?read:1, background, color);
         }
       }
 
@@ -595,9 +612,9 @@ int document_render_info_span(struct document_render_info* render_info, struct s
       while (tabbing-->0) {
         if (screen && render_info->y_view==render_info->y) {
           if (!sel) {
-            splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, show, splitter->foreground, background);
+            splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, &show, 1, splitter->foreground, background);
           } else {
-            splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, show, background, splitter->foreground);
+            splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, &show, 1, background, splitter->foreground);
           }
 
           show = ' ';
@@ -621,7 +638,7 @@ int document_render_info_span(struct document_render_info* render_info, struct s
     render_info->columns++;
     render_info->character++;
     render_info->characters++;
-    encoding_cache_advance(&render_info->cache, 1);
+    encoding_cache_advance(&render_info->cache, advance);
 
     int word_length = 0;
     if ((cp<=' ') && !(render_info->visual_detail&VISUAL_INFO_INDENTATION) && view->wrapping) {
@@ -827,11 +844,12 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
 
     int pos_start = (start*(file_offset_t)splitter->client_height)/(length+1);
     int pos_end = (end*(file_offset_t)splitter->client_height)/(length+1);
+    int cp = 0x20;
     for (y = 0; y<splitter->client_height; y++) {
       if (y>=pos_start && y<=pos_end) {
-        splitter_drawchar(screen, splitter, splitter->client_width-1, y, 0x20, 17, 231);
+        splitter_drawchar(screen, splitter, splitter->client_width-1, y, &cp, 1, 17, 231);
       } else {
-        splitter_drawchar(screen, splitter, splitter->client_width-1, y, 0x20, 17, 102);
+        splitter_drawchar(screen, splitter, splitter->client_width-1, y, &cp, 1, 17, 102);
       }
     }
   }
