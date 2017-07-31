@@ -1,6 +1,6 @@
 /* Tippse - Encoding UTF-8 - Encode/Decode of UTF-8 codepoints */
 
-#include "encoding_utf8.h"
+#include "utf8.h"
 
 struct encoding* encoding_utf8_create() {
   struct encoding_utf8* this = malloc(sizeof(struct encoding_utf8));

@@ -9,7 +9,7 @@ void clipboard_set(struct range_tree_node* data) {
     range_tree_destroy(clipboard);
     clipboard = NULL;
   }
-  
+
   clipboard = data;
 }
 

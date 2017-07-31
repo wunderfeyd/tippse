@@ -89,13 +89,12 @@ void range_tree_update_calc_all(struct range_tree_node* node) {
 
 // Remove node and all children
 void range_tree_destroy(struct range_tree_node* node) {
-  if (node->side[0]) {
-    range_tree_destroy(node->side[0]);
+  if (!node) {
+    return;
   }
 
-  if (node->side[1]) {
-    range_tree_destroy(node->side[1]);
-  }
+  range_tree_destroy(node->side[0]);
+  range_tree_destroy(node->side[1]);
 
   if (node->buffer) {
     fragment_dereference(node->buffer);
@@ -120,6 +119,7 @@ struct range_tree_node* range_tree_create(struct range_tree_node* parent, struct
   node->offset = offset;
   node->length = length;
   node->inserter = inserter;
+  node->depth = 0;
   visual_info_clear(&node->visuals);
   range_tree_update_calc(node);
   return node;

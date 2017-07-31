@@ -52,6 +52,7 @@ void document_undo_empty(struct list* list) {
       range_tree_destroy(undo->buffer);
     }
 
+    free(undo);
     list_remove(list, node);
   }
 }

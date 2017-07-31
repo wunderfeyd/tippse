@@ -6,19 +6,21 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
   struct splitter* splitter = malloc(sizeof(struct splitter));
   splitter->type = type;
   splitter->split = split;
+  splitter->document.file = NULL;
+  splitter->status = strdup("");
+  splitter->name = strdup(name);
+
   if (!side0 || !side1) {
     splitter->side[0] = NULL;
     splitter->side[1] = NULL;
     splitter->active = 0;
     splitter->foreground = foreground;
     splitter->background = background;
-    splitter->name = strdup(name);
-    splitter->status = strdup("");
     splitter->status_inverted = 0;
     splitter->type = type;
 
-    splitter->document.file = NULL;
     splitter->document.keep_status = 0;
+    splitter->document.show_scrollbar = 0;
     document_view_reset(&splitter->document.view);
   } else {
     splitter->side[0] = side0;
@@ -30,11 +32,18 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
   return splitter;
 }
 
-void splitter_free(struct splitter* splitter) {
+void splitter_destroy(struct splitter* splitter) {
   if (!splitter) {
     return;
   }
 
+  splitter_unassign_document_file(splitter);
+
+  splitter_destroy(splitter->side[0]);
+  splitter_destroy(splitter->side[1]);
+
+  free(splitter->name);
+  free(splitter->status);
   free(splitter);
 }
 
@@ -94,7 +103,31 @@ void splitter_cursor(struct screen* screen, const struct splitter* splitter, int
   }
 }
 
+void splitter_unassign_document_file(struct splitter* splitter) {
+  if (!splitter->document.file) {
+    return;
+  }
+
+  struct list_node* view = splitter->document.file->views->first;
+  while (view) {
+    if ((struct document_view*)view->object==&splitter->document.view) {
+      list_remove(splitter->document.file->views, view);
+      break;
+    }
+
+    view = view->next;
+  }
+
+  splitter->document.file = NULL;
+}
+
 void splitter_assign_document_file(struct splitter* splitter, struct document_file* file, int content_document) {
+  splitter_unassign_document_file(splitter);
+
+  if (!file) {
+    return;
+  }
+
   splitter->document.file = file;
   splitter->document.content_document = content_document;
   list_insert(splitter->document.file->views, NULL, &splitter->document.view);

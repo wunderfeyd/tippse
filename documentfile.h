@@ -16,6 +16,7 @@ struct document_file;
 #include "misc.h"
 #include "list.h"
 #include "rangetree.h"
+#include "documentundo.h"
 #include "filetype.h"
 #include "filetype/c.h"
 #include "filetype/cpp.h"
@@ -24,7 +25,7 @@ struct document_file;
 #include "filetype/lua.h"
 #include "filetype/php.h"
 #include "filetype/xml.h"
-#include "encoding_utf8.h"
+#include "encoding/utf8.h"
 
 struct document_file_type {
   const char* extension;

@@ -10,41 +10,59 @@
 #include <unistd.h>
 #include "screen.h"
 
-void screen_free(struct screen* screen) {
+void screen_destroy(struct screen* screen) {
   if (screen==NULL) {
     return;
   }
 
+  free(screen->title);
+  free(screen->title_new);
   free(screen->visible);
   free(screen->buffer);
   free(screen);
 }
 
-struct screen* screen_init() {
-  int x, y;
-  struct screen_char* c;
-  struct winsize w;
+struct screen* screen_create() {
   struct screen* screen = (struct screen*)malloc(sizeof(struct screen));
-
-  ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-
-  screen->width = w.ws_col;
-  screen->height = w.ws_row;
-  screen->buffer = (struct screen_char*)malloc(sizeof(struct screen_char)*screen->width*screen->height);
-  screen->visible = (struct screen_char*)malloc(sizeof(struct screen_char)*screen->width*screen->height);
+  screen->width = 0;
+  screen->height = 0;
+  screen->buffer = NULL;
+  screen->visible = NULL;
   screen->title = NULL;
   screen->title_new = strdup("Tippse");
 
-  for (y=0; y<screen->height; y++) {
-    for (x=0; x<screen->width; x++) {
-      c = &screen->buffer[y*screen->width+x];
-      c->length = 0;
-      c->foreground = 15;
-      c->background = 0;
+  return screen;
+}
+
+void screen_check(struct screen* screen) {
+  struct winsize w;
+  ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+
+  if (screen->width!=w.ws_col || screen->height!=w.ws_row) {
+    screen->width = w.ws_col;
+    screen->height = w.ws_row;
+    free(screen->visible);
+    free(screen->buffer);
+    screen->buffer = (struct screen_char*)malloc(sizeof(struct screen_char)*screen->width*screen->height);
+    screen->visible = (struct screen_char*)malloc(sizeof(struct screen_char)*screen->width*screen->height);
+
+    int x, y;
+    for (y=0; y<screen->height; y++) {
+      for (x=0; x<screen->width; x++) {
+        struct screen_char* c = &screen->buffer[y*screen->width+x];
+        c->length = 0;
+        c->codepoints[0] = 0x20;
+        c->foreground = 15;
+        c->background = 0;
+
+        c = &screen->visible[y*screen->width+x];
+        c->length = 0;
+        c->codepoints[0] = 0x20;
+        c->foreground = 15;
+        c->background = 0;
+      }
     }
   }
-
-  return screen;
 }
 
 void screen_draw_char(struct screen* screen, char** pos, int n, int* w, int* foreground_old, int* background_old) {

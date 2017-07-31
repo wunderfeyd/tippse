@@ -5,7 +5,7 @@
 
 struct encoding_utf8;
 
-#include "encoding.h"
+#include "../encoding.h"
 
 struct encoding_utf8 {
   struct encoding vtbl;

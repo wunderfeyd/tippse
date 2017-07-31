@@ -40,7 +40,9 @@ void document_file_clear(struct document_file* file) {
 
 void document_file_destroy(struct document_file* file) {
   document_file_clear(file);
+  document_undo_empty(file->undos);
   list_destroy(file->undos);
+  document_undo_empty(file->redos);
   list_destroy(file->redos);
   list_destroy(file->views);
   free(file->filename);

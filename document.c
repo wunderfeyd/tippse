@@ -2,40 +2,40 @@
 
 #include "document.h"
 
-int document_compare(struct range_tree_node* left, file_offset_t buffer_pos_left, struct range_tree_node* right_root, file_offset_t length) {
+int document_compare(struct range_tree_node* left, file_offset_t displacement_left, struct range_tree_node* right_root, file_offset_t length) {
   struct range_tree_node* right = right_root;
-  size_t buffer_pos_right = 0;
+  size_t displacement_right = 0;
 
   while (left && right) {
-    if (buffer_pos_left>=left->length || !left->buffer) {
+    if (displacement_left>=left->length || !left->buffer) {
       left = range_tree_next(left);
-      buffer_pos_left = 0;
+      displacement_left = 0;
       continue;
     }
 
-    if (buffer_pos_right>=right->length || !right->buffer) {
+    if (displacement_right>=right->length || !right->buffer) {
       right = range_tree_next(right);
-      buffer_pos_right = 0;
+      displacement_right = 0;
       continue;
     }
 
-    uint8_t* text_left = left->buffer->buffer+left->offset+buffer_pos_left;
-    uint8_t* text_right = right->buffer->buffer+right->offset+buffer_pos_right;
+    uint8_t* text_left = left->buffer->buffer+left->offset+displacement_left;
+    uint8_t* text_right = right->buffer->buffer+right->offset+displacement_right;
     file_offset_t max = length;
-    if (left->length-buffer_pos_left<max) {
-      max = left->length-buffer_pos_left;
+    if (left->length-displacement_left<max) {
+      max = left->length-displacement_left;
     }
 
-    if (right->length-buffer_pos_right<max) {
-      max = right->length-buffer_pos_right;
+    if (right->length-displacement_right<max) {
+      max = right->length-displacement_right;
     }
 
     if (strncmp((char*)text_left, (char*)text_right, max)!=0) {
       return 0;
     }
 
-    buffer_pos_left += max;
-    buffer_pos_right += max;
+    displacement_left += max;
+    displacement_right += max;
     length-= max;
     if (length==0) {
       return 1;
@@ -76,12 +76,12 @@ void document_search(struct splitter* splitter, struct document* document, struc
   }
 
   file_offset_t pos = offset;
-  file_offset_t buffer_pos;
-  struct range_tree_node* buffer = range_tree_find_offset(file->buffer, offset, &buffer_pos);
+  file_offset_t displacement;
+  struct range_tree_node* buffer = range_tree_find_offset(file->buffer, offset, &displacement);
   int wrap = 0;
   if (forward) {
     while (pos<offset || !wrap) {
-      if (buffer_pos>=buffer->length || !buffer->buffer) {
+      if (displacement>=buffer->length || !buffer->buffer) {
         buffer = range_tree_next(buffer);
         if (!buffer) {
           buffer = range_tree_first(file->buffer);
@@ -89,11 +89,11 @@ void document_search(struct splitter* splitter, struct document* document, struc
           wrap = 1;
         }
 
-        buffer_pos = 0;
+        displacement = 0;
         continue;
       }
 
-      if (document_compare(buffer, buffer_pos, text, length)) {
+      if (document_compare(buffer, displacement, text, length)) {
         view->offset = pos;
         view->selection_low = pos;
         view->selection_high = pos+length;
@@ -102,12 +102,12 @@ void document_search(struct splitter* splitter, struct document* document, struc
         return;
       }
 
-      buffer_pos++;
+      displacement++;
       pos++;
     }
   } else {
     while (pos>offset || !wrap) {
-      if (buffer_pos==~0 || !buffer->buffer) {
+      if (displacement==~0 || !buffer->buffer) {
         buffer = range_tree_prev(buffer);
         if (!buffer) {
           buffer = range_tree_last(file->buffer);
@@ -115,11 +115,11 @@ void document_search(struct splitter* splitter, struct document* document, struc
           wrap = 1;
         }
 
-        buffer_pos = buffer->length-1;
+        displacement = buffer->length-1;
         continue;
       }
 
-      if (document_compare(buffer, buffer_pos, text, length)) {
+      if (document_compare(buffer, displacement, text, length)) {
         view->offset = pos;
         view->selection_low = pos;
         view->selection_high = pos+length;
@@ -128,7 +128,7 @@ void document_search(struct splitter* splitter, struct document* document, struc
         return;
       }
 
-      buffer_pos--;
+      displacement--;
       pos--;
     }
   }
@@ -238,7 +238,7 @@ void document_render_info_seek(struct document_render_info* render_info, struct 
   if (buffer_new /*&& (render_info->buffer!=buffer_new || (in->type==VISUAL_SEEK_OFFSET && render_info->offset!=in->offset) || (in->type==VISUAL_SEEK_X_Y && render_info->x!=in->x && render_info->y!=in->y) || (in->type==VISUAL_SEEK_LINE_COLUMN && render_info->line!=in->line && render_info->column!=in->column))*/) {
     render_info->visual_detail = buffer_new->visuals.detail_before;
     render_info->offset_sync = offset_new-buffer_new->visuals.rewind;
-    render_info->buffer_pos = buffer_new->visuals.displacement;
+    render_info->displacement = buffer_new->visuals.displacement;
     render_info->offset = offset_new+buffer_new->visuals.displacement;
     if (offset_new==0) {
       render_info->visual_detail = VISUAL_INFO_NEWLINE;
@@ -274,7 +274,7 @@ void document_render_info_seek(struct document_render_info* render_info, struct 
     render_info->keyword_color = buffer_new->visuals.keyword_color;
     render_info->keyword_length = buffer_new->visuals.keyword_length;
 
-    encoding_stream_from_page(&render_info->stream, render_info->buffer, render_info->buffer_pos);
+    encoding_stream_from_page(&render_info->stream, render_info->buffer, render_info->displacement);
     encoding_cache_clear(&render_info->cache, encoding, &render_info->stream);
   } else {
     encoding_stream_from_page(&render_info->stream, NULL, 0);
@@ -316,7 +316,7 @@ int document_render_info_span(struct document_render_info* render_info, struct s
     out->column = 0;
     out->character = 0;
     out->buffer = NULL;
-    out->buffer_pos = 0;
+    out->displacement = 0;
   }
 
   int rendered = 1;
@@ -326,7 +326,7 @@ int document_render_info_span(struct document_render_info* render_info, struct s
 
   while (1) {
     int boundary = 0;
-    while (render_info->buffer && render_info->buffer_pos>=render_info->buffer->length) {
+    while (render_info->buffer && render_info->displacement>=render_info->buffer->length) {
       boundary = 1;
       int dirty = (render_info->buffer->visuals.xs!=render_info->xs || render_info->buffer->visuals.ys!=render_info->ys || render_info->buffer->visuals.lines!=render_info->lines ||  render_info->buffer->visuals.columns!=render_info->columns || render_info->buffer->visuals.indentation!=render_info->indentations || render_info->buffer->visuals.indentation_extra!=render_info->indentations_extra || render_info->buffer->visuals.detail_after!=render_info->visual_detail || (render_info->ys==0 && render_info->buffer->visuals.dirty && view->wrapping))?1:0;
 
@@ -374,20 +374,20 @@ int document_render_info_span(struct document_render_info* render_info, struct s
         range_tree_update_calc_all(render_info->buffer);
       }
 
-      render_info->buffer_pos -= render_info->buffer->length;
-      file_offset_t rewind = render_info->offset-render_info->offset_sync-render_info->buffer_pos;
-      if (render_info->buffer_pos==0 && render_info->keyword_length==0) { // TODO: this is somehow not as thought, at best this condition wouldn't be necessary
+      render_info->displacement -= render_info->buffer->length;
+      file_offset_t rewind = render_info->offset-render_info->offset_sync-render_info->displacement;
+      if (render_info->displacement==0 && render_info->keyword_length==0) { // TODO: this is somehow not as thought, at best this condition wouldn't be necessary
         rewind = 0;
       }
 
       render_info->buffer = range_tree_next(render_info->buffer);
 
       if (render_info->buffer) {
-        if (render_info->visual_detail!=render_info->buffer->visuals.detail_before || render_info->keyword_length!=render_info->buffer->visuals.keyword_length || (render_info->keyword_color!=render_info->buffer->visuals.keyword_color && render_info->keyword_length>0) || render_info->buffer_pos!=render_info->buffer->visuals.displacement || rewind!=render_info->buffer->visuals.rewind || dirty) {
+        if (render_info->visual_detail!=render_info->buffer->visuals.detail_before || render_info->keyword_length!=render_info->buffer->visuals.keyword_length || (render_info->keyword_color!=render_info->buffer->visuals.keyword_color && render_info->keyword_length>0) || render_info->displacement!=render_info->buffer->visuals.displacement || rewind!=render_info->buffer->visuals.rewind || dirty) {
           render_info->buffer->visuals.keyword_length = render_info->keyword_length;
           render_info->buffer->visuals.keyword_color = render_info->keyword_color;
           render_info->buffer->visuals.detail_before = render_info->visual_detail;
-          render_info->buffer->visuals.displacement = render_info->buffer_pos;
+          render_info->buffer->visuals.displacement = render_info->displacement;
           render_info->buffer->visuals.rewind = rewind;
           render_info->buffer->visuals.dirty |= VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
           range_tree_update_calc_all(render_info->buffer);
@@ -456,7 +456,7 @@ int document_render_info_span(struct document_render_info* render_info, struct s
               out->line = render_info->line;
               out->column = render_info->column;
               out->buffer = render_info->buffer;
-              out->buffer_pos = render_info->buffer_pos;
+              out->displacement = render_info->displacement;
               out->character = render_info->character;
             }
           }
@@ -470,7 +470,7 @@ int document_render_info_span(struct document_render_info* render_info, struct s
             out->line = render_info->line;
             out->column = render_info->column;
             out->buffer = render_info->buffer;
-            out->buffer_pos = render_info->buffer_pos;
+            out->displacement = render_info->displacement;
             out->character = render_info->character;
           }
         }
@@ -509,16 +509,16 @@ int document_render_info_span(struct document_render_info* render_info, struct s
         // Whitespace look ahead in current buffer
         // TODO: Hack for testing / speed me up
         if ((cp==' ' || cp=='\t') && !render_info->whitespaced) {
-          file_offset_t buffer_pos = render_info->buffer_pos;
+          file_offset_t displacement = render_info->displacement;
           size_t pos = 0;
           while (1) {
-            if (buffer_pos>=render_info->buffer->length) {
+            if (displacement>=render_info->buffer->length) {
               struct range_tree_node* buffer_new = range_tree_next(render_info->buffer);
               render_info->whitespaced = buffer_new?range_tree_find_whitespaced(buffer_new):1;
               break;
             }
 
-            buffer_pos += encoding_cache_find_length(&render_info->cache, pos);
+            displacement += encoding_cache_find_length(&render_info->cache, pos);
             int cp = encoding_cache_find_codepoint(&render_info->cache, pos);
             if (cp=='\n' || cp==0) {
               if (pos>0) {
@@ -572,7 +572,7 @@ int document_render_info_span(struct document_render_info* render_info, struct s
       }
     }
 
-    render_info->buffer_pos += length;
+    render_info->displacement += length;
     render_info->offset += length;
 
     if (((cp!='\r' && cp!=0xfeff) || view->showall) && cp!='\t') {
@@ -1173,7 +1173,7 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
         document_cursor_position(splitter, &in_line_column, &out, 0, 1);
 
         struct range_tree_node* buffer = out.buffer;
-        file_offset_t buffer_pos = out.buffer_pos;
+        file_offset_t displacement = out.displacement;
         file_offset_t offset = out.offset;
 
         uint8_t utf8[8];
@@ -1183,7 +1183,7 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
           utf8[spaces] = ' ';
         }
 
-        const uint8_t* text = buffer->buffer->buffer+buffer->offset+buffer_pos;
+        const uint8_t* text = buffer->buffer->buffer+buffer->offset+displacement;
         if (*text!='\r' && *text!='\n') {
           document_insert(document, offset, &utf8[0], size);
         }
@@ -1212,18 +1212,18 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
         document_cursor_position(splitter, &in_line_column, &out, 0, 1);
 
         struct range_tree_node* buffer = out.buffer;
-        file_offset_t buffer_pos = out.buffer_pos;
+        file_offset_t displacement = out.displacement;
         file_offset_t offset = out.offset;
 
         file_offset_t length = 0;
         while (buffer) {
-          if (buffer_pos>=buffer->length || !buffer->buffer) {
+          if (displacement>=buffer->length || !buffer->buffer) {
             buffer = range_tree_next(buffer);
-            buffer_pos = 0;
+            displacement = 0;
             continue;
           }
 
-          const uint8_t* text = buffer->buffer->buffer+buffer->offset+buffer_pos;
+          const uint8_t* text = buffer->buffer->buffer+buffer->offset+displacement;
           if (*text!='\t' && *text!=' ') {
             break;
           }
@@ -1233,7 +1233,7 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
             break;
           }
 
-          buffer_pos++;
+          displacement++;
         }
 
         if (length>0) {
@@ -1340,5 +1340,11 @@ void document_directory(struct document* document) {
 
     free(sort2);
     free(sort1);
+
+    while (files->first) {
+      list_remove(files, files->first);
+    }
+
+    list_destroy(files);
   }
 }
