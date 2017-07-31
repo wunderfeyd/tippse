@@ -56,7 +56,7 @@ struct visual_info {
   int keyword_color;        // Color for current active keyword
   int keyword_length;       // Length of current active keyword
   file_offset_t displacement; // Offset to begin of first character
-  file_offset_t displacement_rewind; // Relative offset (backwards) to begin of the last code point
+  file_offset_t rewind;     // Relative offset (backwards) to begin of the last keyword/character
   int dirty;                // Mark page as dirty (not completely rendered yet)
 };
 

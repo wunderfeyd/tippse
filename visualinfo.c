@@ -16,6 +16,7 @@ void visual_info_clear(struct visual_info* visuals) {
   visuals->keyword_length = 0;
   visuals->keyword_color = 0;
   visuals->displacement = 0;
+  visuals->rewind = 0;
   visuals->dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
 }
 

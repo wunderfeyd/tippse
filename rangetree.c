@@ -432,8 +432,8 @@ void range_tree_shrink(struct range_tree_node* node, struct file_type* type) {
 
   invalidate = node;
 
-  file_offset_t predirt = invalidate->visuals.keyword_length;
-  while (1) {
+  file_offset_t rewind = invalidate->visuals.rewind;
+  while (rewind>0) {
     invalidate = range_tree_prev(invalidate);
     if (!invalidate) {
       break;
@@ -441,11 +441,11 @@ void range_tree_shrink(struct range_tree_node* node, struct file_type* type) {
 
     invalidate->visuals.dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
     range_tree_update_calc_all(invalidate);
-    if (invalidate->length>predirt) {
+    if (invalidate->length>rewind) {
       break;
     }
 
-    predirt -= invalidate->length;
+    rewind -= invalidate->length;
   }
 
   if (node->buffer->count==1 && (node->offset!=0 || node->length!=node->buffer->length) && node->length>0) {

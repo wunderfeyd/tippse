@@ -237,7 +237,9 @@ void document_render_info_seek(struct document_render_info* render_info, struct 
 
   if (buffer_new /*&& (render_info->buffer!=buffer_new || (in->type==VISUAL_SEEK_OFFSET && render_info->offset!=in->offset) || (in->type==VISUAL_SEEK_X_Y && render_info->x!=in->x && render_info->y!=in->y) || (in->type==VISUAL_SEEK_LINE_COLUMN && render_info->line!=in->line && render_info->column!=in->column))*/) {
     render_info->visual_detail = buffer_new->visuals.detail_before;
-    render_info->offset = offset_new;
+    render_info->offset_sync = offset_new-buffer_new->visuals.rewind;
+    render_info->buffer_pos = buffer_new->visuals.displacement;
+    render_info->offset = offset_new+buffer_new->visuals.displacement;
     if (offset_new==0) {
       render_info->visual_detail = VISUAL_INFO_NEWLINE;
     }
@@ -260,12 +262,6 @@ void document_render_info_seek(struct document_render_info* render_info, struct 
     } else {
       render_info->draw_indentation = 0;
     }
-
-    render_info->buffer_pos = buffer_new->visuals.displacement;
-/*    render_info->codepoint_length = buffer_new->visuals.displacement_rewind+buffer_new->visuals.displacement;
-    if (offset_new==0) {
-      render_info->codepoint_length = 0;
-    }*/
 
     render_info->xs = 0;
     render_info->ys = 0;
@@ -378,17 +374,21 @@ int document_render_info_span(struct document_render_info* render_info, struct s
         range_tree_update_calc_all(render_info->buffer);
       }
 
-      //size_t displacement_rewind = render_info->buffer->length-(render_info->buffer_pos-render_info->codepoint_length);
       render_info->buffer_pos -= render_info->buffer->length;
+      file_offset_t rewind = render_info->offset-render_info->offset_sync-render_info->buffer_pos;
+      if (render_info->buffer_pos==0 && render_info->keyword_length==0) { // TODO: this is somehow not as thought, at best this condition wouldn't be necessary
+        rewind = 0;
+      }
+
       render_info->buffer = range_tree_next(render_info->buffer);
 
       if (render_info->buffer) {
-        if (render_info->visual_detail!=render_info->buffer->visuals.detail_before || render_info->keyword_length!=render_info->buffer->visuals.keyword_length || (render_info->keyword_color!=render_info->buffer->visuals.keyword_color && render_info->keyword_length>0) || render_info->buffer_pos!=render_info->buffer->visuals.displacement || dirty) {
+        if (render_info->visual_detail!=render_info->buffer->visuals.detail_before || render_info->keyword_length!=render_info->buffer->visuals.keyword_length || (render_info->keyword_color!=render_info->buffer->visuals.keyword_color && render_info->keyword_length>0) || render_info->buffer_pos!=render_info->buffer->visuals.displacement || rewind!=render_info->buffer->visuals.rewind || dirty) {
           render_info->buffer->visuals.keyword_length = render_info->keyword_length;
           render_info->buffer->visuals.keyword_color = render_info->keyword_color;
           render_info->buffer->visuals.detail_before = render_info->visual_detail;
           render_info->buffer->visuals.displacement = render_info->buffer_pos;
-          //render_info->buffer->visuals.displacement_rewind = render_info->codepoint_length;
+          render_info->buffer->visuals.rewind = rewind;
           render_info->buffer->visuals.dirty |= VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
           range_tree_update_calc_all(render_info->buffer);
         }
@@ -498,6 +498,10 @@ int document_render_info_span(struct document_render_info* render_info, struct s
 
     render_info->draw_indentation = 0;
 
+    if (render_info->keyword_length==0) {
+      render_info->offset_sync = render_info->offset;
+    }
+
     int color = 102;
     int background = splitter?splitter->background:0;
     if (render_info->buffer) {
@@ -568,7 +572,6 @@ int document_render_info_span(struct document_render_info* render_info, struct s
       }
     }
 
-//    render_info->codepoint_length = length;
     render_info->buffer_pos += length;
     render_info->offset += length;
 
@@ -1276,6 +1279,7 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
   if (seek) {
     in_offset.offset = view->offset;
     document_cursor_position(splitter, &in_offset, &out, 1, 1);
+    view->offset = out.offset;
     view->cursor_x = out.x;
     view->cursor_y = out.y;
   }

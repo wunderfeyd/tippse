@@ -86,6 +86,7 @@ struct document_render_info {
   struct range_tree_node* buffer;
   file_offset_t buffer_pos;
   file_offset_t offset;
+  file_offset_t offset_sync;
   int xs;
   int ys;
   int indentations;
