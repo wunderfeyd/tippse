@@ -80,6 +80,8 @@ struct tippse_ansi_key ansi_keys[] = {
   {"\x1b[M???", TIPPSE_KEY_TIPPSE_MOUSE_INPUT, 0},
   {"\x0f", TIPPSE_KEY_OPEN, 0},
   {"\x14", TIPPSE_KEY_NEW_VERT_TAB, 0},
+  {"\x1b""1", TIPPSE_KEY_VIEW_TEXT, 0},
+  {"\x1b""2", TIPPSE_KEY_VIEW_RAW, 0},
   {"\r", '\n', 0},
   {NULL, 0, 0}
 };
@@ -154,7 +156,7 @@ int main(int argc, const char** argv) {
   int mouse_x = 0;
   int mouse_y = 0;
 
-  document_directory(&browser->document);
+  document_directory(browser);
 
   int close = 0;
 
@@ -250,7 +252,7 @@ int main(int argc, const char** argv) {
             }
 
             if (ansi_keys[pos].cp==TIPPSE_KEY_SHOWALL) {
-              focus->document.view.showall ^= 1;
+              focus->view.showall ^= 1;
             }
 
             if (ansi_keys[pos].cp==TIPPSE_KEY_SEARCH) {
@@ -298,7 +300,7 @@ int main(int argc, const char** argv) {
                   focus->active = 0;
                   focus = select;
                   focus->active = 1;
-                  if (select->document.content_document) {
+                  if (select->content) {
                     document = select;
                   }
 
@@ -313,32 +315,32 @@ int main(int argc, const char** argv) {
               focus->active = 0;
               focus = document;
               focus->active = 1;
-              document_search(last_document, &last_document->document, range_tree_next(search_text_buffers[1]), range_tree_distance_offset(search->document.file->buffer, search_text_buffers[1], search_text_buffers[2]), 1);
+              document_search(last_document, range_tree_next(search_text_buffers[1]), range_tree_distance_offset(search->file->buffer, search_text_buffers[1], search_text_buffers[2]), 1);
             } else if (ansi_keys[pos].cp==TIPPSE_KEY_SEARCH_PREV) {
-/*              printf("\x1b[H\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n");
-              range_tree_print(last_document->document.file->buffer, 0, 0);
-              tcsetattr(STDIN_FILENO, TCSANOW, &original);
-              exit(0);*/
               focus->active = 0;
               focus = document;
               focus->active = 1;
-              document_search(last_document, &last_document->document, range_tree_next(search_text_buffers[1]), range_tree_distance_offset(search->document.file->buffer, search_text_buffers[1], search_text_buffers[2]), 0);
+              document_search(last_document, range_tree_next(search_text_buffers[1]), range_tree_distance_offset(search->file->buffer, search_text_buffers[1], search_text_buffers[2]), 0);
+            } else if (ansi_keys[pos].cp==TIPPSE_KEY_VIEW_TEXT) {
+              focus->document = focus->document_text;
+            } else if (ansi_keys[pos].cp==TIPPSE_KEY_VIEW_RAW) {
+              focus->document = focus->document_raw;
             } else if (ansi_keys[pos].cp==TIPPSE_KEY_OPEN) {
-              if (focus->document.view.selection_low!=focus->document.view.selection_high) {
-                struct list_node* views =document->document.file->views->first;
+              if (focus->view.selection_low!=focus->view.selection_high) {
+                struct list_node* views =document->file->views->first;
                 while (views) {
                   struct document_view* view = (struct document_view*)views->object;
-                  if (view==&document->document.view) {
-                    list_remove(document->document.file->views, views);
+                  if (view==&document->view) {
+                    list_remove(document->file->views, views);
                     break;
                   }
 
                   views = views->next;
                 }
 
-                char* name = (char*)range_tree_raw(focus->document.file->buffer, focus->document.view.selection_low, focus->document.view.selection_high);
+                char* name = (char*)range_tree_raw(focus->file->buffer, focus->view.selection_low, focus->view.selection_high);
                 if (*name) {
-                  char* path_only = (focus==browser)?strdup(focus->document.file->filename):strip_file_name(focus->document.file->filename);
+                  char* path_only = (focus==browser)?strdup(focus->file->filename):strip_file_name(focus->file->filename);
                   char* combined = combine_path_file(path_only, name);
                   char* corrected = correct_path(combined);
                   char* relative = relativate_path(base_path, corrected);
@@ -348,7 +350,7 @@ int main(int argc, const char** argv) {
                   struct list_node* docs = documents->first;
                   while (docs) {
                     struct document_file* docs_document_doc = (struct document_file*)docs->object;
-                    if (strcmp(docs_document_doc->filename, relative)==0 && docs_document_doc!=focus->document.file) {
+                    if (strcmp(docs_document_doc->filename, relative)==0 && docs_document_doc!=focus->file) {
                       new_document_doc = docs_document_doc;
                       break;
                     }
@@ -359,9 +361,9 @@ int main(int argc, const char** argv) {
                   if (!new_document_doc) {
                     if (is_directory(relative)) {
                       if (focus==browser) {
-                        document_file_name(browser->document.file, relative);
-                        document_view_reset(&browser->document.view);
-                        document_directory(&browser->document);
+                        document_file_name(browser->file, relative);
+                        document_view_reset(&browser->view);
+                        document_directory(browser);
                       }
                     } else {
                       new_document_doc = document_file_create(1);
@@ -372,7 +374,7 @@ int main(int argc, const char** argv) {
                   }
 
                   if (new_document_doc) {
-                    document_view_reset(&document->document.view);
+                    document_view_reset(&document->view);
                     splitter_assign_document_file(document, new_document_doc, 1);
                   }
 
@@ -388,7 +390,7 @@ int main(int argc, const char** argv) {
               struct splitter* split = document;
               document = splitter_create(0, 0, NULL, NULL, 231, TIPPSE_SCREEN_BACKGROUND, "Document");
 
-              splitter_assign_document_file(document, split->document.file, split->document.content_document);
+              splitter_assign_document_file(document, split->file, split->content);
 
               struct splitter* splitter = splitter_create(TIPPSE_SPLITTER_HORZ, 50, split, document, 0, 0, "");
               if (parent->side[0]==split) {
@@ -409,7 +411,7 @@ int main(int argc, const char** argv) {
               }
             } else {
               if (!bracket_paste) {
-                document_keypress(focus, ansi_keys[pos].cp, ansi_keys[pos].modifier, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
+                (*focus->document->keypress)(focus->document, focus, ansi_keys[pos].cp, ansi_keys[pos].modifier, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
               }
             }
 
@@ -435,7 +437,7 @@ int main(int argc, const char** argv) {
         }
 
         if (!bracket_paste) {
-          document_keypress(focus, cp, 0, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
+          (*focus->document->keypress)(focus->document, focus, cp, 0, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
         }
       }
 
@@ -464,7 +466,7 @@ end:;
     document->client_height = 40;
     int64_t time_start = tick_count();
     while (1) {
-      if (document_incremental_update(document)==0) {
+      if ((*document->document->incremental_update)(document->document, document)==0) {
         break;
       }
     }
@@ -476,12 +478,12 @@ end:;
     time_start = tick_count();
     int test;
     for (test = 0; test<1000; test++) {
-      document_draw(screen, document);
+      (*document->document->draw)(document->document, screen, document);
 //      screen_draw(screen);
     }
 
     printf("Draw - Runtime %lld - %dx%d\r\n", (long long)(tick_count()-time_start), document->client_width, document->client_height);
-//    range_tree_print(document->document.file->buffer, 0, 0);
+//    range_tree_print(document->file->buffer, 0, 0);
   }
 
   screen_destroy(screen);

@@ -74,12 +74,12 @@ int document_undo_execute(struct document_file* file, struct document_view* view
     struct list_node* views = file->views->first;
     while (views) {
       struct document_view* view = (struct document_view*)views->object;
-      document_reduce(&view->selection_end, undo->offset, undo->length);
-      document_reduce(&view->selection_start, undo->offset, undo->length);
-      document_reduce(&view->selection_low, undo->offset, undo->length);
-      document_reduce(&view->selection_high, undo->offset, undo->length);
-      document_reduce(&view->offset, undo->offset, undo->length);
-      
+      document_file_reduce(&view->selection_end, undo->offset, undo->length);
+      document_file_reduce(&view->selection_start, undo->offset, undo->length);
+      document_file_reduce(&view->selection_low, undo->offset, undo->length);
+      document_file_reduce(&view->selection_high, undo->offset, undo->length);
+      document_file_reduce(&view->offset, undo->offset, undo->length);
+
       views = views->next;
     }
 
@@ -93,12 +93,12 @@ int document_undo_execute(struct document_file* file, struct document_view* view
     struct list_node* views = file->views->first;
     while (views) {
       struct document_view* view = (struct document_view*)views->object;
-      document_expand(&view->selection_end, undo->offset, undo->length);
-      document_expand(&view->selection_start, undo->offset, undo->length);
-      document_expand(&view->selection_low, undo->offset, undo->length);
-      document_expand(&view->selection_high, undo->offset, undo->length);
-      document_expand(&view->offset, undo->offset, undo->length);
-      
+      document_file_expand(&view->selection_end, undo->offset, undo->length);
+      document_file_expand(&view->selection_start, undo->offset, undo->length);
+      document_file_expand(&view->selection_low, undo->offset, undo->length);
+      document_file_expand(&view->selection_high, undo->offset, undo->length);
+      document_file_expand(&view->offset, undo->offset, undo->length);
+
       views = views->next;
     }
 

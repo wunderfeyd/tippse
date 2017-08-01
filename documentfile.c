@@ -267,3 +267,132 @@ void document_file_detect_properties(struct document_file* file) {
     file->tabstop = TIPPSE_TABSTOP_AUTO;
   }
 }
+
+void document_file_expand(file_offset_t* pos, file_offset_t offset, file_offset_t length) {
+  if (*pos>=offset && *pos!=~0) {
+    *pos+=length;
+  }
+}
+
+void document_file_insert(struct document_file* file, file_offset_t offset, const uint8_t* text, size_t length) {
+  if (file->buffer && offset>file->buffer->length) {
+    return;
+  }
+
+  file_offset_t old_length = file->buffer?file->buffer->length:0;
+  file->buffer = range_tree_insert_split(file->buffer, file->type, offset, text, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, NULL);
+  length = (file->buffer?file->buffer->length:0)-old_length;
+  if (length<=0) {
+    return;
+  }
+
+  document_undo_add(file, NULL, offset, length, TIPPSE_UNDO_TYPE_INSERT);
+
+  struct list_node* views = file->views->first;
+  while (views) {
+    struct document_view* view = (struct document_view*)views->object;
+    document_file_expand(&view->selection_end, offset, length);
+    document_file_expand(&view->selection_start, offset, length);
+    document_file_expand(&view->selection_low, offset, length);
+    document_file_expand(&view->selection_high, offset, length);
+    document_file_expand(&view->offset, offset, length);
+
+    views = views->next;
+  }
+
+  document_undo_empty(file->redos);
+  file->modified = 1;
+}
+
+void document_file_insert_buffer(struct document_file* file, file_offset_t offset, struct range_tree_node* buffer) {
+  if (!buffer) {
+    return;
+  }
+
+  file_offset_t length = buffer->length;
+
+  if (file->buffer && offset>file->buffer->length) {
+    return;
+  }
+
+  file->buffer = range_tree_paste(file->buffer, file->type, buffer, offset);
+  document_undo_add(file, NULL, offset, length, TIPPSE_UNDO_TYPE_INSERT);
+
+  struct list_node* views = file->views->first;
+  while (views) {
+    struct document_view* view = (struct document_view*)views->object;
+    document_file_expand(&view->selection_end, offset, length);
+    document_file_expand(&view->selection_start, offset, length);
+    document_file_expand(&view->selection_low, offset, length);
+    document_file_expand(&view->selection_high, offset, length);
+    document_file_expand(&view->offset, offset, length);
+
+    views = views->next;
+  }
+
+  document_undo_empty(file->redos);
+  file->modified = 1;
+}
+
+void document_file_reduce(file_offset_t* pos, file_offset_t offset, file_offset_t length) {
+  if (*pos>=offset && *pos!=~0) {
+    if ((*pos-offset)>=length) {
+      *pos-=length;
+    } else {
+      *pos = offset;
+    }
+  }
+}
+
+void document_file_delete(struct document_file* file, file_offset_t offset, file_offset_t length) {
+  if (!file->buffer || offset>=file->buffer->length) {
+    return;
+  }
+
+  document_undo_add(file, NULL, offset, length, TIPPSE_UNDO_TYPE_DELETE);
+
+  file_offset_t old_length = file->buffer?file->buffer->length:0;
+  file->buffer = range_tree_delete(file->buffer, file->type, offset, length, 0);
+  length = old_length-(file->buffer?file->buffer->length:0);
+
+  struct list_node* views = file->views->first;
+  while (views) {
+    struct document_view* view = (struct document_view*)views->object;
+    document_file_reduce(&view->selection_end, offset, length);
+    document_file_reduce(&view->selection_start, offset, length);
+    document_file_reduce(&view->selection_low, offset, length);
+    document_file_reduce(&view->selection_high, offset, length);
+    document_file_reduce(&view->offset, offset, length);
+
+    views = views->next;
+  }
+
+  document_undo_empty(file->redos);
+  file->modified = 1;
+}
+
+int document_file_delete_selection(struct document_file* file, struct document_view* view) {
+  if (!file->buffer) {
+    return 0;
+  }
+
+  file_offset_t low = view->selection_low;
+  if (low>file->buffer->length) {
+    low = file->buffer->length;
+  }
+
+  file_offset_t high = view->selection_high;
+  if (high>file->buffer->length) {
+    high = file->buffer->length;
+  }
+
+  if (high-low==0) {
+    return 0;
+  }
+
+  document_file_delete(file, low, high-low);
+  view->offset = low;
+  view->selection_low = ~0;
+  view->selection_high = ~0;
+  return 1;
+}
