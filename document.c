@@ -610,7 +610,7 @@ int document_render_info_span(struct document_render_info* render_info, struct s
     }
 
     if (cp=='\t') {
-      int tabbing = TAB_WIDTH-(render_info->x%TAB_WIDTH);
+      int tabbing = file->tabstop_width-(render_info->x%file->tabstop_width);
       show = view->showall?0x21a6:' ';
       while (tabbing-->0) {
         if (screen && render_info->y_view==render_info->y) {
@@ -829,8 +829,10 @@ void document_draw(struct screen* screen, struct splitter* splitter) {
   splitter_cursor(screen, splitter, cursor.x-view->scroll_x, cursor.y-view->scroll_y);
 
   if (!document->keep_status) {
+    const char* newline[TIPPSE_NEWLINE_MAX] = {"Auto", "Lf", "Cr", "CrLf"};
+    const char* tabstop[TIPPSE_TABSTOP_MAX] = {"Auto", "Tab", "Space"};
     char status[1024];
-    sprintf(&status[0], "%s%s%d/%d:%d - %d/%d byte - %d chars - %s - %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), cursor.line+1, cursor.column+1, (int)view->offset, file->buffer?(int)file->buffer->length:0, file->buffer?(int)file->buffer->visuals.characters:0, (*file->type->name)(), (*file->encoding->name)());
+    sprintf(&status[0], "%s%s%d/%d:%d - %d/%d byte - %s*%d %s %s %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), cursor.line+1, cursor.column+1, (int)view->offset, file->buffer?(int)file->buffer->length:0, tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->encoding->name)());
     splitter_status(splitter, &status[0], 0);
   }
 
@@ -1150,11 +1152,18 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
     document_undo_chain(file);
     if (view->selection_low==~0) {
       uint8_t utf8[8];
-      file_offset_t size = TAB_WIDTH-(view->cursor_x%TAB_WIDTH);
-      file_offset_t spaces;
-      for (spaces = 0; spaces<size; spaces++) {
-        utf8[spaces] = ' ';
+      file_offset_t size;
+      if (file->tabstop==TIPPSE_TABSTOP_SPACE) {
+        size = file->tabstop_width-(view->cursor_x%file->tabstop_width);
+        file_offset_t spaces;
+        for (spaces = 0; spaces<size; spaces++) {
+          utf8[spaces] = ' ';
+        }
+      } else {
+        size = 1;
+        utf8[0] = '\t';
       }
+
       file_offset_t offset = view->offset;
       document_insert(document, offset, &utf8[0], size);
     } else {
@@ -1177,10 +1186,16 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
         file_offset_t offset = out.offset;
 
         uint8_t utf8[8];
-        file_offset_t size = TAB_WIDTH-(out.column%TAB_WIDTH);
-        file_offset_t spaces;
-        for (spaces = 0; spaces<size; spaces++) {
-          utf8[spaces] = ' ';
+        file_offset_t size;
+        if (file->tabstop==TIPPSE_TABSTOP_SPACE) {
+          size = file->tabstop_width;
+          file_offset_t spaces;
+          for (spaces = 0; spaces<size; spaces++) {
+            utf8[spaces] = ' ';
+          }
+        } else {
+          size = 1;
+          utf8[0] = '\t';
         }
 
         const uint8_t* text = buffer->buffer->buffer+buffer->offset+displacement;
@@ -1229,7 +1244,7 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
           }
 
           length++;
-          if (*text=='\t' || length>=TAB_WIDTH) {
+          if (*text=='\t' || length>=file->tabstop_width) {
             break;
           }
 
@@ -1271,7 +1286,23 @@ void document_keypress(struct splitter* splitter, int cp, int modifier, int butt
   } else if (cp>=0) {
     document_delete_selection(document);
     uint8_t utf8[8];
-    size_t size = encoding_utf8_encode(NULL, cp, &utf8[0], 8);
+    size_t size;
+    if (cp=='\n') {
+      if (file->newline==TIPPSE_NEWLINE_CRLF) {
+        utf8[0] = '\r';
+        utf8[1] = '\n';
+        size = 2;
+      } else if (file->newline==TIPPSE_NEWLINE_CR) {
+        utf8[0] = '\r';
+        size = 1;
+      } else {
+        utf8[0] = '\n';
+        size = 1;
+      }
+    } else {
+      size = encoding_utf8_encode(NULL, cp, &utf8[0], 8);
+    }
+
     document_insert(document, view->offset, &utf8[0], size);
     seek = 1;
   }

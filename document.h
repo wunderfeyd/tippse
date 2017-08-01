@@ -21,8 +21,6 @@ struct document;
 #include "encoding.h"
 #include "unicode.h"
 
-#define TAB_WIDTH 2
-
 #define TIPPSE_KEY_MOD_SHIFT 1
 #define TIPPSE_KEY_MOD_CTRL 2
 #define TIPPSE_KEY_MOD_ALT 4
