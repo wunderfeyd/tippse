@@ -13,6 +13,17 @@ struct document_file;
 
 #define TIPPSE_DOCUMENT_MEMORY_LOADMAX 1024*1024
 
+#define TIPPSE_TABSTOP_AUTO 0
+#define TIPPSE_TABSTOP_TAB 1
+#define TIPPSE_TABSTOP_SPACE 2
+#define TIPPSE_TABSTOP_MAX 3
+
+#define TIPPSE_NEWLINE_AUTO 0
+#define TIPPSE_NEWLINE_LF 1
+#define TIPPSE_NEWLINE_CR 2
+#define TIPPSE_NEWLINE_CRLF 3
+#define TIPPSE_NEWLINE_MAX 4
+
 #include "misc.h"
 #include "list.h"
 #include "rangetree.h"
@@ -25,6 +36,7 @@ struct document_file;
 #include "filetype/lua.h"
 #include "filetype/php.h"
 #include "filetype/xml.h"
+#include "encoding.h"
 #include "encoding/utf8.h"
 
 struct document_file_type {
@@ -38,6 +50,9 @@ struct document_file {
   struct list* redos;
   struct file_type* type;
   struct encoding* encoding;
+  int tabstop;
+  int tabstop_width;
+  int newline;
 
   char* filename;
   int modified;
@@ -53,5 +68,7 @@ void document_file_name(struct document_file* file, const char* filename);
 void document_file_load(struct document_file* file, const char* filename);
 int document_file_save_plain(struct document_file* file, const char* filename);
 void document_file_save(struct document_file* file, const char* filename);
+
+void document_file_detect_properties(struct document_file* file);
 
 #endif /* #ifndef __TIPPSE_DOCUMENTFILE__ */

@@ -4,16 +4,16 @@
 
 // TODO: this has to be covered by the settings subsystem in future
 struct document_file_type document_file_types[] = {
-  {"c",  file_type_c_create},
-  {"h",  file_type_c_create},
-  {"cpp",  file_type_cpp_create},
-  {"hpp",  file_type_cpp_create},
-  {"cc",  file_type_cpp_create},
-  {"cxx",  file_type_cpp_create},
-  {"sql",  file_type_sql_create},
-  {"lua",  file_type_lua_create},
-  {"php",  file_type_php_create},
-  {"xml",  file_type_xml_create},
+  {"c", file_type_c_create},
+  {"h", file_type_c_create},
+  {"cpp", file_type_cpp_create},
+  {"hpp", file_type_cpp_create},
+  {"cc", file_type_cpp_create},
+  {"cxx", file_type_cpp_create},
+  {"sql", file_type_sql_create},
+  {"lua", file_type_lua_create},
+  {"php", file_type_php_create},
+  {"xml", file_type_xml_create},
   {NULL,  NULL}
 };
 
@@ -28,6 +28,9 @@ struct document_file* document_file_create(int save) {
   file->save = save;
   file->type = file_type_text_create();
   file->encoding = encoding_utf8_create();
+  file->tabstop = TIPPSE_TABSTOP_AUTO;
+  file->tabstop_width = 4;
+  file->newline = TIPPSE_NEWLINE_AUTO;
   return file;
 }
 
@@ -123,6 +126,8 @@ void document_file_load(struct document_file* file, const char* filename) {
 
   document_file_name(file, filename);
   file->modified = 0;
+
+  document_file_detect_properties(file);
 }
 
 // Save file directly to file
@@ -165,4 +170,100 @@ void document_file_save(struct document_file* file, const char* filename) {
   //document->keep_status = 1;
   //splitter_status(splitter, "Saved!", 1);
   //splitter_name(splitter, filename);
+}
+
+void document_file_detect_properties(struct document_file* file) {
+  if (!file->buffer) {
+    return;
+  }
+
+  struct encoding_stream stream;
+  encoding_stream_from_page(&stream, range_tree_first(file->buffer), 0);
+  file_offset_t offset = 0;
+
+  int newline_cr = 0;
+  int newline_lf = 0;
+  int newline_crlf = 0;
+  int tabstop_space = 0;
+  int tabstop_tab = 0;
+  int tabstop = TIPPSE_TABSTOP_AUTO;
+  int tabstop_width = 8;
+  int last = 0;
+  int start = 1;
+  int spaces = 0;
+  while (offset<TIPPSE_DOCUMENT_MEMORY_LOADMAX) {
+    size_t length = 1;
+    int cp = (*file->encoding->decode)(file->encoding, &stream, &length);
+    encoding_stream_forward(&stream, length);
+
+    if (last==0 && cp==0) {
+      break;
+    }
+
+    if (cp=='\t' && start) {
+      if (tabstop==TIPPSE_TABSTOP_AUTO || tabstop==TIPPSE_TABSTOP_TAB) {
+        tabstop = TIPPSE_TABSTOP_TAB;
+      } else {
+        tabstop = TIPPSE_TABSTOP_MAX;
+      }
+    } else if (cp==' ' && start) {
+      if (tabstop==TIPPSE_TABSTOP_AUTO || tabstop==TIPPSE_TABSTOP_SPACE) {
+        tabstop = TIPPSE_TABSTOP_SPACE;
+      } else {
+        tabstop = TIPPSE_TABSTOP_MAX;
+      }
+
+      spaces++;
+    } else if (cp=='\r' || cp=='\n') {
+      if (tabstop==TIPPSE_TABSTOP_TAB) {
+        tabstop_tab++;
+      } else if (tabstop==TIPPSE_TABSTOP_SPACE) {
+        tabstop_space++;
+
+        if (spaces!=0 && spaces<tabstop_width) {
+          tabstop_width = spaces;
+        }
+      }
+
+      start = 1;
+      spaces = 0;
+      tabstop = TIPPSE_TABSTOP_AUTO;
+    } else {
+      start = 0;
+    }
+
+    if (last=='\r') {
+      if (cp=='\n') {
+        newline_crlf++;
+      } else {
+        newline_cr++;
+      }
+    } else if (last!='\r' && cp=='\n') {
+      newline_lf++;
+    }
+
+    last = cp;
+    offset += length;
+  }
+
+  // Try to guess the style by using the most used type (base on some arbitrary factors) ;)
+  if (newline_crlf>(newline_cr+newline_lf)*3) {
+    file->newline = TIPPSE_NEWLINE_CRLF;
+  } else if (newline_cr>(newline_crlf+newline_lf)*3) {
+    file->newline = TIPPSE_NEWLINE_CR;
+  } else if (newline_lf>(newline_crlf+newline_cr)*3) {
+    file->newline = TIPPSE_NEWLINE_LF;
+  } else {
+    file->newline = TIPPSE_NEWLINE_AUTO;
+  }
+
+  // Try to guess the tab style
+  if (tabstop_tab>tabstop_space*3) {
+    file->tabstop = TIPPSE_TABSTOP_TAB;
+  } else if (tabstop_space>tabstop_tab*3) {
+    file->tabstop = TIPPSE_TABSTOP_SPACE;
+    file->tabstop_width = tabstop_width;
+  } else {
+    file->tabstop = TIPPSE_TABSTOP_AUTO;
+  }
 }
