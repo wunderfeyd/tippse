@@ -38,12 +38,13 @@ struct splitter {
 };
 
 struct splitter* splitter_create(int type, int split, struct splitter* side0, struct splitter* side1, int foreground, int background, const char* name);
-void splitter_free(struct splitter* splitter);
-void splitter_drawchar(struct screen* screen, const struct splitter* splitter, int x, int y, int cp, int foreground, int background);
+void splitter_destroy(struct splitter* splitter);
+void splitter_drawchar(struct screen* screen, const struct splitter* splitter, int x, int y, int* codepoints, size_t length, int foreground, int background);
 void splitter_drawtext(struct screen* screen, const struct splitter* splitter, int x, int y, const char* text, size_t length, int foreground, int background);
 void splitter_name(struct splitter* splitter, const char* name);
 void splitter_status(struct splitter* splitter, const char* status, int status_inverted);
 void splitter_cursor(struct screen* screen, const struct splitter* splitter, int x, int y);
+void splitter_unassign_document_file(struct splitter* splitter);
 void splitter_assign_document_file(struct splitter* splitter, struct document_file* file, int content_document);
 void splitter_draw(struct screen* screen, struct splitter* splitter);
 void splitter_draw_split_horizontal(struct screen* screen, int x, int y, int width);

@@ -40,7 +40,9 @@ void document_file_clear(struct document_file* file) {
 
 void document_file_destroy(struct document_file* file) {
   document_file_clear(file);
+  document_undo_empty(file->undos);
   list_destroy(file->undos);
+  document_undo_empty(file->redos);
   list_destroy(file->redos);
   list_destroy(file->views);
   free(file->filename);
@@ -49,9 +51,12 @@ void document_file_destroy(struct document_file* file) {
   free(file);
 }
 
+// Set up file name and select file type depending on the suffix
 void document_file_name(struct document_file* file, const char* filename) {
-  free(file->filename);
-  file->filename = strdup(filename);
+  if (filename!=file->filename) {
+    free(file->filename);
+    file->filename = strdup(filename);
+  }
 
   const char* search = filename;
   const char* last = filename;
@@ -77,45 +82,42 @@ void document_file_name(struct document_file* file, const char* filename) {
   }
 }
 
+// Load file into memory if lower than a certain threshold, otherwise just use file offset references
 void document_file_load(struct document_file* file, const char* filename) {
   document_file_clear(file);
   int f = open(filename, O_RDONLY);
   if (f!=-1) {
-    file_offset_t offset = 0;
-    while (1) {
-      uint8_t* copy = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MAX);
-      int got = read(f, copy, TREE_BLOCK_LENGTH_MAX);
-      if (got<=0) {
-        free(copy);
-        break;
-      }
-
-      struct fragment* buffer = fragment_create_memory(copy, got);
-      file->buffer = range_tree_insert(file->buffer, file->type, offset, buffer, 0, buffer->length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
-
-      offset += got;
-      if (got<TREE_BLOCK_LENGTH_MAX) {
-        break;
-      }
-    }
-
-/*    struct file_cache* cache = file_cache_create(filename);
+    struct file_cache* cache = file_cache_create(filename);
 
     file_offset_t length = (file_offset_t)lseek(f, 0, SEEK_END);
+    lseek(f, 0, SEEK_SET);
     file_offset_t offset = 0;
-    while (offset<length) {
-      file_offset_t block = length-offset;
-      if (block>TREE_BLOCK_LENGTH_MAX) {
-        block = TREE_BLOCK_LENGTH_MAX;
+    while (1) {
+      file_offset_t block = 0;
+      struct fragment* buffer = NULL;
+      if (offset<TIPPSE_DOCUMENT_MEMORY_LOADMAX) {
+        uint8_t* copy = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MAX);
+        block = (file_offset_t)read(f, copy, TREE_BLOCK_LENGTH_MAX);
+        buffer = fragment_create_memory(copy, (size_t)block);
+      } else {
+        block = length-offset;
+        if (block>TREE_BLOCK_LENGTH_MAX) {
+          block = TREE_BLOCK_LENGTH_MAX;
+        }
+
+        buffer = fragment_create_file(cache, offset, (size_t)block);
       }
 
-      struct fragment* buffer = fragment_create_file(cache, offset, (size_t)block);
+      if (block==0) {
+        fragment_dereference(buffer);
+        break;
+      }
+
       file->buffer = range_tree_insert(file->buffer, file->type, offset, buffer, 0, buffer->length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
       offset += block;
     }
 
-    file_cache_dereference(cache);*/
-
+    file_cache_dereference(cache);
     close(f);
   }
 
@@ -123,18 +125,41 @@ void document_file_load(struct document_file* file, const char* filename) {
   file->modified = 0;
 }
 
-void document_file_save(struct document_file* file, const char* filename) {
+// Save file directly to file
+int document_file_save_plain(struct document_file* file, const char* filename) {
   int f = open(filename, O_RDWR|O_CREAT|O_TRUNC, 0644);
-  if (f!=-1) {
-    file->modified = 0;
-    if (file->buffer) {
-      struct range_tree_node* buffer = range_tree_first(file->buffer);
-      while (buffer) {
-        write(f, buffer->buffer->buffer+buffer->offset, buffer->length);
-        buffer = range_tree_next(buffer);
+  if (f==-1) {
+    return 0;
+  }
+
+  if (file->buffer) {
+    struct range_tree_node* buffer = range_tree_first(file->buffer);
+    while (buffer) {
+      fragment_cache(buffer->buffer);
+      write(f, buffer->buffer->buffer+buffer->offset, buffer->length);
+      buffer = range_tree_next(buffer);
+    }
+  }
+
+  close(f);
+  return 1;
+}
+
+// Check file type and save via temporary file if needed
+void document_file_save(struct document_file* file, const char* filename) {
+  if (file->buffer && (file->buffer->inserter&TIPPSE_INSERTER_FILE)) {
+    char* tmpname = combine_string(filename, ".save.tmp");
+    if (document_file_save_plain(file, tmpname)) {
+      if (rename(tmpname, filename)==0) {
+        document_file_load(file, filename);
       }
     }
-    close(f);
+
+    free(tmpname);
+  } else {
+    if (document_file_save_plain(file, filename)) {
+      file->modified = 0;
+    }
   }
 
   //document->keep_status = 1;

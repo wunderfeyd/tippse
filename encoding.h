@@ -21,7 +21,7 @@ struct encoding_stream {
   const uint8_t* plain;
   struct range_tree_node* buffer;
 
-  size_t buffer_pos;
+  size_t displacement;
   size_t cache_length;
 };
 
@@ -49,7 +49,7 @@ struct encoding {
 };
 
 void encoding_stream_from_plain(struct encoding_stream* stream, const uint8_t* plain, size_t size);
-void encoding_stream_from_page(struct encoding_stream* stream, struct range_tree_node* buffer, file_offset_t buffer_pos);
+void encoding_stream_from_page(struct encoding_stream* stream, struct range_tree_node* buffer, file_offset_t displacement);
 uint8_t encoding_stream_peek_oob(struct encoding_stream* stream, size_t offset);
 inline uint8_t encoding_stream_peek(struct encoding_stream* stream, size_t offset) {
   if (offset<stream->cache_length) {

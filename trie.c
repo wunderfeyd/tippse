@@ -12,13 +12,13 @@ struct trie* trie_create() {
 }
 
 void trie_destroy(struct trie* trie) {
-  struct list_node* node = trie->buckets->first;
-  while (node) {
-    struct trie_node* bucket = (struct trie_node*)node->object;
+  while (trie->buckets->first) {
+    struct trie_node* bucket = (struct trie_node*)trie->buckets->first->object;
     free(bucket);
-    node = node->next;
+    list_remove(trie->buckets, trie->buckets->first);
   }
 
+  list_destroy(trie->buckets);
   free(trie);
 }
 

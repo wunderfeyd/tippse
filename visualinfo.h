@@ -20,6 +20,7 @@
 #define VISUAL_INFO_PREPROCESSOR 4096
 #define VISUAL_INFO_WHITESPACED_COMPLETE 8192
 #define VISUAL_INFO_WHITESPACED_START 16384
+#define VISUAL_INFO_CONTROLCHARACTER 32768
 
 // Flags for page dirtiness
 #define VISUAL_DIRTY_UPDATE 1
@@ -27,7 +28,7 @@
 #define VISUAL_DIRTY_SPLITTED 4
 #define VISUAL_DIRTY_LEFT 8
 
-// Return flags for document renderer 
+// Return flags for document renderer
 #define VISUAL_FLAG_COLOR_STRING 1
 #define VISUAL_FLAG_COLOR_TYPE 2
 #define VISUAL_FLAG_COLOR_KEYWORD 3
@@ -55,6 +56,7 @@ struct visual_info {
   int keyword_color;        // Color for current active keyword
   int keyword_length;       // Length of current active keyword
   file_offset_t displacement; // Offset to begin of first character
+  file_offset_t rewind;     // Relative offset (backwards) to begin of the last keyword/character
   int dirty;                // Mark page as dirty (not completely rendered yet)
 };
 

@@ -66,8 +66,14 @@ void range_tree_update_calc(struct range_tree_node* node) {
   if (!node->buffer) {
     node->length = node->side[0]->length+node->side[1]->length;
     node->depth = ((node->side[0]->depth>node->side[1]->depth)?node->side[0]->depth:node->side[1]->depth)+1;
-    node->inserter = (node->side[0]?node->side[0]->inserter:0)&(node->side[1]?node->side[1]->inserter:0);
+    node->inserter = (node->side[0]?node->side[0]->inserter:0)|(node->side[1]?node->side[1]->inserter:0);
     visual_info_combine(&node->visuals, &node->side[0]->visuals, &node->side[1]->visuals);
+  } else {
+    if (node->buffer->type==FRAGMENT_FILE) {
+      node->inserter |= TIPPSE_INSERTER_FILE;
+    } else {
+      node->inserter &= ~TIPPSE_INSERTER_FILE;
+    }
   }
 
   node->subs = (node->side[0]?node->side[0]->subs+1:0)+(node->side[1]?node->side[1]->subs+1:0);
@@ -83,13 +89,12 @@ void range_tree_update_calc_all(struct range_tree_node* node) {
 
 // Remove node and all children
 void range_tree_destroy(struct range_tree_node* node) {
-  if (node->side[0]) {
-    range_tree_destroy(node->side[0]);
+  if (!node) {
+    return;
   }
 
-  if (node->side[1]) {
-    range_tree_destroy(node->side[1]);
-  }
+  range_tree_destroy(node->side[0]);
+  range_tree_destroy(node->side[1]);
 
   if (node->buffer) {
     fragment_dereference(node->buffer);
@@ -114,6 +119,7 @@ struct range_tree_node* range_tree_create(struct range_tree_node* parent, struct
   node->offset = offset;
   node->length = length;
   node->inserter = inserter;
+  node->depth = 0;
   visual_info_clear(&node->visuals);
   range_tree_update_calc(node);
   return node;
@@ -417,6 +423,31 @@ void range_tree_shrink(struct range_tree_node* node, struct file_type* type) {
     return;
   }
 
+  node->visuals.dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
+  struct range_tree_node* invalidate = range_tree_next(node);
+  if (invalidate) {
+    invalidate->visuals.dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
+    range_tree_update_calc_all(invalidate);
+  }
+
+  invalidate = node;
+
+  file_offset_t rewind = invalidate->visuals.rewind;
+  while (rewind>0) {
+    invalidate = range_tree_prev(invalidate);
+    if (!invalidate) {
+      break;
+    }
+
+    invalidate->visuals.dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
+    range_tree_update_calc_all(invalidate);
+    if (invalidate->length>rewind) {
+      break;
+    }
+
+    rewind -= invalidate->length;
+  }
+
   if (node->buffer->count==1 && (node->offset!=0 || node->length!=node->buffer->length) && node->length>0) {
     if (node->buffer->type==FRAGMENT_MEMORY) {
       uint8_t* text = malloc(node->length);
@@ -427,8 +458,6 @@ void range_tree_shrink(struct range_tree_node* node, struct file_type* type) {
       node->offset = 0;
     }
   }
-
-  node->visuals.dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
 }
 
 // Try to merge range of nodes which are below the maximum page size
@@ -675,12 +704,13 @@ struct range_tree_node* range_tree_delete(struct range_tree_node* root, struct f
 
     length -= sub;
 
+    range_tree_shrink(node, type);
+
     if (node->length<=0) {
       fragment_dereference(node->buffer);
       node->buffer = NULL;
     }
 
-    range_tree_shrink(node, type);
     root = range_tree_update(node);
     if (root) {
       root = range_tree_fuse(root, type, before, after);

@@ -23,7 +23,8 @@
 #include "documentview.h"
 #include "documentundo.h"
 #include "clipboard.h"
-#include "encoding_utf8.h"
+#include "encoding/utf8.h"
+#include "unicode.h"
 
 struct tippse_ansi_key {
   const char* text;
@@ -83,13 +84,13 @@ struct tippse_ansi_key ansi_keys[] = {
   {NULL, 0, 0}
 };
 
-int main (int argc, const char** argv) {  
+int main(int argc, const char** argv) {
   unsigned char input_buffer[1024];
   size_t input_pos = 0;
 
   struct termios original, raw;
 
-  const char* base_path = realpath(".", NULL);
+  char* base_path = realpath(".", NULL);
   tcgetattr(STDIN_FILENO, &original);
   cfmakeraw(&raw);
   tcsetattr(STDIN_FILENO, TCSANOW, &raw);
@@ -101,10 +102,12 @@ int main (int argc, const char** argv) {
   write(STDOUT_FILENO, "\x1b[?1003h", 8);
   write(STDOUT_FILENO, "\x1b[?1005h", 8);
 
-  struct screen* screen = screen_init();
+  unicode_init();
+
+  struct screen* screen = screen_create();
 
   struct list* documents = list_create();
-  
+
   struct document_file* tabs_doc = document_file_create(0);
   document_file_name(tabs_doc, "Open");
   struct splitter* tabs = splitter_create(0, 0, NULL, NULL, 231, TIPPSE_SCREEN_BACKGROUND, "Tabs");
@@ -184,10 +187,12 @@ int main (int argc, const char** argv) {
       splitters->split = 0;
     }
 
+    screen_check(screen);
     splitter_draw_multiple(screen, splitters, 0);
     int x;
     for (x = 0; x<screen->width; x++) {
-      screen_setchar(screen, x, 0, 0x20, 102, TIPPSE_SCREEN_BACKGROUND);
+      int cp = 0x20;
+      screen_setchar(screen, x, 0, &cp, 1, 102, TIPPSE_SCREEN_BACKGROUND);
     }
 
     screen_drawtext(screen, 0, 0, focus->name, screen->width, 102, TIPPSE_SCREEN_BACKGROUND);
@@ -479,7 +484,16 @@ end:;
 //    range_tree_print(document->document.file->buffer, 0, 0);
   }
 
-  screen_free(screen);
+  screen_destroy(screen);
+  splitter_destroy(splitters);
+
+  while (documents->first) {
+    document_file_destroy((struct document_file*)documents->first->object);
+    list_remove(documents, documents->first);
+  }
+
+  list_destroy(documents);
+  free(base_path);
 
   return 0;
 }

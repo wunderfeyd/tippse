@@ -4,12 +4,13 @@
 struct screen_char;
 struct screen;
 
-#include "encoding_utf8.h"
+#include "encoding/utf8.h"
 
 #define TIPPSE_SCREEN_BACKGROUND 17
 
 struct screen_char {
-  int character;
+  int codepoints[8];
+  size_t length;
   int foreground;
   int background;
 };
@@ -23,8 +24,9 @@ struct screen {
   char* title_new;
 };
 
-void screen_free(struct screen* screen);
-struct screen* screen_init();
+void screen_destroy(struct screen* screen);
+struct screen* screen_create();
+void screen_check(struct screen* screen);
 void screen_draw_char(struct screen* screen, char** pos, int n, int* w, int* foreground_old, int* background_old);
 void screen_draw_update(struct screen* screen, char** pos, int old, int n, int* w, int* foreground_old, int* background_old);
 void screen_title(struct screen* screen, const char* title);
@@ -34,6 +36,6 @@ int screen_half_color(int color);
 void screen_draw(struct screen* screen);
 void screen_drawtext(const struct screen* screen, int x, int y, const char* text, size_t length, int foreground, int background);
 int screen_getchar(const struct screen* screen, int x, int y);
-void screen_setchar(const struct screen* screen, int x, int y, int cp, int foreground, int background);
+void screen_setchar(const struct screen* screen, int x, int y, int* codepoints, size_t length, int foreground, int background);
 
 #endif /* #ifndef __TIPPSE_SCREEN__ */

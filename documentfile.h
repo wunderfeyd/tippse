@@ -11,8 +11,12 @@
 
 struct document_file;
 
+#define TIPPSE_DOCUMENT_MEMORY_LOADMAX 1024*1024
+
+#include "misc.h"
 #include "list.h"
 #include "rangetree.h"
+#include "documentundo.h"
 #include "filetype.h"
 #include "filetype/c.h"
 #include "filetype/cpp.h"
@@ -21,7 +25,7 @@ struct document_file;
 #include "filetype/lua.h"
 #include "filetype/php.h"
 #include "filetype/xml.h"
-#include "encoding_utf8.h"
+#include "encoding/utf8.h"
 
 struct document_file_type {
   const char* extension;
@@ -47,6 +51,7 @@ void document_file_clear(struct document_file* file);
 void document_file_destroy(struct document_file* file);
 void document_file_name(struct document_file* file, const char* filename);
 void document_file_load(struct document_file* file, const char* filename);
+int document_file_save_plain(struct document_file* file, const char* filename);
 void document_file_save(struct document_file* file, const char* filename);
 
 #endif /* #ifndef __TIPPSE_DOCUMENTFILE__ */
