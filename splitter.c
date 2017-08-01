@@ -6,9 +6,12 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
   struct splitter* splitter = malloc(sizeof(struct splitter));
   splitter->type = type;
   splitter->split = split;
-  splitter->document.file = NULL;
+  splitter->file = NULL;
   splitter->status = strdup("");
   splitter->name = strdup(name);
+  splitter->document_text = NULL;
+  splitter->document_raw = NULL;
+  splitter->document = NULL;
 
   if (!side0 || !side1) {
     splitter->side[0] = NULL;
@@ -18,10 +21,12 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
     splitter->background = background;
     splitter->status_inverted = 0;
     splitter->type = type;
+    splitter->content = 0;
 
-    splitter->document.keep_status = 0;
-    splitter->document.show_scrollbar = 0;
-    document_view_reset(&splitter->document.view);
+    splitter->document_text = document_text_create();
+    splitter->document_raw = document_raw_create();
+    splitter->document = splitter->document_text;
+    document_view_reset(&splitter->view);
   } else {
     splitter->side[0] = side0;
     splitter->side[1] = side1;
@@ -38,6 +43,8 @@ void splitter_destroy(struct splitter* splitter) {
   }
 
   splitter_unassign_document_file(splitter);
+  document_text_destroy(splitter->document_text);
+  document_raw_destroy(splitter->document_raw);
 
   splitter_destroy(splitter->side[0]);
   splitter_destroy(splitter->side[1]);
@@ -104,33 +111,33 @@ void splitter_cursor(struct screen* screen, const struct splitter* splitter, int
 }
 
 void splitter_unassign_document_file(struct splitter* splitter) {
-  if (!splitter->document.file) {
+  if (!splitter->file) {
     return;
   }
 
-  struct list_node* view = splitter->document.file->views->first;
+  struct list_node* view = splitter->file->views->first;
   while (view) {
-    if ((struct document_view*)view->object==&splitter->document.view) {
-      list_remove(splitter->document.file->views, view);
+    if ((struct document_view*)view->object==&splitter->view) {
+      list_remove(splitter->file->views, view);
       break;
     }
 
     view = view->next;
   }
 
-  splitter->document.file = NULL;
+  splitter->file = NULL;
 }
 
-void splitter_assign_document_file(struct splitter* splitter, struct document_file* file, int content_document) {
+void splitter_assign_document_file(struct splitter* splitter, struct document_file* file, int content) {
   splitter_unassign_document_file(splitter);
 
   if (!file) {
     return;
   }
 
-  splitter->document.file = file;
-  splitter->document.content_document = content_document;
-  list_insert(splitter->document.file->views, NULL, &splitter->document.view);
+  splitter->file = file;
+  splitter->content = content;
+  list_insert(splitter->file->views, NULL, &splitter->view);
 }
 
 void splitter_draw(struct screen* screen, struct splitter* splitter) {
@@ -142,7 +149,7 @@ void splitter_draw(struct screen* screen, struct splitter* splitter) {
     }
   }
 
-  document_draw(screen, splitter);
+  (*splitter->document->draw)(splitter->document, screen, splitter);
 }
 
 // TODO: hardcoded color values
@@ -250,7 +257,7 @@ void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int w
     if (!incremental) {
       splitter_draw(screen, splitter);
     } else {
-      document_incremental_update(splitter);
+      (*splitter->document->incremental_update)(splitter->document, splitter);
     }
   }
 }

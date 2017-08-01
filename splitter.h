@@ -8,6 +8,8 @@ struct splitter;
 #include "list.h"
 #include "screen.h"
 #include "document.h"
+#include "document_text.h"
+#include "document_raw.h"
 
 #define TIPPSE_SPLITTER_HORZ 1
 #define TIPPSE_SPLITTER_VERT 2
@@ -33,8 +35,14 @@ struct splitter {
   char* name;
   char* status;
   int status_inverted;
+  int content;
 
-  struct document document;
+  struct document_file* file;
+  struct document_view view;
+
+  struct document* document;
+  struct document* document_text;
+  struct document* document_raw;
 };
 
 struct splitter* splitter_create(int type, int split, struct splitter* side0, struct splitter* side1, int foreground, int background, const char* name);
@@ -45,7 +53,7 @@ void splitter_name(struct splitter* splitter, const char* name);
 void splitter_status(struct splitter* splitter, const char* status, int status_inverted);
 void splitter_cursor(struct screen* screen, const struct splitter* splitter, int x, int y);
 void splitter_unassign_document_file(struct splitter* splitter);
-void splitter_assign_document_file(struct splitter* splitter, struct document_file* file, int content_document);
+void splitter_assign_document_file(struct splitter* splitter, struct document_file* file, int content);
 void splitter_draw(struct screen* screen, struct splitter* splitter);
 void splitter_draw_split_horizontal(struct screen* screen, int x, int y, int width);
 void splitter_draw_split_vertical(struct screen* screen, int x, int y, int height);
