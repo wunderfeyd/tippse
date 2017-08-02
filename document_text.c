@@ -824,7 +824,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   } else if (cp==TIPPSE_KEY_DELETE) {
     if (!document_file_delete_selection(splitter->file, &splitter->view)) {
       in_x_y.x++;
-      file_offset_t end = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
+      file_offset_t end = document_text_cursor_position(splitter, &in_x_y, &out, 1, 0);
       document_file_delete(splitter->file, view->offset, end-view->offset);
     }
     seek = 1;

@@ -18,7 +18,7 @@ struct list {
 
 struct list* list_create();
 void list_destroy(struct list* list);
-void list_insert(struct list* list, struct list_node* prev, void* object);
+struct list_node* list_insert(struct list* list, struct list_node* prev, void* object);
 void* list_remove(struct list* list, struct list_node* node);
 
 #endif /* #ifndef __TIPPSE_LIST__ */
