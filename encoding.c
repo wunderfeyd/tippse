@@ -29,19 +29,24 @@ uint8_t encoding_stream_peek_oob(struct encoding_stream* stream, size_t offset) 
     return 0;
   }
 
-  file_offset_t displacement = stream->displacement+offset;
+  file_offset_t displacement = offset-stream->cache_length;
   struct range_tree_node* buffer = stream->buffer;
-  while (buffer && displacement>=buffer->length) {
-    displacement -= buffer->length;
+  while (buffer) {
     buffer = range_tree_next(buffer);
-  }
+    if (!buffer) {
+      return 0;
+    }
 
-  if (buffer) {
+    if (displacement>=buffer->length) {
+      displacement -= buffer->length;
+      continue;
+    }
+
     fragment_cache(buffer->buffer);
     return *(buffer->buffer->buffer+buffer->offset+displacement);
-  } else {
-    return 0;
   }
+
+  return 0;
 }
 
 // Forward to next leaf in tree if direct forward failed
