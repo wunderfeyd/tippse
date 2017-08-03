@@ -17,6 +17,7 @@
 #include "fragment.h"
 #include "rangetree.h"
 #include "misc.h"
+#include "config.h"
 #include "screen.h"
 #include "document.h"
 #include "documentfile.h"
@@ -93,6 +94,13 @@ int main(int argc, const char** argv) {
   struct termios original, raw;
 
   char* base_path = realpath(".", NULL);
+
+  unicode_init();
+
+  struct config* config = config_create();
+  config_loadpaths(config, base_path, 0);
+  int background_color = (int)config_convert_int64(config_find_ascii(config, "/colors/background"));
+
   tcgetattr(STDIN_FILENO, &original);
   cfmakeraw(&raw);
   tcsetattr(STDIN_FILENO, TCSANOW, &raw);
@@ -103,8 +111,6 @@ int main(int argc, const char** argv) {
   write(STDOUT_FILENO, "\x1b[?2004h", 8);
   write(STDOUT_FILENO, "\x1b[?1003h", 8);
   write(STDOUT_FILENO, "\x1b[?1005h", 8);
-
-  unicode_init();
 
   struct screen* screen = screen_create();
 

@@ -130,6 +130,25 @@ void document_file_load(struct document_file* file, const char* filename) {
   document_file_detect_properties(file);
 }
 
+void document_file_load_memory(struct document_file* file, const uint8_t* buffer, size_t length) {
+  document_file_clear(file);
+  file_offset_t offset = 0;
+  while (length>0) {
+    size_t max = (length>TREE_BLOCK_LENGTH_MAX)?TREE_BLOCK_LENGTH_MAX:length;
+    uint8_t* copy = (uint8_t*)malloc(max);
+    memcpy(copy, buffer, max);
+    file->buffer = range_tree_insert(file->buffer, file->type, offset, fragment_create_memory(copy, max), 0, max, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
+    offset += max;
+    length -= max;
+    buffer += max;
+  }
+
+  document_file_name(file, "<memory>");
+  file->modified = 0;
+
+  document_file_detect_properties(file);
+}
+
 // Save file directly to file
 int document_file_save_plain(struct document_file* file, const char* filename) {
   int f = open(filename, O_RDWR|O_CREAT|O_TRUNC, 0644);

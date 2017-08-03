@@ -18,7 +18,7 @@ void list_destroy(struct list* list) {
   free(list);
 }
 
-void list_insert(struct list* list, struct list_node* prev, void* object) {
+struct list_node* list_insert(struct list* list, struct list_node* prev, void* object) {
   struct list_node* node = malloc(sizeof(struct list_node));
   node->object = object;
   if (prev==NULL) {
@@ -45,6 +45,8 @@ void list_insert(struct list* list, struct list_node* prev, void* object) {
   }
 
   list->count++;
+
+  return node;
 }
 
 void* list_remove(struct list* list, struct list_node* node) {

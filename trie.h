@@ -2,6 +2,7 @@
 #define __TIPPSE_TRIE__
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <ctype.h>
 
 struct trie_static;
@@ -19,7 +20,7 @@ struct trie_static {
 };
 
 struct trie_node {
-  int type;
+  intptr_t type;
   struct trie_node* parent;
   struct trie_node* side[16];
 };
@@ -33,12 +34,13 @@ struct trie {
 
 struct trie* trie_create();
 void trie_destroy(struct trie* trie);
+void trie_clear(struct trie* trie);
 struct trie_node* trie_create_node(struct trie* trie);
-struct trie_node* trie_append_codepoint(struct trie* trie, struct trie_node* parent, int cp, int type);
+struct trie_node* trie_append_codepoint(struct trie* trie, struct trie_node* parent, int cp, intptr_t type);
 struct trie_node* trie_find_codepoint(struct trie* trie, struct trie_node* parent, int cp);
-void trie_append_string(struct trie* trie, const char* text, int type);
+void trie_append_string(struct trie* trie, const char* text, intptr_t type);
 void trie_load_array(struct trie* trie, const struct trie_static* array);
-void trie_append_string_nocase(struct trie* trie, struct trie_node* parent, const char* text, int type);
+void trie_append_string_nocase(struct trie* trie, struct trie_node* parent, const char* text, intptr_t type);
 void trie_load_array_nocase(struct trie* trie, const struct trie_static* array);
 
 #endif  /* #ifndef __TIPPSE_TRIE__ */

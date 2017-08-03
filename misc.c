@@ -84,12 +84,20 @@ char* combine_path_file(const char* path, const char* file) {
   }
 
   size_t path_length = strlen(path);
+  if (path_length==0) {
+    return strdup(file);
+  }
+
+  if (path_length>0 && path[path_length-1]=='/') {
+    path_length--;
+  }
+
   size_t file_length = strlen(file);
   char* combined = malloc(sizeof(char)*(path_length+file_length+2));
   memcpy(combined, path, path_length);
   combined[path_length] = '/';
-  memcpy(combined+path_length+1-(path_length==0?1:0), file, file_length);
-  combined[path_length+file_length+1-(path_length==0?1:0)] = '\0';
+  memcpy(combined+path_length+1, file, file_length);
+  combined[path_length+file_length+1] = '\0';
 
   return combined;
 }
@@ -171,6 +179,20 @@ char* relativate_path(const char* base, const char* path) {
   }
 
   return real;
+}
+
+char* home_path() {
+  char* env = getenv("HOME");
+  if (env) {
+    return strdup(env);
+  }
+
+  struct passwd* pw = getpwuid(getuid());
+  if (pw->pw_dir) {
+    return strdup(pw->pw_dir);
+  }
+
+  return strdup("");
 }
 
 int is_directory(const char* path) {

@@ -12,14 +12,17 @@ struct trie* trie_create() {
 }
 
 void trie_destroy(struct trie* trie) {
+  trie_clear(trie);
+  list_destroy(trie->buckets);
+  free(trie);
+}
+
+void trie_clear(struct trie* trie) {
   while (trie->buckets->first) {
     struct trie_node* bucket = (struct trie_node*)trie->buckets->first->object;
     free(bucket);
     list_remove(trie->buckets, trie->buckets->first);
   }
-
-  list_destroy(trie->buckets);
-  free(trie);
 }
 
 struct trie_node* trie_create_node(struct trie* trie) {
@@ -41,7 +44,7 @@ struct trie_node* trie_create_node(struct trie* trie) {
   return node;
 }
 
-struct trie_node* trie_append_codepoint(struct trie* trie, struct trie_node* parent, int cp, int type) {
+struct trie_node* trie_append_codepoint(struct trie* trie, struct trie_node* parent, int cp, intptr_t type) {
   if (parent==NULL) {
     parent = trie->root;
   }
@@ -83,7 +86,7 @@ struct trie_node* trie_find_codepoint(struct trie* trie, struct trie_node* paren
   return parent;
 }
 
-void trie_append_string(struct trie* trie, const char* text, int type) {
+void trie_append_string(struct trie* trie, const char* text, intptr_t type) {
   struct trie_node* parent = NULL;
   while (*text) {
     parent = trie_append_codepoint(trie, parent, *(unsigned char*)text, (text[1]=='\0')?type:0);
@@ -98,7 +101,7 @@ void trie_load_array(struct trie* trie, const struct trie_static* array) {
   }
 }
 
-void trie_append_string_nocase(struct trie* trie, struct trie_node* parent, const char* text, int type) {
+void trie_append_string_nocase(struct trie* trie, struct trie_node* parent, const char* text, intptr_t type) {
   if (*text) {
     trie_append_string_nocase(trie, trie_append_codepoint(trie, parent, *(unsigned char*)text, (text[1]=='\0')?type:0), text+1, type);
     trie_append_string_nocase(trie, trie_append_codepoint(trie, parent, toupper(*(unsigned char*)text), (text[1]=='\0')?type:0), text+1, type);
