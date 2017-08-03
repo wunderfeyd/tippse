@@ -38,6 +38,14 @@ struct document_file;
 #include "filetype/xml.h"
 #include "encoding.h"
 #include "encoding/utf8.h"
+#include "config.h"
+
+struct document_file_defaults {
+  int colors[VISUAL_FLAG_COLOR_MAX];
+
+  int tabstop;
+  int tabstop_width;
+};
 
 struct document_file_type {
   const char* extension;
@@ -50,6 +58,7 @@ struct document_file {
   struct list* redos;
   struct file_type* type;
   struct encoding* encoding;
+  struct config* config;
   int tabstop;
   int tabstop_width;
   int newline;
@@ -58,6 +67,7 @@ struct document_file {
   int modified;
   int save;
 
+  struct document_file_defaults defaults;
   struct list* views;
 };
 
@@ -71,6 +81,8 @@ int document_file_save_plain(struct document_file* file, const char* filename);
 void document_file_save(struct document_file* file, const char* filename);
 
 void document_file_detect_properties(struct document_file* file);
+
+void document_file_reload_config(struct document_file* file);
 
 void document_file_expand(file_offset_t* pos, file_offset_t offset, file_offset_t length);
 void document_file_insert(struct document_file* file, file_offset_t offset, const uint8_t* text, size_t length);

@@ -4,10 +4,8 @@
 
 struct trie* trie_create() {
   struct trie* trie = malloc(sizeof(struct trie));
-  trie->fill = TRIE_NODES_PER_BUCKET;
   trie->buckets = list_create();
-  trie->root = trie_create_node(trie);
-
+  trie_clear(trie);
   return trie;
 }
 
@@ -23,6 +21,9 @@ void trie_clear(struct trie* trie) {
     free(bucket);
     list_remove(trie->buckets, trie->buckets->first);
   }
+
+  trie->fill = TRIE_NODES_PER_BUCKET;
+  trie->root = NULL;
 }
 
 struct trie_node* trie_create_node(struct trie* trie) {
@@ -45,8 +46,12 @@ struct trie_node* trie_create_node(struct trie* trie) {
 }
 
 struct trie_node* trie_append_codepoint(struct trie* trie, struct trie_node* parent, int cp, intptr_t type) {
-  if (parent==NULL) {
+  if (!parent) {
     parent = trie->root;
+    if (!parent) {
+      trie->root = trie_create_node(trie);
+      parent = trie->root;
+    }
   }
 
   int bit;
@@ -68,8 +73,11 @@ struct trie_node* trie_append_codepoint(struct trie* trie, struct trie_node* par
 }
 
 struct trie_node* trie_find_codepoint(struct trie* trie, struct trie_node* parent, int cp) {
-  if (parent==NULL) {
+  if (!parent) {
     parent = trie->root;
+    if (!parent) {
+      return NULL;
+    }
   }
 
   int bit;

@@ -31,6 +31,7 @@ struct document_file* document_file_create(int save) {
   file->tabstop = TIPPSE_TABSTOP_AUTO;
   file->tabstop_width = 4;
   file->newline = TIPPSE_NEWLINE_AUTO;
+  file->config = config_create();
   return file;
 }
 
@@ -39,6 +40,8 @@ void document_file_clear(struct document_file* file) {
     range_tree_destroy(file->buffer);
     file->buffer = NULL;
   }
+
+  config_clear(file->config);
 }
 
 void document_file_destroy(struct document_file* file) {
@@ -51,6 +54,7 @@ void document_file_destroy(struct document_file* file) {
   free(file->filename);
   (*file->type->destroy)(file->type);
   (*file->encoding->destroy)(file->encoding);
+  config_destroy(file->config);
   free(file);
 }
 
@@ -126,7 +130,6 @@ void document_file_load(struct document_file* file, const char* filename) {
 
   document_file_name(file, filename);
   file->modified = 0;
-
   document_file_detect_properties(file);
 }
 
@@ -145,7 +148,6 @@ void document_file_load_memory(struct document_file* file, const uint8_t* buffer
 
   document_file_name(file, "<memory>");
   file->modified = 0;
-
   document_file_detect_properties(file);
 }
 
@@ -414,4 +416,26 @@ int document_file_delete_selection(struct document_file* file, struct document_v
   view->selection_low = ~0;
   view->selection_high = ~0;
   return 1;
+}
+
+void document_file_reload_config(struct document_file* file) {
+  config_clear(file->config);
+
+  if (*file->filename) {
+    config_loadpaths(file->config, file->filename, !is_directory(file->filename));
+  } else {
+    config_loadpaths(file->config, ".", 0);
+  }
+
+  file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/background"));
+  file->defaults.colors[VISUAL_FLAG_COLOR_TEXT] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/text"));
+  file->defaults.colors[VISUAL_FLAG_COLOR_READONLY] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/readonly"));
+  file->defaults.colors[VISUAL_FLAG_COLOR_STATUS] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/status"));
+  file->defaults.colors[VISUAL_FLAG_COLOR_FRAME] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/frame"));
+  file->defaults.colors[VISUAL_FLAG_COLOR_STRING] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/string"));
+  file->defaults.colors[VISUAL_FLAG_COLOR_TYPE] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/type"));
+  file->defaults.colors[VISUAL_FLAG_COLOR_KEYWORD] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/keyword"));
+  file->defaults.colors[VISUAL_FLAG_COLOR_PREPROCESSOR] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/preprocessor"));
+  file->defaults.colors[VISUAL_FLAG_COLOR_LINECOMMENT] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/linecomment"));
+  file->defaults.colors[VISUAL_FLAG_COLOR_BLOCKCOMMENT] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/blockcomment"));
 }

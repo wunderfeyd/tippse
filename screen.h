@@ -6,8 +6,6 @@ struct screen;
 
 #include "encoding/utf8.h"
 
-#define TIPPSE_SCREEN_BACKGROUND 17
-
 struct screen_char {
   int codepoints[8];
   size_t length;
