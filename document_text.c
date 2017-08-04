@@ -364,10 +364,13 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       render_info->visual_detail &= ~VISUAL_INFO_CONTROLCHARACTER;
     }
 
+    int color = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT]; //render_info->buffer->visuals.dirty?2:15; //((int)render_info->buffer&0xff); //
+    int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
+
     if (render_info->draw_indentation) {
       if (screen && render_info->y_view==render_info->y) {
         int cp = 0x21aa;
-        splitter_drawchar(screen, splitter, render_info->x-2-view->scroll_x, render_info->y-view->scroll_y, &cp, 1, splitter->foreground, splitter->background);
+        splitter_drawchar(screen, splitter, render_info->x-2-view->scroll_x, render_info->y-view->scroll_y, &cp, 1, color, background);
       }
     }
 
@@ -381,8 +384,6 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       render_info->offset_sync = render_info->offset;
     }
 
-    int color = 102;
-    int background = splitter?splitter->background:0;
     if (render_info->buffer) {
       if (screen) {
         // Whitespace look ahead in current buffer
@@ -421,26 +422,13 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       }
 
       if (!(render_info->buffer->inserter&TIPPSE_INSERTER_READONLY)) {
-        color = splitter?splitter->foreground:0; //render_info->buffer->visuals.dirty?2:15; //((int)render_info->buffer&0xff); //
         if (render_info->keyword_length==0) {
           int visual_flag = 0;
 
           (*file->type->mark)(file->type, &render_info->visual_detail, &render_info->cache, (render_info->y_view==render_info->y)?1:0, &render_info->keyword_length, &visual_flag);
 
           if (screen) {
-            if (visual_flag==VISUAL_FLAG_COLOR_BLOCKCOMMENT) {
-              render_info->keyword_color = 102;
-            } else if (visual_flag==VISUAL_FLAG_COLOR_LINECOMMENT) {
-              render_info->keyword_color = 102;
-            } else if (visual_flag==VISUAL_FLAG_COLOR_STRING) {
-              render_info->keyword_color = 226;
-            } else if (visual_flag==VISUAL_FLAG_COLOR_TYPE) {
-              render_info->keyword_color = 120;
-            } else if (visual_flag==VISUAL_FLAG_COLOR_KEYWORD) {
-              render_info->keyword_color = 210;
-            } else if (visual_flag==VISUAL_FLAG_COLOR_PREPROCESSOR) {
-              render_info->keyword_color = 103;
-            }
+            render_info->keyword_color = file->defaults.colors[visual_flag];
           }
         }
 
@@ -494,9 +482,9 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       while (tabbing-->0) {
         if (screen && render_info->y_view==render_info->y) {
           if (!sel) {
-            splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, &show, 1, splitter->foreground, background);
+            splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, &show, 1, color, background);
           } else {
-            splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, &show, 1, background, splitter->foreground);
+            splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, &show, 1, background, color);
           }
 
           show = ' ';

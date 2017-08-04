@@ -8,14 +8,17 @@ const char* config_filename = ".tippse";
 const char* config_default =
   "{"
     "colors:{"
-      "background:0,"
+      "background:17,"
       "status:102,"
       "frame:15,"
+      "text:15,"
       "readonly:102,"
-      "keyword:102,"
-      "comment:102,"
-      "string:102,"
-      "comment:102,"
+      "type:120,"
+      "keyword:210,"
+      "linecomment:102,"
+      "blockcomment:102,"
+      "string:226,"
+      "preprocessor:103,"
     "},"
   "}"
 ;
@@ -83,6 +86,7 @@ void config_load(struct config* config, const char* filename) {
         if (cp==',' || cp=='{' || cp=='}') {
           int keyword = keyword_length-((brackets>0)?bracket_positions[brackets-1]:0);
           if (cp!='{' && keyword) {
+            value_codepoints[value_length] = 0;
             config_update(config, &keyword_codepoints[0], keyword_length, &value_codepoints[0], value_length+1);
           }
 
@@ -133,7 +137,6 @@ void config_load(struct config* config, const char* filename) {
         } else {
           if (value_length<(sizeof(value_codepoints)/sizeof(int))-1) {
             value_codepoints[value_length++] = cp;
-            value_codepoints[value_length] = 0;
           }
         }
       }

@@ -2,7 +2,7 @@
 
 #include "splitter.h"
 
-struct splitter* splitter_create(int type, int split, struct splitter* side0, struct splitter* side1, int foreground, int background, const char* name) {
+struct splitter* splitter_create(int type, int split, struct splitter* side0, struct splitter* side1, const char* name) {
   struct splitter* splitter = malloc(sizeof(struct splitter));
   splitter->type = type;
   splitter->split = split;
@@ -17,8 +17,6 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
     splitter->side[0] = NULL;
     splitter->side[1] = NULL;
     splitter->active = 0;
-    splitter->foreground = foreground;
-    splitter->background = background;
     splitter->status_inverted = 0;
     splitter->type = type;
     splitter->content = 0;
@@ -136,6 +134,7 @@ void splitter_assign_document_file(struct splitter* splitter, struct document_fi
   }
 
   splitter->file = file;
+  document_file_reload_config(file);
   splitter->content = content;
   list_insert(splitter->file->views, NULL, &splitter->view);
 }
@@ -145,19 +144,29 @@ void splitter_draw(struct screen* screen, struct splitter* splitter) {
   int cp = 0x20;
   for (yy=0; yy<splitter->height; yy++) {
     for (xx=0; xx<splitter->width; xx++) {
-      screen_setchar(screen, splitter->x+xx, splitter->y+yy, &cp, 1, splitter->foreground, splitter->background);
+      screen_setchar(screen, splitter->x+xx, splitter->y+yy, &cp, 1, splitter->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], splitter->file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
     }
   }
 
   (*splitter->document->draw)(splitter->document, screen, splitter);
 }
 
+struct document_file* splitter_first_document(const struct splitter* splitter) {
+  while (splitter && !splitter->file) {
+    splitter = splitter->side[0];
+  }
+
+  return splitter->file;
+}
+
 // TODO: hardcoded color values
-void splitter_draw_split_horizontal(struct screen* screen, int x, int y, int width) {
+void splitter_draw_split_horizontal(struct screen* screen, const struct splitter* splitter, int x, int y, int width) {
+  struct document_file* file = splitter_first_document(splitter);
+
   int n;
   int cp = 0x2500;
   for (n = 0; n<width; n++) {
-    screen_setchar(screen, x+n, y, &cp, 1, 231, TIPPSE_SCREEN_BACKGROUND);
+    screen_setchar(screen, x+n, y, &cp, 1, file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
   }
 
   int left = screen_getchar(screen, x-1, y);
@@ -174,15 +183,16 @@ void splitter_draw_split_horizontal(struct screen* screen, int x, int y, int wid
     right = 0x253c;
   }
 
-  screen_setchar(screen, x-1, y, &left, 1, 231, TIPPSE_SCREEN_BACKGROUND);
-  screen_setchar(screen, x+width, y, &right, 1, 231, TIPPSE_SCREEN_BACKGROUND);
+  screen_setchar(screen, x-1, y, &left, 1, file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
+  screen_setchar(screen, x+width, y, &right, 1, file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
 }
 
-void splitter_draw_split_vertical(struct screen* screen, int x, int y, int height) {
+void splitter_draw_split_vertical(struct screen* screen, const struct splitter* splitter, int x, int y, int height) {
+  struct document_file* file = splitter_first_document(splitter);
   int n;
   int cp = 0x2502;
   for (n = 0; n<height; n++) {
-    screen_setchar(screen, x, y+n, &cp, 1, 231, TIPPSE_SCREEN_BACKGROUND);
+    screen_setchar(screen, x, y+n, &cp, 1, file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
   }
 
   int top = screen_getchar(screen, x, y-1);
@@ -199,8 +209,8 @@ void splitter_draw_split_vertical(struct screen* screen, int x, int y, int heigh
     bottom = 0x253c;
   }
 
-  screen_setchar(screen, x, y-1, &top, 1, 231, TIPPSE_SCREEN_BACKGROUND);
-  screen_setchar(screen, x, y+height, &bottom, 1, 231, TIPPSE_SCREEN_BACKGROUND);
+  screen_setchar(screen, x, y-1, &top, 1, file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
+  screen_setchar(screen, x, y+height, &bottom, 1, file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
 }
 
 void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int width, int height, struct splitter* splitter, int incremental) {
@@ -234,14 +244,14 @@ void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int w
 
     if (splitter->type&TIPPSE_SPLITTER_HORZ) {
       if (size0>0 && size1>0) {
-        splitter_draw_split_vertical(screen, x+size0, y, height);
+        splitter_draw_split_vertical(screen, splitter, x+size0, y, height);
       }
 
       splitter_draw_multiple_recursive(screen, x, y, size0, height, splitter->side[0], incremental);
       splitter_draw_multiple_recursive(screen, x+base0, y, size1, height, splitter->side[1], incremental);
     } else {
       if (size0>0 && size1>0) {
-        splitter_draw_split_horizontal(screen, x, y+size0, width);
+        splitter_draw_split_horizontal(screen, splitter, x, y+size0, width);
       }
 
       splitter_draw_multiple_recursive(screen, x, y, width, size0, splitter->side[0], incremental);
