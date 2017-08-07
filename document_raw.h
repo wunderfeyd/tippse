@@ -26,6 +26,7 @@ struct document_raw {
 struct document* document_raw_create();
 void document_raw_destroy(struct document* base);
 
+void document_raw_reset(struct document* base, struct splitter* splitter);
 int document_raw_incremental_update(struct document* base, struct splitter* splitter);
 void document_raw_draw(struct document* base, struct screen* screen, struct splitter* splitter);
 void document_raw_keypress(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y);

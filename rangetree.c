@@ -10,7 +10,7 @@ void range_tree_print(struct range_tree_node* node, int depth, int side) {
     tab--;
   }
 
-  printf ("%d %5d %5d %s(%p-%p) %5d %5d (%p) [0](%p) [1](%p) [P](%p) [U](%p) [d](%p) %d %d %d ", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->side[0], node->side[1], node->parent, node->next, node->prev, (int)node->visuals.ys, (int)node->visuals.xs, (int)node->visuals.dirty);
+  printf("%d %5d %5d %s(%p-%p) %5d %5d (%p) [0](%p) [1](%p) [P](%p) [U](%p) [d](%p) %d %d %d ", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->side[0], node->side[1], node->parent, node->next, node->prev, (int)node->visuals.ys, (int)node->visuals.xs, (int)node->visuals.dirty);
   printf("\r\n");
   if (node->side[0]) {
     range_tree_print(node->side[0], depth+1, 0);
@@ -418,7 +418,7 @@ struct range_tree_node* range_tree_find_offset(struct range_tree_node* node, fil
 }
 
 // Reallocate the fragment if it is references only once and had become smaller due to the edit process (save memory)
-void range_tree_shrink(struct range_tree_node* node, struct file_type* type) {
+void range_tree_shrink(struct range_tree_node* node) {
   if (!node || !node->buffer) {
     return;
   }
@@ -461,7 +461,7 @@ void range_tree_shrink(struct range_tree_node* node, struct file_type* type) {
 }
 
 // Try to merge range of nodes which are below the maximum page size
-struct range_tree_node* range_tree_fuse(struct range_tree_node* root, struct file_type* type, struct range_tree_node* first, struct range_tree_node* last) {
+struct range_tree_node* range_tree_fuse(struct range_tree_node* root, struct range_tree_node* first, struct range_tree_node* last) {
   if (!first) {
     first = range_tree_first(root);
   }
@@ -486,12 +486,12 @@ struct range_tree_node* range_tree_fuse(struct range_tree_node* root, struct fil
           next->length = buffer->length;
           next->offset = 0;
 
-          range_tree_shrink(next, type);
+          range_tree_shrink(next);
           range_tree_update(next);
 
           fragment_dereference(first->buffer);
           first->buffer = NULL;
-          range_tree_shrink(first, type);
+          range_tree_shrink(first);
           root = range_tree_update(first);
         }
       }
@@ -504,7 +504,7 @@ struct range_tree_node* range_tree_fuse(struct range_tree_node* root, struct fil
 }
 
 // Insert fragment into specific offset and eventually break older nodes into parts
-struct range_tree_node* range_tree_insert(struct range_tree_node* root, struct file_type* type, file_offset_t offset, struct fragment* buffer, file_offset_t buffer_offset, file_offset_t buffer_length, int inserter) {
+struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_offset_t offset, struct fragment* buffer, file_offset_t buffer_offset, file_offset_t buffer_length, int inserter) {
   struct range_tree_node* node;
   struct range_tree_node* build0;
   struct range_tree_node* build1;
@@ -545,8 +545,8 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, struct f
       build1->prev = node;
 
       range_tree_exchange(build0->parent, node, build0);
-      range_tree_shrink(build1, type);
-      range_tree_shrink(node, type);
+      range_tree_shrink(build1);
+      range_tree_shrink(node);
       range_tree_update(build1);
       root = range_tree_update(node);
       before = range_tree_prev(build1);
@@ -565,8 +565,8 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, struct f
       build1->next = node;
 
       range_tree_exchange(build0->parent, node, build0);
-      range_tree_shrink(build1, type);
-      range_tree_shrink(node, type);
+      range_tree_shrink(build1);
+      range_tree_shrink(node);
       range_tree_update(build1);
       root = range_tree_update(node);
       before = range_tree_prev(build1);
@@ -594,9 +594,9 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, struct f
       node->offset += split;
       node->length -= split;
 
-      range_tree_shrink(build2, type);
-      range_tree_shrink(build1, type);
-      range_tree_shrink(node, type);
+      range_tree_shrink(build2);
+      range_tree_shrink(build1);
+      range_tree_shrink(node);
       range_tree_update(build2);
       range_tree_update(build1);
       root = range_tree_update(node);
@@ -607,10 +607,10 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, struct f
       after = node;
     }
 
-    root = range_tree_fuse(root, type, before, after);
+    root = range_tree_fuse(root, before, after);
   } else {
     root = range_tree_create(NULL, NULL, NULL, buffer, buffer_offset, buffer_length, inserter);
-    range_tree_shrink(root, type);
+    range_tree_shrink(root);
   }
 
   fragment_dereference(buffer);
@@ -619,7 +619,7 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, struct f
 }
 
 // Helper for textual insertions
-struct range_tree_node* range_tree_insert_split(struct range_tree_node* root, struct file_type* type, file_offset_t offset, const uint8_t* text, size_t length, int inserter, struct range_tree_node** inserts) {
+struct range_tree_node* range_tree_insert_split(struct range_tree_node* root, file_offset_t offset, const uint8_t* text, size_t length, int inserter, struct range_tree_node** inserts) {
   file_offset_t pos = 0;
   file_offset_t old = 0;
   while (1) {
@@ -632,7 +632,7 @@ struct range_tree_node* range_tree_insert_split(struct range_tree_node* root, st
       }
 
       struct fragment* buffer = fragment_create_memory(copy, pos-old);
-      root = range_tree_insert(root, type, offset, buffer, 0, buffer->length, inserter);
+      root = range_tree_insert(root, offset, buffer, 0, buffer->length, inserter);
 
       offset += pos-old;
       old = pos;
@@ -658,7 +658,7 @@ struct range_tree_node* range_tree_insert_split(struct range_tree_node* root, st
 }
 
 // Remove specific range from tree (eventually break nodes into parts)
-struct range_tree_node* range_tree_delete(struct range_tree_node* root, struct file_type* type, file_offset_t offset, file_offset_t length, int inserter) {
+struct range_tree_node* range_tree_delete(struct range_tree_node* root, file_offset_t offset, file_offset_t length, int inserter) {
   while (length>0) {
     file_offset_t split = 0;
     struct range_tree_node* node = range_tree_find_offset(root, offset, &split);
@@ -688,8 +688,8 @@ struct range_tree_node* range_tree_delete(struct range_tree_node* root, struct f
         build1->prev = node;
 
         range_tree_exchange(build0->parent, node, build0);
-        range_tree_shrink(node, type);
-        range_tree_shrink(build1, type);
+        range_tree_shrink(node);
+        range_tree_shrink(build1);
         range_tree_update(build1);
         root = range_tree_update(node);
       } else {
@@ -704,7 +704,7 @@ struct range_tree_node* range_tree_delete(struct range_tree_node* root, struct f
 
     length -= sub;
 
-    range_tree_shrink(node, type);
+    range_tree_shrink(node);
 
     if (node->length<=0) {
       fragment_dereference(node->buffer);
@@ -713,7 +713,7 @@ struct range_tree_node* range_tree_delete(struct range_tree_node* root, struct f
 
     root = range_tree_update(node);
     if (root) {
-      root = range_tree_fuse(root, type, before, after);
+      root = range_tree_fuse(root, before, after);
     }
   }
 
@@ -721,7 +721,7 @@ struct range_tree_node* range_tree_delete(struct range_tree_node* root, struct f
 }
 
 // Create copy of a specific range and keep fragments untouched (referenced copy)
-struct range_tree_node* range_tree_copy(struct range_tree_node* root, struct file_type* type, file_offset_t offset, file_offset_t length) {
+struct range_tree_node* range_tree_copy(struct range_tree_node* root, file_offset_t offset, file_offset_t length) {
   struct range_tree_node* build0;
   struct range_tree_node* build1;
   struct range_tree_node* copy = NULL;
@@ -762,11 +762,11 @@ struct range_tree_node* range_tree_copy(struct range_tree_node* root, struct fil
 }
 
 // Insert already built nodes
-struct range_tree_node* range_tree_paste(struct range_tree_node* root, struct file_type* type, struct range_tree_node* copy, file_offset_t offset) {
+struct range_tree_node* range_tree_paste(struct range_tree_node* root, struct range_tree_node* copy, file_offset_t offset) {
   copy = range_tree_first(copy);
   while (copy) {
     fragment_reference(copy->buffer);
-    root = range_tree_insert(root, type, offset, copy->buffer, copy->offset, copy->length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
+    root = range_tree_insert(root, offset, copy->buffer, copy->offset, copy->length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
     offset += copy->length;
     copy = range_tree_next(copy);
   }

@@ -20,6 +20,9 @@ const char* config_default =
       "string:226,"
       "preprocessor:103,"
     "},"
+    "wrapping:1,"
+    "showall:0,"
+    "continuous:0,"
   "}"
 ;
 

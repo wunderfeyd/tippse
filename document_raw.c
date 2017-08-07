@@ -4,6 +4,7 @@
 
 struct document* document_raw_create() {
   struct document_raw* document = (struct document_raw*)malloc(sizeof(struct document_raw));
+  document->vtbl.reset = document_raw_reset;
   document->vtbl.draw = document_raw_draw;
   document->vtbl.keypress = document_raw_keypress;
   document->vtbl.incremental_update = document_raw_incremental_update;
@@ -13,6 +14,10 @@ struct document* document_raw_create() {
 
 void document_raw_destroy(struct document* base) {
   free(base);
+}
+
+// Called after a new document was assigned
+void document_raw_reset(struct document* base, struct splitter* splitter) {
 }
 
 // Find next dirty pages and rerender them (background task)

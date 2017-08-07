@@ -134,10 +134,11 @@ int main(int argc, const char** argv) {
 
   struct range_tree_node* search_text_buffers[32];
   const char* search_text = " Search [\x7f]\n   CASE [\x7f] | SELECTION [\x7f] | REGEX [\x7f]\nReplace [\x7f]";
-  search_doc->buffer = range_tree_insert_split(search_doc->buffer, search_doc->type, 0, (uint8_t*)search_text, strlen(search_text), TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, &search_text_buffers[0]);
+  search_doc->buffer = range_tree_insert_split(search_doc->buffer, 0, (uint8_t*)search_text, strlen(search_text), TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, &search_text_buffers[0]);
 
   if (argc>=2) {
     document_file_load(document_doc, argv[1]);
+    splitter_assign_document_file(document, document_doc, 1);
   }
 
   struct splitter* splitters_left = splitter_create(TIPPSE_SPLITTER_VERT, 50, tabs, browser, "");
@@ -169,13 +170,13 @@ int main(int argc, const char** argv) {
   }
 
   while (!close) {
-    tabs_doc->buffer = range_tree_delete(tabs_doc->buffer, tabs_doc->type, 0, tabs_doc->buffer?tabs_doc->buffer->length:0, TIPPSE_INSERTER_AUTO);
+    tabs_doc->buffer = range_tree_delete(tabs_doc->buffer, 0, tabs_doc->buffer?tabs_doc->buffer->length:0, TIPPSE_INSERTER_AUTO);
     struct list_node* doc = documents->first;
     while (doc) {
       struct document_file* file = (struct document_file*)doc->object;
-      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->type, tabs_doc->buffer?tabs_doc->buffer->length:0, (uint8_t*)(file->modified?"+":" "), 1, TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
-      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->type, tabs_doc->buffer?tabs_doc->buffer->length:0, (uint8_t*)file->filename, strlen(file->filename), TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
-      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->type, tabs_doc->buffer?tabs_doc->buffer->length:0, (uint8_t*)"\n", 1, TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->buffer?tabs_doc->buffer->length:0, (uint8_t*)(file->modified?"+":" "), 1, TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->buffer?tabs_doc->buffer->length:0, (uint8_t*)file->filename, strlen(file->filename), TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->buffer?tabs_doc->buffer->length:0, (uint8_t*)"\n", 1, TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
       doc = doc->next;
     }
 
@@ -257,6 +258,7 @@ int main(int argc, const char** argv) {
 
             if (ansi_keys[pos].cp==TIPPSE_KEY_SHOWALL) {
               focus->view.showall ^= 1;
+              (*focus->document->reset)(focus->document, focus);
             }
 
             if (ansi_keys[pos].cp==TIPPSE_KEY_SEARCH) {
@@ -366,7 +368,7 @@ int main(int argc, const char** argv) {
                     if (is_directory(relative)) {
                       if (focus==browser) {
                         document_file_name(browser->file, relative);
-                        document_view_reset(&browser->view);
+                        document_view_reset(&browser->view, browser->file);
                         document_directory(browser);
                       }
                     } else {
@@ -378,7 +380,6 @@ int main(int argc, const char** argv) {
                   }
 
                   if (new_document_doc) {
-                    document_view_reset(&document->view);
                     splitter_assign_document_file(document, new_document_doc, 1);
                   }
 

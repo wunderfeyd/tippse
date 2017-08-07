@@ -43,8 +43,13 @@ struct document_file;
 struct document_file_defaults {
   int colors[VISUAL_FLAG_COLOR_MAX];
 
+  int showall;
+  int wrapping;
+  int continuous;
+
   int tabstop;
   int tabstop_width;
+  int newline;
 };
 
 struct document_file_type {

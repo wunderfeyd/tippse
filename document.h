@@ -68,6 +68,7 @@ struct splitter;
 #define TIPPSE_MOUSE_WHEEL_DOWN 16
 
 struct document {
+  void (*reset)(struct document* base, struct splitter* splitter);
   void (*draw)(struct document* base, struct screen* screen, struct splitter* splitter);
   void (*keypress)(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y);
   int (*incremental_update)(struct document* base, struct splitter* splitter);

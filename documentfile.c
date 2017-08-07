@@ -120,7 +120,7 @@ void document_file_load(struct document_file* file, const char* filename) {
         break;
       }
 
-      file->buffer = range_tree_insert(file->buffer, file->type, offset, buffer, 0, buffer->length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
+      file->buffer = range_tree_insert(file->buffer, offset, buffer, 0, buffer->length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
       offset += block;
     }
 
@@ -140,7 +140,7 @@ void document_file_load_memory(struct document_file* file, const uint8_t* buffer
     size_t max = (length>TREE_BLOCK_LENGTH_MAX)?TREE_BLOCK_LENGTH_MAX:length;
     uint8_t* copy = (uint8_t*)malloc(max);
     memcpy(copy, buffer, max);
-    file->buffer = range_tree_insert(file->buffer, file->type, offset, fragment_create_memory(copy, max), 0, max, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
+    file->buffer = range_tree_insert(file->buffer, offset, fragment_create_memory(copy, max), 0, max, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
     offset += max;
     length -= max;
     buffer += max;
@@ -301,7 +301,7 @@ void document_file_insert(struct document_file* file, file_offset_t offset, cons
   }
 
   file_offset_t old_length = file->buffer?file->buffer->length:0;
-  file->buffer = range_tree_insert_split(file->buffer, file->type, offset, text, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, NULL);
+  file->buffer = range_tree_insert_split(file->buffer, offset, text, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, NULL);
   length = (file->buffer?file->buffer->length:0)-old_length;
   if (length<=0) {
     return;
@@ -336,7 +336,7 @@ void document_file_insert_buffer(struct document_file* file, file_offset_t offse
     return;
   }
 
-  file->buffer = range_tree_paste(file->buffer, file->type, buffer, offset);
+  file->buffer = range_tree_paste(file->buffer, buffer, offset);
   document_undo_add(file, NULL, offset, length, TIPPSE_UNDO_TYPE_INSERT);
 
   struct list_node* views = file->views->first;
@@ -373,7 +373,7 @@ void document_file_delete(struct document_file* file, file_offset_t offset, file
   document_undo_add(file, NULL, offset, length, TIPPSE_UNDO_TYPE_DELETE);
 
   file_offset_t old_length = file->buffer?file->buffer->length:0;
-  file->buffer = range_tree_delete(file->buffer, file->type, offset, length, 0);
+  file->buffer = range_tree_delete(file->buffer, offset, length, 0);
   length = old_length-(file->buffer?file->buffer->length:0);
 
   struct list_node* views = file->views->first;
@@ -438,4 +438,8 @@ void document_file_reload_config(struct document_file* file) {
   file->defaults.colors[VISUAL_FLAG_COLOR_PREPROCESSOR] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/preprocessor"));
   file->defaults.colors[VISUAL_FLAG_COLOR_LINECOMMENT] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/linecomment"));
   file->defaults.colors[VISUAL_FLAG_COLOR_BLOCKCOMMENT] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/blockcomment"));
+
+  file->defaults.wrapping = (int)config_convert_int64(config_find_ascii(file->config, "/wrapping"));
+  file->defaults.showall = (int)config_convert_int64(config_find_ascii(file->config, "/showall"));
+  file->defaults.continuous = (int)config_convert_int64(config_find_ascii(file->config, "/continuous"));
 }
