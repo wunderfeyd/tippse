@@ -473,9 +473,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 
           (*file->type->mark)(file->type, &render_info->visual_detail, &render_info->cache, (render_info->y_view==render_info->y)?1:0, &render_info->keyword_length, &visual_flag);
 
-          if (screen) {
-            render_info->keyword_color = file->defaults.colors[visual_flag];
-          }
+          render_info->keyword_color = file->defaults.colors[visual_flag];
         }
 
         if (render_info->keyword_length>0) {
@@ -488,7 +486,9 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     render_info->displacement += length;
     render_info->offset += length;
 
+    int fill = 0;
     if (((((cp!=newline_cp2 || newline_cp2==0) && cp!=0xfeff) || view->showall) && cp!='\t') || view->continuous) {
+      fill = 1;
       if (screen && render_info->y_view==render_info->y) {
         if (cp<0x20 && cp!=newline_cp1) {
           show = 0xfffd;
@@ -505,50 +505,29 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         } else if (cp<0x20) {
           show = cp+0x2400;
         }
+      }
+    } else if (cp=='\t') {
+      fill = file->tabstop_width-(render_info->x%file->tabstop_width);
+      show = view->showall?0x21a6:' ';
+    }
 
+    while (fill-->0) {
+      if (screen && render_info->y_view==render_info->y) {
         if (!sel) {
           splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, (show==-1)?&codepoints[0]:&show, (show==-1)?read:1, color, background);
         } else {
           splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, (show==-1)?&codepoints[0]:&show, (show==-1)?read:1, background, color);
         }
+
+        show = ' ';
       }
 
       render_info->x++;
-      if (render_info->visual_detail&VISUAL_INFO_INDENTATION && !view->continuous) {
-        if (render_info->indentation<render_info->width/2) {
-          render_info->indentation++;
-          render_info->indentations++;
-        } else {
-          render_info->xs++;
-        }
+      if (render_info->visual_detail&VISUAL_INFO_INDENTATION && !view->continuous && render_info->indentation<render_info->width/2) {
+        render_info->indentation++;
+        render_info->indentations++;
       } else {
         render_info->xs++;
-      }
-    } else if (cp=='\t') {
-      int tabbing = file->tabstop_width-(render_info->x%file->tabstop_width);
-      show = view->showall?0x21a6:' ';
-      while (tabbing-->0) {
-        if (screen && render_info->y_view==render_info->y) {
-          if (!sel) {
-            splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, &show, 1, color, background);
-          } else {
-            splitter_drawchar(screen, splitter, render_info->x-view->scroll_x, render_info->y-view->scroll_y, &show, 1, background, color);
-          }
-
-          show = ' ';
-        }
-
-        render_info->x++;
-        if (render_info->visual_detail&VISUAL_INFO_INDENTATION) {
-          if (render_info->indentation<render_info->width/2) {
-            render_info->indentation++;
-            render_info->indentations++;
-          } else {
-            render_info->xs++;
-          }
-        } else {
-          render_info->xs++;
-        }
       }
     }
 
