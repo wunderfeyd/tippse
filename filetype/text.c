@@ -26,7 +26,7 @@ void file_type_text_mark(struct file_type* base, int* visual_detail, struct enco
 
   int before = *visual_detail;
   int after = before;
-  
+
   if (before&VISUAL_INFO_NEWLINE) {
     after |= VISUAL_INFO_INDENTATION;
     after &= ~VISUAL_INFO_NEWLINE;

@@ -2,7 +2,7 @@
 
 #include "documentview.h"
 
-void document_view_reset(struct document_view* view) {
+void document_view_reset(struct document_view* view, struct document_file* file) {
   view->offset = 0;
   view->cursor_x = 0;
   view->cursor_y = 0;
@@ -14,6 +14,7 @@ void document_view_reset(struct document_view* view) {
   view->selection_end = ~0;
   view->selection_low = ~0;
   view->selection_high = ~0;
-  view->wrapping = 0;
-  view->showall = 0;
+  view->wrapping = file->defaults.wrapping;
+  view->showall = file->defaults.showall;
+  view->continuous = file->defaults.continuous;
 }

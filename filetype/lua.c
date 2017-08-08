@@ -58,7 +58,7 @@ void file_type_lua_mark(struct file_type* base, int* visual_detail, struct encod
 
   *length = 1;
   int before = *visual_detail;
-  int before_masked = before&(~(VISUAL_INFO_INDENTATION|VISUAL_INFO_NEWLINE|VISUAL_INFO_WORD|VISUAL_INFO_WHITESPACED_COMPLETE|VISUAL_INFO_WHITESPACED_START));
+  int before_masked = before&VISUAL_INFO_STATEMASK;
   int after = before;
 
   if (before_masked&VISUAL_INFO_STRINGESCAPE) {

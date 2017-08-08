@@ -2,10 +2,7 @@
 #define __TIPPSE_DOCUMENTVIEW__
 
 #include <stdlib.h>
-
-struct document_view;
-
-#include "rangetree.h"
+#include "types.h"
 
 struct document_view {
   file_offset_t offset;
@@ -27,8 +24,11 @@ struct document_view {
 
   int showall;
   int wrapping;
+  int continuous;
 };
 
-void document_view_reset(struct document_view* view);
+#include "documentfile.h"
+
+void document_view_reset(struct document_view* view, struct document_file* file);
 
 #endif /* #ifndef __TIPPSE_DOCUMENTVIEW__ */

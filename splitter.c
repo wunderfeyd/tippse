@@ -24,7 +24,6 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
     splitter->document_text = document_text_create();
     splitter->document_raw = document_raw_create();
     splitter->document = splitter->document_text;
-    document_view_reset(&splitter->view);
   } else {
     splitter->side[0] = side0;
     splitter->side[1] = side1;
@@ -137,6 +136,10 @@ void splitter_assign_document_file(struct splitter* splitter, struct document_fi
   document_file_reload_config(file);
   splitter->content = content;
   list_insert(splitter->file->views, NULL, &splitter->view);
+
+  document_view_reset(&splitter->view, splitter->file);
+  (*splitter->document_text->reset)(splitter->document, splitter);
+  (*splitter->document_raw->reset)(splitter->document, splitter);
 }
 
 void splitter_draw(struct screen* screen, struct splitter* splitter) {
