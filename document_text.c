@@ -558,7 +558,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 
     int word_length = 0;
     if (cp<=' ' && view->wrapping) {
-      int row_width = render_info->width-render_info->indentation-render_info->indentation_extra-(render_info->indentation_extra==0?file->tabstop_width:0);
+      int row_width = render_info->width-render_info->indentation-file->tabstop_width;
       word_length = document_text_render_lookahead_word_wrap(file, &render_info->cache, row_width+1);
       if (word_length>row_width) {
         word_length = 0;
@@ -637,6 +637,13 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   struct document_text* document = (struct document_text*)base;
   struct document_file* file = splitter->file;
   struct document_view* view = &splitter->view;
+
+  if (splitter->content && file->buffer) {
+    if (file->buffer->length!=view->selection->length) {
+      printf("\r\nSelection area and file length differ %d<>%d\r\n", (int)file->buffer->length, (int)view->selection->length);
+      exit(0);
+    }
+  }
 
   struct document_text_position cursor;
   struct document_text_position in;

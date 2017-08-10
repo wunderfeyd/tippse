@@ -18,6 +18,8 @@ struct range_tree_node;
 #define TIPPSE_INSERTER_ESCAPE 8
 #define TIPPSE_INSERTER_AUTO 16
 #define TIPPSE_INSERTER_FILE 32
+#define TIPPSE_INSERTER_LEAF 64
+#define TIPPSE_INSERTER_MARK 128
 
 #include "fragment.h"
 #include "visualinfo.h"
@@ -28,12 +30,13 @@ struct range_tree_node {
   struct range_tree_node* side[2];
   struct range_tree_node* next;
   struct range_tree_node* prev;
-  struct fragment* buffer;
-  file_offset_t offset;
   file_offset_t length;
-  size_t subs;
   int depth;
   int inserter;
+
+  // TODO: shrink structure dynamically depending on type of tree
+  struct fragment* buffer;
+  file_offset_t offset;
   struct visual_info visuals;
 };
 
@@ -66,4 +69,9 @@ struct range_tree_node* range_tree_copy(struct range_tree_node* root, file_offse
 struct range_tree_node* range_tree_paste(struct range_tree_node* root, struct range_tree_node* copy, file_offset_t offset);
 uint8_t* range_tree_raw(struct range_tree_node* root, file_offset_t start, file_offset_t end);
 
+struct range_tree_node* range_tree_split(struct range_tree_node* root, struct range_tree_node** node, file_offset_t split);
+struct range_tree_node* range_tree_mark(struct range_tree_node* root, file_offset_t offset, file_offset_t length, int inserter);
+struct range_tree_node* range_tree_static(struct range_tree_node* root, file_offset_t length, int inserter);
+struct range_tree_node* range_tree_expand(struct range_tree_node* root, file_offset_t offset, file_offset_t length);
+struct range_tree_node* range_tree_reduce(struct range_tree_node* root, file_offset_t offset, file_offset_t length);
 #endif /* #ifndef __TIPPSE_RANGETREE__ */

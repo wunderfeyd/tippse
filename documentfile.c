@@ -312,6 +312,7 @@ void document_file_insert(struct document_file* file, file_offset_t offset, cons
   struct list_node* views = file->views->first;
   while (views) {
     struct document_view* view = (struct document_view*)views->object;
+    view->selection = range_tree_expand(view->selection, offset, length);
     document_file_expand(&view->selection_end, offset, length);
     document_file_expand(&view->selection_start, offset, length);
     document_file_expand(&view->selection_low, offset, length);
@@ -342,6 +343,7 @@ void document_file_insert_buffer(struct document_file* file, file_offset_t offse
   struct list_node* views = file->views->first;
   while (views) {
     struct document_view* view = (struct document_view*)views->object;
+    view->selection = range_tree_expand(view->selection, offset, length);
     document_file_expand(&view->selection_end, offset, length);
     document_file_expand(&view->selection_start, offset, length);
     document_file_expand(&view->selection_low, offset, length);
@@ -379,6 +381,7 @@ void document_file_delete(struct document_file* file, file_offset_t offset, file
   struct list_node* views = file->views->first;
   while (views) {
     struct document_view* view = (struct document_view*)views->object;
+    view->selection = range_tree_reduce(view->selection, offset, length);
     document_file_reduce(&view->selection_end, offset, length);
     document_file_reduce(&view->selection_start, offset, length);
     document_file_reduce(&view->selection_low, offset, length);

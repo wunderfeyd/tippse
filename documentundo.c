@@ -74,6 +74,7 @@ int document_undo_execute(struct document_file* file, struct document_view* view
     struct list_node* views = file->views->first;
     while (views) {
       struct document_view* view = (struct document_view*)views->object;
+      view->selection = range_tree_reduce(view->selection, undo->offset, undo->length);
       document_file_reduce(&view->selection_end, undo->offset, undo->length);
       document_file_reduce(&view->selection_start, undo->offset, undo->length);
       document_file_reduce(&view->selection_low, undo->offset, undo->length);
@@ -93,6 +94,7 @@ int document_undo_execute(struct document_file* file, struct document_view* view
     struct list_node* views = file->views->first;
     while (views) {
       struct document_view* view = (struct document_view*)views->object;
+      view->selection = range_tree_expand(view->selection, undo->offset, undo->length);
       document_file_expand(&view->selection_end, undo->offset, undo->length);
       document_file_expand(&view->selection_start, undo->offset, undo->length);
       document_file_expand(&view->selection_low, undo->offset, undo->length);

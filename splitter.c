@@ -12,6 +12,7 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
   splitter->document_text = NULL;
   splitter->document_raw = NULL;
   splitter->document = NULL;
+  splitter->view.selection = NULL; // TODO: create function for documentview
 
   if (!side0 || !side1) {
     splitter->side[0] = NULL;
