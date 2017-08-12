@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include "types.h"
+#include "rangetree.h"
 
 struct document_view {
   file_offset_t offset;
@@ -15,6 +16,7 @@ struct document_view {
 
   file_offset_t selection_low;
   file_offset_t selection_high;
+  struct range_tree_node* selection;
 
   int scroll_x;
   int scroll_y;
