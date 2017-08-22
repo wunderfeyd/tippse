@@ -20,6 +20,7 @@ struct document_file_type document_file_types[] = {
 struct document_file* document_file_create(int save) {
   struct document_file* file = (struct document_file*)malloc(sizeof(struct document_file));
   file->buffer = NULL;
+  file->bookmarks = NULL;
   file->undos = list_create();
   file->redos = list_create();
   file->filename = strdup("");
@@ -131,6 +132,7 @@ void document_file_load(struct document_file* file, const char* filename) {
   document_file_name(file, filename);
   file->modified = 0;
   document_file_detect_properties(file);
+  file->bookmarks = range_tree_static(file->bookmarks, file->buffer?file->buffer->length:0, 0);
 }
 
 void document_file_load_memory(struct document_file* file, const uint8_t* buffer, size_t length) {
@@ -313,6 +315,7 @@ void document_file_insert(struct document_file* file, file_offset_t offset, cons
   while (views) {
     struct document_view* view = (struct document_view*)views->object;
     view->selection = range_tree_expand(view->selection, offset, length);
+    file->bookmarks = range_tree_expand(file->bookmarks, offset, length);
     document_file_expand(&view->selection_end, offset, length);
     document_file_expand(&view->selection_start, offset, length);
     document_file_expand(&view->selection_low, offset, length);
@@ -344,6 +347,7 @@ void document_file_insert_buffer(struct document_file* file, file_offset_t offse
   while (views) {
     struct document_view* view = (struct document_view*)views->object;
     view->selection = range_tree_expand(view->selection, offset, length);
+    file->bookmarks = range_tree_expand(file->bookmarks, offset, length);
     document_file_expand(&view->selection_end, offset, length);
     document_file_expand(&view->selection_start, offset, length);
     document_file_expand(&view->selection_low, offset, length);
@@ -382,6 +386,7 @@ void document_file_delete(struct document_file* file, file_offset_t offset, file
   while (views) {
     struct document_view* view = (struct document_view*)views->object;
     view->selection = range_tree_reduce(view->selection, offset, length);
+    file->bookmarks = range_tree_reduce(file->bookmarks, offset, length);
     document_file_reduce(&view->selection_end, offset, length);
     document_file_reduce(&view->selection_start, offset, length);
     document_file_reduce(&view->selection_low, offset, length);

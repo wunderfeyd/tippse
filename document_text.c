@@ -2,7 +2,11 @@
 
 #include "document_text.h"
 
-struct document* document_text_create() {
+str
+uct d
+
+
+ocument* document_text_create() {
   struct document_text* document = (struct document_text*)malloc(sizeof(struct document_text));
   document->keep_status = 0;
   document->show_scrollbar = 0;
@@ -604,8 +608,9 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       render_info->visual_detail &= ~VISUAL_INFO_WHITESPACED_COMPLETE;
     }
 
-    if (in->clip) {
-      if (render_info->y_view>render_info->y || (render_info->y_view==render_info->y && render_info->x-view->scroll_x>render_info->width)) {
+    if (in->clip && render_info->buffer) {
+      // TODO: render_info->buffer->visuals.ys==render_info->ys is hacked since some lines didn't wrap during rendering (which is wrong anyway, retest if span render buffer is available)
+      if ((render_info->y_view>render_info->y && render_info->buffer->visuals.ys==render_info->ys) || (render_info->y_view==render_info->y && render_info->x-view->scroll_x>render_info->width)) {
         stop = 1;
       }
     }
@@ -720,6 +725,37 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
       if (document_text_render_span(&render_info, screen, splitter, view, file, &in, NULL, ~0, 1)) {
         break;
       }
+    }
+
+    // Bookmark test
+    int marked = 0;
+    if (splitter->content) {
+      struct document_text_position out;
+      struct document_text_position in_x_y;
+      in_x_y.type = VISUAL_SEEK_X_Y;
+      in_x_y.clip = 0;
+
+      struct document_text_position in_line_column;
+      in_line_column.type = VISUAL_SEEK_LINE_COLUMN;
+      in_line_column.clip = 0;
+
+      in_x_y.x = in.x;
+      in_x_y.y = in.y;
+      document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
+
+      in_line_column.line = out.line;
+      in_line_column.column = 0;
+      document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+      file_offset_t start = out.offset;
+      in_line_column.column = 100000000;
+      document_text_cursor_position(splitter, &in_line_column, &out, 1, 1);
+      file_offset_t end = out.offset;
+
+      marked = range_tree_marked(file->bookmarks, start, end-start, TIPPSE_INSERTER_MARK);
+    }
+
+    if (marked) {
+      splitter_cursor(screen, splitter, in.x-view->scroll_x, in.y-view->scroll_y);
     }
   }
 
@@ -889,12 +925,13 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   } else if (cp==TIPPSE_KEY_UNDO) {
     document_undo_execute(file, view, file->undos, file->redos);
     while (document_undo_execute(file, view, file->undos, file->redos)) {}
-    seek = 1;
     return;
   } else if (cp==TIPPSE_KEY_REDO) {
     document_undo_execute(file, view, file->redos, file->undos);
     while (document_undo_execute(file, view, file->redos, file->undos)) {}
-    seek = 1;
+    return;
+  } else if (cp==TIPPSE_KEY_BOOKMARK) {
+    document_text_toggle_bookmark(base, splitter, view->offset);
     return;
   } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
@@ -1109,4 +1146,34 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->selection_low = view->selection_end;
     view->selection_high = view->selection_start;
   }
+}
+
+void document_text_toggle_bookmark(struct document* base, struct splitter* splitter, file_offset_t offset) {
+  struct document_text* document = (struct document_text*)base;
+  struct document_file* file = splitter->file;
+  struct document_view* view = &splitter->view;
+
+  struct document_text_position out;
+  struct document_text_position in_offset;
+  in_offset.type = VISUAL_SEEK_OFFSET;
+  in_offset.clip = 0;
+
+  struct document_text_position in_line_column;
+  in_line_column.type = VISUAL_SEEK_LINE_COLUMN;
+  in_line_column.clip = 0;
+
+  in_offset.offset = view->offset;
+  document_text_cursor_position(splitter, &in_offset, &out, 0, 1);
+
+  in_line_column.line = out.line;
+  in_line_column.column = 0;
+  document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+  file_offset_t start = out.offset;
+  in_line_column.column = 100000000;
+  document_text_cursor_position(splitter, &in_line_column, &out, 1, 1);
+  file_offset_t end = out.offset;
+
+  int marked = range_tree_marked(file->bookmarks, start, end-start, TIPPSE_INSERTER_MARK);
+  file->bookmarks = range_tree_mark(file->bookmarks, start, end-start, marked?0:TIPPSE_INSERTER_MARK);
+  // range_tree_print(file->bookmarks, 0, 0);
 }

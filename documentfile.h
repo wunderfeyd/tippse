@@ -59,6 +59,7 @@ struct document_file_type {
 
 struct document_file {
   struct range_tree_node* buffer;
+  struct range_tree_node* bookmarks;
   struct list* undos;
   struct list* redos;
   struct file_type* type;

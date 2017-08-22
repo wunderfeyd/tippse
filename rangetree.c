@@ -10,7 +10,7 @@ void range_tree_print(struct range_tree_node* node, int depth, int side) {
     tab--;
   }
 
-  printf("%d %5d %5d %s(%p-%p) %5d %5d (%p) [0](%p) [1](%p) [P](%p) [U](%p) [d](%p) %d %d %d ", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->side[0], node->side[1], node->parent, node->next, node->prev, (int)node->visuals.ys, (int)node->visuals.xs, (int)node->visuals.dirty);
+  printf("%d %5d %5d %s(%p-%p) %5d %5d (%p) [0](%p) [1](%p) [P](%p) [U](%p) [d](%p) %d %d %d %d", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->side[0], node->side[1], node->parent, node->next, node->prev, (int)node->visuals.ys, (int)node->visuals.xs, (int)node->visuals.dirty, (int)node->inserter);
   printf("\r\n");
   if (node->side[0]) {
     range_tree_print(node->side[0], depth+1, 0);
@@ -844,12 +844,17 @@ struct range_tree_node* range_tree_reduce(struct range_tree_node* root, file_off
 
 // Split node into upper and lower parts (TODO: Reuse me in other functions doing the same)
 struct range_tree_node* range_tree_split(struct range_tree_node* root, struct range_tree_node** node, file_offset_t split) {
-  if (*node && split!=0 && split<(*node)->length) {
+  if (*node && split>0 && split<(*node)->length) {
     struct range_tree_node* build1 = range_tree_create(NULL, NULL, NULL, (*node)->buffer, (*node)->offset+split, (*node)->length-split, (*node)->inserter);
     struct range_tree_node* build0 = range_tree_create((*node)->parent, *node, build1, NULL, 0, 0, 0);
+    (*node)->length = split;
 
     build1->parent = build0;
     (*node)->parent = build0;
+
+    if ((*node)->next) {
+      (*node)->next->prev = build1;
+    }
 
     build1->next = (*node)->next;
     (*node)->next = build1;
@@ -871,24 +876,64 @@ struct range_tree_node* range_tree_mark(struct range_tree_node* root, file_offse
   }
 
   file_offset_t split = 0;
+
   struct range_tree_node* first = range_tree_find_offset(root, offset, &split);
   struct range_tree_node* before = range_tree_prev(first);
   if (!before) {
     before = first;
   }
 
-  range_tree_split(root, &first, split);
+  root = range_tree_split(root, &first, split);
 
   struct range_tree_node* last = range_tree_find_offset(root, offset+length, &split);
   struct range_tree_node* after = last;
-  range_tree_split(root, &after, split);
+  root = range_tree_split(root, &after, split);
 
-  while (first!=last) {
+  while (1) {
     first->inserter = inserter|TIPPSE_INSERTER_LEAF;
+    root = range_tree_update(first);
+    if (first==last) {
+      break;
+    }
+
     first = range_tree_next(first);
+    if (first==last) {
+      break;
+    }
   }
 
-  root = range_tree_fuse(root, before, after);
+  return range_tree_fuse(root, before, after);
+}
 
-  return root;
+// Check for marked attribute
+int range_tree_marked(struct range_tree_node* node, file_offset_t offset, file_offset_t length, int inserter) {
+  if (!node) {
+    return 0;
+  }
+
+  if (length>node->length) {
+    length = node->length;
+  }
+
+  if ((node->inserter&TIPPSE_INSERTER_LEAF) || (offset==0 && node->length==length)) {
+    return (node->inserter&inserter)?1:0;
+  }
+
+  int marked = 0;
+  file_offset_t length0 = (node->side[0]->length>offset)?node->side[0]->length-offset:0;
+  if (length0>length) {
+    length0 = length;
+  }
+
+  file_offset_t length1 = length-length0;
+
+  if (length0>0) {
+    marked |= range_tree_marked(node->side[0], offset, length0, inserter);
+  }
+
+  if (length1>0) {
+    marked |= range_tree_marked(node->side[1], offset-node->side[0]->length, length1, inserter);
+  }
+
+  return marked;
 }
