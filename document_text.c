@@ -119,7 +119,7 @@ void document_text_render_clear(struct document_text_render_info* render_info, i
   memset(render_info, 0, sizeof(struct document_text_render_info));
   render_info->buffer = NULL;
   render_info->width = width;
-  render_info->offset = ~0;
+  render_info->offset = 0;
 }
 
 // Update renderer state to restart at the given position or to continue if possible
@@ -215,7 +215,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
   // TODO: Following initializations shouldn't be needed since the caller should check the type / verify
   if (out) {
     out->type = VISUAL_SEEK_NONE;
-    out->offset = ~0;
+    out->offset = 0;
     out->x_min = 0;
     out->x_max = 0;
     out->y_drawn = 0;
@@ -1022,8 +1022,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     seek = 1;
   } else if (cp==TIPPSE_KEY_UNTAB) {
     document_undo_chain(file);
-    if (view->selection_low==~0) {
-    } else {
+    if (view->selection_low!=~0) {
       struct document_text_position out_start;
       struct document_text_position out_end;
 
@@ -1074,8 +1073,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     seek = 1;
   } else if (cp==TIPPSE_KEY_COPY || cp==TIPPSE_KEY_CUT) {
     document_undo_chain(file);
-    if (view->selection_low==~0) {
-    } else {
+    if (view->selection_low!=~0) {
       clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low));
       if (cp==TIPPSE_KEY_CUT) {
         document_file_delete_selection(splitter->file, &splitter->view);
@@ -1092,6 +1090,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     if (clipboard_get()) {
       document_file_insert_buffer(splitter->file, view->offset, clipboard_get());
     }
+
     document_undo_chain(file);
     reset_selection = 1;
     seek = 1;
