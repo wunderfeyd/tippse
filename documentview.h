@@ -27,6 +27,7 @@ struct document_view {
   int showall;
   int wrapping;
   int continuous;
+  int line_select;
 };
 
 #include "documentfile.h"

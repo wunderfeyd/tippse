@@ -61,6 +61,8 @@ struct splitter;
 #define TIPPSE_KEY_VIEW_TEXT -33
 #define TIPPSE_KEY_VIEW_RAW -34
 #define TIPPSE_KEY_BOOKMARK -35
+#define TIPPSE_KEY_WORDWRAP -36
+#define TIPPSE_KEY_DOCUMENTSELECTION -37
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -80,6 +82,6 @@ struct document {
 
 int document_compare(struct range_tree_node* left, file_offset_t displacement_left, struct range_tree_node* right_root, file_offset_t length);
 void document_search(struct splitter* splitter, struct range_tree_node* text, file_offset_t length, int forward);
-void document_directory(struct splitter* splitter);
+void document_directory(struct document_file* file);
 
 #endif /* #ifndef __TIPPSE_DOCUMENT__ */

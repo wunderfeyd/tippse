@@ -2,11 +2,7 @@
 
 #include "document_text.h"
 
-str
-uct d
-
-
-ocument* document_text_create() {
+struct document* document_text_create() {
   struct document_text* document = (struct document_text*)malloc(sizeof(struct document_text));
   document->keep_status = 0;
   document->show_scrollbar = 0;
@@ -836,10 +832,11 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     if (view->selection_start==~0) {
       view->selection_start = view->offset;
     }
+
     reset_selection = 0;
   }
 
-  if ((cp!=TIPPSE_KEY_UP && cp!=TIPPSE_KEY_DOWN && cp!=TIPPSE_KEY_PAGEDOWN && cp!=TIPPSE_KEY_PAGEUP) || (modifier&TIPPSE_KEY_MOD_SHIFT)) {
+  if (cp!=TIPPSE_KEY_UP && cp!=TIPPSE_KEY_DOWN && cp!=TIPPSE_KEY_PAGEDOWN && cp!=TIPPSE_KEY_PAGEUP) {
     in_offset.offset = view->offset;
     document_text_cursor_position(splitter, &in_offset, &out, 1, 1);
     view->cursor_x = out.x;
@@ -1145,6 +1142,22 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   } else {
     view->selection_low = view->selection_end;
     view->selection_high = view->selection_start;
+  }
+
+  if (view->line_select) {
+    in_offset.offset = view->offset;
+    in_offset.clip = 0;
+
+    in_offset.offset = view->offset;
+    document_text_cursor_position(splitter, &in_offset, &out, 0, 1);
+
+    in_line_column.line = out.line;
+    in_line_column.column = 0;
+    document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    view->selection_low = view->selection_start = out.offset;
+    in_line_column.column = 100000000;
+    document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    view->selection_high = view->selection_end = out.offset;
   }
 }
 
