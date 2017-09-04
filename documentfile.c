@@ -33,6 +33,7 @@ struct document_file* document_file_create(int save) {
   file->tabstop_width = 4;
   file->newline = TIPPSE_NEWLINE_AUTO;
   file->config = config_create();
+  file->view = document_view_create();
   return file;
 }
 
@@ -40,6 +41,11 @@ void document_file_clear(struct document_file* file) {
   if (file->buffer) {
     range_tree_destroy(file->buffer);
     file->buffer = NULL;
+  }
+
+  if (file->bookmarks) {
+    range_tree_destroy(file->bookmarks);
+    file->bookmarks = NULL;
   }
 
   config_clear(file->config);
@@ -56,6 +62,7 @@ void document_file_destroy(struct document_file* file) {
   (*file->type->destroy)(file->type);
   (*file->encoding->destroy)(file->encoding);
   config_destroy(file->config);
+  document_view_destroy(file->view);
   free(file);
 }
 
@@ -133,6 +140,7 @@ void document_file_load(struct document_file* file, const char* filename) {
   file->modified = 0;
   document_file_detect_properties(file);
   file->bookmarks = range_tree_static(file->bookmarks, file->buffer?file->buffer->length:0, 0);
+  document_view_reset(file->view, file);
 }
 
 void document_file_load_memory(struct document_file* file, const uint8_t* buffer, size_t length) {
@@ -151,6 +159,8 @@ void document_file_load_memory(struct document_file* file, const uint8_t* buffer
   document_file_name(file, "<memory>");
   file->modified = 0;
   document_file_detect_properties(file);
+  file->bookmarks = range_tree_static(file->bookmarks, file->buffer?file->buffer->length:0, 0);
+  document_view_reset(file->view, file);
 }
 
 // Save file directly to file
@@ -424,6 +434,18 @@ int document_file_delete_selection(struct document_file* file, struct document_v
   view->selection_low = ~0;
   view->selection_high = ~0;
   return 1;
+}
+
+void document_file_manualchange(struct document_file* file) {
+  file->bookmarks = range_tree_static(file->bookmarks, file->buffer?file->buffer->length:0, 0);
+
+  struct list_node* views = file->views->first;
+  while (views) {
+    struct document_view* view = (struct document_view*)views->object;
+    document_view_filechange(view, file);
+
+    views = views->next;
+  }
 }
 
 void document_file_reload_config(struct document_file* file) {

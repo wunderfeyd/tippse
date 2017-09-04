@@ -12,7 +12,7 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
   splitter->document_text = NULL;
   splitter->document_raw = NULL;
   splitter->document = NULL;
-  splitter->view.selection = NULL; // TODO: create function for documentview
+  splitter->view = document_view_create();
 
   if (!side0 || !side1) {
     splitter->side[0] = NULL;
@@ -41,6 +41,7 @@ void splitter_destroy(struct splitter* splitter) {
   }
 
   splitter_unassign_document_file(splitter);
+  document_view_destroy(splitter->view);
   document_text_destroy(splitter->document_text);
   document_raw_destroy(splitter->document_raw);
 
@@ -115,12 +116,16 @@ void splitter_unassign_document_file(struct splitter* splitter) {
 
   struct list_node* view = splitter->file->views->first;
   while (view) {
-    if ((struct document_view*)view->object==&splitter->view) {
+    if ((struct document_view*)view->object==splitter->view) {
       list_remove(splitter->file->views, view);
       break;
     }
 
     view = view->next;
+  }
+
+  if (!splitter->file->views->first) {
+    document_view_clone(splitter->file->view, splitter->view, splitter->file);
   }
 
   splitter->file = NULL;
@@ -136,9 +141,14 @@ void splitter_assign_document_file(struct splitter* splitter, struct document_fi
   splitter->file = file;
   document_file_reload_config(file);
   splitter->content = content;
-  list_insert(splitter->file->views, NULL, &splitter->view);
+  if (splitter->file->views->first) {
+    document_view_clone(splitter->view, (struct document_view*)splitter->file->views->first->object, splitter->file);
+  } else {
+    document_view_clone(splitter->view, splitter->file->view, splitter->file);
+  }
 
-  document_view_reset(&splitter->view, splitter->file);
+  list_insert(splitter->file->views, NULL, splitter->view);
+
   (*splitter->document_text->reset)(splitter->document, splitter);
   (*splitter->document_raw->reset)(splitter->document, splitter);
 }

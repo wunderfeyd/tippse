@@ -104,7 +104,7 @@ char* combine_path_file(const char* path, const char* file) {
 
 char* correct_path(const char* path) {
   size_t path_length = strlen(path);
-  char* real = malloc(sizeof(char)*(path_length+1));
+  char* real = malloc(sizeof(char)*(path_length+2));
   char* combined = real;
 
   int directories = 0;

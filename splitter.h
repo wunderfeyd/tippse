@@ -36,7 +36,7 @@ struct splitter {
   int content;
 
   struct document_file* file;
-  struct document_view view;
+  struct document_view* view;
 
   struct document* document;
   struct document* document_text;

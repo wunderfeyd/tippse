@@ -28,6 +28,7 @@ struct document_file;
 #include "list.h"
 #include "rangetree.h"
 #include "documentundo.h"
+#include "documentview.h"
 #include "filetype.h"
 #include "filetype/c.h"
 #include "filetype/cpp.h"
@@ -74,6 +75,7 @@ struct document_file {
   int save;
 
   struct document_file_defaults defaults;
+  struct document_view* view;
   struct list* views;
 };
 
@@ -97,5 +99,6 @@ void document_file_insert_buffer(struct document_file* file, file_offset_t offse
 void document_file_reduce(file_offset_t* pos, file_offset_t offset, file_offset_t length);
 void document_file_delete(struct document_file* file, file_offset_t offset, file_offset_t length);
 int document_file_delete_selection(struct document_file* file, struct document_view* view);
+void document_file_manualchange(struct document_file* file);
 
 #endif /* #ifndef __TIPPSE_DOCUMENTFILE__ */

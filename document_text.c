@@ -21,7 +21,7 @@ void document_text_destroy(struct document* base) {
 // Called after a new document was assigned
 void document_text_reset(struct document* base, struct splitter* splitter) {
   struct document_file* file = splitter->file;
-  struct document_view* view = &splitter->view;
+  struct document_view* view = splitter->view;
 
   if (file->buffer) {
     struct range_tree_node* node = range_tree_first(file->buffer);
@@ -42,7 +42,7 @@ void document_text_reset(struct document* base, struct splitter* splitter) {
 // Goto specified location, apply cursor clipping/wrapping and render dirty pages as necessary
 file_offset_t document_text_cursor_position(struct splitter* splitter, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel) {
   struct document_file* file = splitter->file;
-  struct document_view* view = &splitter->view;
+  struct document_view* view = splitter->view;
 
   struct document_text_render_info render_info;
 
@@ -618,7 +618,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 // Find next dirty pages and rerender them (background task)
 int document_text_incremental_update(struct document* base, struct splitter* splitter) {
   struct document_file* file = splitter->file;
-  struct document_view* view = &splitter->view;
+  struct document_view* view = splitter->view;
 
   struct document_text_position in;
   in.type = VISUAL_SEEK_OFFSET;
@@ -637,7 +637,7 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
 void document_text_draw(struct document* base, struct screen* screen, struct splitter* splitter) {
   struct document_text* document = (struct document_text*)base;
   struct document_file* file = splitter->file;
-  struct document_view* view = &splitter->view;
+  struct document_view* view = splitter->view;
 
   if (splitter->content && file->buffer) {
     if (file->buffer->length!=view->selection->length) {
@@ -809,7 +809,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 void document_text_keypress(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y) {
   struct document_text* document = (struct document_text*)base;
   struct document_file* file = splitter->file;
-  struct document_view* view = &splitter->view;
+  struct document_view* view = splitter->view;
 
   struct document_text_position out;
   struct document_text_position in_offset;
@@ -845,6 +845,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 
   in_x_y.x = view->cursor_x;
   in_x_y.y = view->cursor_y;
+
   if (cp==TIPPSE_KEY_UP) {
     in_x_y.y--;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
@@ -882,17 +883,19 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->cursor_y = out.y;
     document->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_BACKSPACE) {
-    if (!document_file_delete_selection(splitter->file, &splitter->view)) {
+    if (!document_file_delete_selection(splitter->file, splitter->view)) {
       in_x_y.x--;
       file_offset_t start = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
       document_file_delete(splitter->file, start, view->offset-start);
     }
     seek = 1;
   } else if (cp==TIPPSE_KEY_DELETE) {
-    if (!document_file_delete_selection(splitter->file, &splitter->view)) {
+    if (!document_file_delete_selection(splitter->file, splitter->view)) {
       in_x_y.x++;
       file_offset_t end = document_text_cursor_position(splitter, &in_x_y, &out, 1, 0);
-      document_file_delete(splitter->file, view->offset, end-view->offset);
+      if (end>view->offset) { // TODO: this line shouldn't be needed (hold down delete some linesbefore the end of a document and an invalid size will pop up, invalidation seems wrong)
+        document_file_delete(splitter->file, view->offset, end-view->offset);
+      }
     }
     seek = 1;
   } else if (cp==TIPPSE_KEY_FIRST) {
@@ -1076,7 +1079,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     if (view->selection_low!=~0) {
       clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low));
       if (cp==TIPPSE_KEY_CUT) {
-        document_file_delete_selection(splitter->file, &splitter->view);
+        document_file_delete_selection(splitter->file, splitter->view);
         reset_selection = 1;
       } else {
         reset_selection = 0;
@@ -1086,7 +1089,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     seek = 1;
   } else if (cp==TIPPSE_KEY_PASTE || cp==TIPPSE_KEY_BRACKET_PASTE_START) {
     document_undo_chain(file);
-    document_file_delete_selection(splitter->file, &splitter->view);
+    document_file_delete_selection(splitter->file, splitter->view);
     if (clipboard_get()) {
       document_file_insert_buffer(splitter->file, view->offset, clipboard_get());
     }
@@ -1095,7 +1098,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     reset_selection = 1;
     seek = 1;
   } else if (cp>=0) {
-    document_file_delete_selection(splitter->file, &splitter->view);
+    document_file_delete_selection(splitter->file, splitter->view);
     uint8_t utf8[8];
     size_t size;
     if (cp=='\n') {
@@ -1163,7 +1166,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 void document_text_toggle_bookmark(struct document* base, struct splitter* splitter, file_offset_t offset) {
   struct document_text* document = (struct document_text*)base;
   struct document_file* file = splitter->file;
-  struct document_view* view = &splitter->view;
+  struct document_view* view = splitter->view;
 
   struct document_text_position out;
   struct document_text_position in_offset;
