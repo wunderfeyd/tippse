@@ -137,8 +137,7 @@ void document_search(struct splitter* splitter, struct range_tree_node* text, fi
   splitter_status(splitter, "Not found!", 1);
 }
 
-void document_directory(struct splitter* splitter) {
-  struct document_file* file = splitter->file;
+void document_directory(struct document_file* file) {
   DIR* directory = opendir(file->filename);
   if (directory) {
     struct list* files = list_create();

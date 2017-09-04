@@ -71,6 +71,7 @@ uint8_t* range_tree_raw(struct range_tree_node* root, file_offset_t start, file_
 
 struct range_tree_node* range_tree_split(struct range_tree_node* root, struct range_tree_node** node, file_offset_t split);
 struct range_tree_node* range_tree_mark(struct range_tree_node* root, file_offset_t offset, file_offset_t length, int inserter);
+int range_tree_marked(struct range_tree_node* node, file_offset_t offset, file_offset_t length, int inserter);
 struct range_tree_node* range_tree_static(struct range_tree_node* root, file_offset_t length, int inserter);
 struct range_tree_node* range_tree_expand(struct range_tree_node* root, file_offset_t offset, file_offset_t length);
 struct range_tree_node* range_tree_reduce(struct range_tree_node* root, file_offset_t offset, file_offset_t length);

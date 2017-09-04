@@ -14,5 +14,6 @@ Ctrl+Q: Close text editor
 Ctrl+S: Save files  
 Ctrl+F: Search  
 Ctrl+B: File browser  
+Ctrl+D: Document selection  
  
 More to come...

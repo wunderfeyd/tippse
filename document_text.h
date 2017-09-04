@@ -87,6 +87,8 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
 void document_text_draw(struct document* base, struct screen* screen, struct splitter* splitter);
 void document_text_keypress(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y);
 
+void document_text_toggle_bookmark(struct document* base, struct splitter* splitter, file_offset_t offset);
+
 void document_text_render_clear(struct document_text_render_info* render_info, int width);
 void document_text_render_seek(struct document_text_render_info* render_info, struct range_tree_node* buffer, struct encoding* encoding, struct document_text_position* in);
 int document_text_render_lookahead_word_wrap(struct document_file* file, struct encoding_cache* cache, int max);

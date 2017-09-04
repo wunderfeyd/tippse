@@ -17,5 +17,6 @@ void document_view_reset(struct document_view* view, struct document_file* file)
   view->wrapping = file->defaults.wrapping;
   view->showall = file->defaults.showall;
   view->continuous = file->defaults.continuous;
+  view->line_select = 0;
   view->selection = range_tree_static(view->selection, file->buffer?file->buffer->length:0, 0);
 }

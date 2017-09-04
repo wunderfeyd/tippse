@@ -119,7 +119,7 @@ void document_text_render_clear(struct document_text_render_info* render_info, i
   memset(render_info, 0, sizeof(struct document_text_render_info));
   render_info->buffer = NULL;
   render_info->width = width;
-  render_info->offset = ~0;
+  render_info->offset = 0;
 }
 
 // Update renderer state to restart at the given position or to continue if possible
@@ -215,7 +215,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
   // TODO: Following initializations shouldn't be needed since the caller should check the type / verify
   if (out) {
     out->type = VISUAL_SEEK_NONE;
-    out->offset = ~0;
+    out->offset = 0;
     out->x_min = 0;
     out->x_max = 0;
     out->y_drawn = 0;
@@ -604,8 +604,9 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       render_info->visual_detail &= ~VISUAL_INFO_WHITESPACED_COMPLETE;
     }
 
-    if (in->clip) {
-      if (render_info->y_view>render_info->y || (render_info->y_view==render_info->y && render_info->x-view->scroll_x>render_info->width)) {
+    if (in->clip && render_info->buffer) {
+      // TODO: render_info->buffer->visuals.ys==render_info->ys is hacked since some lines didn't wrap during rendering (which is wrong anyway, retest if span render buffer is available)
+      if ((render_info->y_view>render_info->y && render_info->buffer->visuals.ys==render_info->ys) || (render_info->y_view==render_info->y && render_info->x-view->scroll_x>render_info->width)) {
         stop = 1;
       }
     }
@@ -721,6 +722,37 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
         break;
       }
     }
+
+    // Bookmark test
+    int marked = 0;
+    if (splitter->content) {
+      struct document_text_position out;
+      struct document_text_position in_x_y;
+      in_x_y.type = VISUAL_SEEK_X_Y;
+      in_x_y.clip = 0;
+
+      struct document_text_position in_line_column;
+      in_line_column.type = VISUAL_SEEK_LINE_COLUMN;
+      in_line_column.clip = 0;
+
+      in_x_y.x = in.x;
+      in_x_y.y = in.y;
+      document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
+
+      in_line_column.line = out.line;
+      in_line_column.column = 0;
+      document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+      file_offset_t start = out.offset;
+      in_line_column.column = 100000000;
+      document_text_cursor_position(splitter, &in_line_column, &out, 1, 1);
+      file_offset_t end = out.offset;
+
+      marked = range_tree_marked(file->bookmarks, start, end-start, TIPPSE_INSERTER_MARK);
+    }
+
+    if (marked) {
+      splitter_cursor(screen, splitter, in.x-view->scroll_x, in.y-view->scroll_y);
+    }
   }
 
   if (!screen) {
@@ -800,10 +832,11 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     if (view->selection_start==~0) {
       view->selection_start = view->offset;
     }
+
     reset_selection = 0;
   }
 
-  if ((cp!=TIPPSE_KEY_UP && cp!=TIPPSE_KEY_DOWN && cp!=TIPPSE_KEY_PAGEDOWN && cp!=TIPPSE_KEY_PAGEUP) || (modifier&TIPPSE_KEY_MOD_SHIFT)) {
+  if (cp!=TIPPSE_KEY_UP && cp!=TIPPSE_KEY_DOWN && cp!=TIPPSE_KEY_PAGEDOWN && cp!=TIPPSE_KEY_PAGEUP) {
     in_offset.offset = view->offset;
     document_text_cursor_position(splitter, &in_offset, &out, 1, 1);
     view->cursor_x = out.x;
@@ -889,12 +922,13 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   } else if (cp==TIPPSE_KEY_UNDO) {
     document_undo_execute(file, view, file->undos, file->redos);
     while (document_undo_execute(file, view, file->undos, file->redos)) {}
-    seek = 1;
     return;
   } else if (cp==TIPPSE_KEY_REDO) {
     document_undo_execute(file, view, file->redos, file->undos);
     while (document_undo_execute(file, view, file->redos, file->undos)) {}
-    seek = 1;
+    return;
+  } else if (cp==TIPPSE_KEY_BOOKMARK) {
+    document_text_toggle_bookmark(base, splitter, view->offset);
     return;
   } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
@@ -988,8 +1022,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     seek = 1;
   } else if (cp==TIPPSE_KEY_UNTAB) {
     document_undo_chain(file);
-    if (view->selection_low==~0) {
-    } else {
+    if (view->selection_low!=~0) {
       struct document_text_position out_start;
       struct document_text_position out_end;
 
@@ -1040,8 +1073,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     seek = 1;
   } else if (cp==TIPPSE_KEY_COPY || cp==TIPPSE_KEY_CUT) {
     document_undo_chain(file);
-    if (view->selection_low==~0) {
-    } else {
+    if (view->selection_low!=~0) {
       clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low));
       if (cp==TIPPSE_KEY_CUT) {
         document_file_delete_selection(splitter->file, &splitter->view);
@@ -1058,6 +1090,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     if (clipboard_get()) {
       document_file_insert_buffer(splitter->file, view->offset, clipboard_get());
     }
+
     document_undo_chain(file);
     reset_selection = 1;
     seek = 1;
@@ -1109,4 +1142,50 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->selection_low = view->selection_end;
     view->selection_high = view->selection_start;
   }
+
+  if (view->line_select) {
+    in_offset.offset = view->offset;
+    in_offset.clip = 0;
+
+    in_offset.offset = view->offset;
+    document_text_cursor_position(splitter, &in_offset, &out, 0, 1);
+
+    in_line_column.line = out.line;
+    in_line_column.column = 0;
+    document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    view->selection_low = view->selection_start = out.offset;
+    in_line_column.column = 100000000;
+    document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    view->selection_high = view->selection_end = out.offset;
+  }
+}
+
+void document_text_toggle_bookmark(struct document* base, struct splitter* splitter, file_offset_t offset) {
+  struct document_text* document = (struct document_text*)base;
+  struct document_file* file = splitter->file;
+  struct document_view* view = &splitter->view;
+
+  struct document_text_position out;
+  struct document_text_position in_offset;
+  in_offset.type = VISUAL_SEEK_OFFSET;
+  in_offset.clip = 0;
+
+  struct document_text_position in_line_column;
+  in_line_column.type = VISUAL_SEEK_LINE_COLUMN;
+  in_line_column.clip = 0;
+
+  in_offset.offset = view->offset;
+  document_text_cursor_position(splitter, &in_offset, &out, 0, 1);
+
+  in_line_column.line = out.line;
+  in_line_column.column = 0;
+  document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+  file_offset_t start = out.offset;
+  in_line_column.column = 100000000;
+  document_text_cursor_position(splitter, &in_line_column, &out, 1, 1);
+  file_offset_t end = out.offset;
+
+  int marked = range_tree_marked(file->bookmarks, start, end-start, TIPPSE_INSERTER_MARK);
+  file->bookmarks = range_tree_mark(file->bookmarks, start, end-start, marked?0:TIPPSE_INSERTER_MARK);
+  // range_tree_print(file->bookmarks, 0, 0);
 }
