@@ -397,13 +397,12 @@ int main(int argc, const char** argv) {
               }
             } else if (ansi_keys[pos].cp==TIPPSE_KEY_NEW_VERT_TAB) {
               struct splitter* parent = document->parent;
-              struct splitter* split = document;
-              document = splitter_create(0, 0, NULL, NULL, "Document");
+              struct splitter* split = splitter_create(0, 0, NULL, NULL, "Document");
 
-              splitter_assign_document_file(document, split->file, split->content);
+              splitter_assign_document_file(split, document->file, document->content);
 
-              struct splitter* splitter = splitter_create(TIPPSE_SPLITTER_HORZ, 50, split, document, "");
-              if (parent->side[0]==split) {
+              struct splitter* splitter = splitter_create(TIPPSE_SPLITTER_HORZ, 50, document, split, "");
+              if (parent->side[0]==document) {
                 parent->side[0] = splitter;
               } else {
                 parent->side[1] = splitter;

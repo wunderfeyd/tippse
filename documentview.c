@@ -28,6 +28,7 @@ void document_view_reset(struct document_view* view, struct document_file* file)
   view->selection_end = ~0;
   view->selection_low = ~0;
   view->selection_high = ~0;
+  view->line_select = 0;
   document_view_filechange(view, file);
 }
 
@@ -42,7 +43,6 @@ void document_view_clone(struct document_view* dst, struct document_view* src, s
 }
 
 void document_view_filechange(struct document_view* view, struct document_file* file) {
-  view->line_select = 0;
   view->wrapping = file->defaults.wrapping;
   view->showall = file->defaults.showall;
   view->continuous = file->defaults.continuous;

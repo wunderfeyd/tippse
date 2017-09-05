@@ -211,6 +211,7 @@ int document_text_render_lookahead_word_wrap(struct document_file* file, struct 
 }
 
 // Render some pages until the position is found or pages are no longer dirty
+// TODO: find better visualization for debugging, find unnecessary render iterations and then optimize (as soon the code is "feature complete")
 int document_text_render_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
   // TODO: Following initializations shouldn't be needed since the caller should check the type / verify
   if (out) {
@@ -279,8 +280,8 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         if (render_info->buffer->visuals.dirty) {
           if (dirty_pages!=~0) {
             dirty_pages--;
-            if (dirty_pages==0) {
-              stop = 1;
+            if (dirty_pages==0 && stop==0) {
+              stop = 2;
             }
           }
 
@@ -291,7 +292,9 @@ int document_text_render_span(struct document_text_render_info* render_info, str
           }
         }
       } else {
-        stop = 1;
+        if (stop==0) {
+          stop = 2;
+        }
       }
 
       render_info->indentations = 0;
@@ -352,7 +355,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       drawn = (render_info->offset>=in->offset)?(4|2|1):1;
     }
 
-    if (out) {
+    if (out && stop!=1) {
       out->y_drawn |= (drawn&1);
 
       if (!(drawn&1) && out->y_drawn) {
@@ -893,9 +896,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     if (!document_file_delete_selection(splitter->file, splitter->view)) {
       in_x_y.x++;
       file_offset_t end = document_text_cursor_position(splitter, &in_x_y, &out, 1, 0);
-      if (end>view->offset) { // TODO: this line shouldn't be needed (hold down delete some linesbefore the end of a document and an invalid size will pop up, invalidation seems wrong)
-        document_file_delete(splitter->file, view->offset, end-view->offset);
-      }
+      document_file_delete(splitter->file, view->offset, end-view->offset);
     }
     seek = 1;
   } else if (cp==TIPPSE_KEY_FIRST) {
