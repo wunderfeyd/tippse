@@ -217,6 +217,8 @@ int document_text_render_span(struct document_text_render_info* render_info, str
   if (out) {
     out->type = VISUAL_SEEK_NONE;
     out->offset = 0;
+    out->x = 0;
+    out->y = 0;
     out->x_min = 0;
     out->x_max = 0;
     out->y_drawn = 0;
@@ -365,7 +367,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       if (drawn&1) {
         if (in->type==VISUAL_SEEK_X_Y) {
           out->x_max = render_info->x;
-          out->x_min = render_info->indentation+render_info->indentation_extra;
+          out->x_min = (render_info->visual_detail&VISUAL_INFO_WRAPPED)?render_info->indentation+render_info->indentation_extra:0;
         } else if (in->type==VISUAL_SEEK_LINE_COLUMN) {
           out->x_max = render_info->column;
           out->x_min = 0;
@@ -582,6 +584,8 @@ int document_text_render_span(struct document_text_render_info* render_info, str
           render_info->indentations_extra = file->tabstop_width;
           render_info->indentation_extra = file->tabstop_width;
         }
+
+        render_info->visual_detail |= VISUAL_INFO_WRAPPED;
       }
 
       render_info->ys++;
@@ -594,6 +598,8 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       if (render_info->visual_detail&VISUAL_INFO_WHITESPACED_COMPLETE) {
         render_info->visual_detail |= VISUAL_INFO_WHITESPACED_START;
       }
+
+      render_info->visual_detail &= ~VISUAL_INFO_WRAPPED;
 
       render_info->whitespaced = 0;
 
@@ -980,8 +986,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
         utf8[0] = '\t';
       }
 
-      file_offset_t offset = view->offset;
-      document_file_insert(splitter->file, offset, &utf8[0], size);
+      document_file_insert(splitter->file, view->offset, &utf8[0], size);
     } else {
       struct document_text_position out_start;
       struct document_text_position out_end;
