@@ -21,7 +21,7 @@ void document_text_destroy(struct document* base) {
 // Called after a new document was assigned
 void document_text_reset(struct document* base, struct splitter* splitter) {
   struct document_file* file = splitter->file;
-  struct document_view* view = &splitter->view;
+  struct document_view* view = splitter->view;
 
   if (file->buffer) {
     struct range_tree_node* node = range_tree_first(file->buffer);
@@ -42,7 +42,7 @@ void document_text_reset(struct document* base, struct splitter* splitter) {
 // Goto specified location, apply cursor clipping/wrapping and render dirty pages as necessary
 file_offset_t document_text_cursor_position(struct splitter* splitter, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel) {
   struct document_file* file = splitter->file;
-  struct document_view* view = &splitter->view;
+  struct document_view* view = splitter->view;
 
   struct document_text_render_info render_info;
 
@@ -211,11 +211,14 @@ int document_text_render_lookahead_word_wrap(struct document_file* file, struct 
 }
 
 // Render some pages until the position is found or pages are no longer dirty
+// TODO: find better visualization for debugging, find unnecessary render iterations and then optimize (as soon the code is "feature complete")
 int document_text_render_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
   // TODO: Following initializations shouldn't be needed since the caller should check the type / verify
   if (out) {
     out->type = VISUAL_SEEK_NONE;
     out->offset = 0;
+    out->x = 0;
+    out->y = 0;
     out->x_min = 0;
     out->x_max = 0;
     out->y_drawn = 0;
@@ -279,8 +282,8 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         if (render_info->buffer->visuals.dirty) {
           if (dirty_pages!=~0) {
             dirty_pages--;
-            if (dirty_pages==0) {
-              stop = 1;
+            if (dirty_pages==0 && stop==0) {
+              stop = 2;
             }
           }
 
@@ -291,7 +294,9 @@ int document_text_render_span(struct document_text_render_info* render_info, str
           }
         }
       } else {
-        stop = 1;
+        if (stop==0) {
+          stop = 2;
+        }
       }
 
       render_info->indentations = 0;
@@ -352,7 +357,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       drawn = (render_info->offset>=in->offset)?(4|2|1):1;
     }
 
-    if (out) {
+    if (out && stop!=1) {
       out->y_drawn |= (drawn&1);
 
       if (!(drawn&1) && out->y_drawn) {
@@ -362,7 +367,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       if (drawn&1) {
         if (in->type==VISUAL_SEEK_X_Y) {
           out->x_max = render_info->x;
-          out->x_min = render_info->indentation+render_info->indentation_extra;
+          out->x_min = (render_info->visual_detail&VISUAL_INFO_WRAPPED)?render_info->indentation+render_info->indentation_extra:0;
         } else if (in->type==VISUAL_SEEK_LINE_COLUMN) {
           out->x_max = render_info->column;
           out->x_min = 0;
@@ -579,6 +584,8 @@ int document_text_render_span(struct document_text_render_info* render_info, str
           render_info->indentations_extra = file->tabstop_width;
           render_info->indentation_extra = file->tabstop_width;
         }
+
+        render_info->visual_detail |= VISUAL_INFO_WRAPPED;
       }
 
       render_info->ys++;
@@ -591,6 +598,8 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       if (render_info->visual_detail&VISUAL_INFO_WHITESPACED_COMPLETE) {
         render_info->visual_detail |= VISUAL_INFO_WHITESPACED_START;
       }
+
+      render_info->visual_detail &= ~VISUAL_INFO_WRAPPED;
 
       render_info->whitespaced = 0;
 
@@ -618,7 +627,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 // Find next dirty pages and rerender them (background task)
 int document_text_incremental_update(struct document* base, struct splitter* splitter) {
   struct document_file* file = splitter->file;
-  struct document_view* view = &splitter->view;
+  struct document_view* view = splitter->view;
 
   struct document_text_position in;
   in.type = VISUAL_SEEK_OFFSET;
@@ -637,7 +646,7 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
 void document_text_draw(struct document* base, struct screen* screen, struct splitter* splitter) {
   struct document_text* document = (struct document_text*)base;
   struct document_file* file = splitter->file;
-  struct document_view* view = &splitter->view;
+  struct document_view* view = splitter->view;
 
   if (splitter->content && file->buffer) {
     if (file->buffer->length!=view->selection->length) {
@@ -809,7 +818,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 void document_text_keypress(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y) {
   struct document_text* document = (struct document_text*)base;
   struct document_file* file = splitter->file;
-  struct document_view* view = &splitter->view;
+  struct document_view* view = splitter->view;
 
   struct document_text_position out;
   struct document_text_position in_offset;
@@ -845,6 +854,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 
   in_x_y.x = view->cursor_x;
   in_x_y.y = view->cursor_y;
+
   if (cp==TIPPSE_KEY_UP) {
     in_x_y.y--;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
@@ -882,14 +892,14 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->cursor_y = out.y;
     document->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_BACKSPACE) {
-    if (!document_file_delete_selection(splitter->file, &splitter->view)) {
+    if (!document_file_delete_selection(splitter->file, splitter->view)) {
       in_x_y.x--;
       file_offset_t start = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
       document_file_delete(splitter->file, start, view->offset-start);
     }
     seek = 1;
   } else if (cp==TIPPSE_KEY_DELETE) {
-    if (!document_file_delete_selection(splitter->file, &splitter->view)) {
+    if (!document_file_delete_selection(splitter->file, splitter->view)) {
       in_x_y.x++;
       file_offset_t end = document_text_cursor_position(splitter, &in_x_y, &out, 1, 0);
       document_file_delete(splitter->file, view->offset, end-view->offset);
@@ -976,8 +986,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
         utf8[0] = '\t';
       }
 
-      file_offset_t offset = view->offset;
-      document_file_insert(splitter->file, offset, &utf8[0], size);
+      document_file_insert(splitter->file, view->offset, &utf8[0], size);
     } else {
       struct document_text_position out_start;
       struct document_text_position out_end;
@@ -1076,7 +1085,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     if (view->selection_low!=~0) {
       clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low));
       if (cp==TIPPSE_KEY_CUT) {
-        document_file_delete_selection(splitter->file, &splitter->view);
+        document_file_delete_selection(splitter->file, splitter->view);
         reset_selection = 1;
       } else {
         reset_selection = 0;
@@ -1086,7 +1095,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     seek = 1;
   } else if (cp==TIPPSE_KEY_PASTE || cp==TIPPSE_KEY_BRACKET_PASTE_START) {
     document_undo_chain(file);
-    document_file_delete_selection(splitter->file, &splitter->view);
+    document_file_delete_selection(splitter->file, splitter->view);
     if (clipboard_get()) {
       document_file_insert_buffer(splitter->file, view->offset, clipboard_get());
     }
@@ -1095,7 +1104,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     reset_selection = 1;
     seek = 1;
   } else if (cp>=0) {
-    document_file_delete_selection(splitter->file, &splitter->view);
+    document_file_delete_selection(splitter->file, splitter->view);
     uint8_t utf8[8];
     size_t size;
     if (cp=='\n') {
@@ -1163,7 +1172,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 void document_text_toggle_bookmark(struct document* base, struct splitter* splitter, file_offset_t offset) {
   struct document_text* document = (struct document_text*)base;
   struct document_file* file = splitter->file;
-  struct document_view* view = &splitter->view;
+  struct document_view* view = splitter->view;
 
   struct document_text_position out;
   struct document_text_position in_offset;

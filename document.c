@@ -47,7 +47,7 @@ int document_compare(struct range_tree_node* left, file_offset_t displacement_le
 
 void document_search(struct splitter* splitter, struct range_tree_node* text, file_offset_t length, int forward) {
   struct document_file* file = splitter->file;
-  struct document_view* view = &splitter->view;
+  struct document_view* view = splitter->view;
   if (!text || !file->buffer || file->buffer->length==0) {
     ((struct document_text*)splitter->document_text)->keep_status = 1;
     splitter_status(splitter, "No text to search for!", 1);

@@ -117,20 +117,17 @@ int main(int argc, const char** argv) {
 
   struct document_file* tabs_doc = document_file_create(0);
   document_file_name(tabs_doc, "Open");
-/*  struct splitter* tabs = splitter_create(0, 0, NULL, NULL, "Tabs");
-  splitter_assign_document_file(tabs, tabs_doc, 0);
-  tabs->view.line_select = 1;*/
+  tabs_doc->defaults.wrapping = 0;
 
   struct document_file* browser_doc = document_file_create(0);
   document_file_name(browser_doc, base_path);
-/*  struct splitter* browser = splitter_create(0, 0, NULL, NULL, "Browser");
-  splitter_assign_document_file(browser, browser_doc, 0);
-  browser->view.line_select = 1;*/
+  browser_doc->defaults.wrapping = 0;
 
   struct document_file* document_doc = document_file_create(1);
   document_file_name(document_doc, "Untitled");
   struct splitter* document = splitter_create(0, 0, NULL, NULL,  "Document");
   splitter_assign_document_file(document, document_doc, 1);
+  document_view_reset(document->view, document_doc);
 
   struct document_file* search_doc = document_file_create(0);
   document_file_name(search_doc, "Search");
@@ -140,6 +137,8 @@ int main(int argc, const char** argv) {
   struct range_tree_node* search_text_buffers[32];
   const char* search_text = " Search [\x7f]\n   CASE [\x7f] | SELECTION [\x7f] | REGEX [\x7f]\nReplace [\x7f]";
   search_doc->buffer = range_tree_insert_split(search_doc->buffer, 0, (uint8_t*)search_text, strlen(search_text), TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, &search_text_buffers[0]);
+
+  document_file_manualchange(search_doc);
 
   if (argc>=2) {
     document_file_load(document_doc, argv[1]);
@@ -163,6 +162,7 @@ int main(int argc, const char** argv) {
   int mouse_y = 0;
 
   document_directory(browser_doc);
+  document_file_manualchange(browser_doc);
 
   int close = 0;
 
@@ -177,10 +177,14 @@ int main(int argc, const char** argv) {
     struct list_node* doc = documents->first;
     while (doc) {
       struct document_file* file = (struct document_file*)doc->object;
-      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->buffer?tabs_doc->buffer->length:0, (uint8_t*)file->filename, strlen(file->filename), TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
-      tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->buffer?tabs_doc->buffer->length:0, (uint8_t*)"\n", 1, TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+      if (file!=browser_doc && file!=tabs_doc && file!=search_doc) {
+        tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->buffer?tabs_doc->buffer->length:0, (uint8_t*)file->filename, strlen(file->filename), TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+        tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->buffer?tabs_doc->buffer->length:0, (uint8_t*)"\n", 1, TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+      }
       doc = doc->next;
     }
+
+    document_file_manualchange(tabs_doc);
 
     if (focus==search) {
       splitters->split = 5;
@@ -253,25 +257,23 @@ int main(int argc, const char** argv) {
             }
 
             if (ansi_keys[pos].cp==TIPPSE_KEY_SHOWALL) {
-              focus->view.showall ^= 1;
+              focus->view->showall ^= 1;
               (*focus->document->reset)(focus->document, focus);
             }
 
             if (ansi_keys[pos].cp==TIPPSE_KEY_WORDWRAP) {
-              focus->view.wrapping ^= 1;
+              focus->view->wrapping ^= 1;
               (*focus->document->reset)(focus->document, focus);
             }
 
             if (ansi_keys[pos].cp==TIPPSE_KEY_DOCUMENTSELECTION) {
-              splitter_assign_document_file(document, tabs_doc, 0);
-              document->view.wrapping = 0;
-              document->view.line_select = 1;
+              splitter_assign_document_file(document, tabs_doc, document->content);
+              document->view->line_select = 1;
             }
 
             if (ansi_keys[pos].cp==TIPPSE_KEY_BROWSER) {
-              splitter_assign_document_file(document, browser_doc, 0);
-              document->view.wrapping = 0;
-              document->view.line_select = 1;
+              splitter_assign_document_file(document, browser_doc, document->content);
+              document->view->line_select = 1;
             }
 
             if (ansi_keys[pos].cp==TIPPSE_KEY_SEARCH) {
@@ -338,12 +340,12 @@ int main(int argc, const char** argv) {
               focus->document = focus->document_text;
             } else if (ansi_keys[pos].cp==TIPPSE_KEY_VIEW_RAW) {
               focus->document = focus->document_raw;
-            } else if (ansi_keys[pos].cp==TIPPSE_KEY_OPEN || (focus->view.line_select && ansi_keys[pos].cp=='\n')) {
-              if (focus->view.selection_low!=focus->view.selection_high) {
+            } else if (ansi_keys[pos].cp==TIPPSE_KEY_OPEN || (focus->view->line_select && ansi_keys[pos].cp=='\n')) {
+              if (focus->view->selection_low!=focus->view->selection_high) {
                 struct list_node* views =document->file->views->first;
                 while (views) {
                   struct document_view* view = (struct document_view*)views->object;
-                  if (view==&document->view) {
+                  if (view==document->view) {
                     list_remove(document->file->views, views);
                     break;
                   }
@@ -351,7 +353,7 @@ int main(int argc, const char** argv) {
                   views = views->next;
                 }
 
-                char* name = (char*)range_tree_raw(focus->file->buffer, focus->view.selection_low, focus->view.selection_high);
+                char* name = (char*)range_tree_raw(focus->file->buffer, focus->view->selection_low, focus->view->selection_high);
                 if (*name) {
                   char* path_only = (focus->file==browser_doc)?strdup(focus->file->filename):strip_file_name(focus->file->filename);
                   char* combined = combine_path_file(path_only, name);
@@ -375,10 +377,9 @@ int main(int argc, const char** argv) {
                   if (!new_document_doc) {
                     if (is_directory(relative)) {
                       document_file_name(document->file, relative);
-                      document_view_reset(&document->view, browser_doc);
                       document_directory(browser_doc);
-                      document->view.wrapping = 0;
-                      document->view.line_select = 1;
+                      document_view_reset(document->view, browser_doc);
+                      document->view->line_select = 1;
                     } else {
                       new_document_doc = document_file_create(1);
                       document_file_load(new_document_doc, relative);
@@ -387,7 +388,7 @@ int main(int argc, const char** argv) {
 
                   if (new_document_doc) {
                     list_insert(documents, NULL, new_document_doc);
-                    splitter_assign_document_file(document, new_document_doc, 1);
+                    splitter_assign_document_file(document, new_document_doc, document->content);
                   }
 
                   free(relative);
@@ -399,13 +400,12 @@ int main(int argc, const char** argv) {
               }
             } else if (ansi_keys[pos].cp==TIPPSE_KEY_NEW_VERT_TAB) {
               struct splitter* parent = document->parent;
-              struct splitter* split = document;
-              document = splitter_create(0, 0, NULL, NULL, "Document");
+              struct splitter* split = splitter_create(0, 0, NULL, NULL, "Document");
 
-              splitter_assign_document_file(document, split->file, split->content);
+              splitter_assign_document_file(split, document->file, document->content);
 
-              struct splitter* splitter = splitter_create(TIPPSE_SPLITTER_HORZ, 50, split, document, "");
-              if (parent->side[0]==split) {
+              struct splitter* splitter = splitter_create(TIPPSE_SPLITTER_HORZ, 50, document, split, "");
+              if (parent->side[0]==document) {
                 parent->side[0] = splitter;
               } else {
                 parent->side[1] = splitter;
