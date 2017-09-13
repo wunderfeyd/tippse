@@ -55,6 +55,9 @@ struct document_text_render_info {
   int whitespaced;
   struct encoding_stream stream;
   struct encoding_cache cache;
+  int depth_new[VISUAL_BRACKET_MAX];
+  int depth_old[VISUAL_BRACKET_MAX];
+  struct visual_bracket brackets[VISUAL_BRACKET_MAX];
 };
 
 // Document position structure
@@ -77,6 +80,11 @@ struct document_text_position {
   int line;                             // Line in file
   int column;                           // Column in line
   file_offset_t character;              // Character in file
+
+  int bracket;                          // Bracket number
+  int bracket_search;                   // Bracket depth to search for
+
+  int depth[VISUAL_BRACKET_MAX];        // Bracket information
 };
 
 struct document* document_text_create();

@@ -17,6 +17,12 @@ void visual_info_clear(struct visual_info* visuals) {
   visuals->keyword_color = 0;
   visuals->displacement = 0;
   visuals->rewind = 0;
+  for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
+    visuals->brackets[n].diff = 0;
+    visuals->brackets[n].min = 0;
+    visuals->brackets[n].max = 0;
+  }
+
   visuals->dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
 }
 
@@ -52,4 +58,18 @@ void visual_info_combine(struct visual_info* visuals, const struct visual_info* 
   }
 
   visuals->dirty = dirty;
+
+  for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
+    visuals->brackets[n].diff = left->brackets[n].diff+right->brackets[n].diff;
+
+    visuals->brackets[n].max = left->brackets[n].diff+right->brackets[n].max;
+    if (visuals->brackets[n].max<left->brackets[n].max) {
+      visuals->brackets[n].max = left->brackets[n].max;
+    }
+
+    visuals->brackets[n].min = -left->brackets[n].diff+right->brackets[n].min;
+    if (visuals->brackets[n].min<left->brackets[n].min) {
+      visuals->brackets[n].min = left->brackets[n].min;
+    }
+  }
 }

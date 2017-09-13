@@ -109,6 +109,20 @@ void splitter_cursor(struct screen* screen, const struct splitter* splitter, int
   }
 }
 
+void splitter_hilight(struct screen* screen, const struct splitter* splitter, int x, int y) {
+  if (y<0 || y>=splitter->client_height) {
+    return;
+  }
+
+  if (x<0 || x>=splitter->client_width) {
+    return;
+  }
+
+  struct screen_char* c = &screen->buffer[(splitter->y+y)*screen->width+(splitter->x+x)];
+  c->foreground = screen_intense_color(c->foreground);
+  c->background = screen_intense_color(c->background);
+}
+
 void splitter_unassign_document_file(struct splitter* splitter) {
   if (!splitter->file) {
     return;

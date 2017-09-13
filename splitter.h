@@ -50,6 +50,7 @@ void splitter_drawtext(struct screen* screen, const struct splitter* splitter, i
 void splitter_name(struct splitter* splitter, const char* name);
 void splitter_status(struct splitter* splitter, const char* status, int status_inverted);
 void splitter_cursor(struct screen* screen, const struct splitter* splitter, int x, int y);
+void splitter_hilight(struct screen* screen, const struct splitter* splitter, int x, int y);
 void splitter_unassign_document_file(struct splitter* splitter);
 void splitter_assign_document_file(struct splitter* splitter, struct document_file* file, int content);
 void splitter_draw(struct screen* screen, struct splitter* splitter);
