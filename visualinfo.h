@@ -53,6 +53,17 @@
 #define VISUAL_SEEK_OFFSET 1
 #define VISUAL_SEEK_X_Y 2
 #define VISUAL_SEEK_LINE_COLUMN 3
+#define VISUAL_SEEK_BRACKET_NEXT 4
+#define VISUAL_SEEK_BRACKET_PREV 5
+
+#define VISUAL_BRACKET_MAX 4
+
+// Block structure for bracket matching and code folding
+struct visual_bracket {
+  int diff;
+  int min;
+  int max;
+};
 
 // Block visualisation hints per page
 struct visual_info {
@@ -70,6 +81,7 @@ struct visual_info {
   file_offset_t displacement; // Offset to begin of first character
   file_offset_t rewind;     // Relative offset (backwards) to begin of the last keyword/character
   int dirty;                // Mark page as dirty (not completely rendered yet)
+  struct visual_bracket brackets[VISUAL_BRACKET_MAX]; // Bracket depth
 };
 
 void visual_info_clear(struct visual_info* visuals);

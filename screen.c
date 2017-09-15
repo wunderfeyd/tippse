@@ -160,7 +160,19 @@ int screen_half_color(int color) {
     int g = (color/6)%6;
     int b = (color/36)%6;
     color = (r/2)+((g/2)*6)+((b/2)*36)+16;
-  } else {
+  }
+
+  return color;
+}
+
+int screen_intense_color(int color) {
+  if (color<16) {
+  } else if(color<232) {
+    color -= 16;
+    int r = color%6;
+    int g = (color/6)%6;
+    int b = (color/36)%6;
+    color = b+(r*6)+(g*36)+16;
   }
 
   return color;

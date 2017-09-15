@@ -10,7 +10,8 @@ void range_tree_print(struct range_tree_node* node, int depth, int side) {
     tab--;
   }
 
-  printf("%d %5d %5d %s(%p-%p) %5d %5d (%p) [0](%p) [1](%p) [P](%p) [U](%p) [d](%p) %d %d %d %d", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->side[0], node->side[1], node->parent, node->next, node->prev, (int)node->visuals.ys, (int)node->visuals.xs, (int)node->visuals.dirty, (int)node->inserter);
+/*  printf("%d %5d %5d %s(%p-%p) %5d %5d (%p) [0](%p) [1](%p) [P](%p) [U](%p) [d](%p) %d %d %d %d - %d %d %d", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->side[0], node->side[1], node->parent, node->next, node->prev, (int)node->visuals.ys, (int)node->visuals.xs, (int)node->visuals.dirty, (int)node->inserter, node->visuals.brackets[0].diff, node->visuals.brackets[0].min, node->visuals.brackets[0].max);*/
+  printf("%d %5d %5d %s(%p-%p) %5d %5d (%p) %d %d %d", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->visuals.brackets[0].diff, node->visuals.brackets[0].min, node->visuals.brackets[0].max);
   printf("\r\n");
   if (node->side[0]) {
     range_tree_print(node->side[0], depth+1, 0);
@@ -268,7 +269,6 @@ struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int
   int indentations_extra = 0;
 
   while (node && !(node->inserter&TIPPSE_INSERTER_LEAF)) {
-
     int columns_new = columns;
     int indentations_new = indentations;
     int indentations_extra_new = indentations_extra;
@@ -333,6 +333,109 @@ struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int
     *offset = location;
     *indentation = indentations;
     *indentation_extra = indentations_extra;
+  }
+
+  return node;
+}
+
+// Return bracket depth
+int range_tree_find_bracket(struct range_tree_node* node, size_t bracket) {
+  node = range_tree_prev(node);
+  if (!node) {
+    return 0;
+  }
+
+  int depth = node->visuals.brackets[bracket].diff;
+  while (node->parent) {
+    if (node->parent->side[1]==node) {
+      depth += node->parent->side[0]->visuals.brackets[bracket].diff;
+    }
+
+    node = node->parent;
+  }
+
+  return depth;
+}
+
+// Find next closest forward match (may be wrong due to page invalidation, but while rendering we should find it anyway)
+struct range_tree_node* range_tree_find_bracket_forward(struct range_tree_node* node, size_t bracket, int search) {
+  if (!node) {
+    return NULL;
+  }
+
+  file_offset_t before = range_tree_offset(node);
+  int depth = range_tree_find_bracket(node, bracket);
+  while (node->parent) {
+    if (node->parent->side[1]==node) {
+      depth -= node->parent->side[0]->visuals.brackets[bracket].diff;
+    } else {
+      if (depth-node->parent->visuals.brackets[bracket].min<=search && depth+node->parent->visuals.brackets[bracket].max>=search) {
+        node = node->parent;
+        break;
+      }
+    }
+
+    node = node->parent;
+  }
+
+  if (node->inserter&TIPPSE_INSERTER_LEAF) {
+    return NULL;
+  }
+
+  depth += node->side[0]->visuals.brackets[bracket].diff;
+  node = node->side[1];
+
+  while (node && !(node->inserter&TIPPSE_INSERTER_LEAF)) {
+    if (depth-node->side[0]->visuals.brackets[bracket].min<=search && depth+node->side[0]->visuals.brackets[bracket].max>=search) {
+      node = node->side[0];
+      continue;
+    }
+
+    depth += node->side[0]->visuals.brackets[bracket].diff;
+    node = node->side[1];
+  }
+
+  file_offset_t after = range_tree_offset(node);
+  if (after<=before) {
+    node = NULL;
+  }
+
+  return node;
+}
+
+// Find next closest backwards match (may be wrong due to page invalidation, but while rendering we should find it anyway)
+struct range_tree_node* range_tree_find_bracket_backward(struct range_tree_node* node, size_t bracket, int search) {
+  if (!node) {
+    return NULL;
+  }
+
+  int depth = range_tree_find_bracket(node, bracket);
+  while (node->parent) {
+    if (node->parent->side[1]==node) {
+      depth -= node->parent->side[0]->visuals.brackets[bracket].diff;
+      if (depth-node->parent->side[0]->visuals.brackets[bracket].min<=search && depth+node->parent->side[0]->visuals.brackets[bracket].max>=search) {
+        node = node->parent;
+        break;
+      }
+    }
+
+    node = node->parent;
+  }
+
+  if (node->inserter&TIPPSE_INSERTER_LEAF) {
+    return NULL;
+  }
+
+  node = node->side[0];
+
+  while (node && !(node->inserter&TIPPSE_INSERTER_LEAF)) {
+    if (depth-node->side[1]->visuals.brackets[bracket].min+node->side[0]->visuals.brackets[bracket].diff<=search && depth+node->side[1]->visuals.brackets[bracket].max+node->side[0]->visuals.brackets[bracket].diff>=search) {
+      depth += node->side[0]->visuals.brackets[bracket].diff;
+      node = node->side[1];
+      continue;
+    }
+
+    node = node->side[0];
   }
 
   return node;

@@ -31,6 +31,7 @@ void screen_title(struct screen* screen, const char* title);
 int screen_inverse_color(int color);
 int screen_half_inverse_color(int color);
 int screen_half_color(int color);
+int screen_intense_color(int color);
 void screen_draw(struct screen* screen);
 void screen_drawtext(const struct screen* screen, int x, int y, const char* text, size_t length, int foreground, int background);
 int screen_getchar(const struct screen* screen, int x, int y);
