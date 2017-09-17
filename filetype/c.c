@@ -55,6 +55,7 @@ struct file_type* file_type_c_create() {
   this->vtbl.destroy = file_type_c_destroy;
   this->vtbl.name = file_type_c_name;
   this->vtbl.mark = file_type_c_mark;
+  this->vtbl.bracket_match = file_type_bracket_match;
 
   this->keywords = trie_create();
   this->keywords_preprocessor = trie_create();
@@ -126,7 +127,7 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct encodin
       }
     }
   }
-  
+
   if (before&VISUAL_INFO_NEWLINE) {
     after |= VISUAL_INFO_INDENTATION;
     after &= ~VISUAL_INFO_NEWLINE;

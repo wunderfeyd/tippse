@@ -69,6 +69,7 @@ struct document_file {
   int tabstop;
   int tabstop_width;
   int newline;
+  int binary;
 
   char* filename;
   int modified;

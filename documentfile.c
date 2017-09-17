@@ -212,8 +212,29 @@ void document_file_detect_properties(struct document_file* file) {
 
   struct encoding_stream stream;
   encoding_stream_from_page(&stream, range_tree_first(file->buffer), 0);
+
+  // Binary detection ... TODO: Recheck when UTF-16 as encoding is available
   file_offset_t offset = 0;
 
+  int zeros = 0;
+  while (offset<TIPPSE_DOCUMENT_MEMORY_LOADMAX && offset<file->buffer->length) {
+    uint8_t byte = encoding_stream_peek(&stream, 0);
+    encoding_stream_forward(&stream, 1);
+    if (byte==0x00) {
+      zeros++;
+    }
+
+    offset++;
+  }
+
+  if (zeros>=(int)(offset/100+1)) {
+    file->binary = 1;
+  } else {
+    file->binary = 0;
+  }
+
+  encoding_stream_from_page(&stream, range_tree_first(file->buffer), 0);
+  offset = 0;
   int newline_cr = 0;
   int newline_lf = 0;
   int newline_crlf = 0;
@@ -224,7 +245,7 @@ void document_file_detect_properties(struct document_file* file) {
   int last = 0;
   int start = 1;
   int spaces = 0;
-  while (offset<TIPPSE_DOCUMENT_MEMORY_LOADMAX) {
+  while (offset<TIPPSE_DOCUMENT_MEMORY_LOADMAX && offset<file->buffer->length) {
     size_t length = 1;
     int cp = (*file->encoding->decode)(file->encoding, &stream, &length);
     encoding_stream_forward(&stream, length);

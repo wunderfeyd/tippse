@@ -28,3 +28,23 @@ int file_type_keyword(struct encoding_cache* cache, struct trie* trie, int* keyw
   return 0;
 }
 
+int file_type_bracket_match(int visual_detail, int* cp, int length) {
+  if ((visual_detail&(VISUAL_INFO_STRING0|VISUAL_INFO_STRING1|VISUAL_INFO_COMMENT0|VISUAL_INFO_COMMENT1))==0) {
+    int cp1 = *cp;
+    if (cp1=='{') {
+      return 0|VISUAL_BRACKET_OPEN;
+    } else if (cp1=='[') {
+      return 1|VISUAL_BRACKET_OPEN;
+    } else if (cp1=='(') {
+      return 2|VISUAL_BRACKET_OPEN;
+    } else if (cp1=='}') {
+      return 0|VISUAL_BRACKET_CLOSE;
+    } else if (cp1==']') {
+      return 1|VISUAL_BRACKET_CLOSE;
+    } else if (cp1==')') {
+      return 2|VISUAL_BRACKET_CLOSE;
+    }
+  }
+
+  return 0;
+}

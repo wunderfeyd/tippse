@@ -43,6 +43,7 @@ struct file_type* file_type_php_create() {
   this->vtbl.destroy = file_type_php_destroy;
   this->vtbl.name = file_type_php_name;
   this->vtbl.mark = file_type_php_mark;
+  this->vtbl.bracket_match = file_type_bracket_match;
 
   this->keywords = trie_create();
   trie_load_array(this->keywords, &keywords_language_php[0]);

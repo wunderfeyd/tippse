@@ -55,6 +55,7 @@ struct file_type* file_type_cpp_create() {
   this->vtbl.destroy = file_type_cpp_destroy;
   this->vtbl.name = file_type_cpp_name;
   this->vtbl.mark = file_type_c_mark;
+  this->vtbl.bracket_match = file_type_bracket_match;
 
   this->keywords = trie_create();
   this->keywords_preprocessor = trie_create();

@@ -8,6 +8,7 @@ struct file_type* file_type_text_create() {
   this->vtbl.destroy = file_type_text_destroy;
   this->vtbl.name = file_type_text_name;
   this->vtbl.mark = file_type_text_mark;
+  this->vtbl.bracket_match = file_type_bracket_match;
 
   return (struct file_type*)this;
 }
