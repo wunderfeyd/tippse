@@ -165,6 +165,12 @@ void splitter_assign_document_file(struct splitter* splitter, struct document_fi
 
   (*splitter->document_text->reset)(splitter->document, splitter);
   (*splitter->document_raw->reset)(splitter->document, splitter);
+
+  if (file->binary) {
+    splitter->document = splitter->document_raw;
+  } else {
+    splitter->document = splitter->document_text;
+  }
 }
 
 void splitter_draw(struct screen* screen, struct splitter* splitter) {

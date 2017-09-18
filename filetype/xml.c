@@ -12,6 +12,7 @@ struct file_type* file_type_xml_create() {
   this->vtbl.destroy = file_type_xml_destroy;
   this->vtbl.name = file_type_xml_name;
   this->vtbl.mark = file_type_xml_mark;
+  this->vtbl.bracket_match = file_type_bracket_match;
 
   this->keywords = trie_create();
   trie_load_array(this->keywords, &keywords_language_xml[0]);

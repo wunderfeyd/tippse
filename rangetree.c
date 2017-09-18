@@ -11,7 +11,7 @@ void range_tree_print(struct range_tree_node* node, int depth, int side) {
   }
 
 /*  printf("%d %5d %5d %s(%p-%p) %5d %5d (%p) [0](%p) [1](%p) [P](%p) [U](%p) [d](%p) %d %d %d %d - %d %d %d", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->side[0], node->side[1], node->parent, node->next, node->prev, (int)node->visuals.ys, (int)node->visuals.xs, (int)node->visuals.dirty, (int)node->inserter, node->visuals.brackets[0].diff, node->visuals.brackets[0].min, node->visuals.brackets[0].max);*/
-  printf("%d %5d %5d %s(%p-%p) %5d %5d (%p) %d %d %d", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->visuals.brackets[0].diff, node->visuals.brackets[0].min, node->visuals.brackets[0].max);
+  printf("%d %5d %5d %s(%p-%p) %5d %5d (%p) %d %d %d", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->visuals.brackets[2].diff, node->visuals.brackets[2].min, node->visuals.brackets[2].max);
   printf("\r\n");
   if (node->side[0]) {
     range_tree_print(node->side[0], depth+1, 0);
@@ -340,12 +340,7 @@ struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int
 
 // Return bracket depth
 int range_tree_find_bracket(struct range_tree_node* node, size_t bracket) {
-  node = range_tree_prev(node);
-  if (!node) {
-    return 0;
-  }
-
-  int depth = node->visuals.brackets[bracket].diff;
+  int depth = 0;
   while (node->parent) {
     if (node->parent->side[1]==node) {
       depth += node->parent->side[0]->visuals.brackets[bracket].diff;

@@ -56,6 +56,9 @@
 #define VISUAL_SEEK_BRACKET_NEXT 4
 #define VISUAL_SEEK_BRACKET_PREV 5
 
+#define VISUAL_BRACKET_MASK 0xffff
+#define VISUAL_BRACKET_OPEN 0x10000
+#define VISUAL_BRACKET_CLOSE 0x20000
 #define VISUAL_BRACKET_MAX 4
 
 // Block structure for bracket matching and code folding
