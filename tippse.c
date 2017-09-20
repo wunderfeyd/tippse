@@ -132,6 +132,7 @@ int main(int argc, const char** argv) {
   struct document_file* search_doc = document_file_create(0);
   document_file_name(search_doc, "Search");
   struct splitter* search = splitter_create(0, 0, NULL, NULL, "Find");
+  search_doc->binary = 0;
   splitter_assign_document_file(search, search_doc, 0);
 
   struct range_tree_node* search_text_buffers[32];
