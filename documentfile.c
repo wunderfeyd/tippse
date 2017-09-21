@@ -112,7 +112,8 @@ void document_file_load(struct document_file* file, const char* filename) {
       struct fragment* buffer = NULL;
       if (offset<TIPPSE_DOCUMENT_MEMORY_LOADMAX) {
         uint8_t* copy = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MAX);
-        block = (file_offset_t)read(f, copy, TREE_BLOCK_LENGTH_MAX);
+        ssize_t in = read(f, copy, TREE_BLOCK_LENGTH_MAX);
+        block = (file_offset_t)((in>=0)?in:0);
         buffer = fragment_create_memory(copy, (size_t)block);
       } else {
         block = length-offset;
