@@ -6,9 +6,20 @@ int document_compare(struct range_tree_node* left, file_offset_t displacement_le
   struct range_tree_node* right = right_root;
   size_t displacement_right = 0;
 
+  struct range_tree_node* reload = NULL;
+  int found = 0;
+
   while (left && right) {
     if (displacement_left>=left->length || !left->buffer) {
+      if (!reload) {
+        reload = left;
+      }
+
       left = range_tree_next(left);
+      if (left && left->buffer) {
+        fragment_cache(left->buffer);
+      }
+
       displacement_left = 0;
       continue;
     }
@@ -31,18 +42,23 @@ int document_compare(struct range_tree_node* left, file_offset_t displacement_le
     }
 
     if (strncmp((char*)text_left, (char*)text_right, max)!=0) {
-      return 0;
+      break;
     }
 
     displacement_left += max;
     displacement_right += max;
     length-= max;
     if (length==0) {
-      return 1;
+      found = 1;
+      break;
     }
   }
 
-  return 0;
+  if (reload && reload->buffer) {
+    fragment_cache(reload->buffer);
+  }
+
+  return found;
 }
 
 void document_search(struct splitter* splitter, struct range_tree_node* text, file_offset_t length, int forward) {
@@ -78,6 +94,10 @@ void document_search(struct splitter* splitter, struct range_tree_node* text, fi
   file_offset_t pos = offset;
   file_offset_t displacement;
   struct range_tree_node* buffer = range_tree_find_offset(file->buffer, offset, &displacement);
+  if (buffer && buffer->buffer) {
+    fragment_cache(buffer->buffer);
+  }
+
   int wrap = 0;
   if (forward) {
     while (pos<offset || !wrap) {
@@ -87,6 +107,10 @@ void document_search(struct splitter* splitter, struct range_tree_node* text, fi
           buffer = range_tree_first(file->buffer);
           pos = 0;
           wrap = 1;
+        }
+
+        if (buffer && buffer->buffer) {
+          fragment_cache(buffer->buffer);
         }
 
         displacement = 0;
@@ -113,6 +137,10 @@ void document_search(struct splitter* splitter, struct range_tree_node* text, fi
           buffer = range_tree_last(file->buffer);
           pos = file->buffer->length-1;
           wrap = 1;
+        }
+
+        if (buffer && buffer->buffer) {
+          fragment_cache(buffer->buffer);
         }
 
         displacement = buffer->length-1;
