@@ -2,6 +2,7 @@
 #define __TIPPSE_VISUALINFO__
 
 #include <stdlib.h>
+#include <string.h>
 #include "types.h"
 
 // Flags for visual details (TODO: Rename me VISUAL_INFO->VISUAL_DETAIL)

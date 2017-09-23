@@ -122,7 +122,6 @@ struct range_tree_node* range_tree_create(struct range_tree_node* parent, struct
   node->inserter = inserter;
   node->depth = 0;
   visual_info_clear(&node->visuals);
-  range_tree_update_calc(node);
   return node;
 }
 
@@ -180,7 +179,6 @@ struct range_tree_node* range_tree_rotate(struct range_tree_node* node, int side
   range_tree_exchange(parent, node, child);
   range_tree_update_calc(node);
   node = child;
-  range_tree_update_calc(node);
   //range_tree_balance(redo);
 
   return node;
@@ -195,6 +193,8 @@ struct range_tree_node* range_tree_balance(struct range_tree_node* node) {
   while (node->side[0]->depth<node->side[1]->depth && !(node->side[1]->inserter&TIPPSE_INSERTER_LEAF)) {
     node = range_tree_rotate(node, 1);
   }
+
+  range_tree_update_calc(node);
 
   return node;
 }
@@ -245,8 +245,6 @@ struct range_tree_node* range_tree_update(struct range_tree_node* node) {
       node = parent;
       continue;
     }
-
-    range_tree_update_calc(node);
 
     node = range_tree_balance(node);
 
@@ -621,12 +619,7 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
   if (root) {
     node = range_tree_find_offset(root, offset, &split);
     if (!node) {
-      node = root;
-
-      while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
-        node = node->side[1];
-      }
-
+      node = range_tree_last(root);
       split = node->length;
     }
 
@@ -653,8 +646,9 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
       range_tree_exchange(build0->parent, node, build0);
       range_tree_shrink(build1);
       range_tree_shrink(node);
-      range_tree_update(build1);
-      root = range_tree_update(node);
+      range_tree_update_calc(build1);
+      range_tree_update_calc(node);
+      root = range_tree_update(build0);
       before = range_tree_prev(build1);
       after = range_tree_next(node);
     } else if (split==0 && ((node->inserter&TIPPSE_INSERTER_BEFORE) || (inserter&TIPPSE_INSERTER_AUTO) || (prev && (node->inserter&TIPPSE_INSERTER_AFTER)))) {
@@ -673,8 +667,9 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
       range_tree_exchange(build0->parent, node, build0);
       range_tree_shrink(build1);
       range_tree_shrink(node);
-      range_tree_update(build1);
-      root = range_tree_update(node);
+      range_tree_update_calc(build1);
+      range_tree_update_calc(node);
+      root = range_tree_update(build0);
       before = range_tree_prev(build1);
       after = range_tree_next(node);
     } else if (!(node->inserter&TIPPSE_INSERTER_READONLY) || (inserter&TIPPSE_INSERTER_AUTO)) {
@@ -703,9 +698,13 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
       range_tree_shrink(build2);
       range_tree_shrink(build1);
       range_tree_shrink(node);
-      range_tree_update(build2);
-      range_tree_update(build1);
-      root = range_tree_update(node);
+
+      range_tree_update_calc(build2);
+      range_tree_update_calc(build1);
+      range_tree_update_calc(build0);
+      range_tree_update_calc(node);
+      root = range_tree_update(build3);
+
       before = range_tree_prev(build2);
       after = range_tree_next(node);
     } else {
@@ -717,6 +716,7 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
   } else {
     root = range_tree_create(NULL, NULL, NULL, buffer, buffer_offset, buffer_length, inserter|TIPPSE_INSERTER_LEAF);
     range_tree_shrink(root);
+    range_tree_update_calc(root);
   }
 
   fragment_dereference(buffer);
@@ -854,12 +854,12 @@ struct range_tree_node* range_tree_copy(struct range_tree_node* root, file_offse
       build1->prev = last;
 
       range_tree_exchange(build0->parent, last, build0);
-      range_tree_update(build1);
       copy = range_tree_update(last);
     } else {
       copy = build1;
     }
     last = build1;
+    range_tree_update(build1);
 
     length -= build1->length;
     node = range_tree_next(node);
@@ -920,6 +920,7 @@ struct range_tree_node* range_tree_static(struct range_tree_node* root, file_off
   }
 
   root = range_tree_create(NULL, NULL, NULL, NULL, 0, length, inserter|TIPPSE_INSERTER_LEAF);
+  range_tree_update(root);
   return root;
 }
 

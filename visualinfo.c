@@ -4,25 +4,7 @@
 
 // Reset structure to known state
 void visual_info_clear(struct visual_info* visuals) {
-  visuals->characters = 0;
-  visuals->columns = 0;
-  visuals->lines = 0;
-  visuals->xs = 0;
-  visuals->ys = 0;
-  visuals->indentation = 0;
-  visuals->indentation_extra = 0;
-  visuals->detail_after = 0;
-  visuals->detail_before = 0;
-  visuals->keyword_length = 0;
-  visuals->keyword_color = 0;
-  visuals->displacement = 0;
-  visuals->rewind = 0;
-  for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
-    visuals->brackets[n].diff = 0;
-    visuals->brackets[n].min = 0;
-    visuals->brackets[n].max = 0;
-  }
-
+  memset(visuals, 0, sizeof(struct visual_info));
   visuals->dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
 }
 
@@ -60,14 +42,14 @@ void visual_info_combine(struct visual_info* visuals, const struct visual_info* 
   visuals->dirty = dirty;
 
   for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
-    visuals->brackets[n].diff = left->brackets[n].diff+right->brackets[n].diff;
+    visuals->brackets[n].diff = right->brackets[n].diff+left->brackets[n].diff;
 
-    visuals->brackets[n].max = left->brackets[n].diff+right->brackets[n].max;
+    visuals->brackets[n].max = right->brackets[n].max+left->brackets[n].diff;
     if (visuals->brackets[n].max<left->brackets[n].max) {
       visuals->brackets[n].max = left->brackets[n].max;
     }
 
-    visuals->brackets[n].min = -left->brackets[n].diff+right->brackets[n].min;
+    visuals->brackets[n].min = right->brackets[n].min-left->brackets[n].diff;
     if (visuals->brackets[n].min<left->brackets[n].min) {
       visuals->brackets[n].min = left->brackets[n].min;
     }

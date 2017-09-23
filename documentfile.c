@@ -110,7 +110,7 @@ void document_file_load(struct document_file* file, const char* filename) {
     while (1) {
       file_offset_t block = 0;
       struct fragment* buffer = NULL;
-      if (offset<TIPPSE_DOCUMENT_MEMORY_LOADMAX) {
+      if (length<TIPPSE_DOCUMENT_MEMORY_LOADMAX) {
         uint8_t* copy = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MAX);
         ssize_t in = read(f, copy, TREE_BLOCK_LENGTH_MAX);
         block = (file_offset_t)((in>=0)?in:0);
