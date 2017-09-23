@@ -28,6 +28,7 @@ struct document_text {
 
 // Saved state between two render calls
 struct document_text_render_info {
+  int append;
   int x;
   int y;
   int y_view;
@@ -103,6 +104,7 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
 int document_text_render_lookahead_word_wrap(struct document_file* file, struct encoding_cache* cache, int max);
 int document_text_render_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel);
 
+file_offset_t document_text_cursor_position_partial(struct document_text_render_info* render_info, struct splitter* splitter, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel);
 file_offset_t document_text_cursor_position(struct splitter* splitter, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel);
 
 #endif /* #ifndef __TIPPSE_DOCUMENT_TEXT__ */
