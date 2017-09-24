@@ -15,5 +15,7 @@ Ctrl+S: Save files
 Ctrl+F: Search  
 Ctrl+B: File browser  
 Ctrl+D: Document selection  
- 
+Ctrl+P: Show invisibles  
+Ctrl+U: Show hex editor  
+
 More to come...
