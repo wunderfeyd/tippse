@@ -153,8 +153,7 @@ void document_raw_keypress(struct document* base, struct splitter* splitter, int
 }
 
 // Return cursor position from point
-void document_raw_cursor_from_point(struct document* base, struct splitter* splitter, int x, int y, file_offset_t* offset)
-{
+void document_raw_cursor_from_point(struct document* base, struct splitter* splitter, int x, int y, file_offset_t* offset) {
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
