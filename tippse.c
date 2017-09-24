@@ -84,8 +84,7 @@ struct tippse_ansi_key ansi_keys[] = {
   {"\x1b[M???", TIPPSE_KEY_TIPPSE_MOUSE_INPUT, 0},
   {"\x0f", TIPPSE_KEY_OPEN, 0},
   {"\x14", TIPPSE_KEY_NEW_VERT_TAB, 0},
-  {"\x1b""1", TIPPSE_KEY_VIEW_TEXT, 0},
-  {"\x1b""2", TIPPSE_KEY_VIEW_RAW, 0},
+  {"\x15", TIPPSE_KEY_VIEW_SWITCH, 0},
   {"\x17", TIPPSE_KEY_WORDWRAP, 0},
   {"\x04", TIPPSE_KEY_DOCUMENTSELECTION, 0},
   {"\r", '\n', 0},
@@ -339,10 +338,12 @@ int main(int argc, const char** argv) {
               focus = document;
               focus->active = 1;
               document_search(last_document, range_tree_next(search_text_buffers[1]), range_tree_distance_offset(search->file->buffer, search_text_buffers[1], search_text_buffers[2]), 0);
-            } else if (ansi_keys[pos].cp==TIPPSE_KEY_VIEW_TEXT) {
-              focus->document = focus->document_text;
-            } else if (ansi_keys[pos].cp==TIPPSE_KEY_VIEW_RAW) {
-              focus->document = focus->document_raw;
+            } else if (ansi_keys[pos].cp==TIPPSE_KEY_VIEW_SWITCH) {
+              if (focus->document==focus->document_raw) {
+                focus->document = focus->document_text;
+              } else {
+                focus->document = focus->document_raw;
+              }
             } else if (ansi_keys[pos].cp==TIPPSE_KEY_OPEN || (focus->view->line_select && ansi_keys[pos].cp=='\n')) {
               if (focus->view->selection_low!=focus->view->selection_high) {
                 struct list_node* views =document->file->views->first;

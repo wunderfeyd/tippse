@@ -30,7 +30,6 @@ void document_raw_reset(struct document* base, struct splitter* splitter);
 int document_raw_incremental_update(struct document* base, struct splitter* splitter);
 void document_raw_draw(struct document* base, struct screen* screen, struct splitter* splitter);
 void document_raw_keypress(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y);
-void document_raw_cursor_from_point(struct document* base, struct splitter* splitter, int x, int y, int* cursor_x, int* cursor_y);
-void document_raw_cursor_update(struct document* base, struct splitter* splitter);
+void document_raw_cursor_from_point(struct document* base, struct splitter* splitter, int x, int y, file_offset_t* offset);
 
 #endif /* #ifndef __TIPPSE_DOCUMENT_RAW__ */
