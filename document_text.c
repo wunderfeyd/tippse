@@ -16,7 +16,6 @@ struct splitter* debug_splitter = NULL;
 struct document* document_text_create() {
   struct document_text* document = (struct document_text*)malloc(sizeof(struct document_text));
   document->keep_status = 0;
-  document->show_scrollbar = 0;
   document->vtbl.reset = document_text_reset;
   document->vtbl.draw = document_text_draw;
   document->vtbl.keypress = document_text_keypress;
@@ -862,7 +861,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   if (view->scroll_x_old!=view->scroll_x || view->scroll_y_old!=view->scroll_y) {
     view->scroll_x_old = view->scroll_x;
     view->scroll_y_old = view->scroll_y;
-    document->show_scrollbar = 1;
+    view->show_scrollbar = 1;
   }
 
   document_text_render_clear(&render_info, splitter->client_width);
@@ -1008,35 +1007,12 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     sprintf(&status[0], "%s%s%d/%d:%d - %d/%d byte - %s*%d %s %s %s - %d(%d-%d.%d)", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), cursor.line+1, cursor.column+1, (int)view->offset, file->buffer?(int)file->buffer->length:0, tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->encoding->name)(), cursor.depth[0], test_bl, test_br, test_c);
     splitter_status(splitter, &status[0], 0);
   }
-
   document->keep_status = 0;
-
-  if (document->show_scrollbar) {
-    file_offset_t start = view->scroll_y;
-    file_offset_t end = view->scroll_y+splitter->client_height;
-
-    file_offset_t length = file->buffer?file->buffer->visuals.ys:0;
-    if (end==~0) {
-      end = length+1;
-    }
-
-    int pos_start = (start*(file_offset_t)splitter->client_height)/(length+1);
-    int pos_end = (end*(file_offset_t)splitter->client_height)/(length+1);
-    int cp = 0x20;
-    for (y = 0; y<splitter->client_height; y++) {
-      if (y>=pos_start && y<=pos_end) {
-        splitter_drawchar(screen, splitter, splitter->client_width-1, y, &cp, 1, 17, 231);
-      } else {
-        splitter_drawchar(screen, splitter, splitter->client_width-1, y, &cp, 1, 17, 102);
-      }
-    }
-  }
-
-  document->show_scrollbar = 0;
+  view->scroll_y_max = file->buffer?file->buffer->visuals.ys:0;
+  splitter_scrollbar(screen, splitter);
 }
 
 void document_text_keypress(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y) {
-  struct document_text* document = (struct document_text*)base;
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
@@ -1079,12 +1055,12 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     in_x_y.y--;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
-    document->show_scrollbar = 1;
+    view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_DOWN) {
     in_x_y.y++;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
-    document->show_scrollbar = 1;
+    view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_LEFT) {
     in_x_y.x--;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
@@ -1103,14 +1079,14 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->scroll_y += page;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
-    document->show_scrollbar = 1;
+    view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_PAGEUP) {
     int page = ((splitter->height-2)/2)+1;
     in_x_y.y -= page;
     view->scroll_y -= page;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
-    document->show_scrollbar = 1;
+    view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_BACKSPACE) {
     if (!document_file_delete_selection(splitter->file, splitter->view)) {
       in_x_y.x--;
@@ -1141,14 +1117,14 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
-    document->show_scrollbar = 1;
+    view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_END) {
     in_x_y.x = 1000000000;
     in_x_y.y = 1000000000;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
-    document->show_scrollbar = 1;
+    view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_UNDO) {
     document_undo_execute(file, view, file->undos, file->redos);
     while (document_undo_execute(file, view, file->undos, file->redos)) {}
@@ -1178,7 +1154,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
       view->cursor_x = out.x;
       view->cursor_y = out.y;
-      document->show_scrollbar = 1;
+      view->show_scrollbar = 1;
     } else if (button&TIPPSE_MOUSE_WHEEL_UP) {
       int page = ((splitter->height-2)/3)+1;
       in_x_y.y -= page;
@@ -1186,7 +1162,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
       view->cursor_x = out.x;
       view->cursor_y = out.y;
-      document->show_scrollbar = 1;
+      view->show_scrollbar = 1;
     }
 
     reset_selection = (!(button_old&TIPPSE_MOUSE_LBUTTON) && (button&TIPPSE_MOUSE_LBUTTON))?1:0;

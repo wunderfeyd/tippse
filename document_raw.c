@@ -51,6 +51,12 @@ void document_raw_draw(struct document* base, struct screen* screen, struct spli
     view->scroll_y = 0;
   }
 
+  if (view->scroll_x_old!=view->scroll_x || view->scroll_y_old!=view->scroll_y) {
+    view->scroll_x_old = view->scroll_x;
+    view->scroll_y_old = view->scroll_y;
+    view->show_scrollbar = 1;
+  }
+
   file_offset_t offset = (file_offset_t)view->scroll_y*16;
   file_offset_t displacement;
   struct range_tree_node* buffer = range_tree_find_offset(file->buffer, offset, &displacement);
@@ -101,7 +107,8 @@ void document_raw_draw(struct document* base, struct screen* screen, struct spli
     if (offset>=file_size) break;
   }
   splitter_cursor(screen, splitter, 10+(3*view->cursor_x), view->cursor_y-view->scroll_y);
-  //splitter_scrollbar(splitter, view);  TODO: show scrollbar when implemented in splitter?
+  view->scroll_y_max = (file_size+16)/16;
+  splitter_scrollbar(screen, splitter);
 }
 
 // Handle key press
@@ -113,8 +120,10 @@ void document_raw_keypress(struct document* base, struct splitter* splitter, int
 
   if (cp==TIPPSE_KEY_UP) {
     view->offset-=16;
+    view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_DOWN) {
     view->offset+=16;
+    view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_LEFT) {
     view->offset--;
   } else if (cp==TIPPSE_KEY_RIGHT) {
@@ -122,26 +131,32 @@ void document_raw_keypress(struct document* base, struct splitter* splitter, int
   } else if (cp==TIPPSE_KEY_PAGEUP) {
     view->offset -= splitter->client_height*16;
     view->scroll_y -= splitter->client_height;
+    view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_PAGEDOWN) {
     view->offset += splitter->client_height*16;
     view->scroll_y += splitter->client_height;
+    view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_FIRST) {
     view->offset -= view->offset%16;
   } else if (cp==TIPPSE_KEY_LAST) {
     view->offset += 15-(view->offset%16);
   } else if (cp==TIPPSE_KEY_HOME) {
     view->offset = 0;
+    view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_END) {
     view->offset = file_size;
+    view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
       document_raw_cursor_from_point(base, splitter, x, y, &view->offset);
     } else if (button&TIPPSE_MOUSE_WHEEL_UP) {
       view->offset -= (splitter->client_height/3)*16;
       view->scroll_y -= splitter->client_height/3;
+      view->show_scrollbar = 1;
     } else if (button&TIPPSE_MOUSE_WHEEL_DOWN) {
       view->offset += (splitter->client_height/3)*16;
       view->scroll_y += splitter->client_height/3;
+      view->show_scrollbar = 1;
     }
   }
 

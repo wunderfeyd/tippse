@@ -20,9 +20,10 @@ struct document_view {
 
   int scroll_x;
   int scroll_y;
-
   int scroll_x_old;
   int scroll_y_old;
+  int scroll_y_max;
+  int show_scrollbar;
 
   int showall;
   int wrapping;
