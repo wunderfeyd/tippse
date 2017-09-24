@@ -22,7 +22,6 @@ struct document_text;
 struct document_text {
   struct document vtbl;
 
-  int show_scrollbar;
   int keep_status;
 };
 

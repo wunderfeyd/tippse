@@ -109,6 +109,32 @@ void splitter_cursor(struct screen* screen, const struct splitter* splitter, int
   }
 }
 
+void splitter_scrollbar(struct screen* screen, const struct splitter* splitter) {
+  struct document_view* view = splitter->view;
+
+  if (view->show_scrollbar) {
+    file_offset_t start = view->scroll_y;
+    file_offset_t end = view->scroll_y+splitter->client_height;
+    file_offset_t length = view->scroll_y_max;
+    if (end==~0) {
+      end = length+1;
+    }
+
+    int pos_start = (start*(file_offset_t)splitter->client_height)/(length+1);
+    int pos_end = (end*(file_offset_t)splitter->client_height)/(length+1);
+    int cp = 0x20;
+    int y;
+    for (y = 0; y<splitter->client_height; y++) {
+      if (y>=pos_start && y<=pos_end) {
+        splitter_drawchar(screen, splitter, splitter->client_width-1, y, &cp, 1, 17, 231);
+      } else {
+        splitter_drawchar(screen, splitter, splitter->client_width-1, y, &cp, 1, 17, 102);
+      }
+    }
+    view->show_scrollbar = 0;
+  }
+}
+
 void splitter_hilight(struct screen* screen, const struct splitter* splitter, int x, int y) {
   if (y<0 || y>=splitter->client_height) {
     return;
