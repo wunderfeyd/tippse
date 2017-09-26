@@ -14,6 +14,9 @@ struct document_file_type document_file_types[] = {
   {"lua", file_type_lua_create},
   {"php", file_type_php_create},
   {"xml", file_type_xml_create},
+  {"diff", file_type_patch_create},
+  {"patch", file_type_patch_create},
+  {"js", file_type_js_create},
   {NULL,  NULL}
 };
 
@@ -488,6 +491,8 @@ void document_file_reload_config(struct document_file* file) {
   file->defaults.colors[VISUAL_FLAG_COLOR_PREPROCESSOR] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/preprocessor"));
   file->defaults.colors[VISUAL_FLAG_COLOR_LINECOMMENT] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/linecomment"));
   file->defaults.colors[VISUAL_FLAG_COLOR_BLOCKCOMMENT] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/blockcomment"));
+  file->defaults.colors[VISUAL_FLAG_COLOR_PLUS] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/plus"));
+  file->defaults.colors[VISUAL_FLAG_COLOR_MINUS] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/minus"));
 
   file->defaults.wrapping = (int)config_convert_int64(config_find_ascii(file->config, "/wrapping"));
   file->defaults.showall = (int)config_convert_int64(config_find_ascii(file->config, "/showall"));

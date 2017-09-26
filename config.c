@@ -19,6 +19,8 @@ const char* config_default =
       "blockcomment:102,"
       "string:226,"
       "preprocessor:103,"
+      "plus:10,"
+      "minus:9,"
     "},"
     "wrapping:1,"
     "showall:0,"

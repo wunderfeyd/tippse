@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 
-struct file_type_c;
+struct file_type_php;
 
 #include "../trie.h"
 #include "../filetype.h"
