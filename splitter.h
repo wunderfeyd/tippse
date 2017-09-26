@@ -9,7 +9,7 @@ struct splitter;
 #include "screen.h"
 #include "document.h"
 #include "document_text.h"
-#include "document_raw.h"
+#include "document_hex.h"
 
 #define TIPPSE_SPLITTER_HORZ 1
 #define TIPPSE_SPLITTER_VERT 2
@@ -40,7 +40,7 @@ struct splitter {
 
   struct document* document;
   struct document* document_text;
-  struct document* document_raw;
+  struct document* document_hex;
 };
 
 struct splitter* splitter_create(int type, int split, struct splitter* side0, struct splitter* side1, const char* name);

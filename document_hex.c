@@ -1,34 +1,34 @@
-/* Tippse - Document Raw View - Cursor and display operations for raw 1d display */
+/* Tippse - Document Hex View - Cursor and display operations for hex mode */
 
-#include "document_raw.h"
+#include "document_hex.h"
 
-struct document* document_raw_create() {
-  struct document_raw* document = (struct document_raw*)malloc(sizeof(struct document_raw));
+struct document* document_hex_create() {
+  struct document_hex* document = (struct document_hex*)malloc(sizeof(struct document_hex));
   document->cp_first = 0;
-  document->vtbl.reset = document_raw_reset;
-  document->vtbl.draw = document_raw_draw;
-  document->vtbl.keypress = document_raw_keypress;
-  document->vtbl.incremental_update = document_raw_incremental_update;
+  document->vtbl.reset = document_hex_reset;
+  document->vtbl.draw = document_hex_draw;
+  document->vtbl.keypress = document_hex_keypress;
+  document->vtbl.incremental_update = document_hex_incremental_update;
 
   return (struct document*)document;
 }
 
-void document_raw_destroy(struct document* base) {
+void document_hex_destroy(struct document* base) {
   free(base);
 }
 
 // Called after a new document was assigned
-void document_raw_reset(struct document* base, struct splitter* splitter) {
+void document_hex_reset(struct document* base, struct splitter* splitter) {
 }
 
 // Find next dirty pages and rerender them (background task)
-int document_raw_incremental_update(struct document* base, struct splitter* splitter) {
+int document_hex_incremental_update(struct document* base, struct splitter* splitter) {
   return 0;
 }
 
 // Draw entire visible screen space
-void document_raw_draw(struct document* base, struct screen* screen, struct splitter* splitter) {
-  struct document_raw* document = (struct document_raw*)base;
+void document_hex_draw(struct document* base, struct screen* screen, struct splitter* splitter) {
+  struct document_hex* document = (struct document_hex*)base;
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
@@ -118,8 +118,8 @@ void document_raw_draw(struct document* base, struct screen* screen, struct spli
 }
 
 // Handle key press
-void document_raw_keypress(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y) {
-  struct document_raw* document = (struct document_raw*)base;
+void document_hex_keypress(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y) {
+  struct document_hex* document = (struct document_hex*)base;
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
@@ -161,7 +161,7 @@ void document_raw_keypress(struct document* base, struct splitter* splitter, int
     while (document_undo_execute(file, view, file->redos, file->undos)) {}
   } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
-      document_raw_cursor_from_point(base, splitter, x, y, &view->offset);
+      document_hex_cursor_from_point(base, splitter, x, y, &view->offset);
     } else if (button&TIPPSE_MOUSE_WHEEL_UP) {
       view->offset -= (splitter->client_height/3)*16;
       view->scroll_y -= splitter->client_height/3;
@@ -184,7 +184,7 @@ void document_raw_keypress(struct document* base, struct splitter* splitter, int
 
   if (cp>=32 && cp<=126) {
     if (document->cp_first!=0) {
-      uint8_t text = (document_raw_value(document->cp_first)<<4) + document_raw_value(cp);
+      uint8_t text = (document_hex_value(document->cp_first)<<4) + document_hex_value(cp);
       document_file_insert(splitter->file, view->offset, &text, 1);
       document_file_delete(splitter->file, view->offset, 1);
       document->cp_first = 0;
@@ -204,7 +204,7 @@ void document_raw_keypress(struct document* base, struct splitter* splitter, int
 }
 
 // Return cursor position from point
-void document_raw_cursor_from_point(struct document* base, struct splitter* splitter, int x, int y, file_offset_t* offset) {
+void document_hex_cursor_from_point(struct document* base, struct splitter* splitter, int x, int y, file_offset_t* offset) {
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
@@ -219,7 +219,7 @@ void document_raw_cursor_from_point(struct document* base, struct splitter* spli
 }
 
 // Return value from hex character
-uint8_t document_raw_value(int cp) {
+uint8_t document_hex_value(int cp) {
   uint8_t value = 0;
   if (cp>='0' && cp<='9') {
     value = cp-'0';
