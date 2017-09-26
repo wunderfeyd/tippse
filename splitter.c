@@ -10,7 +10,7 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
   splitter->status = strdup("");
   splitter->name = strdup(name);
   splitter->document_text = NULL;
-  splitter->document_raw = NULL;
+  splitter->document_hex = NULL;
   splitter->document = NULL;
   splitter->view = document_view_create();
 
@@ -23,7 +23,7 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
     splitter->content = 0;
 
     splitter->document_text = document_text_create();
-    splitter->document_raw = document_raw_create();
+    splitter->document_hex = document_hex_create();
     splitter->document = splitter->document_text;
   } else {
     splitter->side[0] = side0;
@@ -43,7 +43,7 @@ void splitter_destroy(struct splitter* splitter) {
   splitter_unassign_document_file(splitter);
   document_view_destroy(splitter->view);
   document_text_destroy(splitter->document_text);
-  document_raw_destroy(splitter->document_raw);
+  document_hex_destroy(splitter->document_hex);
 
   splitter_destroy(splitter->side[0]);
   splitter_destroy(splitter->side[1]);
@@ -190,10 +190,10 @@ void splitter_assign_document_file(struct splitter* splitter, struct document_fi
   list_insert(splitter->file->views, NULL, splitter->view);
 
   (*splitter->document_text->reset)(splitter->document, splitter);
-  (*splitter->document_raw->reset)(splitter->document, splitter);
+  (*splitter->document_hex->reset)(splitter->document, splitter);
 
   if (file->binary) {
-    splitter->document = splitter->document_raw;
+    splitter->document = splitter->document_hex;
   } else {
     splitter->document = splitter->document_text;
   }

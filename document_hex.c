@@ -1,32 +1,34 @@
-/* Tippse - Document Raw View - Cursor and display operations for raw 1d display */
+/* Tippse - Document Hex View - Cursor and display operations for hex mode */
 
-#include "document_raw.h"
+#include "document_hex.h"
 
-struct document* document_raw_create() {
-  struct document_raw* document = (struct document_raw*)malloc(sizeof(struct document_raw));
-  document->vtbl.reset = document_raw_reset;
-  document->vtbl.draw = document_raw_draw;
-  document->vtbl.keypress = document_raw_keypress;
-  document->vtbl.incremental_update = document_raw_incremental_update;
+struct document* document_hex_create() {
+  struct document_hex* document = (struct document_hex*)malloc(sizeof(struct document_hex));
+  document->cp_first = 0;
+  document->vtbl.reset = document_hex_reset;
+  document->vtbl.draw = document_hex_draw;
+  document->vtbl.keypress = document_hex_keypress;
+  document->vtbl.incremental_update = document_hex_incremental_update;
 
   return (struct document*)document;
 }
 
-void document_raw_destroy(struct document* base) {
+void document_hex_destroy(struct document* base) {
   free(base);
 }
 
 // Called after a new document was assigned
-void document_raw_reset(struct document* base, struct splitter* splitter) {
+void document_hex_reset(struct document* base, struct splitter* splitter) {
 }
 
 // Find next dirty pages and rerender them (background task)
-int document_raw_incremental_update(struct document* base, struct splitter* splitter) {
+int document_hex_incremental_update(struct document* base, struct splitter* splitter) {
   return 0;
 }
 
 // Draw entire visible screen space
-void document_raw_draw(struct document* base, struct screen* screen, struct splitter* splitter) {
+void document_hex_draw(struct document* base, struct screen* screen, struct splitter* splitter) {
+  struct document_hex* document = (struct document_hex*)base;
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
@@ -40,6 +42,7 @@ void document_raw_draw(struct document* base, struct screen* screen, struct spli
   if (view->cursor_y>=view->scroll_y+splitter->client_height) {
     view->scroll_y = view->cursor_y-splitter->client_height+1;
   }
+  view->scroll_y_max = (file_size+16)/16;
   if (view->cursor_y<view->scroll_y) {
     view->scroll_y = view->cursor_y;
   }
@@ -106,13 +109,17 @@ void document_raw_draw(struct document* base, struct screen* screen, struct spli
     splitter_drawtext(screen, splitter, 0, y, line, strlen(line), foreground, background);
     if (offset>=file_size) break;
   }
+  if (document->cp_first!=0) {
+    uint8_t text = document->cp_first;
+    splitter_drawtext(screen, splitter, 10+(3*view->cursor_x), view->cursor_y-view->scroll_y, (char*)&text, 1, foreground, background);
+  }
   splitter_cursor(screen, splitter, 10+(3*view->cursor_x), view->cursor_y-view->scroll_y);
-  view->scroll_y_max = (file_size+16)/16;
   splitter_scrollbar(screen, splitter);
 }
 
 // Handle key press
-void document_raw_keypress(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y) {
+void document_hex_keypress(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y) {
+  struct document_hex* document = (struct document_hex*)base;
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
@@ -146,9 +153,15 @@ void document_raw_keypress(struct document* base, struct splitter* splitter, int
   } else if (cp==TIPPSE_KEY_END) {
     view->offset = file_size;
     view->show_scrollbar = 1;
+  } else if (cp==TIPPSE_KEY_UNDO) {
+    document_undo_execute(file, view, file->undos, file->redos);
+    while (document_undo_execute(file, view, file->undos, file->redos)) {}
+  } else if (cp==TIPPSE_KEY_REDO) {
+    document_undo_execute(file, view, file->redos, file->undos);
+    while (document_undo_execute(file, view, file->redos, file->undos)) {}
   } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
-      document_raw_cursor_from_point(base, splitter, x, y, &view->offset);
+      document_hex_cursor_from_point(base, splitter, x, y, &view->offset);
     } else if (button&TIPPSE_MOUSE_WHEEL_UP) {
       view->offset -= (splitter->client_height/3)*16;
       view->scroll_y -= splitter->client_height/3;
@@ -158,8 +171,31 @@ void document_raw_keypress(struct document* base, struct splitter* splitter, int
       view->scroll_y += splitter->client_height/3;
       view->show_scrollbar = 1;
     }
+  } else if (cp=='\n') {
+    uint8_t text = file->binary?0:32;
+    document_file_insert(splitter->file, view->offset, &text, 1);
+    view->offset--;
+  } else if (cp==TIPPSE_KEY_BACKSPACE) {
+    view->offset--;
+    document_file_delete(splitter->file, view->offset, 1);
+  } else if (cp==TIPPSE_KEY_DELETE) {
+    document_file_delete(splitter->file, view->offset, 1);
   }
 
+  if (cp>=32 && cp<=126) {
+    if (document->cp_first!=0) {
+      uint8_t text = (document_hex_value(document->cp_first)<<4) + document_hex_value(cp);
+      document_file_insert(splitter->file, view->offset, &text, 1);
+      document_file_delete(splitter->file, view->offset, 1);
+      document->cp_first = 0;
+    } else {
+      document->cp_first = cp;
+    }
+  } else {
+    document->cp_first = 0;
+  }
+
+  file_size = file->buffer?file->buffer->length:0;
   if (view->offset>((file_offset_t)1<<(sizeof(file_offset_t)*8-1))) {
     view->offset = 0;
   } else if (view->offset>file_size) {
@@ -168,7 +204,7 @@ void document_raw_keypress(struct document* base, struct splitter* splitter, int
 }
 
 // Return cursor position from point
-void document_raw_cursor_from_point(struct document* base, struct splitter* splitter, int x, int y, file_offset_t* offset) {
+void document_hex_cursor_from_point(struct document* base, struct splitter* splitter, int x, int y, file_offset_t* offset) {
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
@@ -180,4 +216,17 @@ void document_raw_cursor_from_point(struct document* base, struct splitter* spli
     if (x>=59 && x<59+16) *offset = ((view->scroll_y+y)*16)+x-59;
     if (*offset>file_size) *offset = file_size;
   }
+}
+
+// Return value from hex character
+uint8_t document_hex_value(int cp) {
+  uint8_t value = 0;
+  if (cp>='0' && cp<='9') {
+    value = cp-'0';
+  } else if (cp>='a' && cp<='f') {
+    value = cp-'a'+10;
+  } else if (cp>='A' && cp<='F') {
+    value = cp-'A'+10;
+  }
+  return value;
 }

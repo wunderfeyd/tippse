@@ -339,10 +339,10 @@ int main(int argc, const char** argv) {
               focus->active = 1;
               document_search(last_document, range_tree_next(search_text_buffers[1]), range_tree_distance_offset(search->file->buffer, search_text_buffers[1], search_text_buffers[2]), 0);
             } else if (ansi_keys[pos].cp==TIPPSE_KEY_VIEW_SWITCH) {
-              if (focus->document==focus->document_raw) {
+              if (focus->document==focus->document_hex) {
                 focus->document = focus->document_text;
               } else {
-                focus->document = focus->document_raw;
+                focus->document = focus->document_hex;
               }
             } else if (ansi_keys[pos].cp==TIPPSE_KEY_OPEN || (focus->view->line_select && ansi_keys[pos].cp=='\n')) {
               if (focus->view->selection_low!=focus->view->selection_high) {
