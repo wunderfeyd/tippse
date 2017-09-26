@@ -21,6 +21,7 @@ struct document_raw;
 
 struct document_raw {
   struct document vtbl;
+  int cp_first;
 };
 
 struct document* document_raw_create();
@@ -31,5 +32,6 @@ int document_raw_incremental_update(struct document* base, struct splitter* spli
 void document_raw_draw(struct document* base, struct screen* screen, struct splitter* splitter);
 void document_raw_keypress(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y);
 void document_raw_cursor_from_point(struct document* base, struct splitter* splitter, int x, int y, file_offset_t* offset);
+uint8_t document_raw_value(int cp);
 
 #endif /* #ifndef __TIPPSE_DOCUMENT_RAW__ */
