@@ -67,9 +67,9 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   encoding_stream_from_page(&stream, buffer, displacement);
 
   size_t name_length = strlen(file->filename);
-  char* title = malloc((name_length+file->modified*2+1)*sizeof(char));
+  char* title = malloc((name_length+document_undo_modified(file)*2+1)*sizeof(char));
   memcpy(title, file->filename, name_length);
-  if (file->modified) {
+  if (document_undo_modified(file)) {
     memcpy(title+name_length, " *\0", 3);
   } else {
     title[name_length] = '\0';
@@ -154,11 +154,9 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     view->offset = file_size;
     view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_UNDO) {
-    document_undo_execute(file, view, file->undos, file->redos);
-    while (document_undo_execute(file, view, file->undos, file->redos)) {}
+    document_undo_execute_chain(file, view, file->undos, file->redos, 0);
   } else if (cp==TIPPSE_KEY_REDO) {
-    document_undo_execute(file, view, file->redos, file->undos);
-    while (document_undo_execute(file, view, file->redos, file->undos)) {}
+    document_undo_execute_chain(file, view, file->redos, file->undos, 1);
   } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
       document_hex_cursor_from_point(base, splitter, x, y, &view->offset);
@@ -171,7 +169,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
       view->scroll_y += splitter->client_height/3;
       view->show_scrollbar = 1;
     }
-  } else if (cp=='\n') {
+  } else if (cp==TIPPSE_KEY_RETURN) {
     uint8_t text = file->binary?0:32;
     document_file_insert(splitter->file, view->offset, &text, 1);
     view->offset--;

@@ -87,7 +87,8 @@ struct tippse_ansi_key ansi_keys[] = {
   {"\x15", TIPPSE_KEY_VIEW_SWITCH, 0},
   {"\x17", TIPPSE_KEY_WORDWRAP, 0},
   {"\x04", TIPPSE_KEY_DOCUMENTSELECTION, 0},
-  {"\r", '\n', 0},
+  {"\r", TIPPSE_KEY_RETURN, 0},
+  {"\n", TIPPSE_KEY_RETURN, 0},
   {NULL, 0, 0}
 };
 
@@ -230,7 +231,7 @@ int main(int argc, const char** argv) {
         struct list_node* doc = documents->first;
         while (doc) {
           struct document_file* file = (struct document_file*)doc->object;
-          document_undo_chain(file);
+          document_undo_chain(file, file->undos);
           doc = doc->next;
         }
 
@@ -419,7 +420,7 @@ int main(int argc, const char** argv) {
               struct list_node* docs = documents->first;
               while (docs) {
                 struct document_file* docs_document_doc = (struct document_file*)docs->object;
-                if (docs_document_doc->modified && docs_document_doc->save) {
+                if (document_undo_modified(docs_document_doc) && docs_document_doc->save) {
                   document_file_save(docs_document_doc, docs_document_doc->filename);
                 }
 

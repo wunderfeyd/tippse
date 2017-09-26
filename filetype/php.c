@@ -107,7 +107,8 @@ void file_type_php_mark(struct file_type* base, int* visual_detail, struct encod
         after &= ~VISUAL_INFO_STRING1;
       }
     }
-  }  
+  }
+
   if (before&VISUAL_INFO_NEWLINE) {
     after |= VISUAL_INFO_INDENTATION;
     after &= ~VISUAL_INFO_NEWLINE;

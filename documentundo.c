@@ -24,8 +24,23 @@ void document_undo_add(struct document_file* file, struct document_view* view, f
   list_insert(file->undos, NULL, undo);
 }
 
-void document_undo_chain(struct document_file* file) {
-  struct list_node* node = file->undos->first;
+int document_undo_modified(struct document_file* file) {
+   return (file->undo_save_point!=file->undos->count)?1:0;
+}
+
+void document_undo_mark_save_point(struct document_file* file) {
+  document_undo_chain(file, file->undos);
+  file->undo_save_point = file->undos->count;
+}
+
+void document_undo_check_save_point(struct document_file* file) {
+  if (file->undos->count+file->redos->count<file->undo_save_point) {
+    file->undo_save_point = -1;
+  }
+}
+
+void document_undo_chain(struct document_file* file, struct list* list) {
+  struct list_node* node = list->first;
   if (!node) {
     return;
   }
@@ -36,11 +51,11 @@ void document_undo_chain(struct document_file* file) {
     undo->type = TIPPSE_UNDO_TYPE_CHAIN;
     undo->buffer = NULL;
 
-    list_insert(file->undos, NULL, undo);
+    list_insert(list, NULL, undo);
   }
 }
 
-void document_undo_empty(struct list* list) {
+void document_undo_empty(struct document_file* file, struct list* list) {
   while (1) {
     struct list_node* node = list->first;
     if (!node) {
@@ -55,16 +70,22 @@ void document_undo_empty(struct list* list) {
     free(undo);
     list_remove(list, node);
   }
+
+  document_undo_check_save_point(file);
 }
 
-int document_undo_execute(struct document_file* file, struct document_view* view, struct list* from, struct list* to) {
+void document_undo_execute_chain(struct document_file* file, struct document_view* view, struct list* from, struct list* to, int reverse) {
+  document_undo_execute(file, view, from, to, 1);
+  while (document_undo_execute(file, view, from, to, reverse)) {}
+}
+
+int document_undo_execute(struct document_file* file, struct document_view* view, struct list* from, struct list* to, int override) {
   int chain = 0;
   struct list_node* node = from->first;
   if (!node) {
     return chain;
   }
 
-  file->modified = 1;
   file_offset_t offset = 0;
   struct document_undo* undo = (struct document_undo*)node->object;
   if (undo->type==TIPPSE_UNDO_TYPE_INSERT) {
@@ -121,8 +142,10 @@ int document_undo_execute(struct document_file* file, struct document_view* view
     view->scroll_y = undo->scroll_y;*/
   }
 
-  list_insert(to, NULL, undo);
-  list_remove(from, node);
+  if (undo->type!=TIPPSE_UNDO_TYPE_CHAIN || override) {
+    list_insert(to, NULL, undo);
+    list_remove(from, node);
+  }
 
   return chain;
 }

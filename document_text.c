@@ -555,7 +555,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     if (screen) {
       show = -1;
       if ((debug&DEBUG_PAGERENDERDISPLAY)) {
-        color = ((int)render_info->buffer&0xff);
+        color = (intptr_t)render_info->buffer&0xff;
       } else {
         color = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
       }
@@ -903,9 +903,9 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   }
 
   size_t name_length = strlen(file->filename);
-  char* title = malloc((name_length+file->modified*2+1)*sizeof(char));
+  char* title = malloc((name_length+document_undo_modified(file)*2+1)*sizeof(char));
   memcpy(title, file->filename, name_length);
-  if (file->modified) {
+  if (document_undo_modified(file)) {
     memcpy(title+name_length, " *\0", 3);
   } else {
     title[name_length] = '\0';
@@ -916,9 +916,6 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   splitter_cursor(screen, splitter, cursor.x-view->scroll_x, cursor.y-view->scroll_y);
 
   // Test
-  int test_bl = 0;
-  int test_br = 0;
-  int test_c = 0;
   if (cursor.bracket_match&VISUAL_BRACKET_OPEN) {
     struct document_text_position out;
     in.type = VISUAL_SEEK_BRACKET_NEXT;
@@ -936,7 +933,6 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
       }
 
       if (rendered==-1) {
-        test_c++;
         document_text_render_clear(&render_info, splitter->client_width);
         document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
         struct range_tree_node* node = range_tree_find_bracket_forward(render_info.buffer, in.bracket, in.bracket_search);
@@ -955,7 +951,6 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
       out.offset = file->buffer->length;
     }
 
-    test_br = (int)out.offset;
     splitter_hilight(screen, splitter, out.x-view->scroll_x, out.y-view->scroll_y);
   }
 
@@ -976,7 +971,6 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
       }
 
       if (rendered==-1) {
-        test_c++;
         document_text_render_clear(&render_info, splitter->client_width);
         document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
         struct range_tree_node* node = range_tree_find_bracket_backward(render_info.buffer, in.bracket, in.bracket_search);
@@ -996,7 +990,6 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
       out.offset = 0;
     }
 
-    test_bl = (int)out.offset;
     splitter_hilight(screen, splitter, out.x-view->scroll_x, out.y-view->scroll_y);
   }
 
@@ -1004,7 +997,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     const char* newline[TIPPSE_NEWLINE_MAX] = {"Auto", "Lf", "Cr", "CrLf"};
     const char* tabstop[TIPPSE_TABSTOP_MAX] = {"Auto", "Tab", "Space"};
     char status[1024];
-    sprintf(&status[0], "%s%s%d/%d:%d - %d/%d byte - %s*%d %s %s %s - %d(%d-%d.%d)", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), cursor.line+1, cursor.column+1, (int)view->offset, file->buffer?(int)file->buffer->length:0, tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->encoding->name)(), cursor.depth[0], test_bl, test_br, test_c);
+    sprintf(&status[0], "%s%s%d/%d:%d - %d/%d byte - %s*%d %s %s %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), cursor.line+1, cursor.column+1, (int)view->offset, file->buffer?(int)file->buffer->length:0, tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->encoding->name)());
     splitter_status(splitter, &status[0], 0);
   }
   document->keep_status = 0;
@@ -1126,12 +1119,10 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_UNDO) {
-    document_undo_execute(file, view, file->undos, file->redos);
-    while (document_undo_execute(file, view, file->undos, file->redos)) {}
+    document_undo_execute_chain(file, view, file->undos, file->redos, 0);
     return;
   } else if (cp==TIPPSE_KEY_REDO) {
-    document_undo_execute(file, view, file->redos, file->undos);
-    while (document_undo_execute(file, view, file->redos, file->undos)) {}
+    document_undo_execute_chain(file, view, file->redos, file->undos, 1);
     return;
   } else if (cp==TIPPSE_KEY_BOOKMARK) {
     document_text_toggle_bookmark(base, splitter, view->offset);
@@ -1167,7 +1158,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 
     reset_selection = (!(button_old&TIPPSE_MOUSE_LBUTTON) && (button&TIPPSE_MOUSE_LBUTTON))?1:0;
   } else if (cp==TIPPSE_KEY_TAB) {
-    document_undo_chain(file);
+    document_undo_chain(file, file->undos);
     if (view->selection_low==~0) {
       uint8_t utf8[8];
       file_offset_t size;
@@ -1223,10 +1214,10 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
         out_end.line--;
       }
     }
-    document_undo_chain(file);
+    document_undo_chain(file, file->undos);
     seek = 1;
   } else if (cp==TIPPSE_KEY_UNTAB) {
-    document_undo_chain(file);
+    document_undo_chain(file, file->undos);
     if (view->selection_low!=~0) {
       struct document_text_position out_start;
       struct document_text_position out_end;
@@ -1274,10 +1265,10 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
         out_end.line--;
       }
     }
-    document_undo_chain(file);
+    document_undo_chain(file, file->undos);
     seek = 1;
   } else if (cp==TIPPSE_KEY_COPY || cp==TIPPSE_KEY_CUT) {
-    document_undo_chain(file);
+    document_undo_chain(file, file->undos);
     if (view->selection_low!=~0) {
       clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low));
       if (cp==TIPPSE_KEY_CUT) {
@@ -1287,23 +1278,23 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
         reset_selection = 0;
       }
     }
-    document_undo_chain(file);
+    document_undo_chain(file, file->undos);
     seek = 1;
   } else if (cp==TIPPSE_KEY_PASTE || cp==TIPPSE_KEY_BRACKET_PASTE_START) {
-    document_undo_chain(file);
+    document_undo_chain(file, file->undos);
     document_file_delete_selection(splitter->file, splitter->view);
     if (clipboard_get()) {
       document_file_insert_buffer(splitter->file, view->offset, clipboard_get());
     }
 
-    document_undo_chain(file);
+    document_undo_chain(file, file->undos);
     reset_selection = 1;
     seek = 1;
-  } else if (cp>=0) {
+  } else if (cp>=0 || cp==TIPPSE_KEY_RETURN) {
     document_file_delete_selection(splitter->file, splitter->view);
     uint8_t utf8[8];
     size_t size;
-    if (cp=='\n') {
+    if (cp==TIPPSE_KEY_RETURN) {
       if (file->newline==TIPPSE_NEWLINE_CRLF) {
         utf8[0] = '\r';
         utf8[1] = '\n';

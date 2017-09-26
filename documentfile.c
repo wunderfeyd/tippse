@@ -25,7 +25,6 @@ struct document_file* document_file_create(int save) {
   file->redos = list_create();
   file->filename = strdup("");
   file->views = list_create();
-  file->modified = 0;
   file->save = save;
   file->type = file_type_text_create();
   file->encoding = encoding_utf8_create();
@@ -34,6 +33,7 @@ struct document_file* document_file_create(int save) {
   file->newline = TIPPSE_NEWLINE_AUTO;
   file->config = config_create();
   file->view = document_view_create();
+  document_undo_mark_save_point(file);
   return file;
 }
 
@@ -53,9 +53,9 @@ void document_file_clear(struct document_file* file) {
 
 void document_file_destroy(struct document_file* file) {
   document_file_clear(file);
-  document_undo_empty(file->undos);
+  document_undo_empty(file, file->undos);
   list_destroy(file->undos);
-  document_undo_empty(file->redos);
+  document_undo_empty(file, file->redos);
   list_destroy(file->redos);
   list_destroy(file->views);
   free(file->filename);
@@ -137,8 +137,8 @@ void document_file_load(struct document_file* file, const char* filename) {
     close(f);
   }
 
+  document_undo_mark_save_point(file);
   document_file_name(file, filename);
-  file->modified = 0;
   document_file_detect_properties(file);
   file->bookmarks = range_tree_static(file->bookmarks, file->buffer?file->buffer->length:0, 0);
   document_view_reset(file->view, file);
@@ -157,8 +157,8 @@ void document_file_load_memory(struct document_file* file, const uint8_t* buffer
     buffer += max;
   }
 
+  document_undo_mark_save_point(file);
   document_file_name(file, "<memory>");
-  file->modified = 0;
   document_file_detect_properties(file);
   file->bookmarks = range_tree_static(file->bookmarks, file->buffer?file->buffer->length:0, 0);
   document_view_reset(file->view, file);
@@ -181,6 +181,7 @@ int document_file_save_plain(struct document_file* file, const char* filename) {
   }
 
   close(f);
+  document_undo_mark_save_point(file);
   return 1;
 }
 
@@ -197,7 +198,7 @@ void document_file_save(struct document_file* file, const char* filename) {
     free(tmpname);
   } else {
     if (document_file_save_plain(file, filename)) {
-      file->modified = 0;
+      document_undo_mark_save_point(file);
     }
   }
 
@@ -357,8 +358,7 @@ void document_file_insert(struct document_file* file, file_offset_t offset, cons
     views = views->next;
   }
 
-  document_undo_empty(file->redos);
-  file->modified = 1;
+  document_undo_empty(file, file->redos);
 }
 
 void document_file_insert_buffer(struct document_file* file, file_offset_t offset, struct range_tree_node* buffer) {
@@ -389,8 +389,7 @@ void document_file_insert_buffer(struct document_file* file, file_offset_t offse
     views = views->next;
   }
 
-  document_undo_empty(file->redos);
-  file->modified = 1;
+  document_undo_empty(file, file->redos);
 }
 
 void document_file_reduce(file_offset_t* pos, file_offset_t offset, file_offset_t length) {
@@ -428,8 +427,7 @@ void document_file_delete(struct document_file* file, file_offset_t offset, file
     views = views->next;
   }
 
-  document_undo_empty(file->redos);
-  file->modified = 1;
+  document_undo_empty(file, file->redos);
 }
 
 int document_file_delete_selection(struct document_file* file, struct document_view* view) {

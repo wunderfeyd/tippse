@@ -72,8 +72,8 @@ struct document_file {
   int binary;
 
   char* filename;
-  int modified;
   int save;
+  int undo_save_point;
 
   struct document_file_defaults defaults;
   struct document_view* view;

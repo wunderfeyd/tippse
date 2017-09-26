@@ -35,8 +35,12 @@ struct document_undo {
 };
 
 void document_undo_add(struct document_file* file, struct document_view* view, file_offset_t offset, file_offset_t length, int insert);
-void document_undo_chain(struct document_file* file);
-void document_undo_empty(struct list* list);
-int document_undo_execute(struct document_file* file, struct document_view* view, struct list* from, struct list* to);
+void document_undo_mark_save_point(struct document_file* file);
+void document_undo_check_save_point(struct document_file* file);
+int document_undo_modified(struct document_file* file);
+void document_undo_chain(struct document_file* file, struct list* list);
+void document_undo_empty(struct document_file* file, struct list* list);
+void document_undo_execute_chain(struct document_file* file, struct document_view* view, struct list* from, struct list* to, int reverse);
+int document_undo_execute(struct document_file* file, struct document_view* view, struct list* from, struct list* to, int override);
 
 #endif /* #ifndef __TIPPSE_DOCUMENTUNDO__ */
