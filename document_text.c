@@ -1023,16 +1023,9 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   in_line_column.clip = 0;
 
   //range_tree_check(document->buffer);
+  file_offset_t offset_old = view->offset;
   int seek = 0;
-
-  int reset_selection = 1;
-  if (modifier&TIPPSE_KEY_MOD_SHIFT) {
-    if (view->selection_start==~0) {
-      view->selection_start = view->offset;
-    }
-
-    reset_selection = 0;
-  }
+  int selection_keep = 0;
 
   if (cp!=TIPPSE_KEY_UP && cp!=TIPPSE_KEY_DOWN && cp!=TIPPSE_KEY_PAGEDOWN && cp!=TIPPSE_KEY_PAGEUP) {
     in_offset.offset = view->offset;
@@ -1155,8 +1148,6 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       view->cursor_y = out.y;
       view->show_scrollbar = 1;
     }
-
-    reset_selection = (!(button_old&TIPPSE_MOUSE_LBUTTON) && (button&TIPPSE_MOUSE_LBUTTON))?1:0;
   } else if (cp==TIPPSE_KEY_TAB) {
     document_undo_chain(file, file->undos);
     if (view->selection_low==~0) {
@@ -1183,7 +1174,6 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       in_offset.offset = view->selection_high-1;
       document_text_cursor_position(splitter, &in_offset, &out_end, 0, 1);
 
-      reset_selection = 0;
       while(out_end.line>=out_start.line) {
         in_line_column.column = 0;
         in_line_column.line = out_end.line;
@@ -1216,6 +1206,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
     document_undo_chain(file, file->undos);
     seek = 1;
+    selection_keep = 1;
   } else if (cp==TIPPSE_KEY_UNTAB) {
     document_undo_chain(file, file->undos);
     if (view->selection_low!=~0) {
@@ -1227,7 +1218,6 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       in_offset.offset = view->selection_high-1;
       document_text_cursor_position(splitter, &in_offset, &out_end, 0, 1);
 
-      reset_selection = 0;
       while(out_end.line>=out_start.line) {
         in_line_column.column = 0;
         in_line_column.line = out_end.line;
@@ -1267,15 +1257,15 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
     document_undo_chain(file, file->undos);
     seek = 1;
+    selection_keep = 1;
   } else if (cp==TIPPSE_KEY_COPY || cp==TIPPSE_KEY_CUT) {
     document_undo_chain(file, file->undos);
     if (view->selection_low!=~0) {
       clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low));
       if (cp==TIPPSE_KEY_CUT) {
         document_file_delete_selection(splitter->file, splitter->view);
-        reset_selection = 1;
       } else {
-        reset_selection = 0;
+        selection_keep = 1;
       }
     }
     document_undo_chain(file, file->undos);
@@ -1288,7 +1278,6 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
 
     document_undo_chain(file, file->undos);
-    reset_selection = 1;
     seek = 1;
   } else if (cp>=0 || cp==TIPPSE_KEY_RETURN) {
     document_file_delete_selection(splitter->file, splitter->view);
@@ -1322,15 +1311,25 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->cursor_y = out.y;
   }
 
-  if (reset_selection) {
+  int selection_reset = 0;
+  if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
+    if (button&TIPPSE_MOUSE_LBUTTON) {
+      if (!(button_old&TIPPSE_MOUSE_LBUTTON) && !(modifier&TIPPSE_KEY_MOD_SHIFT)) view->selection_start = ~0;
+      if (view->selection_start==~0) view->selection_start = view->offset;
+      view->selection_end = view->offset;
+    }
+  } else {
+    if (modifier&TIPPSE_KEY_MOD_SHIFT) {
+      if (view->selection_start==~0) view->selection_start = offset_old;
+      view->selection_end = view->offset;
+    } else {
+      selection_reset = selection_keep ? 0 : 1;
+    }
+  }
+  if (selection_reset) {
     view->selection_start = ~0;
     view->selection_end = ~0;
   }
-
-  if (modifier&TIPPSE_KEY_MOD_SHIFT) {
-    view->selection_end = view->offset;
-  }
-
   if (view->selection_start<view->selection_end) {
     view->selection_low = view->selection_start;
     view->selection_high = view->selection_end;

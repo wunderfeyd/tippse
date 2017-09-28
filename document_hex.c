@@ -84,37 +84,62 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
   int x, y;
   for (y = 0; y<splitter->client_height; y++) {
-    char line[1024];
-    sprintf(&line[0], "%08lx  ", (unsigned long)offset);
-    uint8_t data[16+1];
+    uint8_t data[16];
     int data_size = (int)file_size-offset>16?16:file_size-offset;
-    for (x = 0; x<data_size; x++,offset++) {
+    for (x = 0; x<data_size; x++) {
       data[x] = encoding_stream_peek(&stream, 0);
       encoding_stream_forward(&stream, 1);
     }
-    data[x] = 0;
-    for (x = 0; x<16; x++) {
-      if (x<data_size) {
-        sprintf(&line[10+(3*x)], "%02x ", data[x]);
-      } else {
-        strcpy(&line[10+(3*x)], "   ");
-      }
-    }
-    for (x = 0; x<data_size; x++) {   //TODO: maybe handle other text formats than ASCII later
-      if (data[x]<32 || data[x]>126) {
-        data[x] = '.';
-      }
-    }
-    sprintf(&line[58], " %s", &data[0]);
-    splitter_drawtext(screen, splitter, 0, y, line, strlen(line), foreground, background);
+    document_hex_render(base, screen, splitter, offset, y, data, data_size, foreground, background);
+    offset += data_size;
     if (offset>=file_size) break;
+  }
+  if(file_size%16==0) {
+    document_hex_render(base, screen, splitter, offset, y+1, NULL, 0, foreground, background);
   }
   if (document->cp_first!=0) {
     uint8_t text = document->cp_first;
     splitter_drawtext(screen, splitter, 10+(3*view->cursor_x), view->cursor_y-view->scroll_y, (char*)&text, 1, foreground, background);
+    splitter_cursor(screen, splitter, 10+(3*view->cursor_x)+1, view->cursor_y-view->scroll_y);
+  } else {
+    splitter_cursor(screen, splitter, 10+(3*view->cursor_x), view->cursor_y-view->scroll_y);
   }
-  splitter_cursor(screen, splitter, 10+(3*view->cursor_x), view->cursor_y-view->scroll_y);
   splitter_scrollbar(screen, splitter);
+}
+
+// Render one line of data
+void document_hex_render(struct document* base, struct screen* screen, struct splitter* splitter, file_offset_t offset, int y, const uint8_t* data, int data_size, int foreground, int background) {
+  struct document_view* view = splitter->view;
+
+  int x = 0;
+  char line[1024];
+  sprintf(line, "%08lx", (unsigned long)offset);
+  splitter_drawtext(screen, splitter, x, y, line, 8, foreground, background);
+  x = 10;
+  int data_pos;
+  for (data_pos = 0; data_pos<data_size; data_pos++) {
+    sprintf(line, "%02x ", data[data_pos]);
+    if (offset+data_pos<view->selection_low || offset+data_pos>=view->selection_high) {
+      splitter_drawtext(screen, splitter, x, y, line, 2, foreground, background);
+    } else {
+      splitter_drawtext(screen, splitter, x, y, line, data_pos==15?2:3, background, foreground);
+    }
+    x += 3;
+  }
+  x = 59;
+  for (data_pos = 0; data_pos<data_size; data_pos++) {
+    if (data[data_pos]<32 || data[data_pos]>126) {
+      line[0] = '.';
+    } else {
+      line[0] = data[data_pos];
+    }
+    if (offset+data_pos<view->selection_low || offset+data_pos>=view->selection_high) {
+      splitter_drawtext(screen, splitter, x, y, line, 1, foreground, background);
+    } else {
+      splitter_drawtext(screen, splitter, x, y, line, 1, background, foreground);
+    }
+    x++;
+  }
 }
 
 // Handle key press
@@ -124,6 +149,8 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   struct document_view* view = splitter->view;
 
   file_offset_t file_size = file->buffer?file->buffer->length:0;
+  file_offset_t offset_old = view->offset;
+  int selection_keep = 0;
 
   if (cp==TIPPSE_KEY_UP) {
     view->offset-=16;
@@ -153,10 +180,6 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   } else if (cp==TIPPSE_KEY_END) {
     view->offset = file_size;
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_UNDO) {
-    document_undo_execute_chain(file, view, file->undos, file->redos, 0);
-  } else if (cp==TIPPSE_KEY_REDO) {
-    document_undo_execute_chain(file, view, file->redos, file->undos, 1);
   } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
       document_hex_cursor_from_point(base, splitter, x, y, &view->offset);
@@ -169,27 +192,46 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
       view->scroll_y += splitter->client_height/3;
       view->show_scrollbar = 1;
     }
+  } else if (cp==TIPPSE_KEY_UNDO) {
+    document_undo_execute_chain(file, view, file->undos, file->redos, 0);
+  } else if (cp==TIPPSE_KEY_REDO) {
+    document_undo_execute_chain(file, view, file->redos, file->undos, 1);
+  } else if (cp==TIPPSE_KEY_BACKSPACE) {
+    if (view->selection_low!=~0 || document->cp_first!=0) {
+      document_file_delete_selection(file, view);
+    } else {
+      view->offset--;
+      document_file_delete(file, view->offset, 1);
+    }
+  } else if (cp==TIPPSE_KEY_DELETE) {
+    if (view->selection_low!=~0  || document->cp_first!=0) {
+      document_file_delete_selection(file, view);
+    } else {
+      document_file_delete(file, view->offset, 1);
+    }
   } else if (cp==TIPPSE_KEY_RETURN) {
     uint8_t text = file->binary?0:32;
-    document_file_insert(splitter->file, view->offset, &text, 1);
+    document_file_delete_selection(file, view);
+    document_file_insert(file, view->offset, &text, 1);
     view->offset--;
-  } else if (cp==TIPPSE_KEY_BACKSPACE) {
-    view->offset--;
-    document_file_delete(splitter->file, view->offset, 1);
-  } else if (cp==TIPPSE_KEY_DELETE) {
-    document_file_delete(splitter->file, view->offset, 1);
   }
 
-  if (cp>=32 && cp<=126) {
+  if ((cp>='0' && cp<='9') || (cp>='a' && cp<='f') || (cp>='A' && cp<='F')){
     if (document->cp_first!=0) {
       uint8_t text = (document_hex_value(document->cp_first)<<4) + document_hex_value(cp);
-      document_file_insert(splitter->file, view->offset, &text, 1);
-      document_file_delete(splitter->file, view->offset, 1);
+      document_file_insert(file, view->offset, &text, 1);
+      document_file_delete(file, view->offset, 1);
       document->cp_first = 0;
     } else {
+      if (view->selection_low!=~0) {
+        uint8_t text = file->binary?0:32;
+        document_file_delete_selection(file, view);
+        document_file_insert(file, view->offset, &text, 1);
+        view->offset--;
+      }
       document->cp_first = cp;
     }
-  } else {
+  } else if (cp!=TIPPSE_KEY_TIPPSE_MOUSE_INPUT || button!=0) {
     document->cp_first = 0;
   }
 
@@ -198,6 +240,33 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     view->offset = 0;
   } else if (view->offset>file_size) {
     view->offset = file_size;
+  }
+
+  int selection_reset = 0;
+  if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
+    if (button&TIPPSE_MOUSE_LBUTTON) {
+      if (!(button_old&TIPPSE_MOUSE_LBUTTON) && !(modifier&TIPPSE_KEY_MOD_SHIFT)) view->selection_start = ~0;
+      if (view->selection_start==~0) view->selection_start = view->offset;
+      view->selection_end = view->offset;
+    }
+  } else {
+    if (modifier&TIPPSE_KEY_MOD_SHIFT) {
+      if (view->selection_start==~0) view->selection_start = offset_old;
+      view->selection_end = view->offset;
+    } else {
+      selection_reset = selection_keep ? 0 : 1;
+    }
+  }
+  if (selection_reset) {
+    view->selection_start = ~0;
+    view->selection_end = ~0;
+  }
+  if (view->selection_start<view->selection_end) {
+    view->selection_low = view->selection_start;
+    view->selection_high = view->selection_end;
+  } else {
+    view->selection_low = view->selection_end;
+    view->selection_high = view->selection_start;
   }
 }
 
