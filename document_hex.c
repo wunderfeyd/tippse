@@ -150,7 +150,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
 
   file_offset_t file_size = file->buffer?file->buffer->length:0;
   file_offset_t offset_old = view->offset;
-  int selection_reset = 1;
+  int selection_keep = 0;
 
   if (cp==TIPPSE_KEY_UP) {
     view->offset-=16;
@@ -180,10 +180,6 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   } else if (cp==TIPPSE_KEY_END) {
     view->offset = file_size;
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_UNDO) {
-    document_undo_execute_chain(file, view, file->undos, file->redos, 0);
-  } else if (cp==TIPPSE_KEY_REDO) {
-    document_undo_execute_chain(file, view, file->redos, file->undos, 1);
   } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
       document_hex_cursor_from_point(base, splitter, x, y, &view->offset);
@@ -196,27 +192,46 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
       view->scroll_y += splitter->client_height/3;
       view->show_scrollbar = 1;
     }
+  } else if (cp==TIPPSE_KEY_UNDO) {
+    document_undo_execute_chain(file, view, file->undos, file->redos, 0);
+  } else if (cp==TIPPSE_KEY_REDO) {
+    document_undo_execute_chain(file, view, file->redos, file->undos, 1);
+  } else if (cp==TIPPSE_KEY_BACKSPACE) {
+    if (view->selection_low!=~0 || document->cp_first!=0) {
+      document_file_delete_selection(file, view);
+    } else {
+      view->offset--;
+      document_file_delete(file, view->offset, 1);
+    }
+  } else if (cp==TIPPSE_KEY_DELETE) {
+    if (view->selection_low!=~0  || document->cp_first!=0) {
+      document_file_delete_selection(file, view);
+    } else {
+      document_file_delete(file, view->offset, 1);
+    }
   } else if (cp==TIPPSE_KEY_RETURN) {
     uint8_t text = file->binary?0:32;
-    document_file_insert(splitter->file, view->offset, &text, 1);
+    document_file_delete_selection(file, view);
+    document_file_insert(file, view->offset, &text, 1);
     view->offset--;
-  } else if (cp==TIPPSE_KEY_BACKSPACE) {
-    view->offset--;
-    document_file_delete(splitter->file, view->offset, 1);
-  } else if (cp==TIPPSE_KEY_DELETE) {
-    document_file_delete(splitter->file, view->offset, 1);
   }
 
   if ((cp>='0' && cp<='9') || (cp>='a' && cp<='f') || (cp>='A' && cp<='F')){
     if (document->cp_first!=0) {
       uint8_t text = (document_hex_value(document->cp_first)<<4) + document_hex_value(cp);
-      document_file_insert(splitter->file, view->offset, &text, 1);
-      document_file_delete(splitter->file, view->offset, 1);
+      document_file_insert(file, view->offset, &text, 1);
+      document_file_delete(file, view->offset, 1);
       document->cp_first = 0;
     } else {
+      if (view->selection_low!=~0) {
+        uint8_t text = file->binary?0:32;
+        document_file_delete_selection(file, view);
+        document_file_insert(file, view->offset, &text, 1);
+        view->offset--;
+      }
       document->cp_first = cp;
     }
-  } else {
+  } else if (cp!=TIPPSE_KEY_TIPPSE_MOUSE_INPUT || button!=0) {
     document->cp_first = 0;
   }
 
@@ -227,17 +242,19 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     view->offset = file_size;
   }
 
+  int selection_reset = 0;
   if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
+      if (!(button_old&TIPPSE_MOUSE_LBUTTON) && !(modifier&TIPPSE_KEY_MOD_SHIFT)) view->selection_start = ~0;
       if (view->selection_start==~0) view->selection_start = view->offset;
       view->selection_end = view->offset;
     }
-    selection_reset = !(button_old&TIPPSE_MOUSE_LBUTTON) && (button&TIPPSE_MOUSE_LBUTTON);
   } else {
     if (modifier&TIPPSE_KEY_MOD_SHIFT) {
       if (view->selection_start==~0) view->selection_start = offset_old;
       view->selection_end = view->offset;
-      selection_reset = 0;
+    } else {
+      selection_reset = selection_keep ? 0 : 1;
     }
   }
   if (selection_reset) {

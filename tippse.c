@@ -252,6 +252,7 @@ int main(int argc, const char** argv) {
           }
         }
 
+        int mouse_modifier = 0;
         if (c==input_pos-check || ansi_keys[pos].text[c]==0) {
           keep = 1;
           if (ansi_keys[pos].text[c]==0) {
@@ -290,7 +291,10 @@ int main(int argc, const char** argv) {
             }
 
             if (ansi_keys[pos].cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
-              int buttons = input_buffer[3];
+              if (input_buffer[3]&4) mouse_modifier |= TIPPSE_KEY_MOD_SHIFT;
+              if (input_buffer[3]&8) mouse_modifier |= TIPPSE_KEY_MOD_ALT;
+              if (input_buffer[3]&16) mouse_modifier |= TIPPSE_KEY_MOD_CTRL;
+              int buttons = input_buffer[3] & ~(4+8+16);
               mouse_x = input_buffer[4]-33;
               mouse_y = input_buffer[5]-33;
 
@@ -428,7 +432,7 @@ int main(int argc, const char** argv) {
               }
             } else {
               if (!bracket_paste) {
-                (*focus->document->keypress)(focus->document, focus, ansi_keys[pos].cp, ansi_keys[pos].modifier, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
+                (*focus->document->keypress)(focus->document, focus, ansi_keys[pos].cp, ansi_keys[pos].modifier|mouse_modifier, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
               }
             }
 
