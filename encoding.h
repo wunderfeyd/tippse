@@ -40,6 +40,7 @@ struct encoding {
 
   const char* (*name)();
   size_t (*character_length)(struct encoding*);
+  int (*visual)(struct encoding*, int);
   int (*decode)(struct encoding*, struct encoding_stream*, size_t*);
   size_t (*next)(struct encoding*, struct encoding_stream*);
   size_t (*strnlen)(struct encoding*, struct encoding_stream*, size_t);

@@ -143,16 +143,22 @@ int main(int argc, const char** argv) {
 
   document_file_manualchange(search_doc);
 
-  if (argc>=2) {
-    document_file_load(document_doc, argv[1]);
-    splitter_assign_document_file(document, document_doc, 1);
-  }
-
   struct splitter* splitters = splitter_create(TIPPSE_SPLITTER_VERT|TIPPSE_SPLITTER_FIXED1, 5, document, search, "");
   list_insert(documents, NULL, tabs_doc);
-  list_insert(documents, NULL, document_doc);
   list_insert(documents, NULL, search_doc);
   list_insert(documents, NULL, browser_doc);
+
+  for (int n = argc-1; n>=1; n--) {
+    if (n==1) {
+      document_file_load(document_doc, argv[n]);
+      list_insert(documents, NULL, document_doc);
+      splitter_assign_document_file(document, document_doc, 1);
+    } else {
+      struct document_file* document_add = document_file_create(0);
+      document_file_load(document_add, argv[n]);
+      list_insert(documents, NULL, document_add);
+    }
+  }
 
   struct splitter* focus = document;
   struct splitter* last_document = document;
@@ -349,7 +355,7 @@ int main(int argc, const char** argv) {
               } else {
                 focus->document = focus->document_hex;
               }
-            } else if (ansi_keys[pos].cp==TIPPSE_KEY_OPEN || (focus->view->line_select && ansi_keys[pos].cp=='\n')) {
+            } else if (ansi_keys[pos].cp==TIPPSE_KEY_OPEN || (focus->view->line_select && ansi_keys[pos].cp==TIPPSE_KEY_RETURN)) {
               if (focus->view->selection_low!=focus->view->selection_high) {
                 struct list_node* views =document->file->views->first;
                 while (views) {

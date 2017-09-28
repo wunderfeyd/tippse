@@ -9,6 +9,7 @@ struct encoding* encoding_utf8_create() {
   this->vtbl.name = encoding_utf8_name;
   this->vtbl.character_length = encoding_utf8_character_length;
   this->vtbl.decode = encoding_utf8_decode;
+  this->vtbl.visual = encoding_utf8_visual;
   this->vtbl.next = encoding_utf8_next;
   this->vtbl.strnlen = encoding_utf8_strnlen;
   this->vtbl.strlen = encoding_utf8_strlen;
@@ -28,6 +29,16 @@ const char* encoding_utf8_name() {
 
 size_t encoding_utf8_character_length(struct encoding* base) {
   return 4;
+}
+
+int encoding_utf8_visual(struct encoding* base, int cp) {
+  if (cp<0) {
+    return -1;
+  } else if (cp<0x20) {
+    return cp+0x2400;
+  }
+
+  return cp;
 }
 
 int encoding_utf8_decode(struct encoding* base, struct encoding_stream* stream, size_t* used) {

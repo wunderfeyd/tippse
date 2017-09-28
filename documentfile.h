@@ -41,6 +41,8 @@ struct document_file;
 #include "filetype/xml.h"
 #include "encoding.h"
 #include "encoding/utf8.h"
+#include "encoding/cp850.h"
+#include "encoding/ascii.h"
 #include "config.h"
 
 struct document_file_defaults {

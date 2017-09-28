@@ -637,8 +637,8 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         show = view->showall?0x21a2:' ';
       } else if (cp==0xfeff) {
         show = view->showall?0x66d:' ';
-      } else if (cp<0x20) {
-        show = cp+0x2400;
+      } else if (cp<0) {
+        show = 0xfffd;
       }
 
       int sel = (render_info->offset>=view->selection_low && render_info->offset<view->selection_high)?1:0;
@@ -648,8 +648,9 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         background = swap;
       }
 
-      if (read==1 && show==-1) {
-        show = cp;
+      int codepoints_visual[8];
+      for (int code = 0; code<read; code++) {
+        codepoints_visual[code] = (file->encoding->visual)(file->encoding, codepoints[code]);
       }
 
       int x = render_info->x-view->scroll_x;
@@ -657,7 +658,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       if (show!=-1) {
         splitter_drawchar(screen, splitter, x++, y, &show, 1, color, background);
       } else {
-        splitter_drawchar(screen, splitter, x++, y, &codepoints[0], read, color, background);
+        splitter_drawchar(screen, splitter, x++, y, &codepoints_visual[0], read, color, background);
       }
 
       show = ' ';
