@@ -48,7 +48,7 @@ struct document_file;
 struct document_file_defaults {
   int colors[VISUAL_FLAG_COLOR_MAX];
 
-  int showall;
+  int invisibles;
   int wrapping;
   int continuous;
 

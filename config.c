@@ -23,7 +23,7 @@ const char* config_default =
       "minus:9,"
     "},"
     "wrapping:1,"
-    "showall:0,"
+    "invisibles:0,"
     "continuous:0,"
   "}"
 ;

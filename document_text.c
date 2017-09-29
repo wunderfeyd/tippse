@@ -305,7 +305,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
   int page_dirty = (render_info->buffer && render_info->buffer->visuals.dirty)?1:0;
 
   render_info->visual_detail |= (view->wrapping)?VISUAL_INFO_WRAPPING:0;
-  render_info->visual_detail |= (view->showall)?VISUAL_INFO_SHOWALL:0;
+  render_info->visual_detail |= (view->show_invisibles)?VISUAL_INFO_SHOW_INVISIBLES:0;
   render_info->visual_detail |= (view->continuous)?VISUAL_INFO_CONTINUOUS:0;
 
   int newline_cp1 = (file->newline==TIPPSE_NEWLINE_CR)?'\r':'\n';
@@ -475,7 +475,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         }
       }
 
-      if ((drawn&1) && (!(render_info->visual_detail&VISUAL_INFO_CONTROLCHARACTER) || view->showall)) {
+      if ((drawn&1) && (!(render_info->visual_detail&VISUAL_INFO_CONTROLCHARACTER) || view->show_invisibles)) {
         int set = 1;
         if (drawn&2) {
           if (cancel && out->type!=VISUAL_SEEK_NONE) {
@@ -616,7 +616,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     }
 
     int fill = 0;
-    if (((((cp!=newline_cp2 || newline_cp2==0) && cp!=0xfeff) || view->showall) && cp!='\t') || view->continuous) {
+    if (((((cp!=newline_cp2 || newline_cp2==0) && cp!=0xfeff) || view->show_invisibles) && cp!='\t') || view->continuous) {
       fill = 1;
     } else if (cp=='\t') {
       fill = file->tabstop_width-(render_info->x%file->tabstop_width);
@@ -628,15 +628,17 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       }
 
       if (cp=='\n') {
-        show = view->showall?0x21a7:' ';
+        show = view->show_invisibles?0x00ac:' ';
       } else if (cp=='\r') {
-        show = view->showall?0x21a4:' ';
+        show = view->show_invisibles?0x00ac:' ';
       } else if (cp=='\t') {
-        show = view->showall?0x21a6:' ';
+        show = view->show_invisibles?0x00bb:' ';
+      } else if (cp==' ') {
+        show = view->show_invisibles?0x22c5:' ';
       } else if (cp==0x7f) {
-        show = view->showall?0x21a2:' ';
+        show = view->show_invisibles?0xfffd:' ';
       } else if (cp==0xfeff) {
-        show = view->showall?0x66d:' ';
+        show = view->show_invisibles?0x2433:' ';
       } else if (cp<0) {
         show = 0xfffd;
       }

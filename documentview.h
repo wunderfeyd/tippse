@@ -24,8 +24,7 @@ struct document_view {
   int scroll_y_old;
   int scroll_y_max;
   int show_scrollbar;
-
-  int showall;
+  int show_invisibles;
   int wrapping;
   int continuous;
   int line_select;

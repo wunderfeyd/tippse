@@ -495,6 +495,6 @@ void document_file_reload_config(struct document_file* file) {
   file->defaults.colors[VISUAL_FLAG_COLOR_MINUS] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/minus"));
 
   file->defaults.wrapping = (int)config_convert_int64(config_find_ascii(file->config, "/wrapping"));
-  file->defaults.showall = (int)config_convert_int64(config_find_ascii(file->config, "/showall"));
+  file->defaults.invisibles = (int)config_convert_int64(config_find_ascii(file->config, "/invisibles"));
   file->defaults.continuous = (int)config_convert_int64(config_find_ascii(file->config, "/continuous"));
 }

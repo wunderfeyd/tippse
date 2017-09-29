@@ -80,8 +80,6 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   char status[1024];
   sprintf(&status[0], "%lu/%lu bytes - %08lx - Hex ASCII", (unsigned long)view->offset, (unsigned long)file_size, (unsigned long)view->offset);
   splitter_status(splitter, &status[0], 0);
-  int foreground = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
-  int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
   int x, y;
   for (y = 0; y<splitter->client_height; y++) {
     uint8_t data[16];
@@ -90,27 +88,23 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
       data[x] = encoding_stream_peek(&stream, 0);
       encoding_stream_forward(&stream, 1);
     }
-    document_hex_render(base, screen, splitter, offset, y, data, data_size, foreground, background);
+    document_hex_render(base, screen, splitter, offset, y, data, data_size);
     offset += data_size;
     if (offset>=file_size) break;
   }
-  if(file_size%16==0) {
-    document_hex_render(base, screen, splitter, offset, y+1, NULL, 0, foreground, background);
-  }
-  if (document->cp_first!=0) {
-    uint8_t text = document->cp_first;
-    splitter_drawtext(screen, splitter, 10+(3*view->cursor_x), view->cursor_y-view->scroll_y, (char*)&text, 1, foreground, background);
-    splitter_cursor(screen, splitter, 10+(3*view->cursor_x)+1, view->cursor_y-view->scroll_y);
-  } else {
-    splitter_cursor(screen, splitter, 10+(3*view->cursor_x), view->cursor_y-view->scroll_y);
-  }
+  if (file_size && file_size%16==0) document_hex_render(base, screen, splitter, offset, y+1, NULL, 0);
+  splitter_cursor(screen, splitter, 10+(3*view->cursor_x)+(document->cp_first!=0), view->cursor_y-view->scroll_y);
   splitter_scrollbar(screen, splitter);
 }
 
 // Render one line of data
-void document_hex_render(struct document* base, struct screen* screen, struct splitter* splitter, file_offset_t offset, int y, const uint8_t* data, int data_size, int foreground, int background) {
+void document_hex_render(struct document* base, struct screen* screen, struct splitter* splitter, file_offset_t offset, int y, const uint8_t* data, int data_size) {
+  struct document_hex* document = (struct document_hex*)base;
+  struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
+  int foreground = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
+  int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
   int x = 0;
   char line[1024];
   sprintf(line, "%08lx", (unsigned long)offset);
@@ -126,17 +120,17 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
     }
     x += 3;
   }
+  if (document->cp_first!=0 && y==view->cursor_y-view->scroll_y) {
+    splitter_drawchar(screen, splitter, 10+(3*view->cursor_x), y, &document->cp_first, 1, foreground, background);
+  }
+
   x = 59;
   for (data_pos = 0; data_pos<data_size; data_pos++) {
-    if (data[data_pos]<32 || data[data_pos]>126) {
-      line[0] = '.';
-    } else {
-      line[0] = data[data_pos];
-    }
+    int cp = document_hex_convert(data[data_pos], view->show_invisibles, '.');
     if (offset+data_pos<view->selection_low || offset+data_pos>=view->selection_high) {
-      splitter_drawtext(screen, splitter, x, y, line, 1, foreground, background);
+      splitter_drawchar(screen, splitter, x, y, &cp, 1, foreground, background);
     } else {
-      splitter_drawtext(screen, splitter, x, y, line, 1, background, foreground);
+      splitter_drawchar(screen, splitter, x, y, &cp, 1, background, foreground);
     }
     x++;
   }
@@ -191,6 +185,22 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
       view->offset += (splitter->client_height/3)*16;
       view->scroll_y += splitter->client_height/3;
       view->show_scrollbar = 1;
+    }
+  } else if (cp==TIPPSE_KEY_COPY || cp==TIPPSE_KEY_CUT) {
+    if (view->selection_low!=~0) {
+      clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low));
+      if (cp==TIPPSE_KEY_CUT) {
+        document_undo_chain(file, file->undos);
+        document_file_delete_selection(splitter->file, splitter->view);
+      } else {
+        selection_keep = 1;
+      }
+    }
+  } else if (cp==TIPPSE_KEY_PASTE) {
+    document_undo_chain(file, file->undos);
+    document_file_delete_selection(splitter->file, splitter->view);
+    if (clipboard_get()) {
+      document_file_insert_buffer(splitter->file, view->offset, clipboard_get());
     }
   } else if (cp==TIPPSE_KEY_UNDO) {
     document_undo_execute_chain(file, view, file->undos, file->redos, 0);
@@ -296,4 +306,21 @@ uint8_t document_hex_value(int cp) {
     value = cp-'A'+10;
   }
   return value;
+}
+
+// Convert invisible characters
+int document_hex_convert(int cp, int show_invisibles, int cp_default)
+{
+  if (cp=='\n') {
+    cp = show_invisibles?0x00ac:cp_default;
+  } else if (cp=='\r') {
+    cp = show_invisibles?0x00ac:cp_default;
+  } else if (cp=='\t') {
+    cp = show_invisibles?0x00bb:cp_default;
+  } else if (cp==' ') {
+    cp = show_invisibles?0x22c5:cp_default;
+  } else if (cp<32 || cp>126) {
+    cp = cp_default;
+  }
+  return cp;
 }
