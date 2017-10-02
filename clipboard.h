@@ -5,6 +5,10 @@
 #include "rangetree.h"
 
 void clipboard_set(struct range_tree_node* data);
+void clipboard_command_set(struct range_tree_node* data, const char* command);
+void clipboard_windows_set(struct range_tree_node* data);
 struct range_tree_node* clipboard_get();
+struct range_tree_node* clipboard_command_get(const char* command);
+struct range_tree_node* clipboard_windows_get();
 
 #endif  /* #ifndef __TIPPSE_UTF8__ */

@@ -46,7 +46,7 @@ void document_view_clone(struct document_view* dst, struct document_view* src, s
 
 void document_view_filechange(struct document_view* view, struct document_file* file) {
   view->wrapping = file->defaults.wrapping;
-  view->showall = file->defaults.showall;
+  view->show_invisibles = file->defaults.invisibles;
   view->continuous = file->defaults.continuous;
   view->selection = range_tree_static(view->selection, file->buffer?file->buffer->length:0, 0);
 }

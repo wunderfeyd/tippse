@@ -10,12 +10,12 @@ Project is in early stage, use with care at your own risk, anything could happen
 
 Good to know:
 
-Ctrl+Q: Close text editor  
-Ctrl+S: Save files  
-Ctrl+F: Search  
-Ctrl+B: File browser  
-Ctrl+D: Document selection  
-Ctrl+P: Show invisibles  
-Ctrl+U: Show hex editor  
+<kbd>Ctrl</kbd>+<kbd>Q</kbd> = Close text editor  
+<kbd>Ctrl</kbd>+<kbd>S</kbd> = Save files  
+<kbd>Ctrl</kbd>+<kbd>F</kbd> = Search  
+<kbd>Ctrl</kbd>+<kbd>B</kbd> = File browser  
+<kbd>Ctrl</kbd>+<kbd>D</kbd> = Document selection  
+<kbd>Ctrl</kbd>+<kbd>P</kbd> = Show invisibles  
+<kbd>Ctrl</kbd>+<kbd>U</kbd> = Show hex editor  
 
 More to come...

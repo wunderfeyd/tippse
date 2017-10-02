@@ -47,7 +47,7 @@ struct tippse_ansi_key ansi_keys[] = {
   {"\x1b[1;2C", TIPPSE_KEY_RIGHT, TIPPSE_KEY_MOD_SHIFT},
   {"\x1b[1;2D", TIPPSE_KEY_LEFT, TIPPSE_KEY_MOD_SHIFT},
   {"\x11", TIPPSE_KEY_CLOSE, 0},
-  {"\x10", TIPPSE_KEY_SHOWALL, 0},
+  {"\x10", TIPPSE_KEY_SHOW_INVISIBLES, 0},
   {"\x1b[6~", TIPPSE_KEY_PAGEDOWN, 0},
   {"\x1b[5~", TIPPSE_KEY_PAGEUP, 0},
   {"\x1b[6;2~", TIPPSE_KEY_PAGEDOWN, TIPPSE_KEY_MOD_SHIFT},
@@ -89,6 +89,7 @@ struct tippse_ansi_key ansi_keys[] = {
   {"\x04", TIPPSE_KEY_DOCUMENTSELECTION, 0},
   {"\r", TIPPSE_KEY_RETURN, 0},
   {"\n", TIPPSE_KEY_RETURN, 0},
+  {"\x01", TIPPSE_KEY_SELECT_ALL, 0},
   {NULL, 0, 0}
 };
 
@@ -266,8 +267,8 @@ int main(int argc, const char** argv) {
               close = 1;
             }
 
-            if (ansi_keys[pos].cp==TIPPSE_KEY_SHOWALL) {
-              focus->view->showall ^= 1;
+            if (ansi_keys[pos].cp==TIPPSE_KEY_SHOW_INVISIBLES) {
+              focus->view->show_invisibles ^= 1;
               (*focus->document->reset)(focus->document, focus);
             }
 
