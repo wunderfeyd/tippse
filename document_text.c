@@ -1026,6 +1026,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   in_line_column.clip = 0;
 
   //range_tree_check(document->buffer);
+  file_offset_t file_size = file->buffer?file->buffer->length:0;
   file_offset_t offset_old = view->offset;
   int seek = 0;
   int selection_keep = 0;
@@ -1260,6 +1261,10 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
     document_undo_chain(file, file->undos);
     seek = 1;
+    selection_keep = 1;
+  } else if (cp==TIPPSE_KEY_SELECT_ALL) {
+    view->selection_start = 0;
+    view->selection_end = file_size;
     selection_keep = 1;
   } else if (cp==TIPPSE_KEY_COPY || cp==TIPPSE_KEY_CUT) {
     document_undo_chain(file, file->undos);

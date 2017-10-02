@@ -89,6 +89,7 @@ struct tippse_ansi_key ansi_keys[] = {
   {"\x04", TIPPSE_KEY_DOCUMENTSELECTION, 0},
   {"\r", TIPPSE_KEY_RETURN, 0},
   {"\n", TIPPSE_KEY_RETURN, 0},
+  {"\x01", TIPPSE_KEY_SELECT_ALL, 0},
   {NULL, 0, 0}
 };
 

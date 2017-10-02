@@ -186,6 +186,10 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
       view->scroll_y += splitter->client_height/3;
       view->show_scrollbar = 1;
     }
+  } else if (cp==TIPPSE_KEY_SELECT_ALL) {
+    view->selection_start = 0;
+    view->selection_end = file_size;
+    selection_keep = 1;
   } else if (cp==TIPPSE_KEY_COPY || cp==TIPPSE_KEY_CUT) {
     if (view->selection_low!=~0) {
       clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low));
