@@ -20,6 +20,7 @@ const char* config_default =
       "blockcomment:102,"
       "string:226,"
       "preprocessor:103,"
+      "bracket:124,"
       "plus:10,"
       "minus:9,"
     "},"

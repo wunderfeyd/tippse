@@ -913,7 +913,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   splitter_name(splitter, title);
   free(title);
 
-  if (view->selection_low!=~0) {
+  if (view->selection_low!=view->selection_high) {
     splitter_cursor(screen, splitter, -1, -1);
   } else {
     splitter_cursor(screen, splitter, cursor.x-view->scroll_x, cursor.y-view->scroll_y);
@@ -955,7 +955,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
       out.offset = file->buffer->length;
     }
 
-    splitter_hilight(screen, splitter, out.x-view->scroll_x, out.y-view->scroll_y);
+    splitter_hilight(screen, splitter, out.x-view->scroll_x, out.y-view->scroll_y, file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
   }
 
   if (cursor.bracket_match&VISUAL_BRACKET_CLOSE) {
@@ -994,7 +994,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
       out.offset = 0;
     }
 
-    splitter_hilight(screen, splitter, out.x-view->scroll_x, out.y-view->scroll_y);
+    splitter_hilight(screen, splitter, out.x-view->scroll_x, out.y-view->scroll_y, file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
   }
 
   if (!document->keep_status) {

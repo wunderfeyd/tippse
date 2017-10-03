@@ -112,7 +112,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
     if (offset>=file_size) break;
   }
   if (file_size && file_size%16==0) document_hex_render(base, screen, splitter, offset, y+1, NULL, 0, NULL);
-  if (view->selection_low!=~0) {
+  if (view->selection_low!=view->selection_high) {
     splitter_cursor(screen, splitter, -1, -1);
   } else {
     splitter_cursor(screen, splitter, 10+(3*view->cursor_x)+(document->cp_first!=0), view->cursor_y-view->scroll_y);

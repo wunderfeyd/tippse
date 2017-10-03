@@ -501,6 +501,7 @@ void document_file_reload_config(struct document_file* file) {
   file->defaults.colors[VISUAL_FLAG_COLOR_BLOCKCOMMENT] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/blockcomment"));
   file->defaults.colors[VISUAL_FLAG_COLOR_PLUS] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/plus"));
   file->defaults.colors[VISUAL_FLAG_COLOR_MINUS] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/minus"));
+  file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/bracket"));
 
   file->defaults.wrapping = (int)config_convert_int64(config_find_ascii(file->config, "/wrapping"));
   file->defaults.invisibles = (int)config_convert_int64(config_find_ascii(file->config, "/invisibles"));
