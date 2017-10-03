@@ -88,6 +88,7 @@ struct document_file* document_file_create(int save);
 void document_file_clear(struct document_file* file);
 void document_file_destroy(struct document_file* file);
 void document_file_name(struct document_file* file, const char* filename);
+void document_file_encoding(struct document_file* file, struct encoding* encoding);
 void document_file_load(struct document_file* file, const char* filename);
 void document_file_load_memory(struct document_file* file, const uint8_t* buffer, size_t length);
 int document_file_save_plain(struct document_file* file, const char* filename);

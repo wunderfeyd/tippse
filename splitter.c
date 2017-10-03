@@ -326,6 +326,7 @@ void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int w
 }
 
 void splitter_draw_multiple(struct screen* screen, struct splitter* splitters, int incremental) {
+  screen_cursor(screen, -1, -1);
   splitter_draw_multiple_recursive(screen, 0, 1, screen->width, screen->height-1, splitters, incremental);
 }
 

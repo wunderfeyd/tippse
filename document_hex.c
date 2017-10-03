@@ -63,8 +63,13 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   file_offset_t offset = (file_offset_t)view->scroll_y*16;
   file_offset_t displacement;
   struct range_tree_node* buffer = range_tree_find_offset(file->buffer, offset, &displacement);
-  struct encoding_stream stream;
-  encoding_stream_from_page(&stream, buffer, displacement);
+  struct encoding_stream byte_stream;
+  encoding_stream_from_page(&byte_stream, buffer, displacement);
+
+  struct encoding_stream text_stream;
+  encoding_stream_from_page(&text_stream, buffer, displacement);
+  struct encoding_cache text_cache;
+  encoding_cache_clear(&text_cache, file->encoding, &text_stream);
 
   size_t name_length = strlen(file->filename);
   char* title = malloc((name_length+document_undo_modified(file)*2+1)*sizeof(char));
@@ -78,27 +83,45 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   free(title);
 
   char status[1024];
-  sprintf(&status[0], "%lu/%lu bytes - %08lx - Hex ASCII", (unsigned long)view->offset, (unsigned long)file_size, (unsigned long)view->offset);
+  sprintf(&status[0], "%lu/%lu bytes - %08lx - Hex %s", (unsigned long)view->offset, (unsigned long)file_size, (unsigned long)view->offset, (*file->encoding->name)());
   splitter_status(splitter, &status[0], 0);
+
+  size_t char_size = 1;
   int x, y;
   for (y = 0; y<splitter->client_height; y++) {
     uint8_t data[16];
+    struct document_hex_char chars[16];
     int data_size = (int)file_size-offset>16?16:file_size-offset;
     for (x = 0; x<data_size; x++) {
-      data[x] = encoding_stream_peek(&stream, 0);
-      encoding_stream_forward(&stream, 1);
+      char_size--;
+      if (char_size==0) {
+        size_t advance = 1;
+        chars[x].length = unicode_read_combined_sequence(&text_cache, 0, chars[x].codepoints, 8, &advance, &char_size);
+        encoding_cache_advance(&text_cache, advance);
+      } else {
+        chars[x].codepoints[0] = ' ';
+        chars[x].length = 1;
+      }
+
+      data[x] = encoding_stream_peek(&byte_stream, 0);
+      encoding_stream_forward(&byte_stream, 1);
     }
-    document_hex_render(base, screen, splitter, offset, y, data, data_size);
+
+    document_hex_render(base, screen, splitter, offset, y, data, data_size, chars);
     offset += data_size;
     if (offset>=file_size) break;
   }
-  if (file_size && file_size%16==0) document_hex_render(base, screen, splitter, offset, y+1, NULL, 0);
-  splitter_cursor(screen, splitter, 10+(3*view->cursor_x)+(document->cp_first!=0), view->cursor_y-view->scroll_y);
+  if (file_size && file_size%16==0) document_hex_render(base, screen, splitter, offset, y+1, NULL, 0, NULL);
+  if (view->selection_low!=~0) {
+    splitter_cursor(screen, splitter, -1, -1);
+  } else {
+    splitter_cursor(screen, splitter, 10+(3*view->cursor_x)+(document->cp_first!=0), view->cursor_y-view->scroll_y);
+  }
   splitter_scrollbar(screen, splitter);
 }
 
 // Render one line of data
-void document_hex_render(struct document* base, struct screen* screen, struct splitter* splitter, file_offset_t offset, int y, const uint8_t* data, int data_size) {
+void document_hex_render(struct document* base, struct screen* screen, struct splitter* splitter, file_offset_t offset, int y, const uint8_t* data, int data_size, struct document_hex_char* chars) {
   struct document_hex* document = (struct document_hex*)base;
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
@@ -126,11 +149,15 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
 
   x = 59;
   for (data_pos = 0; data_pos<data_size; data_pos++) {
-    int cp = document_hex_convert(data[data_pos], view->show_invisibles, '.');
+    for (size_t n = 0; n<chars[data_pos].length; n++) {
+      chars[data_pos].visuals[n] = (file->encoding->visual)(file->encoding, chars[data_pos].codepoints[n]);
+    }
+
+    document_hex_convert(&chars[data_pos], view->show_invisibles, '.');
     if (offset+data_pos<view->selection_low || offset+data_pos>=view->selection_high) {
-      splitter_drawchar(screen, splitter, x, y, &cp, 1, foreground, background);
+      splitter_drawchar(screen, splitter, x, y, chars[data_pos].visuals, chars[data_pos].length, foreground, background);
     } else {
-      splitter_drawchar(screen, splitter, x, y, &cp, 1, background, foreground);
+      splitter_drawchar(screen, splitter, x, y, chars[data_pos].visuals, chars[data_pos].length, background, foreground);
     }
     x++;
   }
@@ -313,18 +340,23 @@ uint8_t document_hex_value(int cp) {
 }
 
 // Convert invisible characters
-int document_hex_convert(int cp, int show_invisibles, int cp_default)
-{
+void document_hex_convert(struct document_hex_char* cps, int show_invisibles, int cp_default) {
+  int cp = cps->codepoints[0];
+  int show = -1;
   if (cp=='\n') {
-    cp = show_invisibles?0x00ac:cp_default;
+    show = show_invisibles?0x00ac:cp_default;
   } else if (cp=='\r') {
-    cp = show_invisibles?0x00ac:cp_default;
+    show = show_invisibles?0x00ac:cp_default;
   } else if (cp=='\t') {
-    cp = show_invisibles?0x00bb:cp_default;
+    show = show_invisibles?0x00bb:cp_default;
   } else if (cp==' ') {
-    cp = show_invisibles?0x22c5:cp_default;
-  } else if (cp<32 || cp>126) {
-    cp = cp_default;
+    show = show_invisibles?0x22c5:' ';
+  } else if (cp<32 || cps->visuals[0]==0xfffd) {
+    show = cp_default;
   }
-  return cp;
+
+  if (show!=-1) {
+    cps->visuals[0] = show;
+    cps->length = 1;
+  }
 }

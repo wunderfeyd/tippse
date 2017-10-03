@@ -100,6 +100,12 @@ void document_file_name(struct document_file* file, const char* filename) {
   }
 }
 
+// Change encoding
+void document_file_encoding(struct document_file* file, struct encoding* encoding) {
+  (*file->encoding->destroy)(file->encoding);
+  file->encoding = encoding;
+}
+
 // Load file into memory if lower than a certain threshold, otherwise just use file offset references
 void document_file_load(struct document_file* file, const char* filename) {
   document_file_clear(file);
@@ -232,8 +238,9 @@ void document_file_detect_properties(struct document_file* file) {
     offset++;
   }
 
-  if (zeros>=(int)(offset/100+1)) {
+  if (zeros>=(int)(offset/512+1)) {
     file->binary = 1;
+    document_file_encoding(file, encoding_ascii_create());
   } else {
     file->binary = 0;
   }

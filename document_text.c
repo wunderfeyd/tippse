@@ -916,7 +916,11 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   splitter_name(splitter, title);
   free(title);
 
-  splitter_cursor(screen, splitter, cursor.x-view->scroll_x, cursor.y-view->scroll_y);
+  if (view->selection_low!=~0) {
+    splitter_cursor(screen, splitter, -1, -1);
+  } else {
+    splitter_cursor(screen, splitter, cursor.x-view->scroll_x, cursor.y-view->scroll_y);
+  }
 
   // Test
   if (cursor.bracket_match&VISUAL_BRACKET_OPEN) {
@@ -1064,14 +1068,14 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->cursor_y = out.y;
     seek = 1;
   } else if (cp==TIPPSE_KEY_PAGEDOWN) {
-    int page = ((splitter->height-2)/2)+1;
+    int page = splitter->client_height;
     in_x_y.y += page;
     view->scroll_y += page;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_PAGEUP) {
-    int page = ((splitter->height-2)/2)+1;
+    int page = splitter->client_height;
     in_x_y.y -= page;
     view->scroll_y -= page;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);

@@ -95,22 +95,36 @@ void screen_draw_char(struct screen* screen, char** pos, int n, int* w, int* for
   }
 
   struct screen_char* c = &screen->buffer[n];
-  if (c->foreground!=*foreground_old) {
-    *foreground_old = c->foreground;
-    if (c->foreground>=0) {
-      *pos += sprintf(*pos, "\x1b[38;5;%dm", c->foreground);
+  int reversed = (c->background==-1 || c->foreground==-2)?1:0;
+  int background = reversed?-1:c->background;
+  int foreground = reversed?-1:c->foreground;
+
+  if (foreground!=*foreground_old || background!=*background_old) {
+    if (*background_old==-1 || *foreground_old==-2 || *foreground_old==-3) {
+      *pos += sprintf(*pos, "\x1b[m");
+    }
+  }
+
+  if (foreground!=*foreground_old) {
+    *foreground_old = foreground;
+    if (foreground>=0) {
+      *pos += sprintf(*pos, "\x1b[38;5;%dm", foreground);
     } else {
       *pos += sprintf(*pos, "\x1b[39m");
     }
   }
 
-  if (c->background!=*background_old) {
-    *background_old = c->background;
-    if (c->background>=0) {
-      *pos += sprintf(*pos, "\x1b[48;5;%dm", c->background);
+  if (background!=*background_old) {
+    *background_old = background;
+    if (background>=0) {
+      *pos += sprintf(*pos, "\x1b[48;5;%dm", background);
     } else {
       *pos += sprintf(*pos, "\x1b[49m");
     }
+  }
+
+  if (reversed) {
+    *pos += sprintf(*pos, "\x1b[7m");
   }
 
   size_t copy;
@@ -215,8 +229,8 @@ void screen_cursor(struct screen* screen, int x, int y) {
 
 void screen_draw(struct screen* screen) {
   int n, w, old;
-  int foreground_old = -2;
-  int background_old = -2;
+  int foreground_old = -3;
+  int background_old = -3;
   struct screen_char* c;
   struct screen_char* v;
   char* output = (char*)malloc((5+32)*screen->width*screen->height+5);
