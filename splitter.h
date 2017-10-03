@@ -29,6 +29,9 @@ struct splitter {
   int client_width;
   int client_height;
 
+  int cursor_x;
+  int cursor_y;
+
   int active;
   char* name;
   char* status;
@@ -49,7 +52,7 @@ void splitter_drawchar(struct screen* screen, const struct splitter* splitter, i
 void splitter_drawtext(struct screen* screen, const struct splitter* splitter, int x, int y, const char* text, size_t length, int foreground, int background);
 void splitter_name(struct splitter* splitter, const char* name);
 void splitter_status(struct splitter* splitter, const char* status, int status_inverted);
-void splitter_cursor(struct screen* screen, const struct splitter* splitter, int x, int y);
+void splitter_cursor(struct screen* screen, struct splitter* splitter, int x, int y);
 void splitter_scrollbar(struct screen* screen, const struct splitter* splitter);
 void splitter_hilight(struct screen* screen, const struct splitter* splitter, int x, int y);
 void splitter_unassign_document_file(struct splitter* splitter);

@@ -13,6 +13,8 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
   splitter->document_hex = NULL;
   splitter->document = NULL;
   splitter->view = document_view_create();
+  splitter->cursor_x = -1;
+  splitter->cursor_y = -1;
 
   if (!side0 || !side1) {
     splitter->side[0] = NULL;
@@ -90,23 +92,9 @@ void splitter_status(struct splitter* splitter, const char* status, int status_i
   splitter->status_inverted = status_inverted;
 }
 
-void splitter_cursor(struct screen* screen, const struct splitter* splitter, int x, int y) {
-  if (y<0 || y>=splitter->client_height) {
-    return;
-  }
-
-  if (x<0 || x>=splitter->client_width) {
-    return;
-  }
-
-  struct screen_char* c = &screen->buffer[(splitter->y+y)*screen->width+(splitter->x+x)];
-  if (splitter->active) {
-    c->foreground = screen_half_inverse_color(c->foreground);
-    c->background = screen_half_inverse_color(c->background);
-  } else {
-    c->foreground = screen_half_color(screen_half_inverse_color(c->foreground));
-    c->background = screen_half_color(screen_half_inverse_color(c->background));
-  }
+void splitter_cursor(struct screen* screen, struct splitter* splitter, int x, int y) {
+  splitter->cursor_x = x;
+  splitter->cursor_y = y;
 }
 
 void splitter_scrollbar(struct screen* screen, const struct splitter* splitter) {
@@ -328,6 +316,11 @@ void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int w
       splitter_draw(screen, splitter);
     } else {
       (*splitter->document->incremental_update)(splitter->document, splitter);
+    }
+    if (splitter->active) {
+      if (splitter->cursor_x>=0 && splitter->cursor_y>=0 && splitter->cursor_x<splitter->width && splitter->cursor_y<splitter->height) {
+        screen_cursor(screen, splitter->cursor_x+x, splitter->cursor_y+y);
+      }
     }
   }
 }

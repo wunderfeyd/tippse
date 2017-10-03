@@ -4,6 +4,7 @@
 struct screen_char;
 struct screen;
 
+#include <termios.h>
 #include "encoding/utf8.h"
 
 struct screen_char {
@@ -16,10 +17,13 @@ struct screen_char {
 struct screen {
   int width;
   int height;
+  int cursor_x;
+  int cursor_y;
   struct screen_char* buffer;
   struct screen_char* visible;
   char* title;
   char* title_new;
+  struct termios termios_original;
 };
 
 void screen_destroy(struct screen* screen);
@@ -32,6 +36,7 @@ int screen_inverse_color(int color);
 int screen_half_inverse_color(int color);
 int screen_half_color(int color);
 int screen_intense_color(int color);
+void screen_cursor(struct screen* screen, int x, int y);
 void screen_draw(struct screen* screen);
 void screen_drawtext(const struct screen* screen, int x, int y, const char* text, size_t length, int foreground, int background);
 int screen_getchar(const struct screen* screen, int x, int y);

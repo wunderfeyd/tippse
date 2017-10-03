@@ -10,18 +10,6 @@
 #include <unistd.h>
 #include "screen.h"
 
-void screen_destroy(struct screen* screen) {
-  if (screen==NULL) {
-    return;
-  }
-
-  free(screen->title);
-  free(screen->title_new);
-  free(screen->visible);
-  free(screen->buffer);
-  free(screen);
-}
-
 struct screen* screen_create() {
   struct screen* screen = (struct screen*)malloc(sizeof(struct screen));
   screen->width = 0;
@@ -30,8 +18,44 @@ struct screen* screen_create() {
   screen->visible = NULL;
   screen->title = NULL;
   screen->title_new = strdup("Tippse");
+  screen->cursor_x = -1;
+  screen->cursor_y = -1;
+
+  tcgetattr(STDIN_FILENO, &screen->termios_original);
+
+  struct termios raw;
+  cfmakeraw(&raw);
+  tcsetattr(STDIN_FILENO, TCSANOW, &raw);
+
+  write(STDOUT_FILENO, "\x1b[?47h", 6);
+  write(STDOUT_FILENO, "\x1b[?25l", 6);
+  write(STDOUT_FILENO, "\x1b""7", 2);
+  write(STDOUT_FILENO, "\x1b[?2004h", 8);
+  write(STDOUT_FILENO, "\x1b[?1003h", 8);
+  write(STDOUT_FILENO, "\x1b[?1005h", 8);
 
   return screen;
+}
+
+void screen_destroy(struct screen* screen) {
+  if (screen==NULL) {
+    return;
+  }
+
+  write(STDOUT_FILENO, "\x1b[?1005l", 8);
+  write(STDOUT_FILENO, "\x1b[?1003l", 8);
+  write(STDOUT_FILENO, "\x1b[?2004l", 8);
+  write(STDOUT_FILENO, "\x1b""8", 2);
+  write(STDOUT_FILENO, "\x1b[?25h", 6);
+  write(STDOUT_FILENO, "\x1b[?47l", 6);
+  write(STDOUT_FILENO, "\x1b[39;49m", 8);
+  tcsetattr(STDIN_FILENO, TCSANOW, &screen->termios_original);
+
+  free(screen->title);
+  free(screen->title_new);
+  free(screen->visible);
+  free(screen->buffer);
+  free(screen);
 }
 
 void screen_check(struct screen* screen) {
@@ -73,14 +97,20 @@ void screen_draw_char(struct screen* screen, char** pos, int n, int* w, int* for
   struct screen_char* c = &screen->buffer[n];
   if (c->foreground!=*foreground_old) {
     *foreground_old = c->foreground;
-    //*pos += sprintf(*pos, "\x1b[38;2;%d;%d;%dm", (c->foreground>>16)&255, (c->foreground>>8)&255, (c->foreground>>0)&255);
-    *pos += sprintf(*pos, "\x1b[38;5;%dm", c->foreground);
+    if (c->foreground>=0) {
+      *pos += sprintf(*pos, "\x1b[38;5;%dm", c->foreground);
+    } else {
+      *pos += sprintf(*pos, "\x1b[39m");
+    }
   }
 
   if (c->background!=*background_old) {
     *background_old = c->background;
-    //*pos += sprintf(*pos, "\x1b[48;2;%d;%d;%dm", (c->background>>16)&255, (c->background>>8)&255, (c->background>>0)&255);
-    *pos += sprintf(*pos, "\x1b[48;5;%dm", c->background);
+    if (c->background>=0) {
+      *pos += sprintf(*pos, "\x1b[48;5;%dm", c->background);
+    } else {
+      *pos += sprintf(*pos, "\x1b[49m");
+    }
   }
 
   size_t copy;
@@ -178,10 +208,15 @@ int screen_intense_color(int color) {
   return color;
 }
 
+void screen_cursor(struct screen* screen, int x, int y) {
+  screen->cursor_x = x;
+  screen->cursor_y = y;
+}
+
 void screen_draw(struct screen* screen) {
   int n, w, old;
-  int foreground_old = -1;
-  int background_old = -1;
+  int foreground_old = -2;
+  int background_old = -2;
   struct screen_char* c;
   struct screen_char* v;
   char* output = (char*)malloc((5+32)*screen->width*screen->height+5);
@@ -194,7 +229,7 @@ void screen_draw(struct screen* screen) {
 
       screen->title = screen->title_new;
       screen->title_new = NULL;
-      pos += sprintf(pos, "\x1b[0;%s\x07", screen->title);
+      // pos += sprintf(pos, "\x1b[0;%s\x07", screen->title);
     }
 
     if (screen->title_new) {
@@ -204,9 +239,7 @@ void screen_draw(struct screen* screen) {
     screen->title_new = NULL;
   }
 
-  *pos++ = 0x1b;
-  *pos++ = '[';
-  *pos++ = 'H';
+  pos += sprintf(pos, "\x1b[?25l\x1b[H");
   w = 0;
   old = 0;
   for (n=0; n<screen->width*screen->height; n++) {
@@ -240,6 +273,11 @@ void screen_draw(struct screen* screen) {
   }
 
   screen_draw_update(screen, &pos, old, n, &w, &foreground_old, &background_old);
+
+  if (screen->cursor_x>=0 && screen->cursor_y>=0 && screen->cursor_x<screen->width && screen->cursor_y<screen->height) {
+    pos += sprintf(pos, "\x1b[%d;%dH\x1b[?25h", screen->cursor_y+1, screen->cursor_x+1);
+  }
+
   write(STDOUT_FILENO, output, pos-output);
   free(output);
 }

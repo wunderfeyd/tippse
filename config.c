@@ -8,10 +8,10 @@ const char* config_filename = ".tippse";
 const char* config_default =
   "{"
     "colors:{"
-      "background:17,"
+      "background:-1,"
       "status:102,"
-      "frame:15,"
-      "text:15,"
+      "frame:-1,"
+      "text:-1,"
       "readonly:102,"
       "type:120,"
       "keyword:210,"

@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <termios.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -97,22 +96,9 @@ int main(int argc, const char** argv) {
   unsigned char input_buffer[1024];
   size_t input_pos = 0;
 
-  struct termios original, raw;
-
   char* base_path = realpath(".", NULL);
 
   unicode_init();
-
-  tcgetattr(STDIN_FILENO, &original);
-  cfmakeraw(&raw);
-  tcsetattr(STDIN_FILENO, TCSANOW, &raw);
-
-  write(STDOUT_FILENO, "\x1b[?47h", 6);
-  write(STDOUT_FILENO, "\x1b[?25l", 6);
-  write(STDOUT_FILENO, "\x1b[?7l", 5);
-  write(STDOUT_FILENO, "\x1b[?2004h", 8);
-  write(STDOUT_FILENO, "\x1b[?1003h", 8);
-  write(STDOUT_FILENO, "\x1b[?1005h", 8);
 
   struct screen* screen = screen_create();
 
@@ -480,15 +466,6 @@ int main(int argc, const char** argv) {
   }
 
 end:;
-  write(STDOUT_FILENO, "\x1b[?1005l", 8);
-  write(STDOUT_FILENO, "\x1b[?1003l", 8);
-  write(STDOUT_FILENO, "\x1b[?2004l", 8);
-  write(STDOUT_FILENO, "\x1b[?7h", 5);
-  write(STDOUT_FILENO, "\x1b[?25h", 6);
-  write(STDOUT_FILENO, "\x1b[?47l", 6);
-  write(STDOUT_FILENO, "\x1b[39;49m", 8);
-  tcsetattr(STDIN_FILENO, TCSANOW, &original);
-
   if (perf_test) {
     document->client_width = 200;
     document->client_height = 40;

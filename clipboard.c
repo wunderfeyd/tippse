@@ -9,7 +9,8 @@ void clipboard_set(struct range_tree_node* data) {
 #ifdef __APPLE__
   clipboard_command_set(data, "pbcopy");
 #elif __linux__
-  clipboard_command_set(data, "xsel -o");
+  clipboard_command_set(data, "xsel -i -p");
+  clipboard_command_set(data, "xsel -i -b");
 #elif _WIN32
   clipboard_windows_set(data);
 #endif
@@ -42,7 +43,7 @@ struct range_tree_node* clipboard_get() {
 #ifdef __APPLE__
   data = clipboard_command_get("pbpaste");
 #elif __linux__
-  data = clipboard_command_get("xsel -i");
+  data = clipboard_command_get("xsel -o");
 #elif _WIN32
   data = clipboard_windows_get();
 #endif
