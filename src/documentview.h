@@ -23,6 +23,7 @@ struct document_view {
   int scroll_x_old;
   int scroll_y_old;
   int scroll_y_max;
+  int address_width;
   int show_scrollbar;
   int show_invisibles;
   int wrapping;

@@ -25,6 +25,7 @@ void document_view_reset(struct document_view* view, struct document_file* file)
   view->scroll_x_old = 0;
   view->scroll_y_old = 0;
   view->scroll_y_max = 0;
+  view->address_width = 0;
   view->show_scrollbar = 0;
   view->selection_start = ~0;
   view->selection_end = ~0;
