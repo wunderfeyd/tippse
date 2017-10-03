@@ -99,7 +99,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
         chars[x].length = unicode_read_combined_sequence(&text_cache, 0, chars[x].codepoints, 8, &advance, &char_size);
         encoding_cache_advance(&text_cache, advance);
       } else {
-        chars[x].codepoints[0] = ' ';
+        chars[x].codepoints[0] = 0;
         chars[x].length = 1;
       }
 
