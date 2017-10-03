@@ -489,6 +489,7 @@ void document_file_reload_config(struct document_file* file) {
 
   file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/background"));
   file->defaults.colors[VISUAL_FLAG_COLOR_TEXT] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/text"));
+  file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/selection"));
   file->defaults.colors[VISUAL_FLAG_COLOR_READONLY] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/readonly"));
   file->defaults.colors[VISUAL_FLAG_COLOR_STATUS] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/status"));
   file->defaults.colors[VISUAL_FLAG_COLOR_FRAME] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/frame"));

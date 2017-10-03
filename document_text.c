@@ -643,11 +643,8 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         show = 0xfffd;
       }
 
-      int sel = (render_info->offset>=view->selection_low && render_info->offset<view->selection_high)?1:0;
-      if (sel) {
-        int swap = color;
-        color = background;
-        background = swap;
+      if (render_info->offset>=view->selection_low && render_info->offset<view->selection_high) {
+        background = file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
       }
 
       int codepoints_visual[8];
@@ -1273,7 +1270,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   } else if (cp==TIPPSE_KEY_COPY || cp==TIPPSE_KEY_CUT) {
     document_undo_chain(file, file->undos);
     if (view->selection_low!=~0) {
-      clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low));
+      clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low), file->binary);
       if (cp==TIPPSE_KEY_CUT) {
         document_file_delete_selection(splitter->file, splitter->view);
       } else {

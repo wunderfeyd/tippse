@@ -128,6 +128,7 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
 
   int foreground = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
   int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
+  int selection = file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
   int x = 0;
   char line[1024];
   sprintf(line, "%08lx", (unsigned long)offset);
@@ -139,7 +140,7 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
     if (offset+data_pos<view->selection_low || offset+data_pos>=view->selection_high) {
       splitter_drawtext(screen, splitter, x, y, line, 2, foreground, background);
     } else {
-      splitter_drawtext(screen, splitter, x, y, line, data_pos==15?2:3, background, foreground);
+      splitter_drawtext(screen, splitter, x, y, line, data_pos==15?2:3, foreground, selection);
     }
     x += 3;
   }
@@ -152,12 +153,11 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
     for (size_t n = 0; n<chars[data_pos].length; n++) {
       chars[data_pos].visuals[n] = (file->encoding->visual)(file->encoding, chars[data_pos].codepoints[n]);
     }
-
     document_hex_convert(&chars[data_pos], view->show_invisibles, '.');
     if (offset+data_pos<view->selection_low || offset+data_pos>=view->selection_high) {
       splitter_drawchar(screen, splitter, x, y, chars[data_pos].visuals, chars[data_pos].length, foreground, background);
     } else {
-      splitter_drawchar(screen, splitter, x, y, chars[data_pos].visuals, chars[data_pos].length, background, foreground);
+      splitter_drawchar(screen, splitter, x, y, chars[data_pos].visuals, chars[data_pos].length, foreground, selection);
     }
     x++;
   }
@@ -219,7 +219,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     selection_keep = 1;
   } else if (cp==TIPPSE_KEY_COPY || cp==TIPPSE_KEY_CUT) {
     if (view->selection_low!=~0) {
-      clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low));
+      clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low), 1);
       if (cp==TIPPSE_KEY_CUT) {
         document_undo_chain(file, file->undos);
         document_file_delete_selection(splitter->file, splitter->view);
@@ -335,6 +335,24 @@ uint8_t document_hex_value(int cp) {
     value = cp-'a'+10;
   } else if (cp>='A' && cp<='F') {
     value = cp-'A'+10;
+  }
+  return value;
+}
+
+// Return value from hex string
+uint8_t document_hex_value_from_string(const char* text, size_t length) {
+  uint8_t value = 0;
+  for (size_t pos=0; pos<length; pos++) {
+    char cp = *(text+pos);
+    if (cp>='0' && cp<='9') {
+      value = value*16+cp-'0';
+    } else if (cp>='a' && cp<='f') {
+      value = value*16+cp-'a'+10;
+    } else if (cp>='A' && cp<='F') {
+      value = value*16+cp-'A'+10;
+    } else {
+      break;
+    }
   }
   return value;
 }

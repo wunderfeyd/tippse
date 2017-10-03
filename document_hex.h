@@ -40,6 +40,7 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
 void document_hex_keypress(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y);
 void document_hex_cursor_from_point(struct document* base, struct splitter* splitter, int x, int y, file_offset_t* offset);
 uint8_t document_hex_value(int cp);
+uint8_t document_hex_value_from_string(const char* text, size_t length);
 void document_hex_convert(struct document_hex_char* cps, int show_invisibles, int cp_default);
 
 #endif /* #ifndef __TIPPSE_DOCUMENT_HEX__ */
