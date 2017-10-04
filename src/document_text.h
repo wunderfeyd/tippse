@@ -81,6 +81,8 @@ struct document_text_position {
   int column;                           // Column in line
   file_offset_t character;              // Character in file
 
+  int visual_detail;                    // Visual detail at current stop
+
   int bracket;                          // Bracket number
   int bracket_search;                   // Bracket depth to search for
   int bracket_match;                    // Type of bracket below the cursor
@@ -105,5 +107,8 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 
 file_offset_t document_text_cursor_position_partial(struct document_text_render_info* render_info, struct splitter* splitter, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel);
 file_offset_t document_text_cursor_position(struct splitter* splitter, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel);
+
+void document_text_lower_indentation(struct document* base, struct splitter* splitter, file_offset_t low, file_offset_t high);
+void document_text_raise_indentation(struct document* base, struct splitter* splitter, file_offset_t low, file_offset_t high, int empty_lines);
 
 #endif /* #ifndef __TIPPSE_DOCUMENT_TEXT__ */
