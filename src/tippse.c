@@ -195,14 +195,14 @@ int main(int argc, const char** argv) {
     int x;
     for (x = 0; x<screen->width; x++) {
       int cp = 0x20;
-      screen_setchar(screen, x, 0, &cp, 1, foreground, background);
+      screen_setchar(screen, x, 0, 0, 0, screen->width, screen->height, &cp, 1, foreground, background);
     }
 
-    screen_drawtext(screen, 0, 0, focus->name, screen->width, foreground, background);
+    screen_drawtext(screen, 0, 0, 0, 0, screen->width, screen->height, focus->name, screen->width, foreground, background);
     struct encoding_stream stream;
     encoding_stream_from_plain(&stream, (uint8_t*)focus->status, ~0);
     int length = encoding_utf8_strlen(NULL, &stream);
-    screen_drawtext(screen, screen->width-length, 0, focus->status, length, foreground, background);
+    screen_drawtext(screen, screen->width-length, 0, 0, 0, screen->width, screen->height, focus->status, length, foreground, background);
 
     screen_draw(screen);
     int in = 0;

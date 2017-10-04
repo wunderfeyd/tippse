@@ -164,64 +164,6 @@ void screen_title(struct screen* screen, const char* title) {
   screen->title_new = strdup(title);
 }
 
-int screen_inverse_color(int color) {
-  if (color<16) {
-    color = 15-color;
-  } else if(color<232) {
-    color -= 16;
-    int r = color%6;
-    int g = (color/6)%6;
-    int b = (color/36)%6;
-    color = (5-r)+((5-g)*6)+((5-b)*36)+16;
-  } else {
-    color = (24-(color-232))+232;
-  }
-
-  return color;
-}
-
-int screen_half_inverse_color(int color) {
-  if (color<16) {
-    color = 15-color;
-  } else if(color<232) {
-    color -= 16;
-    int r = color%6;
-    int g = (color/6)%6;
-    int b = (color/36)%6;
-    color = (5-r)+((g)*6)+((5-b)*36)+16;
-  } else {
-    color = (24-(color-232))+232;
-  }
-
-  return color;
-}
-
-int screen_half_color(int color) {
-  if (color<16) {
-  } else if(color<232) {
-    color -= 16;
-    int r = color%6;
-    int g = (color/6)%6;
-    int b = (color/36)%6;
-    color = (r/2)+((g/2)*6)+((b/2)*36)+16;
-  }
-
-  return color;
-}
-
-int screen_intense_color(int color) {
-  if (color<16) {
-  } else if(color<232) {
-    color -= 16;
-    int r = color%6;
-    int g = (color/6)%6;
-    int b = (color/36)%6;
-    color = b+(r*6)+(g*36)+16;
-  }
-
-  return color;
-}
-
 void screen_cursor(struct screen* screen, int x, int y) {
   screen->cursor_x = x;
   screen->cursor_y = y;
@@ -296,8 +238,8 @@ void screen_draw(struct screen* screen) {
   free(output);
 }
 
-void screen_drawtext(const struct screen* screen, int x, int y, const char* text, size_t length, int foreground, int background) {
-  if (y<0 || y>=screen->height) {
+void screen_drawtext(const struct screen* screen, int x, int y, int clip_x, int clip_y, int clip_width, int clip_height, const char* text, size_t length, int foreground, int background) {
+  if (y<clip_y || y>=clip_y+clip_height) {
     return;
   }
 
@@ -314,7 +256,7 @@ void screen_drawtext(const struct screen* screen, int x, int y, const char* text
       cp = 0xfffd;
     }
 
-    screen_setchar(screen, x, y, &cp, 1, foreground, background);
+    screen_setchar(screen, x, y, clip_x, clip_y, clip_width, clip_height, &cp, 1, foreground, background);
 
     x++;
     length--;
@@ -330,8 +272,8 @@ int screen_getchar(const struct screen* screen, int x, int y) {
   return screen->buffer[y*screen->width+x].codepoints[0];
 }
 
-void screen_setchar(const struct screen* screen, int x, int y, int* codepoints, size_t length, int foreground, int background) {
-  if (y<0 || y>=screen->height || x<0 || x>=screen->width) {
+void screen_setchar(const struct screen* screen, int x, int y, int clip_x, int clip_y, int clip_width, int clip_height, int* codepoints, size_t length, int foreground, int background) {
+  if (y<clip_y || y>=clip_y+clip_height || x<clip_x || x>=clip_x+clip_width) {
     return;
   }
 
