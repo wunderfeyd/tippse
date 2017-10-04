@@ -319,9 +319,13 @@ void document_hex_cursor_from_point(struct document* base, struct splitter* spli
   x -= splitter->x;
   y -= splitter->y;
   file_offset_t file_size = file->buffer?file->buffer->length:0;
+  if (y<0) *offset = 0;
   if (y>=0 && y<splitter->client_height) {
-    if (x>=10 && x<10+16*3) *offset = ((view->scroll_y+y)*16)+((x-10)/3);
-    if (x>=59 && x<59+16) *offset = ((view->scroll_y+y)*16)+x-59;
+    if (x>=8 && x<10) *offset = ((view->scroll_y+y)*16);
+    if (x>=10 && x<58) *offset = ((view->scroll_y+y)*16)+((x-10)/3);
+    if (x>=58 && x<59) *offset = ((view->scroll_y+y)*16)+16;
+    if (x>=59 && x<75) *offset = ((view->scroll_y+y)*16)+x-59;
+    if (x>=76) *offset = ((view->scroll_y+y)*16)+16;
     if (*offset>file_size) *offset = file_size;
   }
 }
