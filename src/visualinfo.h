@@ -66,6 +66,8 @@
 #define VISUAL_BRACKET_CLOSE 0x20000
 #define VISUAL_BRACKET_MAX 4
 
+#define VISUAL_BRACKET_USED_LINE 0x100
+
 // Block structure for bracket matching and code folding
 struct visual_bracket {
   int diff;
@@ -90,6 +92,7 @@ struct visual_info {
   file_offset_t rewind;     // Relative offset (backwards) to begin of the last keyword/character
   int dirty;                // Mark page as dirty (not completely rendered yet)
   struct visual_bracket brackets[VISUAL_BRACKET_MAX]; // Bracket depth
+  int used_brackets;        // Bit field of used bracket types in current line
 };
 
 void visual_info_clear(struct visual_info* visuals);

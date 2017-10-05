@@ -59,6 +59,7 @@ struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int
 int range_tree_find_bracket(struct range_tree_node* node, size_t bracket);
 struct range_tree_node* range_tree_find_bracket_forward(struct range_tree_node* node, size_t bracket, int search);
 struct range_tree_node* range_tree_find_bracket_backward(struct range_tree_node* node, size_t bracket, int search);
+int range_tree_find_used_brackets(struct range_tree_node* node);
 int range_tree_find_whitespaced(struct range_tree_node* node);
 file_offset_t range_tree_offset(struct range_tree_node* node);
 file_offset_t range_tree_distance_offset(struct range_tree_node* root, struct range_tree_node* start, struct range_tree_node* end);

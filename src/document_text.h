@@ -58,6 +58,7 @@ struct document_text_render_info {
   int depth_new[VISUAL_BRACKET_MAX];
   int depth_old[VISUAL_BRACKET_MAX];
   struct visual_bracket brackets[VISUAL_BRACKET_MAX];
+  int used_brackets;
 };
 
 // Document position structure
@@ -88,6 +89,7 @@ struct document_text_position {
   int bracket_match;                    // Type of bracket below the cursor
 
   int depth[VISUAL_BRACKET_MAX];        // Bracket information
+  int used_brackets;                    // Bit field of used bracket types in current line
 };
 
 struct document* document_text_create();

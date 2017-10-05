@@ -434,6 +434,49 @@ struct range_tree_node* range_tree_find_bracket_backward(struct range_tree_node*
   return node;
 }
 
+// Check for used brackets in current line
+int range_tree_find_used_brackets(struct range_tree_node* node) {
+  if (!node) {
+    return 0;
+  }
+
+  node = range_tree_prev(node);
+  if (!node) {
+    return 0;
+  }
+
+  int used_brackets = node->visuals.used_brackets;
+  if (!(node->visuals.used_brackets&VISUAL_BRACKET_USED_LINE)) {
+    while (node->parent) {
+      if (node->parent->side[1]==node) {
+        if (node->parent->visuals.used_brackets&VISUAL_BRACKET_USED_LINE) {
+          node = node->parent;
+          break;
+        }
+
+        used_brackets |= node->parent->side[0]->visuals.used_brackets;
+      }
+
+      node = node->parent;
+    }
+
+    node = node->side[0];
+  }
+
+  while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
+    if (!(node->side[1]->visuals.used_brackets&VISUAL_BRACKET_USED_LINE)) {
+      used_brackets |= node->side[1]->visuals.used_brackets;
+      node = node->side[0];
+    } else {
+      node = node->side[1];
+    }
+  }
+
+  used_brackets |= node->visuals.used_brackets;
+
+  return used_brackets;
+}
+
 // Check if whitespacing stops at line end
 int range_tree_find_whitespaced(struct range_tree_node* node) {
   if (node->visuals.detail_after&VISUAL_INFO_WHITESPACED_START) {
