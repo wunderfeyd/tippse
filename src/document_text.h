@@ -53,6 +53,7 @@ struct document_text_render_info {
   int keyword_color;
   int keyword_length;
   int whitespaced;
+  int indented;
   struct encoding_stream stream;
   struct encoding_cache cache;
   int depth_new[VISUAL_BRACKET_MAX];
@@ -93,6 +94,7 @@ struct document_text_position {
   int depth_line[VISUAL_BRACKET_MAX];   // Bracket information
   int min_line[VISUAL_BRACKET_MAX];     // Bracket information
   int lines;                            // Number of lines rendered in this page
+  int indented;                         // Cursor in indentation area
 };
 
 struct document* document_text_create();

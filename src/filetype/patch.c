@@ -24,9 +24,10 @@ void file_type_patch_mark(struct file_type* base, int* visual_detail, struct enc
 
   *length = 1;
   int before = *visual_detail;
-  int after = before;
+  int after = before&~(VISUAL_INFO_INDENTATION|VISUAL_INFO_WORD);
 
   if (before&VISUAL_INFO_NEWLINE) {
+    after &= ~(VISUAL_INFO_STRING0|VISUAL_INFO_STRING1|VISUAL_INFO_STRING2|VISUAL_INFO_COMMENT0);
     if (cp1=='@') {
       after |= VISUAL_INFO_COMMENT0;
     } else if (cp1==' ') {
@@ -38,24 +39,12 @@ void file_type_patch_mark(struct file_type* base, int* visual_detail, struct enc
     }
   }
 
-  if (before&VISUAL_INFO_NEWLINE) {
+  if (cp1=='\t' || cp1==' ') {
     after |= VISUAL_INFO_INDENTATION;
-    after &= ~VISUAL_INFO_NEWLINE;
-  }
-
-  if (cp1!='\t' && cp1!=' ') {
-    after &= ~VISUAL_INFO_INDENTATION;
-  }
-
-  if (cp1=='\0' || cp1=='\n') {
-    after |= VISUAL_INFO_NEWLINE;
-    after &= ~(VISUAL_INFO_STRING0|VISUAL_INFO_STRING1|VISUAL_INFO_STRING2|VISUAL_INFO_COMMENT0);
   }
 
   if ((cp1>='a' && cp1<='z') || (cp1>='A' && cp1<='Z') || (cp1>='0' && cp1<='9') || cp1=='_') {
     after |= VISUAL_INFO_WORD;
-  } else {
-    after &= ~VISUAL_INFO_WORD;
   }
 
   if ((before|after)&(VISUAL_INFO_COMMENT0)) {

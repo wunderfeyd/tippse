@@ -26,25 +26,14 @@ void file_type_text_mark(struct file_type* base, int* visual_detail, struct enco
   int cp1 = encoding_cache_find_codepoint(cache, 0);
 
   int before = *visual_detail;
-  int after = before;
+  int after = before&~(VISUAL_INFO_INDENTATION|VISUAL_INFO_WORD);
 
-  if (before&VISUAL_INFO_NEWLINE) {
+  if (cp1=='\t' || cp1==' ') {
     after |= VISUAL_INFO_INDENTATION;
-    after &= ~VISUAL_INFO_NEWLINE;
-  }
-
-  if (cp1!='\t' && cp1!=' ') {
-    after &= ~VISUAL_INFO_INDENTATION;
-  }
-
-  if (cp1=='\0' || cp1=='\n') {
-    after |= VISUAL_INFO_NEWLINE;
   }
 
   if ((cp1>='a' && cp1<='z') || (cp1>='A' && cp1<='Z') || (cp1>='0' && cp1<='9') || cp1=='_') {
     after |= VISUAL_INFO_WORD;
-  } else {
-    after &= ~VISUAL_INFO_WORD;
   }
 
   *visual_detail = after;

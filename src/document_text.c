@@ -208,6 +208,7 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
         render_info->visual_detail = VISUAL_INFO_NEWLINE;
       }
 
+      render_info->indented = range_tree_find_indentation(buffer_new);
       render_info->whitespaced = range_tree_find_whitespaced(buffer_new);
 
       render_info->visual_detail |= VISUAL_INFO_WHITESPACED_COMPLETE;
@@ -221,7 +222,7 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
       render_info->column = columns_new;
       render_info->character = characters_new;
 
-      if (render_info->indentation+render_info->indentation_extra>0 && x_new==0 && !(render_info->visual_detail&VISUAL_INFO_INDENTATION)) {
+      if (render_info->indentation+render_info->indentation_extra>0 && x_new==0 && !render_info->indented) {
         render_info->draw_indentation = 1;
       } else {
         render_info->draw_indentation = 0;
@@ -469,7 +470,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       }
     } else if (in->type==VISUAL_SEEK_INDENTATION_LAST) {
       if (render_info->line==in->line) {
-        drawn = ((render_info->visual_detail&VISUAL_INFO_NEWLINE) || (render_info->visual_detail&VISUAL_INFO_INDENTATION))?1:0;
+        drawn = ((render_info->visual_detail&VISUAL_INFO_NEWLINE) || (render_info->indented))?1:0;
       } else if (render_info->line>in->line) {
         drawn = 4;
       }
@@ -517,6 +518,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
           out->bracket_match = bracket_match;
           out->visual_detail = render_info->visual_detail;
           out->lines = render_info->lines;
+          out->indented = render_info->indented;
           for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
             out->depth[n] = render_info->depth_new[n];
             out->min_line[n] = render_info->brackets_line[n].min;
@@ -694,11 +696,17 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     }
 
     render_info->x += fill;
-    if (!(render_info->visual_detail&VISUAL_INFO_INDENTATION)) {
-      render_info->visual_detail |= VISUAL_INFO_STOPPED_INDENTATION;
+    if (render_info->visual_detail&VISUAL_INFO_NEWLINE) {
+      render_info->visual_detail &= ~VISUAL_INFO_NEWLINE;
+      render_info->indented = 1;
     }
 
-    if (render_info->visual_detail&VISUAL_INFO_INDENTATION && !view->continuous && render_info->indentation<render_info->width/2) {
+    if (!(render_info->visual_detail&VISUAL_INFO_INDENTATION)) {
+      render_info->visual_detail |= VISUAL_INFO_STOPPED_INDENTATION;
+      render_info->indented = 0;
+    }
+
+    if (render_info->indented && !view->continuous && render_info->indentation<render_info->width/2) {
       render_info->indentation += fill;
       render_info->indentations += fill;
     } else {
@@ -752,9 +760,12 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         render_info->visual_detail |= VISUAL_INFO_WHITESPACED_START;
       }
 
+      render_info->visual_detail |= VISUAL_INFO_NEWLINE;
+
       render_info->visual_detail &= ~(VISUAL_INFO_WRAPPED|VISUAL_INFO_STOPPED_INDENTATION);
 
       render_info->whitespaced = 0;
+      render_info->indented = 0;
 
       render_info->line++;
       render_info->lines++;
@@ -1151,24 +1162,27 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     seek = 1;
   } else if (cp==TIPPSE_KEY_FIRST) {
     struct range_tree_node* first = (out.lines!=0)?out.buffer:range_tree_find_indentation_last(out.buffer);
-    struct document_text_position in;
-    in.type = VISUAL_SEEK_INDENTATION_LAST;
-    in.clip = 0;
-    in.offset = range_tree_offset(first);
-    in.line = out.line;
-
-    struct document_text_position out_first;
-    struct document_text_render_info render_info;
-    document_text_render_clear(&render_info, splitter->client_width-view->address_width);
-    document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
-    document_text_render_span(&render_info, NULL, splitter, view, file, &in, &out_first, ~0, 1);
-
     int seek_first = 1;
-    if (out_first.type!=VISUAL_SEEK_NONE) {
-      view->cursor_x = out_first.x;
-      view->cursor_y = out_first.y;
-      view->offset = out_first.offset;
-      seek_first = (out_first.offset==out.offset)?1:0;
+
+    if (first) {
+      struct document_text_position in;
+      in.type = VISUAL_SEEK_INDENTATION_LAST;
+      in.clip = 0;
+      in.offset = range_tree_offset(first);
+      in.line = out.line;
+
+      struct document_text_position out_first;
+      struct document_text_render_info render_info;
+      document_text_render_clear(&render_info, splitter->client_width-view->address_width);
+      document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
+      document_text_render_span(&render_info, NULL, splitter, view, file, &in, &out_first, ~0, 1);
+
+      if (out_first.type!=VISUAL_SEEK_NONE) {
+        view->cursor_x = out_first.x;
+        view->cursor_y = out_first.y;
+        view->offset = out_first.offset;
+        seek_first = (out_first.offset==out.offset)?1:0;
+      }
     }
 
     if (seek_first) {
@@ -1373,7 +1387,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     in_line_column.column = out.column;
     document_text_cursor_position(splitter, &in_line_column, &out_bracket, 0, 1);
 
-    if ((out_bracket.bracket_match&VISUAL_BRACKET_CLOSE) && (out_bracket.visual_detail&VISUAL_INFO_INDENTATION)) {
+    if ((out_bracket.bracket_match&VISUAL_BRACKET_CLOSE) && out_bracket.indented) {
       document_text_lower_indentation(base, splitter, view->offset, view->offset);
     }
     // --- End test auto indentation ... closing bracket

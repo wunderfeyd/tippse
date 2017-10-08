@@ -352,7 +352,7 @@ int range_tree_find_bracket(struct range_tree_node* node, size_t bracket) {
 
 // Find next closest forward match (may be wrong due to page invalidation, but while rendering we should find it anyway)
 struct range_tree_node* range_tree_find_bracket_forward(struct range_tree_node* node, size_t bracket, int search) {
-  if (!node) {
+  if (!node || !node->parent) {
     return NULL;
   }
 
@@ -369,10 +369,6 @@ struct range_tree_node* range_tree_find_bracket_forward(struct range_tree_node* 
     }
 
     node = node->parent;
-  }
-
-  if (node->inserter&TIPPSE_INSERTER_LEAF) {
-    return NULL;
   }
 
   depth += node->side[0]->visuals.brackets[bracket].diff;
@@ -398,7 +394,7 @@ struct range_tree_node* range_tree_find_bracket_forward(struct range_tree_node* 
 
 // Find next closest backwards match (may be wrong due to page invalidation, but while rendering we should find it anyway)
 struct range_tree_node* range_tree_find_bracket_backward(struct range_tree_node* node, size_t bracket, int search) {
-  if (!node) {
+  if (!node || !node->parent) {
     return NULL;
   }
 
@@ -413,10 +409,6 @@ struct range_tree_node* range_tree_find_bracket_backward(struct range_tree_node*
     }
 
     node = node->parent;
-  }
-
-  if (node->inserter&TIPPSE_INSERTER_LEAF) {
-    return NULL;
   }
 
   node = node->side[0];
@@ -436,7 +428,7 @@ struct range_tree_node* range_tree_find_bracket_backward(struct range_tree_node*
 
 // Check for lowest bracket depth
 void range_tree_find_bracket_lowest(struct range_tree_node* node, int* mins) {
-  if (!node) {
+  if (!node || !node->parent) {
     return;
   }
 
@@ -482,8 +474,8 @@ void range_tree_find_bracket_lowest(struct range_tree_node* node, int* mins) {
 
 // Find last indentation on line
 struct range_tree_node* range_tree_find_indentation_last(struct range_tree_node* node) {
-  if (!node) {
-    return NULL;
+  if (!node || !node->parent) {
+    return node;
   }
 
   // Climb to first node of line
@@ -535,6 +527,44 @@ struct range_tree_node* range_tree_find_indentation_last(struct range_tree_node*
   }
 
   return node;
+}
+
+// Check for identation reaching given node
+int range_tree_find_indentation(struct range_tree_node* node) {
+  if (!node || !node->parent) {
+    return 0;
+  }
+
+  while (node->parent) {
+    if (node->parent->side[1]==node) {
+      if (node->parent->side[0]->visuals.lines!=0) {
+        node = node->parent;
+        break;
+      }
+
+      if (node->parent->side[0]->visuals.detail_after&VISUAL_INFO_STOPPED_INDENTATION) {
+        return 0;
+      }
+    }
+
+    node = node->parent;
+  }
+
+  node = node->side[0];
+
+  while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
+    if (node->side[1]->visuals.lines==0) {
+      if (node->side[1]->visuals.detail_after&VISUAL_INFO_STOPPED_INDENTATION) {
+        return 0;
+      }
+
+      node = node->side[0];
+    } else {
+      node = node->side[1];
+    }
+  }
+
+  return (node->visuals.detail_after&VISUAL_INFO_STOPPED_INDENTATION)?0:1;
 }
 
 // Check if whitespacing stops at line end
