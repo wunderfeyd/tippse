@@ -24,10 +24,11 @@
 #define VISUAL_INFO_WHITESPACED_COMPLETE 0x100000
 #define VISUAL_INFO_WHITESPACED_START 0x200000
 #define VISUAL_INFO_CONTROLCHARACTER 0x400000
-#define VISUAL_INFO_WRAPPING 0x10000000
+#define VISUAL_INFO_WRAPPING 0x1000000
 #define VISUAL_INFO_SHOW_INVISIBLES 0x2000000
 #define VISUAL_INFO_CONTINUOUS 0x4000000
 #define VISUAL_INFO_WRAPPED 0x8000000
+#define VISUAL_INFO_STOPPED_INDENTATION 0x10000000
 
 // Flags for page dirtiness
 #define VISUAL_DIRTY_UPDATE 1
@@ -60,6 +61,7 @@
 #define VISUAL_SEEK_LINE_COLUMN 3
 #define VISUAL_SEEK_BRACKET_NEXT 4
 #define VISUAL_SEEK_BRACKET_PREV 5
+#define VISUAL_SEEK_INDENTATION_LAST 6
 
 #define VISUAL_BRACKET_MASK 0xffff
 #define VISUAL_BRACKET_OPEN 0x10000
@@ -92,7 +94,7 @@ struct visual_info {
   file_offset_t rewind;     // Relative offset (backwards) to begin of the last keyword/character
   int dirty;                // Mark page as dirty (not completely rendered yet)
   struct visual_bracket brackets[VISUAL_BRACKET_MAX]; // Bracket depth
-  int used_brackets;        // Bit field of used bracket types in current line
+  struct visual_bracket brackets_line[VISUAL_BRACKET_MAX]; // Bracket depth of line
 };
 
 void visual_info_clear(struct visual_info* visuals);

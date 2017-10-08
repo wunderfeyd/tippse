@@ -434,47 +434,107 @@ struct range_tree_node* range_tree_find_bracket_backward(struct range_tree_node*
   return node;
 }
 
-// Check for used brackets in current line
-int range_tree_find_used_brackets(struct range_tree_node* node) {
+// Check for lowest bracket depth
+void range_tree_find_bracket_lowest(struct range_tree_node* node, int* mins) {
   if (!node) {
-    return 0;
+    return;
   }
 
-  node = range_tree_prev(node);
-  if (!node) {
-    return 0;
-  }
-
-  int used_brackets = node->visuals.used_brackets;
-  if (!(node->visuals.used_brackets&VISUAL_BRACKET_USED_LINE)) {
-    while (node->parent) {
-      if (node->parent->side[1]==node) {
-        if (node->parent->visuals.used_brackets&VISUAL_BRACKET_USED_LINE) {
-          node = node->parent;
-          break;
-        }
-
-        used_brackets |= node->parent->side[0]->visuals.used_brackets;
+  while (node->parent) {
+    if (node->parent->side[1]==node) {
+      if (node->parent->side[0]->visuals.lines!=0) {
+        node = node->parent;
+        break;
       }
 
-      node = node->parent;
+      for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
+        int min1 = mins[n]-node->parent->side[0]->visuals.brackets_line[n].diff;
+        int min2 = node->parent->side[0]->visuals.brackets_line[n].min;
+        mins[n] = (min2>min1)?min2:min1;
+      }
     }
 
-    node = node->side[0];
+    node = node->parent;
   }
 
+  node = node->side[0];
+
   while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
-    if (!(node->side[1]->visuals.used_brackets&VISUAL_BRACKET_USED_LINE)) {
-      used_brackets |= node->side[1]->visuals.used_brackets;
+    if (node->side[1]->visuals.lines==0) {
+      for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
+        int min1 = mins[n]-node->side[1]->visuals.brackets_line[n].diff;
+        int min2 = node->side[1]->visuals.brackets_line[n].min;
+        mins[n] = (min2>min1)?min2:min1;
+      }
+
       node = node->side[0];
     } else {
       node = node->side[1];
     }
   }
 
-  used_brackets |= node->visuals.used_brackets;
+  for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
+    int min1 = mins[n]-node->visuals.brackets_line[n].diff;
+    int min2 = node->visuals.brackets_line[n].min;
+    mins[n] = (min2>min1)?min2:min1;
+  }
+}
 
-  return used_brackets;
+// Find last indentation on line
+struct range_tree_node* range_tree_find_indentation_last(struct range_tree_node* node) {
+  if (!node) {
+    return NULL;
+  }
+
+  // Climb to first node of line
+  while (node->parent) {
+    if (node->parent->side[1]==node) {
+      if (node->parent->side[0]->visuals.lines!=0) {
+        node = node->parent;
+        break;
+      }
+    }
+
+    node = node->parent;
+  }
+
+  node = node->side[0];
+
+  while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
+    if (node->side[1]->visuals.lines==0) {
+      node = node->side[0];
+    } else {
+      node = node->side[1];
+    }
+  }
+
+  if (node->visuals.detail_after&VISUAL_INFO_STOPPED_INDENTATION) {
+    return node;
+  }
+
+  // Climb to last node of line or not indented node
+  while (node->parent) {
+    if (node->parent->side[0]==node) {
+      if (node->parent->side[1]->visuals.lines!=0 || (node->parent->side[1]->visuals.detail_after&VISUAL_INFO_STOPPED_INDENTATION)) {
+        node = node->parent;
+        break;
+      }
+    }
+
+    node = node->parent;
+  }
+
+  node = node->side[1];
+
+  while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
+    if (node->side[0]->visuals.lines==0 && !(node->side[0]->visuals.detail_after&VISUAL_INFO_STOPPED_INDENTATION)) {
+      node = node->side[1];
+    } else {
+      node = node->side[0];
+    }
+  }
+
+  return node;
 }
 
 // Check if whitespacing stops at line end

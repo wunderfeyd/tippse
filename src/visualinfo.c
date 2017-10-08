@@ -29,10 +29,8 @@ void visual_info_combine(struct visual_info* visuals, const struct visual_info* 
     visuals->indentation_extra = left->indentation_extra+right->indentation_extra;
   }
 
-  visuals->used_brackets = left->used_brackets|right->used_brackets;
-
   visuals->detail_before = left->detail_before;
-  visuals->detail_after = ((left->detail_after&right->detail_after)&VISUAL_INFO_WHITESPACED_COMPLETE)|((left->detail_after|right->detail_after)&VISUAL_INFO_WHITESPACED_START);
+  visuals->detail_after = ((left->detail_after&right->detail_after)&VISUAL_INFO_WHITESPACED_COMPLETE)|((left->detail_after|right->detail_after)&(VISUAL_INFO_WHITESPACED_START|VISUAL_INFO_STOPPED_INDENTATION|VISUAL_INFO_INDENTATION|VISUAL_INFO_NEWLINE));
 
   int dirty = (left->dirty|right->dirty)&VISUAL_DIRTY_UPDATE;
   dirty |= (left->dirty)&(VISUAL_DIRTY_SPLITTED|VISUAL_DIRTY_LEFT);
@@ -54,6 +52,18 @@ void visual_info_combine(struct visual_info* visuals, const struct visual_info* 
     visuals->brackets[n].min = right->brackets[n].min-left->brackets[n].diff;
     if (visuals->brackets[n].min<left->brackets[n].min) {
       visuals->brackets[n].min = left->brackets[n].min;
+    }
+
+    visuals->brackets_line[n].diff = right->brackets_line[n].diff+left->brackets_line[n].diff;
+
+    visuals->brackets_line[n].max = right->brackets_line[n].max+left->brackets_line[n].diff;
+    if (visuals->brackets_line[n].max<left->brackets_line[n].max) {
+      visuals->brackets_line[n].max = left->brackets_line[n].max;
+    }
+
+    visuals->brackets_line[n].min = right->brackets_line[n].min-left->brackets_line[n].diff;
+    if (visuals->brackets_line[n].min<left->brackets_line[n].min) {
+      visuals->brackets_line[n].min = left->brackets_line[n].min;
     }
   }
 }
