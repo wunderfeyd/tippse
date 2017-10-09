@@ -10,8 +10,8 @@ void clipboard_set(struct range_tree_node* data, int binary) {
 #ifdef __APPLE__
   clipboard_command_set(data, binary, "pbcopy");
 #elif __linux__
-  clipboard_command_set(data, binary, "xsel -i -p");
-  clipboard_command_set(data, binary, "xsel -i -b");
+  clipboard_command_set(data, binary, "xsel -i -p 2>/dev/null");
+  clipboard_command_set(data, binary, "xsel -i -b 2>/dev/null");
 #elif _WIN32
   clipboard_windows_set(data, binary);
 #endif
@@ -56,11 +56,16 @@ struct range_tree_node* clipboard_get() {
 #ifdef __APPLE__
   data = clipboard_command_get("pbpaste");
 #elif __linux__
-  data = clipboard_command_get("xsel -o");
+  data = clipboard_command_get("xsel -o 2>/dev/null");
 #elif _WIN32
   data = clipboard_windows_get();
 #endif
-  return data?data:clipboard;
+  if (data) {
+    if (clipboard) range_tree_destroy(clipboard);
+    clipboard = data;
+  }
+
+  return clipboard;
 }
 
 // Get text from system clipboard
@@ -85,8 +90,11 @@ struct range_tree_node* clipboard_command_get(const char* command) {
         }
       }
     } else {
-      struct fragment* fragment = fragment_create_memory(buffer, length);
-      data = range_tree_insert(data, 0, fragment, 0, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
+      if (length>0) {
+        struct fragment* fragment = fragment_create_memory(buffer, length);
+        data = range_tree_insert(data, 0, fragment, 0, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
+      }
+
       while (!feof(pipe)) {
         uint8_t* buffer = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MAX);
         file_offset_t length = fread(buffer, 1, TREE_BLOCK_LENGTH_MAX, pipe);

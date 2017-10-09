@@ -230,9 +230,13 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   } else if (cp==TIPPSE_KEY_PASTE) {
     document_undo_chain(file, file->undos);
     document_file_delete_selection(splitter->file, splitter->view);
-    if (clipboard_get()) {
-      document_file_insert_buffer(splitter->file, view->offset, clipboard_get());
+
+    struct range_tree_node* buffer = clipboard_get();
+    if (buffer) {
+      document_file_insert_buffer(splitter->file, view->offset, buffer);
     }
+
+    document_undo_chain(file, file->undos);
   } else if (cp==TIPPSE_KEY_UNDO) {
     document_undo_execute_chain(file, view, file->undos, file->redos, 0);
   } else if (cp==TIPPSE_KEY_REDO) {

@@ -1161,7 +1161,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
     seek = 1;
   } else if (cp==TIPPSE_KEY_FIRST) {
-    struct range_tree_node* first = (out.lines!=0)?out.buffer:range_tree_find_indentation_last(out.buffer);
+    struct range_tree_node* first = range_tree_find_indentation_last(out.buffer);
     int seek_first = 1;
 
     if (first) {
@@ -1299,8 +1299,10 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   } else if (cp==TIPPSE_KEY_PASTE || cp==TIPPSE_KEY_BRACKET_PASTE_START) {
     document_undo_chain(file, file->undos);
     document_file_delete_selection(splitter->file, splitter->view);
-    if (clipboard_get()) {
-      document_file_insert_buffer(splitter->file, view->offset, clipboard_get());
+
+    struct range_tree_node* buffer = clipboard_get();
+    if (buffer) {
+      document_file_insert_buffer(splitter->file, view->offset, buffer);
     }
 
     document_undo_chain(file, file->undos);

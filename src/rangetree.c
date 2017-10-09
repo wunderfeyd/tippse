@@ -479,24 +479,26 @@ struct range_tree_node* range_tree_find_indentation_last(struct range_tree_node*
   }
 
   // Climb to first node of line
-  while (node->parent) {
-    if (node->parent->side[1]==node) {
-      if (node->parent->side[0]->visuals.lines!=0) {
-        node = node->parent;
-        break;
+  if (node->parent->side[0]->visuals.lines==0) {
+    while (node->parent) {
+      if (node->parent->side[1]==node) {
+        if (node->parent->side[0]->visuals.lines!=0) {
+          node = node->parent;
+          break;
+        }
       }
+
+      node = node->parent;
     }
 
-    node = node->parent;
-  }
+    node = node->side[0];
 
-  node = node->side[0];
-
-  while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
-    if (node->side[1]->visuals.lines==0) {
-      node = node->side[0];
-    } else {
-      node = node->side[1];
+    while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
+      if (node->side[1]->visuals.lines==0) {
+        node = node->side[0];
+      } else {
+        node = node->side[1];
+      }
     }
   }
 

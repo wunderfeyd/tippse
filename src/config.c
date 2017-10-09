@@ -10,7 +10,7 @@ const char* config_default =
     "colors:{"
       "background:-2,"
       "text:-1,"
-      "selection:153,"
+      "selection:-1,"
       "status:102,"
       "frame:-1,"
       "readonly:102,"
