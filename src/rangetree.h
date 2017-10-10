@@ -60,7 +60,7 @@ int range_tree_find_bracket(struct range_tree_node* node, size_t bracket);
 struct range_tree_node* range_tree_find_bracket_forward(struct range_tree_node* node, size_t bracket, int search);
 struct range_tree_node* range_tree_find_bracket_backward(struct range_tree_node* node, size_t bracket, int search);
 void range_tree_find_bracket_lowest(struct range_tree_node* node, int* mins);
-struct range_tree_node* range_tree_find_indentation_last(struct range_tree_node* node);
+struct range_tree_node* range_tree_find_indentation_last(struct range_tree_node* node, file_offset_t lines);
 int range_tree_find_indentation(struct range_tree_node* node);
 int range_tree_find_whitespaced(struct range_tree_node* node);
 file_offset_t range_tree_offset(struct range_tree_node* node);

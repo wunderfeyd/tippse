@@ -554,7 +554,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       render_info->visual_detail &= ~VISUAL_INFO_CONTROLCHARACTER;
     }
 
-    if (!view->continuous && render_info->draw_indentation) {
+    if (!view->continuous && render_info->draw_indentation && view->show_invisibles) {
       if (screen && render_info->y_view==render_info->y) {
         int cp = 0x21aa;
         int x = render_info->x-file->tabstop_width-view->scroll_x+view->address_width;
@@ -987,82 +987,15 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     splitter_cursor(screen, splitter, cursor.x-view->scroll_x+view->address_width, cursor.y-view->scroll_y);
   }
 
-  // Test
-  if (cursor.bracket_match&VISUAL_BRACKET_OPEN) {
-    struct document_text_position out;
-    in.type = VISUAL_SEEK_BRACKET_NEXT;
+  if (!document_text_mark_brackets(base, screen, splitter, &cursor) && cursor.column>0) {
+    struct document_text_position left;
+    in.type = VISUAL_SEEK_LINE_COLUMN;
     in.clip = 0;
-    in.offset = view->offset+1;
-    in.bracket = cursor.bracket_match&VISUAL_BRACKET_MASK;
-    in.bracket_search = cursor.depth[in.bracket];
+    in.line = cursor.line;
+    in.column = cursor.column-1;
 
-    document_text_render_clear(&render_info, splitter->client_width-view->address_width);
-    while (1) {
-      document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
-      int rendered = document_text_render_span(&render_info, NULL, splitter, view, file, &in, &out, ~0, 1);
-      if (rendered==1) {
-        break;
-      }
-
-      if (rendered==-1) {
-        document_text_render_clear(&render_info, splitter->client_width-view->address_width);
-        document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
-        struct range_tree_node* node = range_tree_find_bracket_forward(render_info.buffer, in.bracket, in.bracket_search);
-        if (!node) {
-          node = range_tree_last(file->buffer);
-          if (render_info.buffer==node) {
-            break;
-          }
-        }
-
-        in.offset = range_tree_offset(node);
-      }
-    }
-
-    if (out.offset<view->offset) {
-      out.offset = file->buffer->length;
-    }
-
-    splitter_hilight(screen, splitter, out.x-view->scroll_x+view->address_width, out.y-view->scroll_y, file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
-  }
-
-  if (cursor.bracket_match&VISUAL_BRACKET_CLOSE) {
-    struct document_text_position out;
-    in.type = VISUAL_SEEK_BRACKET_PREV;
-    in.clip = 0;
-    in.offset = view->offset-1;
-    in.bracket = cursor.bracket_match&VISUAL_BRACKET_MASK;
-    in.bracket_search = cursor.depth[in.bracket];
-
-    document_text_render_clear(&render_info, splitter->client_width-view->address_width);
-    while (1) {
-      document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
-      int rendered = document_text_render_span(&render_info, NULL, splitter, view, file, &in, &out, ~0, 0);
-      if (rendered==1) {
-        break;
-      }
-
-      if (rendered==-1) {
-        document_text_render_clear(&render_info, splitter->client_width-view->address_width);
-        document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
-        struct range_tree_node* node = range_tree_find_bracket_backward(render_info.buffer, in.bracket, in.bracket_search);
-        if (!node) {
-          node = range_tree_first(file->buffer);
-        }
-
-        if (render_info.buffer==range_tree_first(file->buffer)) {
-          break;
-        }
-
-        in.offset = range_tree_offset(node)+node->length-1;
-      }
-    }
-
-    if (out.offset>view->offset) {
-      out.offset = 0;
-    }
-
-    splitter_hilight(screen, splitter, out.x-view->scroll_x+view->address_width, out.y-view->scroll_y, file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
+    document_text_cursor_position(splitter, &in, &left, 0, 1);
+    document_text_mark_brackets(base, screen, splitter, &left);
   }
 
   if (!document->keep_status) {
@@ -1161,7 +1094,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
     seek = 1;
   } else if (cp==TIPPSE_KEY_FIRST) {
-    struct range_tree_node* first = range_tree_find_indentation_last(out.buffer);
+    struct range_tree_node* first = range_tree_find_indentation_last(out.buffer, out.lines);
     int seek_first = 1;
 
     if (first) {
@@ -1589,4 +1522,73 @@ void document_text_raise_indentation(struct document* base, struct splitter* spl
 
     out_end.line--;
   }
+}
+
+// Mark the bracket and its partner below the cursor position and return whether something was marked
+int document_text_mark_brackets(struct document* base, struct screen* screen, struct splitter* splitter, struct document_text_position* cursor) {
+  if (!(cursor->bracket_match&(VISUAL_BRACKET_OPEN|VISUAL_BRACKET_CLOSE))) {
+    return 0;
+  }
+
+  struct document_file* file = splitter->file;
+  struct document_view* view = splitter->view;
+
+  struct document_text_position in;
+  struct document_text_position out;
+  struct document_text_render_info render_info;
+
+  in.clip = 0;
+  in.bracket = cursor->bracket_match&VISUAL_BRACKET_MASK;
+  in.bracket_search = cursor->depth[in.bracket];
+  if (cursor->bracket_match&VISUAL_BRACKET_OPEN) {
+    in.type = VISUAL_SEEK_BRACKET_NEXT;
+    in.offset = cursor->offset+1;
+  } else {
+    in.type = VISUAL_SEEK_BRACKET_PREV;
+    in.offset = cursor->offset-1;
+  }
+
+  document_text_render_clear(&render_info, splitter->client_width-view->address_width);
+  while (1) {
+    document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
+    int rendered = document_text_render_span(&render_info, NULL, splitter, view, file, &in, &out, ~0, 1);
+    if (rendered==1) {
+      break;
+    }
+
+    if (rendered==-1) {
+      document_text_render_clear(&render_info, splitter->client_width-view->address_width);
+      document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
+      if (cursor->bracket_match&VISUAL_BRACKET_OPEN) {
+        struct range_tree_node* node = range_tree_find_bracket_forward(render_info.buffer, in.bracket, in.bracket_search);
+        if (!node) {
+          node = range_tree_last(file->buffer);
+          if (render_info.buffer==node) {
+            break;
+          }
+        }
+
+        in.offset = range_tree_offset(node);
+      } else {
+        struct range_tree_node* node = range_tree_find_bracket_backward(render_info.buffer, in.bracket, in.bracket_search);
+        if (!node) {
+          node = range_tree_first(file->buffer);
+        }
+
+        if (render_info.buffer==range_tree_first(file->buffer)) {
+          break;
+        }
+
+        in.offset = range_tree_offset(node)+node->length-1;
+      }
+    }
+  }
+
+  if (((cursor->bracket_match&VISUAL_BRACKET_OPEN) && out.offset>cursor->offset) || ((cursor->bracket_match&VISUAL_BRACKET_CLOSE) && out.offset<cursor->offset)) {
+    splitter_hilight(screen, splitter, cursor->x-view->scroll_x+view->address_width, cursor->y-view->scroll_y, file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
+    splitter_hilight(screen, splitter, out.x-view->scroll_x+view->address_width, out.y-view->scroll_y, file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
+    return 1;
+  }
+
+  return 0;
 }

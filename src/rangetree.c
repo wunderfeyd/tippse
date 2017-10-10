@@ -473,13 +473,13 @@ void range_tree_find_bracket_lowest(struct range_tree_node* node, int* mins) {
 }
 
 // Find last indentation on line
-struct range_tree_node* range_tree_find_indentation_last(struct range_tree_node* node) {
+struct range_tree_node* range_tree_find_indentation_last(struct range_tree_node* node, file_offset_t lines) {
   if (!node || !node->parent) {
     return node;
   }
 
   // Climb to first node of line
-  if (node->parent->side[0]->visuals.lines==0) {
+  if (lines==0 && node->prev!=NULL) {
     while (node->parent) {
       if (node->parent->side[1]==node) {
         if (node->parent->side[0]->visuals.lines!=0) {
@@ -502,7 +502,7 @@ struct range_tree_node* range_tree_find_indentation_last(struct range_tree_node*
     }
   }
 
-  if (node->visuals.detail_after&VISUAL_INFO_STOPPED_INDENTATION) {
+  if ((node->visuals.lines!=lines && lines!=0) || (node->visuals.detail_after&VISUAL_INFO_STOPPED_INDENTATION)) {
     return node;
   }
 
