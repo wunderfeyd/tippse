@@ -90,11 +90,12 @@ struct range_tree_node* clipboard_command_get(const char* command) {
         }
       }
     } else {
-      if (length>0) {
+      if (length) {
         struct fragment* fragment = fragment_create_memory(buffer, length);
         data = range_tree_insert(data, 0, fragment, 0, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
+      } else {
+        free(buffer);
       }
-
       while (!feof(pipe)) {
         uint8_t* buffer = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MAX);
         file_offset_t length = fread(buffer, 1, TREE_BLOCK_LENGTH_MAX, pipe);
