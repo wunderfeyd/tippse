@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_SCREEN__
-#define __TIPPSE_SCREEN__
+#ifndef TIPPSE_SCREEN_H
+#define TIPPSE_SCREEN_H
 
 struct screen_char;
 struct screen;
@@ -27,7 +27,7 @@ struct screen {
 };
 
 void screen_destroy(struct screen* screen);
-struct screen* screen_create();
+struct screen* screen_create(void);
 void screen_check(struct screen* screen);
 void screen_draw_char(struct screen* screen, char** pos, int n, int* w, int* foreground_old, int* background_old);
 void screen_draw_update(struct screen* screen, char** pos, int old, int n, int* w, int* foreground_old, int* background_old);
@@ -38,4 +38,4 @@ void screen_drawtext(const struct screen* screen, int x, int y, int clip_x, int 
 int screen_getchar(const struct screen* screen, int x, int y);
 void screen_setchar(const struct screen* screen, int x, int y, int clip_x, int clip_y, int clip_width, int clip_height, int* codepoints, size_t length, int foreground, int background);
 
-#endif /* #ifndef __TIPPSE_SCREEN__ */
+#endif /* #ifndef TIPPSE_SCREEN_H */

@@ -6,7 +6,7 @@ struct trie_static keywords_language_xml[] = {
   {NULL, 0}
 };
 
-struct file_type* file_type_xml_create() {
+struct file_type* file_type_xml_create(void) {
   struct file_type_xml* this = malloc(sizeof(struct file_type_xml));
   this->vtbl.create = file_type_xml_create;
   this->vtbl.destroy = file_type_xml_destroy;
@@ -26,7 +26,7 @@ void file_type_xml_destroy(struct file_type* base) {
   free(this);
 }
 
-const char* file_type_xml_name() {
+const char* file_type_xml_name(void) {
   return "XML";
 }
 

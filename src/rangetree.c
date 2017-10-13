@@ -10,8 +10,7 @@ void range_tree_print(struct range_tree_node* node, int depth, int side) {
     tab--;
   }
 
-/*  printf("%d %5d %5d %s(%p-%p) %5d %5d (%p) [0](%p) [1](%p) [P](%p) [U](%p) [d](%p) %d %d %d %d - %d %d %d", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->side[0], node->side[1], node->parent, node->next, node->prev, (int)node->visuals.ys, (int)node->visuals.xs, (int)node->visuals.dirty, (int)node->inserter, node->visuals.brackets[0].diff, node->visuals.brackets[0].min, node->visuals.brackets[0].max);*/
-  printf("%d %5d %5d %s(%p-%p) %5d %5d (%p) %d %d %d", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", node->buffer, node->buffer?node->buffer->buffer:NULL, (int)node->offset, node->depth, node, node->visuals.brackets[2].diff, node->visuals.brackets[2].min, node->visuals.brackets[2].max);
+  printf("%d %5d %5d %s(%p-%p) %5d %5d (%p) %d %d %d", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", (void*)node->buffer, (void*)(node->buffer?node->buffer->buffer:NULL), (int)node->offset, node->depth, (void*)node, node->visuals.brackets[2].diff, node->visuals.brackets[2].min, node->visuals.brackets[2].max);
   printf("\r\n");
   if (node->side[0]) {
     range_tree_print(node->side[0], depth+1, 0);
@@ -29,19 +28,19 @@ void range_tree_check(struct range_tree_node* node) {
   }
 
   if (node->side[0] && node->side[0]->parent!=node) {
-    printf("children 0 has wrong parent %p -> %p should %p\r\n", node->side[0], node->side[0]->parent, node);
+    printf("children 0 has wrong parent %p -> %p should %p\r\n", (void*)node->side[0], (void*)node->side[0]->parent, (void*)node);
   }
 
   if (node->side[1] && node->side[1]->parent!=node) {
-    printf("children 1 has wrong parent %p -> %p should %p\r\n", node->side[1], node->side[1]->parent, node);
+    printf("children 1 has wrong parent %p -> %p should %p\r\n", (void*)node->side[1], (void*)node->side[1]->parent, (void*)node);
   }
 
   if ((node->side[0] && !node->side[1]) || (node->side[1] && !node->side[0])) {
-    printf("unbalanced node %p: %p %p\r\n", node, node->side[0], node->side[1]);
+    printf("unbalanced node %p: %p %p\r\n", (void*)node, (void*)node->side[0], (void*)node->side[1]);
   }
 
   if (node->buffer && (node->side[0] || node->side[1])) {
-    printf("Leaf with children %p: %p %p\r\n", node, node->side[0], node->side[1]);
+    printf("Leaf with children %p: %p %p\r\n", (void*)node, (void*)node->side[0], (void*)node->side[1]);
   }
 
   if (node->side[0]) {
@@ -162,7 +161,7 @@ void range_tree_exchange(struct range_tree_node* node, struct range_tree_node* o
   } else if (node->side[1]==old) {
     node->side[1] = new;
   } else {
-    printf("umm ... dead parent %p old %p new %p side 0 %p side 1 %p\r\n", node, old, new, node->side[0], node->side[1]);
+    printf("umm ... dead parent %p old %p new %p side 0 %p side 1 %p\r\n", (void*)node, (void*)old, (void*)new, (void*)node->side[0], (void*)node->side[1]);
   }
 }
 
@@ -256,18 +255,18 @@ struct range_tree_node* range_tree_update(struct range_tree_node* node) {
 }
 
 // Find first non dirty node before or at specified visualisation attributes
-struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int find_type, file_offset_t find_offset, int find_x, int find_y, int find_line, int find_column, file_offset_t* offset, int* x, int* y, int* line, int* column, int* indentation, int* indentation_extra, file_offset_t* character) {
+struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int find_type, file_offset_t find_offset, position_t find_x, position_t find_y, position_t find_line, position_t find_column, file_offset_t* offset, position_t* x, position_t* y, position_t* line, position_t* column, int* indentation, int* indentation_extra, file_offset_t* character) {
   file_offset_t location = 0;
-  int ys = 0;
-  int xs = 0;
-  int lines = 0;
-  int columns = 0;
+  position_t ys = 0;
+  position_t xs = 0;
+  position_t lines = 0;
+  position_t columns = 0;
   file_offset_t characters = 0;
   int indentations = 0;
   int indentations_extra = 0;
 
   while (node && !(node->inserter&TIPPSE_INSERTER_LEAF)) {
-    int columns_new = columns;
+    position_t columns_new = columns;
     int indentations_new = indentations;
     int indentations_extra_new = indentations_extra;
     if (node->side[0]->visuals.lines!=0) {
@@ -280,7 +279,7 @@ struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int
       indentations_extra_new += node->side[0]->visuals.indentation_extra;
     }
 
-    int xs_new = xs;
+    position_t xs_new = xs;
     if (node->side[0]->visuals.ys!=0) {
       xs_new = node->side[0]->visuals.xs;
     } else {
@@ -427,9 +426,23 @@ struct range_tree_node* range_tree_find_bracket_backward(struct range_tree_node*
 }
 
 // Check for lowest bracket depth
-void range_tree_find_bracket_lowest(struct range_tree_node* node, int* mins) {
-  if (!node || !node->parent) {
-    return;
+void range_tree_find_bracket_lowest(struct range_tree_node* node, int* mins, struct range_tree_node* last) {
+  if (!node) {
+    if (!last) {
+      return;
+    }
+
+    node = last;
+
+    for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
+      int min1 = mins[n]-node->visuals.brackets_line[n].diff;
+      int min2 = node->visuals.brackets_line[n].min;
+      mins[n] = (min2>min1)?min2:min1;
+    }
+
+    if (node->visuals.lines!=0) {
+      return;
+    }
   }
 
   while (node->parent) {
@@ -449,19 +462,21 @@ void range_tree_find_bracket_lowest(struct range_tree_node* node, int* mins) {
     node = node->parent;
   }
 
-  node = node->side[0];
+  if (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
+    node = node->side[0];
 
-  while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
-    if (node->side[1]->visuals.lines==0) {
-      for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
-        int min1 = mins[n]-node->side[1]->visuals.brackets_line[n].diff;
-        int min2 = node->side[1]->visuals.brackets_line[n].min;
-        mins[n] = (min2>min1)?min2:min1;
+    while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
+      if (node->side[1]->visuals.lines==0) {
+        for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
+          int min1 = mins[n]-node->side[1]->visuals.brackets_line[n].diff;
+          int min2 = node->side[1]->visuals.brackets_line[n].min;
+          mins[n] = (min2>min1)?min2:min1;
+        }
+
+        node = node->side[0];
+      } else {
+        node = node->side[1];
       }
-
-      node = node->side[0];
-    } else {
-      node = node->side[1];
     }
   }
 
@@ -473,11 +488,21 @@ void range_tree_find_bracket_lowest(struct range_tree_node* node, int* mins) {
 }
 
 // Find last indentation on line
-struct range_tree_node* range_tree_find_indentation_last(struct range_tree_node* node, file_offset_t lines) {
-  if (!node || !node->parent) {
+struct range_tree_node* range_tree_find_indentation_last(struct range_tree_node* node, position_t lines, struct range_tree_node* last) {
+  if (!node) {
+    if (!last) {
+      return NULL;
+    }
+
+    node = last;
+    lines = 0;
+  }
+
+  if (!node->parent) {
     return node;
   }
 
+  struct range_tree_node* from = node;
   // Climb to first node of line
   if (lines==0 && node->prev!=NULL) {
     while (node->parent) {
@@ -502,7 +527,7 @@ struct range_tree_node* range_tree_find_indentation_last(struct range_tree_node*
     }
   }
 
-  if ((node->visuals.lines!=lines && lines!=0) || (node->visuals.detail_after&VISUAL_INFO_STOPPED_INDENTATION)) {
+  if ((node->visuals.lines!=lines && from==node) || (node->visuals.detail_after&VISUAL_INFO_STOPPED_INDENTATION)) {
     return node;
   }
 

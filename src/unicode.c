@@ -8,7 +8,7 @@
 unsigned int unicode_combining_marks[(UNICODE_COMBINE_MAX/sizeof(unsigned int))+1];
 
 // Initialise static tables
-void unicode_init() {
+void unicode_init(void) {
   memset(&unicode_combining_marks[0], 0, sizeof(unicode_combining_marks));
 
   int codepoint;
@@ -40,13 +40,13 @@ void unicode_init() {
 
 // Mark codepoint as combining in the bit table
 void unicode_update_combining_mark(int codepoint) {
-  unicode_combining_marks[codepoint/(sizeof(unsigned int)*8)] |= 1<<(codepoint&(sizeof(unsigned int)*8-1));
+  unicode_combining_marks[codepoint/((int)sizeof(unsigned int)*8)] |= 1u<<(codepoint&((int)sizeof(unsigned int)*8-1));
 }
 
 // Check if codepoint is marked as combining
 inline int unicode_combining_mark(int codepoint) {
   if (codepoint>=0 && codepoint<UNICODE_COMBINE_MAX) {
-    return (unicode_combining_marks[codepoint/(sizeof(unsigned int)*8)]>>(codepoint&(sizeof(unsigned int)*8-1)))&1;
+    return (unicode_combining_marks[codepoint/((int)sizeof(unsigned int)*8)]>>(codepoint&((int)sizeof(unsigned int)*8-1)))&1;
   }
 
   return 0;
@@ -64,7 +64,7 @@ size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offse
   codepoints[pos++] = codepoint;
   if (codepoint>0x20) {
     while (pos<max) {
-      int codepoint = encoding_cache_find_codepoint(cache, offset+read);
+      codepoint = encoding_cache_find_codepoint(cache, offset+read);
       if (unicode_combining_mark(codepoint)) {
         codepoints[pos++] = codepoint;
         read++;
@@ -84,8 +84,7 @@ size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offse
 
   *advance = read;
   *length = 0;
-  size_t check;
-  for (check = 0; check<read; check++) {
+  for (size_t check = 0; check<read; check++) {
     *length += encoding_cache_find_length(cache, offset+check);
   }
 

@@ -14,12 +14,6 @@ void document_undo_add(struct document_file* file, struct document_view* view, f
   undo->buffer = range_tree_copy(file->buffer, offset, length);
   undo->cursor_delete = offset;
   undo->cursor_insert = offset+length;
-/*  undo->selection_start = view->selection_start;
-  undo->selection_end = view->selection_end;
-  undo->selection_low = view->selection_low;
-  undo->selection_high = view->selection_high;
-  undo->scroll_x = view->scroll_x;
-  undo->scroll_y = view->scroll_y;*/
 
   list_insert(file->undos, NULL, undo);
 }
@@ -35,7 +29,7 @@ void document_undo_mark_save_point(struct document_file* file) {
 
 void document_undo_check_save_point(struct document_file* file) {
   if (file->undos->count+file->redos->count<file->undo_save_point) {
-    file->undo_save_point = -1;
+    file->undo_save_point = ~0u;
   }
 }
 
@@ -133,13 +127,6 @@ int document_undo_execute(struct document_file* file, struct document_view* view
 
   if (chain==1) {
     view->offset = offset;
-
-/*  view->selection_start = undo->selection_start;
-    view->selection_end = undo->selection_end;
-    view->selection_low = undo->selection_low;
-    view->selection_high = undo->selection_high;
-    view->scroll_x = undo->scroll_x;
-    view->scroll_y = undo->scroll_y;*/
   }
 
   if (undo->type!=TIPPSE_UNDO_TYPE_CHAIN || override) {

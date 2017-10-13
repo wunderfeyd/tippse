@@ -60,8 +60,8 @@ char* strip_file_name(const char* file) {
     search++;
   }
 
-  char* stripped = malloc(sizeof(char)*((last-file)+1));
-  memcpy(stripped, file, (last-file));
+  char* stripped = malloc(sizeof(char)*(size_t)((last-file)+1));
+  memcpy(stripped, file, (size_t)(last-file));
   stripped[last-file] = '\0';
 
   return stripped;
@@ -181,7 +181,7 @@ char* relativate_path(const char* base, const char* path) {
   return real;
 }
 
-char* home_path() {
+char* home_path(void) {
   char* env = getenv("HOME");
   if (env) {
     return strdup(env);
@@ -204,7 +204,7 @@ int is_directory(const char* path) {
   return S_ISDIR(statbuf.st_mode);
 }
 
-int64_t tick_count() {
+int64_t tick_count(void) {
   struct timeval t;
   gettimeofday(&t, NULL);
   return (int64_t)t.tv_sec*1000000+(int64_t)t.tv_usec;

@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_DOCUMENT__
-#define __TIPPSE_DOCUMENT__
+#ifndef TIPPSE_DOCUMENT_H
+#define TIPPSE_DOCUMENT_H
 
 #include <stdlib.h>
 #include <string.h>
@@ -85,4 +85,4 @@ int document_compare(struct range_tree_node* left, file_offset_t displacement_le
 void document_search(struct splitter* splitter, struct range_tree_node* text, file_offset_t length, int forward);
 void document_directory(struct document_file* file);
 
-#endif /* #ifndef __TIPPSE_DOCUMENT__ */
+#endif /* #ifndef TIPPSE_DOCUMENT_H */

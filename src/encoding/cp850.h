@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_ENCODING_CP850__
-#define __TIPPSE_ENCODING_CP850__
+#ifndef TIPPSE_ENCODING_CP850_H
+#define TIPPSE_ENCODING_CP850_H
 
 #include <stdlib.h>
 
@@ -11,10 +11,10 @@ struct encoding_cp850 {
   struct encoding vtbl;
 };
 
-struct encoding* encoding_cp850_create();
+struct encoding* encoding_cp850_create(void);
 void encoding_cp850_destroy(struct encoding* base);
 
-const char* encoding_cp850_name();
+const char* encoding_cp850_name(void);
 size_t encoding_cp850_character_length(struct encoding* base);
 int encoding_cp850_visual(struct encoding* base, int cp);
 int encoding_cp850_decode(struct encoding* base, struct encoding_stream* stream, size_t* used);
@@ -24,4 +24,4 @@ size_t encoding_cp850_strnlen(struct encoding* base, struct encoding_stream* str
 size_t encoding_cp850_strlen(struct encoding* base, struct encoding_stream* stream);
 size_t encoding_cp850_seek(struct encoding* base, struct encoding_stream* stream, size_t pos);
 
-#endif  /* #ifndef __TIPPSE_ENCODING_CP850__ */
+#endif  /* #ifndef TIPPSE_ENCODING_CP850_H */

@@ -90,7 +90,7 @@ struct trie_static keywords_language_sql[] = {
   {NULL, 0}
 };
 
-struct file_type* file_type_sql_create() {
+struct file_type* file_type_sql_create(void) {
   struct file_type_sql* this = malloc(sizeof(struct file_type_sql));
   this->vtbl.create = file_type_sql_create;
   this->vtbl.destroy = file_type_sql_destroy;
@@ -110,7 +110,7 @@ void file_type_sql_destroy(struct file_type* base) {
   free(this);
 }
 
-const char* file_type_sql_name() {
+const char* file_type_sql_name(void) {
   return "SQL";
 }
 

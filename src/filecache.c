@@ -94,7 +94,7 @@ uint8_t* file_cache_use_node(struct file_cache* base, struct file_cache_node** r
   } else {
     node = file_cache_acquire_node(base);
     *reference = node;
-    node->offset = ~0;
+    node->offset = ~0u;
     node->length = 0;
     node->reference = reference;
   }

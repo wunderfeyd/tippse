@@ -51,7 +51,7 @@ void clipboard_windows_set(struct range_tree_node* data, int binary, const char*
 #endif
 
 // Get text from clipboard
-struct range_tree_node* clipboard_get() {
+struct range_tree_node* clipboard_get(void) {
   struct range_tree_node* data = NULL;
 #ifdef __APPLE__
   data = clipboard_command_get("pbpaste");
@@ -114,7 +114,7 @@ struct range_tree_node* clipboard_command_get(const char* command) {
 }
 
 #ifdef _WIN32
-struct range_tree_node* clipboard_windows_get(const char* command) {
+struct range_tree_node* clipboard_windows_get(void) {
   //TODO: implement clipboard for Windows
   return NULL;
 }

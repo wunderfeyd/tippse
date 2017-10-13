@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_SPLITTER__
-#define __TIPPSE_SPLITTER__
+#ifndef TIPPSE_SPLITTER_H
+#define TIPPSE_SPLITTER_H
 
 #include <stdlib.h>
 
@@ -65,4 +65,4 @@ void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int w
 void splitter_draw_multiple(struct screen* screen, struct splitter* splitters, int incremental);
 struct splitter* splitter_by_coordinate(struct splitter* splitter, int x, int y);
 
-#endif /* #ifndef __TIPPSE_SPLITTER__ */
+#endif /* #ifndef TIPPSE_SPLITTER_H */

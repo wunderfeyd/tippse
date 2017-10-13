@@ -2,7 +2,7 @@
 
 #include "ascii.h"
 
-struct encoding* encoding_ascii_create() {
+struct encoding* encoding_ascii_create(void) {
   struct encoding_ascii* this = malloc(sizeof(struct encoding_ascii));
   this->vtbl.create = encoding_ascii_create;
   this->vtbl.destroy = encoding_ascii_destroy;
@@ -23,7 +23,7 @@ void encoding_ascii_destroy(struct encoding* base) {
   free(this);
 }
 
-const char* encoding_ascii_name() {
+const char* encoding_ascii_name(void) {
   return "ASCII";
 }
 
@@ -52,7 +52,7 @@ int encoding_ascii_decode(struct encoding* base, struct encoding_stream* stream,
 }
 
 size_t encoding_ascii_encode(struct encoding* base, int cp, uint8_t* text, size_t size) {
-  *text = cp;
+  *text = (uint8_t)cp;
   return 1;
 }
 

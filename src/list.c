@@ -2,7 +2,7 @@
 
 #include "list.h"
 
-struct list* list_create() {
+struct list* list_create(void) {
   struct list* list = malloc(sizeof(struct list));
   list->first = NULL;
   list->last = NULL;

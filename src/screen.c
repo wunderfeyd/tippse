@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include "screen.h"
 
-struct screen* screen_create() {
+struct screen* screen_create(void) {
   struct screen* screen = (struct screen*)malloc(sizeof(struct screen));
   screen->width = 0;
   screen->height = 0;
@@ -67,8 +67,8 @@ void screen_check(struct screen* screen) {
     screen->height = w.ws_row;
     free(screen->visible);
     free(screen->buffer);
-    screen->buffer = (struct screen_char*)malloc(sizeof(struct screen_char)*screen->width*screen->height);
-    screen->visible = (struct screen_char*)malloc(sizeof(struct screen_char)*screen->width*screen->height);
+    screen->buffer = (struct screen_char*)malloc(sizeof(struct screen_char)*(size_t)(screen->width*screen->height));
+    screen->visible = (struct screen_char*)malloc(sizeof(struct screen_char)*(size_t)(screen->width*screen->height));
 
     int x, y;
     for (y=0; y<screen->height; y++) {
@@ -129,7 +129,7 @@ void screen_draw_char(struct screen* screen, char** pos, int n, int* w, int* for
 
   size_t copy;
   for (copy = 0; copy<c->length; copy++) {
-    *pos += encoding_utf8_encode(NULL, c->codepoints[copy], (uint8_t*)*pos, ~0);
+    *pos += encoding_utf8_encode(NULL, c->codepoints[copy], (uint8_t*)*pos, ~0u);
   }
 
   if (copy==0) {
@@ -175,7 +175,7 @@ void screen_draw(struct screen* screen) {
   int background_old = -3;
   struct screen_char* c;
   struct screen_char* v;
-  char* output = (char*)malloc((5+32)*screen->width*screen->height+5);
+  char* output = (char*)malloc((size_t)((5+32)*screen->width*screen->height+5));
   char* pos = output;
   if (screen->title_new) {
     if (!screen->title || strcmp(screen->title, screen->title_new)!=0) {
@@ -234,7 +234,7 @@ void screen_draw(struct screen* screen) {
     pos += sprintf(pos, "\x1b[%d;%dH\x1b[?25h", screen->cursor_y+1, screen->cursor_x+1);
   }
 
-  write(STDOUT_FILENO, output, pos-output);
+  write(STDOUT_FILENO, output, (size_t)(pos-output));
   free(output);
 }
 

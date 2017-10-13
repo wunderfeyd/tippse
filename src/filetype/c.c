@@ -50,7 +50,7 @@ struct trie_static keywords_preprocessor_language_c[] = {
   {NULL, 0}
 };
 
-struct file_type* file_type_c_create() {
+struct file_type* file_type_c_create(void) {
   struct file_type_c* this = malloc(sizeof(struct file_type_c));
   this->vtbl.create = file_type_c_create;
   this->vtbl.destroy = file_type_c_destroy;
@@ -73,7 +73,7 @@ void file_type_c_destroy(struct file_type* base) {
   free(this);
 }
 
-const char* file_type_c_name() {
+const char* file_type_c_name(void) {
   return "C";
 }
 

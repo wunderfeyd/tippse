@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_ENCODING__
-#define __TIPPSE_ENCODING__
+#ifndef TIPPSE_ENCODING_H
+#define TIPPSE_ENCODING_H
 
 #include <stdlib.h>
 
@@ -35,10 +35,10 @@ struct encoding_cache {
 };
 
 struct encoding {
-  struct encoding* (*create)();
+  struct encoding* (*create)(void);
   void (*destroy)(struct encoding*);
 
-  const char* (*name)();
+  const char* (*name)(void);
   size_t (*character_length)(struct encoding*);
   int (*visual)(struct encoding*, int);
   int (*decode)(struct encoding*, struct encoding_stream*, size_t*);
@@ -99,4 +99,4 @@ inline size_t encoding_cache_find_length(struct encoding_cache* cache, size_t of
   return cache->lengths[(cache->start+offset)%ENCODING_CACHE_SIZE];
 }
 
-#endif  /* #ifndef __TIPPSE_ENCODING__ */
+#endif  /* #ifndef TIPPSE_ENCODING_H */

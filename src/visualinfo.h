@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_VISUALINFO__
-#define __TIPPSE_VISUALINFO__
+#ifndef TIPPSE_VISUALINFO_H
+#define TIPPSE_VISUALINFO_H
 
 #include <stdlib.h>
 #include <string.h>
@@ -80,10 +80,10 @@ struct visual_bracket {
 // Block visualisation hints per page
 struct visual_info {
   file_offset_t characters; // Characters (with current encoding)
-  file_offset_t columns;    // Characters from last line in page
-  file_offset_t lines;      // Lines in page
-  file_offset_t xs;         // Size of last screen row in page
-  file_offset_t ys;         // Screen rows in page
+  position_t columns;       // Characters from last line in page
+  position_t lines;         // Lines in page
+  position_t xs;            // Size of last screen row in page
+  position_t ys;            // Screen rows in page
   int indentation;          // Common indentation of last screen row in page
   int indentation_extra;    // Extra indentation of last screen row in page (for indentation marker)
   int detail_before;        // Visual details after last page
@@ -100,4 +100,4 @@ struct visual_info {
 void visual_info_clear(struct visual_info* visuals);
 void visual_info_combine(struct visual_info* visuals, const struct visual_info* left, const struct visual_info* right);
 
-#endif /* #ifndef __TIPPSE_VISUALINFO__ */
+#endif /* #ifndef TIPPSE_VISUALINFO_H */

@@ -49,7 +49,7 @@ struct trie_static keywords_language_cpp[] = {
 
 extern struct trie_static keywords_preprocessor_language_c[];
 
-struct file_type* file_type_cpp_create() {
+struct file_type* file_type_cpp_create(void) {
   struct file_type_cpp* this = malloc(sizeof(struct file_type_cpp));
   this->vtbl.create = file_type_cpp_create;
   this->vtbl.destroy = file_type_cpp_destroy;
@@ -72,6 +72,6 @@ void file_type_cpp_destroy(struct file_type* base) {
   free(this);
 }
 
-const char* file_type_cpp_name() {
+const char* file_type_cpp_name(void) {
   return "C++";
 }

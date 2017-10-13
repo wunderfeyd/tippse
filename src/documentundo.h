@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_DOCUMENTUNDO__
-#define __TIPPSE_DOCUMENTUNDO__
+#ifndef TIPPSE_DOCUMENTUNDO_H
+#define TIPPSE_DOCUMENTUNDO_H
 
 #include <stdlib.h>
 
@@ -43,4 +43,4 @@ void document_undo_empty(struct document_file* file, struct list* list);
 void document_undo_execute_chain(struct document_file* file, struct document_view* view, struct list* from, struct list* to, int reverse);
 int document_undo_execute(struct document_file* file, struct document_view* view, struct list* from, struct list* to, int override);
 
-#endif /* #ifndef __TIPPSE_DOCUMENTUNDO__ */
+#endif /* #ifndef TIPPSE_DOCUMENTUNDO_H */

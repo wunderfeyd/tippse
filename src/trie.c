@@ -2,7 +2,7 @@
 
 #include "trie.h"
 
-struct trie* trie_create() {
+struct trie* trie_create(void) {
   struct trie* trie = malloc(sizeof(struct trie));
   trie->buckets = list_create();
   trie_clear(trie);

@@ -13,7 +13,7 @@ int debug_draw = 0;
 struct screen* debug_screen = NULL;
 struct splitter* debug_splitter = NULL;
 
-struct document* document_text_create() {
+struct document* document_text_create(void) {
   struct document_text* document = (struct document_text*)malloc(sizeof(struct document_text));
   document->keep_status = 0;
   document->vtbl.reset = document_text_reset;
@@ -66,8 +66,8 @@ file_offset_t document_text_cursor_position_partial(struct document_text_render_
       break;
     }
 
-    int* x;
-    int* y;
+    position_t* x;
+    position_t* y;
     if (in->type==VISUAL_SEEK_X_Y) {
       x = &in->x;
       y = &in->y;
@@ -130,7 +130,7 @@ file_offset_t document_text_cursor_position(struct splitter* splitter, struct do
 
 
 // Clear renderer state to ensure a restart at next seek
-void document_text_render_clear(struct document_text_render_info* render_info, int width) {
+void document_text_render_clear(struct document_text_render_info* render_info, position_t width) {
   memset(render_info, 0, sizeof(struct document_text_render_info));
   render_info->buffer = NULL;
   render_info->width = width;
@@ -141,10 +141,10 @@ void document_text_render_clear(struct document_text_render_info* render_info, i
 // Update renderer state to restart at the given position or to continue if possible
 void document_text_render_seek(struct document_text_render_info* render_info, struct range_tree_node* buffer, struct encoding* encoding, struct document_text_position* in) {
   file_offset_t offset_new = 0;
-  int x_new = 0;
-  int y_new = 0;
-  int lines_new = 0;
-  int columns_new = 0;
+  position_t x_new = 0;
+  position_t y_new = 0;
+  position_t lines_new = 0;
+  position_t columns_new = 0;
   int indentation_new = 0;
   int indentation_extra_new = 0;
   file_offset_t characters_new = 0;
@@ -266,9 +266,9 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
 }
 
 // Get word length from specified position
-int document_text_render_lookahead_word_wrap(struct document_file* file, struct encoding_cache* cache, int max) {
-  int count = 0;
-  int advanced = 0;
+position_t document_text_render_lookahead_word_wrap(struct document_file* file, struct encoding_cache* cache, position_t max) {
+  position_t count = 0;
+  size_t advanced = 0;
   while (count<max) {
     int codepoints[8];
     size_t advance = 1;
@@ -304,6 +304,10 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     out->buffer = NULL;
     out->displacement = 0;
     out->bracket_match = 0;
+    for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
+      out->depth[n] = 0;
+      out->min_line[n] = 0;
+    }
   }
 
   int rendered = 1;
@@ -524,9 +528,9 @@ int document_text_render_span(struct document_text_render_info* render_info, str
             out->min_line[n] = render_info->brackets_line[n].min;
           }
 
-          if (bracket_match&VISUAL_BRACKET_CLOSE) {
+          /*if ((in->type==VISUAL_SEEK_BRACKET_NEXT || in->type==VISUAL_SEEK_BRACKET_PREV) &&  (bracket_match&VISUAL_BRACKET_CLOSE)) {
             out->depth[bracket_match&VISUAL_BRACKET_MASK]--;
-          }
+          }*/
         }
       }
     } else {
@@ -557,9 +561,9 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     if (!view->continuous && render_info->draw_indentation && view->show_invisibles) {
       if (screen && render_info->y_view==render_info->y) {
         int cp = 0x21aa;
-        int x = render_info->x-file->tabstop_width-view->scroll_x+view->address_width;
+        position_t x = render_info->x-file->tabstop_width-view->scroll_x+view->address_width;
         if (x>=view->address_width) {
-          splitter_drawchar(screen, splitter, x, render_info->y-view->scroll_y, &cp, 1, file->defaults.colors[VISUAL_FLAG_COLOR_STATUS], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
+          splitter_drawchar(screen, splitter, (int)x, (int)(render_info->y-view->scroll_y), &cp, 1, file->defaults.colors[VISUAL_FLAG_COLOR_STATUS], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
         }
       }
     }
@@ -574,22 +578,17 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       render_info->offset_sync = render_info->offset;
     }
 
-    int show;
-    int color;
-    int background;
+    int show = -1;
+    int color = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
+    int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
 
     if (screen) {
-      show = -1;
       if ((debug&DEBUG_PAGERENDERDISPLAY)) {
         color = (intptr_t)render_info->buffer&0xff;
-      } else {
-        color = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
       }
 
       if ((debug&DEBUG_RERENDERDISPLAY)) {
         background = (debug_draw%22)*6+21;
-      } else {
-        background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
       }
 
       // Whitespace look ahead in current buffer
@@ -674,24 +673,24 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       }
 
       int codepoints_visual[8];
-      for (int code = 0; code<read; code++) {
+      for (size_t code = 0; code<read; code++) {
         codepoints_visual[code] = (file->encoding->visual)(file->encoding, codepoints[code]);
       }
 
-      int x = render_info->x-view->scroll_x+view->address_width;
-      int y = render_info->y-view->scroll_y;
+      position_t x = render_info->x-view->scroll_x+view->address_width;
+      position_t y = render_info->y-view->scroll_y;
       if (x>=view->address_width) {
         if (show!=-1) {
-          splitter_drawchar(screen, splitter, x++, y, &show, 1, color, background);
+          splitter_drawchar(screen, splitter, (int)x++, (int)y, &show, 1, color, background);
         } else {
-          splitter_drawchar(screen, splitter, x++, y, &codepoints_visual[0], read, color, background);
+          splitter_drawchar(screen, splitter, (int)x++, (int)y, &codepoints_visual[0], read, color, background);
         }
       }
 
       show = ' ';
       int pos;
       for (pos = 1; pos<fill; pos++) {
-        splitter_drawchar(screen, splitter, x++, y, &show, 1, color, background);
+        splitter_drawchar(screen, splitter, (int)x++, (int)y, &show, 1, color, background);
       }
     }
 
@@ -722,9 +721,9 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     render_info->displacement += length;
     render_info->offset += length;
 
-    int word_length = 0;
+    position_t word_length = 0;
     if (cp<=' ' && view->wrapping) {
-      int row_width = render_info->width-render_info->indentation-file->tabstop_width;
+      position_t row_width = render_info->width-render_info->indentation-file->tabstop_width;
       word_length = document_text_render_lookahead_word_wrap(file, &render_info->cache, row_width+1);
       if (word_length>row_width) {
         word_length = 0;
@@ -878,8 +877,8 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 
   struct document_text_render_info render_info;
   while (1) {
-    int scroll_x = view->scroll_x;
-    int scroll_y = view->scroll_y;
+    position_t scroll_x = view->scroll_x;
+    position_t scroll_y = view->scroll_y;
     if (cursor.x<view->scroll_x) {
       view->scroll_x = cursor.x;
     }
@@ -932,9 +931,8 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   in.type = VISUAL_SEEK_X_Y;
   in.clip = 1;
   in.x = view->scroll_x;
-  int y;
-  int last_line = -1;
-  for (y=0; y<splitter->client_height+1; y++) {
+  position_t last_line = -1;
+  for (position_t y = 0; y<splitter->client_height+1; y++) {
     in.y = y+view->scroll_y;
 
     // Get render start offset (for bookmark detection)
@@ -961,8 +959,8 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     if (out.line!=last_line) {
       last_line = out.line;
       char line[1024];
-      int size = sprintf(line, "%5d", out.line+1);
-      splitter_drawtext(screen, splitter, 0, y, line, size, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[marked?VISUAL_FLAG_COLOR_PREPROCESSOR:VISUAL_FLAG_COLOR_BACKGROUND]);
+      int size = sprintf(line, "%5d", (int)(out.line+1));
+      splitter_drawtext(screen, splitter, 0, (int)y, line, (size_t)size, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[marked?VISUAL_FLAG_COLOR_PREPROCESSOR:VISUAL_FLAG_COLOR_BACKGROUND]);
     }
   }
 
@@ -971,7 +969,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   }
 
   size_t name_length = strlen(file->filename);
-  char* title = malloc((name_length+document_undo_modified(file)*2+1)*sizeof(char));
+  char* title = malloc((name_length+(size_t)document_undo_modified(file)*2+1)*sizeof(char));
   memcpy(title, file->filename, name_length);
   if (document_undo_modified(file)) {
     memcpy(title+name_length, " *\0", 3);
@@ -984,7 +982,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   if (view->selection_low!=view->selection_high) {
     splitter_cursor(screen, splitter, -1, -1);
   } else {
-    splitter_cursor(screen, splitter, cursor.x-view->scroll_x+view->address_width, cursor.y-view->scroll_y);
+    splitter_cursor(screen, splitter, (int)(cursor.x-view->scroll_x+view->address_width), (int)(cursor.y-view->scroll_y));
   }
 
   if (!document_text_mark_brackets(base, screen, splitter, &cursor) && cursor.column>0) {
@@ -1002,9 +1000,10 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     const char* newline[TIPPSE_NEWLINE_MAX] = {"Auto", "Lf", "Cr", "CrLf"};
     const char* tabstop[TIPPSE_TABSTOP_MAX] = {"Auto", "Tab", "Space"};
     char status[1024];
-    sprintf(&status[0], "%s%s%d/%d:%d - %d/%d byte - %s*%d %s %s %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), cursor.line+1, cursor.column+1, (int)view->offset, file->buffer?(int)file->buffer->length:0, tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->encoding->name)());
+    sprintf(&status[0], "%s%s%d/%d:%d - %d/%d byte - %s*%d %s %s %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), (int)(cursor.line+1), (int)(cursor.column+1), (int)view->offset, file->buffer?(int)file->buffer->length:0, tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->encoding->name)());
     splitter_status(splitter, &status[0], 0);
   }
+
   document->keep_status = 0;
   view->scroll_y_max = file->buffer?file->buffer->visuals.ys:0;
   splitter_scrollbar(screen, splitter);
@@ -1094,7 +1093,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
     seek = 1;
   } else if (cp==TIPPSE_KEY_FIRST) {
-    struct range_tree_node* first = range_tree_find_indentation_last(out.buffer, out.lines);
+    struct range_tree_node* first = range_tree_find_indentation_last(out.buffer, out.lines, out.buffer?out.buffer:range_tree_last(file->buffer));
     int seek_first = 1;
 
     if (first) {
@@ -1161,7 +1160,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
       view->cursor_x = out.x;
       view->cursor_y = out.y;
-      if (view->selection_start==~0) {
+      if (view->selection_start==~0u) {
         view->selection_start = view->offset;
       }
       view->selection_end = view->offset;
@@ -1184,11 +1183,11 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
   } else if (cp==TIPPSE_KEY_TAB) {
     document_undo_chain(file, file->undos);
-    if (view->selection_low==~0) {
+    if (view->selection_low==~0u) {
       uint8_t utf8[8];
       file_offset_t size;
       if (file->tabstop==TIPPSE_TABSTOP_SPACE) {
-        size = file->tabstop_width-(view->cursor_x%file->tabstop_width);
+        size = (file_offset_t)(file->tabstop_width-(view->cursor_x%file->tabstop_width));
         file_offset_t spaces;
         for (spaces = 0; spaces<size; spaces++) {
           utf8[spaces] = ' ';
@@ -1207,7 +1206,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     selection_keep = 1;
   } else if (cp==TIPPSE_KEY_UNTAB) {
     document_undo_chain(file, file->undos);
-    if (view->selection_low!=~0) {
+    if (view->selection_low!=~0u) {
       document_text_lower_indentation(base, splitter, view->selection_low, view->selection_high-1);
     }
     document_undo_chain(file, file->undos);
@@ -1219,7 +1218,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     selection_keep = 1;
   } else if (cp==TIPPSE_KEY_COPY || cp==TIPPSE_KEY_CUT) {
     document_undo_chain(file, file->undos);
-    if (view->selection_low!=~0) {
+    if (view->selection_low!=~0u) {
       clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low), file->binary);
       if (cp==TIPPSE_KEY_CUT) {
         document_file_delete_selection(splitter->file, splitter->view);
@@ -1242,7 +1241,16 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     seek = 1;
   } else if (cp==TIPPSE_KEY_RETURN) {
     if (out.lines==0) {
-      range_tree_find_bracket_lowest(out.buffer, out.min_line);
+      range_tree_find_bracket_lowest(out.buffer, out.min_line, out.buffer?out.buffer:range_tree_last(file->buffer));
+    }
+
+    struct document_text_position out_indentation_copy;
+    if (out.column!=0) {
+      in_line_column.line = out.line;
+      in_line_column.column = 0;
+      document_text_cursor_position(splitter, &in_line_column, &out_indentation_copy, 0, 1);
+    } else {
+      out_indentation_copy = out;
     }
 
     document_file_delete_selection(splitter->file, splitter->view);
@@ -1256,11 +1264,6 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
 
     // --- Begin test auto indentation ... opening bracket
-    struct document_text_position out_indentation_copy;
-    in_line_column.line = out.line;
-    in_line_column.column = 0;
-    document_text_cursor_position(splitter, &in_line_column, &out_indentation_copy, 0, 1);
-
     // Build a binary copy of the previous indentation (one could insert the default indentation style as alternative... to discuss)
     // TODO: Simplify me
     file_offset_t offset = out_indentation_copy.offset;
@@ -1341,21 +1344,21 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   int selection_reset = 0;
   if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
-      if (!(button_old&TIPPSE_MOUSE_LBUTTON) && !(modifier&TIPPSE_KEY_MOD_SHIFT)) view->selection_start = ~0;
-      if (view->selection_start==~0) view->selection_start = view->offset;
+      if (!(button_old&TIPPSE_MOUSE_LBUTTON) && !(modifier&TIPPSE_KEY_MOD_SHIFT)) view->selection_start = ~0u;
+      if (view->selection_start==~0u) view->selection_start = view->offset;
       view->selection_end = view->offset;
     }
   } else {
     if (modifier&TIPPSE_KEY_MOD_SHIFT) {
-      if (view->selection_start==~0) view->selection_start = offset_old;
+      if (view->selection_start==~0u) view->selection_start = offset_old;
       view->selection_end = view->offset;
     } else {
       selection_reset = selection_keep ? 0 : 1;
     }
   }
   if (selection_reset) {
-    view->selection_start = ~0;
-    view->selection_end = ~0;
+    view->selection_start = ~0u;
+    view->selection_end = ~0u;
   }
   if (view->selection_start<view->selection_end) {
     view->selection_low = view->selection_start;
@@ -1457,7 +1460,7 @@ void document_text_lower_indentation(struct document* base, struct splitter* spl
       }
 
       length++;
-      if (*text=='\t' || length>=file->tabstop_width) {
+      if (*text=='\t' || (int)length>=file->tabstop_width) {
         break;
       }
 
@@ -1505,9 +1508,8 @@ void document_text_raise_indentation(struct document* base, struct splitter* spl
     uint8_t utf8[8];
     file_offset_t size;
     if (file->tabstop==TIPPSE_TABSTOP_SPACE) {
-      size = file->tabstop_width;
-      file_offset_t spaces;
-      for (spaces = 0; spaces<size; spaces++) {
+      size = (file_offset_t)file->tabstop_width;
+      for (file_offset_t spaces = 0; spaces<size; spaces++) {
         utf8[spaces] = ' ';
       }
     } else {
@@ -1545,8 +1547,12 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
     in.offset = cursor->offset+1;
   } else {
     in.type = VISUAL_SEEK_BRACKET_PREV;
-    in.offset = cursor->offset-1;
-  }
+    in.offset = (cursor->offset>0)?cursor->offset-1:0;
+    size_t bracket = cursor->bracket_match&VISUAL_BRACKET_MASK;
+    if (bracket==in.bracket) {
+      in.bracket_search--;
+    }
+   }
 
   document_text_render_clear(&render_info, splitter->client_width-view->address_width);
   while (1) {
@@ -1585,8 +1591,8 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
   }
 
   if (((cursor->bracket_match&VISUAL_BRACKET_OPEN) && out.offset>cursor->offset) || ((cursor->bracket_match&VISUAL_BRACKET_CLOSE) && out.offset<cursor->offset)) {
-    splitter_hilight(screen, splitter, cursor->x-view->scroll_x+view->address_width, cursor->y-view->scroll_y, file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
-    splitter_hilight(screen, splitter, out.x-view->scroll_x+view->address_width, out.y-view->scroll_y, file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
+    splitter_hilight(screen, splitter, (int)(cursor->x-view->scroll_x+view->address_width), (int)(cursor->y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
+    splitter_hilight(screen, splitter, (int)(out.x-view->scroll_x+view->address_width), (int)(out.y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
     return 1;
   }
 

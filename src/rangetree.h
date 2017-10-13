@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_RANGETREE__
-#define __TIPPSE_RANGETREE__
+#ifndef TIPPSE_RANGETREE_H
+#define TIPPSE_RANGETREE_H
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -55,12 +55,12 @@ void range_tree_exchange(struct range_tree_node* node, struct range_tree_node* o
 struct range_tree_node* range_tree_rotate(struct range_tree_node* node, int side);
 struct range_tree_node* range_tree_balance(struct range_tree_node* node);
 struct range_tree_node* range_tree_update(struct range_tree_node* node);
-struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int find_type, file_offset_t find_offset, int find_x, int find_y, int find_line, int find_column, file_offset_t* offset, int* x, int* y, int* line, int* column, int* indentation, int* indentation_extra, file_offset_t* character);
+struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int find_type, file_offset_t find_offset, position_t find_x, position_t find_y, position_t find_line, position_t find_column, file_offset_t* offset, position_t* x, position_t* y, position_t* line, position_t* column, int* indentation, int* indentation_extra, file_offset_t* character);
 int range_tree_find_bracket(struct range_tree_node* node, size_t bracket);
 struct range_tree_node* range_tree_find_bracket_forward(struct range_tree_node* node, size_t bracket, int search);
 struct range_tree_node* range_tree_find_bracket_backward(struct range_tree_node* node, size_t bracket, int search);
-void range_tree_find_bracket_lowest(struct range_tree_node* node, int* mins);
-struct range_tree_node* range_tree_find_indentation_last(struct range_tree_node* node, file_offset_t lines);
+void range_tree_find_bracket_lowest(struct range_tree_node* node, int* mins, struct range_tree_node* last);
+struct range_tree_node* range_tree_find_indentation_last(struct range_tree_node* node, position_t lines, struct range_tree_node* last);
 int range_tree_find_indentation(struct range_tree_node* node);
 int range_tree_find_whitespaced(struct range_tree_node* node);
 file_offset_t range_tree_offset(struct range_tree_node* node);
@@ -81,4 +81,4 @@ int range_tree_marked(struct range_tree_node* node, file_offset_t offset, file_o
 struct range_tree_node* range_tree_static(struct range_tree_node* root, file_offset_t length, int inserter);
 struct range_tree_node* range_tree_expand(struct range_tree_node* root, file_offset_t offset, file_offset_t length);
 struct range_tree_node* range_tree_reduce(struct range_tree_node* root, file_offset_t offset, file_offset_t length);
-#endif /* #ifndef __TIPPSE_RANGETREE__ */
+#endif /* #ifndef TIPPSE_RANGETREE_H */

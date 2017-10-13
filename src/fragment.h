@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_FRAGMENT__
-#define __TIPPSE_FRAGMENT__
+#ifndef TIPPSE_FRAGMENT_H
+#define TIPPSE_FRAGMENT_H
 
 struct fragment;
 
@@ -27,4 +27,4 @@ void fragment_cache(struct fragment* node);
 void fragment_reference(struct fragment* node);
 void fragment_dereference(struct fragment* node);
 
-#endif /* #ifndef __TIPPSE_FRAGMENT__ */
+#endif /* #ifndef TIPPSE_FRAGMENT_H */

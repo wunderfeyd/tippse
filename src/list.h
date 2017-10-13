@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_LIST__
-#define __TIPPSE_LIST__
+#ifndef TIPPSE_LIST_H
+#define TIPPSE_LIST_H
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -13,12 +13,12 @@ struct list_node {
 struct list {
   struct list_node* first;
   struct list_node* last;
-  int count;
+  size_t count;
 };
 
-struct list* list_create();
+struct list* list_create(void);
 void list_destroy(struct list* list);
 struct list_node* list_insert(struct list* list, struct list_node* prev, void* object);
 void* list_remove(struct list* list, struct list_node* node);
 
-#endif /* #ifndef __TIPPSE_LIST__ */
+#endif /* #ifndef TIPPSE_LIST_H */

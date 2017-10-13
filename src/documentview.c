@@ -2,7 +2,7 @@
 
 #include "documentview.h"
 
-struct document_view* document_view_create() {
+struct document_view* document_view_create(void) {
   struct document_view* view = malloc(sizeof(struct document_view));
   view->selection = NULL;
   return view;
@@ -27,10 +27,10 @@ void document_view_reset(struct document_view* view, struct document_file* file)
   view->scroll_y_max = 0;
   view->address_width = 0;
   view->show_scrollbar = 0;
-  view->selection_start = ~0;
-  view->selection_end = ~0;
-  view->selection_low = ~0;
-  view->selection_high = ~0;
+  view->selection_start = ~0u;
+  view->selection_end = ~0u;
+  view->selection_low = ~0u;
+  view->selection_high = ~0u;
   view->line_select = 0;
   document_view_filechange(view, file);
 }

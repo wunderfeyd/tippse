@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_ENCODING_UTF8__
-#define __TIPPSE_ENCODING_UTF8__
+#ifndef TIPPSE_ENCODING_UTF8_H
+#define TIPPSE_ENCODING_UTF8_H
 
 #include <stdlib.h>
 
@@ -11,10 +11,10 @@ struct encoding_utf8 {
   struct encoding vtbl;
 };
 
-struct encoding* encoding_utf8_create();
+struct encoding* encoding_utf8_create(void);
 void encoding_utf8_destroy(struct encoding* base);
 
-const char* encoding_utf8_name();
+const char* encoding_utf8_name(void);
 size_t encoding_utf8_character_length(struct encoding* base);
 int encoding_utf8_visual(struct encoding* base, int cp);
 int encoding_utf8_decode(struct encoding* base, struct encoding_stream* stream, size_t* used);
@@ -24,4 +24,4 @@ size_t encoding_utf8_strnlen(struct encoding* base, struct encoding_stream* stre
 size_t encoding_utf8_strlen(struct encoding* base, struct encoding_stream* stream);
 size_t encoding_utf8_seek(struct encoding* base, struct encoding_stream* stream, size_t pos);
 
-#endif  /* #ifndef __TIPPSE_ENCODING_UTF8__ */
+#endif  /* #ifndef TIPPSE_ENCODING_UTF8_H */

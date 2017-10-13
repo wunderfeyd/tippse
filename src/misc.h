@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_MISC__
-#define __TIPPSE_MISC__
+#ifndef TIPPSE_MISC_H
+#define TIPPSE_MISC_H
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -22,9 +22,9 @@ char* combine_string(const char* string1, const char* string2);
 char* combine_path_file(const char* path, const char* file);
 char* correct_path(const char* path);
 char* relativate_path(const char* base, const char* path);
-char* home_path();
+char* home_path(void);
 int is_directory(const char* path);
 
-int64_t tick_count();
+int64_t tick_count(void);
 
-#endif /* #ifndef __TIPPSE_MISC__ */
+#endif /* #ifndef TIPPSE_MISC_H */

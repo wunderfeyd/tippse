@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_FILECACHE__
-#define __TIPPSE_FILECACHE__
+#ifndef TIPPSE_FILECACHE_H
+#define TIPPSE_FILECACHE_H
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -46,4 +46,4 @@ void file_cache_release_node(struct file_cache* base, struct file_cache_node* no
 void file_cache_unlink_node(struct file_cache* base, struct file_cache_node* node);
 void file_cache_link_node(struct file_cache* base, struct file_cache_node* node);
 uint8_t* file_cache_use_node(struct file_cache* base, struct file_cache_node** reference, file_offset_t offset, size_t length);
-#endif  /* #ifndef __TIPPSE_FILECACHE__ */
+#endif  /* #ifndef TIPPSE_FILECACHE_H */

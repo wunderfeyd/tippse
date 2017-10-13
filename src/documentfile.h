@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_DOCUMENTFILE__
-#define __TIPPSE_DOCUMENTFILE__
+#ifndef TIPPSE_DOCUMENTFILE_H
+#define TIPPSE_DOCUMENTFILE_H
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -59,7 +59,7 @@ struct document_file_defaults {
 
 struct document_file_type {
   const char* extension;
-  struct file_type* (*constructor)();
+  struct file_type* (*constructor)(void);
 };
 
 struct document_file {
@@ -77,7 +77,7 @@ struct document_file {
 
   char* filename;
   int save;
-  int undo_save_point;
+  size_t undo_save_point;
 
   struct document_file_defaults defaults;
   struct document_view* view;
@@ -107,4 +107,4 @@ void document_file_delete(struct document_file* file, file_offset_t offset, file
 int document_file_delete_selection(struct document_file* file, struct document_view* view);
 void document_file_manualchange(struct document_file* file);
 
-#endif /* #ifndef __TIPPSE_DOCUMENTFILE__ */
+#endif /* #ifndef TIPPSE_DOCUMENTFILE_H */

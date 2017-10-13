@@ -10,25 +10,22 @@ int file_type_keyword(struct encoding_cache* cache, struct trie* trie, int* keyw
     parent = trie_find_codepoint(trie, parent, cp);
 
     if (!parent) {
-      return 0;
+      break;
     }
 
     if (parent->type!=0) {
       int cp = encoding_cache_find_codepoint(cache, pos);
       if ((cp<'a' || cp>'z') && (cp<'A' || cp>'Z') && (cp<'0' || cp>'9') && cp!='_') {
-        *keyword_length = pos;
-
-        return parent->type;
+        *keyword_length = (int)pos;
+        return (int)parent->type;
       }
-
-      continue;
     }
   }
 
   return 0;
 }
 
-int file_type_bracket_match(int visual_detail, int* cp, int length) {
+int file_type_bracket_match(int visual_detail, int* cp, size_t length) {
   if ((visual_detail&(VISUAL_INFO_STRING0|VISUAL_INFO_STRING1|VISUAL_INFO_COMMENT0|VISUAL_INFO_COMMENT1))==0) {
     int cp1 = *cp;
     if (cp1=='{') {

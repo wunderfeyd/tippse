@@ -2,7 +2,7 @@
 
 #include "document_hex.h"
 
-struct document* document_hex_create() {
+struct document* document_hex_create(void) {
   struct document_hex* document = (struct document_hex*)malloc(sizeof(struct document_hex));
   document->cp_first = 0;
   document->vtbl.reset = document_hex_reset;
@@ -38,15 +38,15 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
 
   file_offset_t file_size = file->buffer?file->buffer->length:0;
   view->cursor_x = view->offset%16;
-  view->cursor_y = view->offset/16;
+  view->cursor_y = (position_t)(view->offset/16);
   if (view->cursor_y>=view->scroll_y+splitter->client_height) {
     view->scroll_y = view->cursor_y-splitter->client_height+1;
   }
-  view->scroll_y_max = (file_size+16)/16;
+  view->scroll_y_max = (int)((file_size+16)/16);
   if (view->cursor_y<view->scroll_y) {
     view->scroll_y = view->cursor_y;
   }
-  int max_height = ((file_size+16)/16)-splitter->client_height;
+  int max_height = (int)((file_size+16)/16)-splitter->client_height;
   if (view->scroll_y>max_height) {
     view->scroll_y = max_height;
   }
@@ -72,7 +72,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   encoding_cache_clear(&text_cache, file->encoding, &text_stream);
 
   size_t name_length = strlen(file->filename);
-  char* title = malloc((name_length+document_undo_modified(file)*2+1)*sizeof(char));
+  char* title = malloc((name_length+(size_t)document_undo_modified(file)*2+1)*sizeof(char));
   memcpy(title, file->filename, name_length);
   if (document_undo_modified(file)) {
     memcpy(title+name_length, " *\0", 3);
@@ -91,8 +91,8 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   for (y = 0; y<splitter->client_height; y++) {
     uint8_t data[16];
     struct document_hex_char chars[16];
-    int data_size = (int)file_size-offset>16?16:file_size-offset;
-    for (x = 0; x<data_size; x++) {
+    size_t data_size = file_size-offset>16?16:file_size-offset;
+    for (x = 0; x<(int)data_size; x++) {
       char_size--;
       if (char_size==0) {
         size_t advance = 1;
@@ -115,13 +115,13 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   if (view->selection_low!=view->selection_high) {
     splitter_cursor(screen, splitter, -1, -1);
   } else {
-    splitter_cursor(screen, splitter, 10+(3*view->cursor_x)+(document->cp_first!=0), view->cursor_y-view->scroll_y);
+    splitter_cursor(screen, splitter, (int)(10+(3*view->cursor_x)+(document->cp_first!=0)), (int)(view->cursor_y-view->scroll_y));
   }
   splitter_scrollbar(screen, splitter);
 }
 
 // Render one line of data
-void document_hex_render(struct document* base, struct screen* screen, struct splitter* splitter, file_offset_t offset, int y, const uint8_t* data, int data_size, struct document_hex_char* chars) {
+void document_hex_render(struct document* base, struct screen* screen, struct splitter* splitter, file_offset_t offset, position_t y, const uint8_t* data, size_t data_size, struct document_hex_char* chars) {
   struct document_hex* document = (struct document_hex*)base;
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
@@ -132,20 +132,20 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
   int x = 0;
   char line[1024];
   sprintf(line, "%08lx", (unsigned long)offset);
-  splitter_drawtext(screen, splitter, x, y, line, 8, foreground, background);
+  splitter_drawtext(screen, splitter, x, (int)y, line, 8, foreground, background);
   x = 10;
-  int data_pos;
+  size_t data_pos;
   for (data_pos = 0; data_pos<data_size; data_pos++) {
     sprintf(line, "%02x ", data[data_pos]);
     if (offset+data_pos<view->selection_low || offset+data_pos>=view->selection_high) {
-      splitter_drawtext(screen, splitter, x, y, line, 2, foreground, background);
+      splitter_drawtext(screen, splitter, x, (int)y, line, 2, foreground, background);
     } else {
-      splitter_drawtext(screen, splitter, x, y, line, data_pos==15?2:3, foreground, selection);
+      splitter_drawtext(screen, splitter, x, (int)y, line, data_pos==15?2:3, foreground, selection);
     }
     x += 3;
   }
   if (document->cp_first!=0 && y==view->cursor_y-view->scroll_y) {
-    splitter_drawchar(screen, splitter, 10+(3*view->cursor_x), y, &document->cp_first, 1, foreground, background);
+    splitter_drawchar(screen, splitter, (int)(10+(3*view->cursor_x)), (int)y, &document->cp_first, 1, foreground, background);
   }
 
   x = 59;
@@ -155,9 +155,9 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
     }
     document_hex_convert(&chars[data_pos], view->show_invisibles, '.');
     if (offset+data_pos<view->selection_low || offset+data_pos>=view->selection_high) {
-      splitter_drawchar(screen, splitter, x, y, chars[data_pos].visuals, chars[data_pos].length, foreground, background);
+      splitter_drawchar(screen, splitter, x, (int)y, chars[data_pos].visuals, chars[data_pos].length, foreground, background);
     } else {
-      splitter_drawchar(screen, splitter, x, y, chars[data_pos].visuals, chars[data_pos].length, foreground, selection);
+      splitter_drawchar(screen, splitter, x, (int)y, chars[data_pos].visuals, chars[data_pos].length, foreground, selection);
     }
     x++;
   }
@@ -184,11 +184,11 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   } else if (cp==TIPPSE_KEY_RIGHT) {
     view->offset++;
   } else if (cp==TIPPSE_KEY_PAGEUP) {
-    view->offset -= splitter->client_height*16;
+    view->offset -= (file_offset_t)(splitter->client_height*16);
     view->scroll_y -= splitter->client_height;
     view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_PAGEDOWN) {
-    view->offset += splitter->client_height*16;
+    view->offset += (file_offset_t)(splitter->client_height*16);
     view->scroll_y += splitter->client_height;
     view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_FIRST) {
@@ -205,11 +205,11 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     if (button&TIPPSE_MOUSE_LBUTTON) {
       document_hex_cursor_from_point(base, splitter, x, y, &view->offset);
     } else if (button&TIPPSE_MOUSE_WHEEL_UP) {
-      view->offset -= (splitter->client_height/3)*16;
+      view->offset -= (file_offset_t)((splitter->client_height/3)*16);
       view->scroll_y -= splitter->client_height/3;
       view->show_scrollbar = 1;
     } else if (button&TIPPSE_MOUSE_WHEEL_DOWN) {
-      view->offset += (splitter->client_height/3)*16;
+      view->offset += (file_offset_t)((splitter->client_height/3)*16);
       view->scroll_y += splitter->client_height/3;
       view->show_scrollbar = 1;
     }
@@ -218,7 +218,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     view->selection_end = file_size;
     selection_keep = 1;
   } else if (cp==TIPPSE_KEY_COPY || cp==TIPPSE_KEY_CUT) {
-    if (view->selection_low!=~0) {
+    if (view->selection_low!=~0u) {
       clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low), 1);
       if (cp==TIPPSE_KEY_CUT) {
         document_undo_chain(file, file->undos);
@@ -242,14 +242,14 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   } else if (cp==TIPPSE_KEY_REDO) {
     document_undo_execute_chain(file, view, file->redos, file->undos, 1);
   } else if (cp==TIPPSE_KEY_BACKSPACE) {
-    if (view->selection_low!=~0 || document->cp_first!=0) {
+    if (view->selection_low!=~0u || document->cp_first!=0) {
       document_file_delete_selection(file, view);
     } else {
       view->offset--;
       document_file_delete(file, view->offset, 1);
     }
   } else if (cp==TIPPSE_KEY_DELETE) {
-    if (view->selection_low!=~0  || document->cp_first!=0) {
+    if (view->selection_low!=~0u || document->cp_first!=0) {
       document_file_delete_selection(file, view);
     } else {
       document_file_delete(file, view->offset, 1);
@@ -263,12 +263,12 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
 
   if ((cp>='0' && cp<='9') || (cp>='a' && cp<='f') || (cp>='A' && cp<='F')){
     if (document->cp_first!=0) {
-      uint8_t text = (document_hex_value(document->cp_first)<<4) + document_hex_value(cp);
+      uint8_t text = (uint8_t)((document_hex_value(document->cp_first)<<4)+document_hex_value(cp));
       document_file_insert(file, view->offset, &text, 1);
       document_file_delete(file, view->offset, 1);
       document->cp_first = 0;
     } else {
-      if (view->selection_low!=~0) {
+      if (view->selection_low!=~0u) {
         uint8_t text = file->binary?0:32;
         document_file_delete_selection(file, view);
         document_file_insert(file, view->offset, &text, 1);
@@ -290,21 +290,21 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   int selection_reset = 0;
   if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
-      if (!(button_old&TIPPSE_MOUSE_LBUTTON) && !(modifier&TIPPSE_KEY_MOD_SHIFT)) view->selection_start = ~0;
-      if (view->selection_start==~0) view->selection_start = view->offset;
+      if (!(button_old&TIPPSE_MOUSE_LBUTTON) && !(modifier&TIPPSE_KEY_MOD_SHIFT)) view->selection_start = ~0u;
+      if (view->selection_start==~0u) view->selection_start = view->offset;
       view->selection_end = view->offset;
     }
   } else {
     if (modifier&TIPPSE_KEY_MOD_SHIFT) {
-      if (view->selection_start==~0) view->selection_start = offset_old;
+      if (view->selection_start==~0u) view->selection_start = offset_old;
       view->selection_end = view->offset;
     } else {
       selection_reset = selection_keep ? 0 : 1;
     }
   }
   if (selection_reset) {
-    view->selection_start = ~0;
-    view->selection_end = ~0;
+    view->selection_start = ~0u;
+    view->selection_end = ~0u;
   }
   if (view->selection_start<view->selection_end) {
     view->selection_low = view->selection_start;
@@ -325,11 +325,11 @@ void document_hex_cursor_from_point(struct document* base, struct splitter* spli
   file_offset_t file_size = file->buffer?file->buffer->length:0;
   if (y<0) *offset = 0;
   if (y>=0 && y<splitter->client_height) {
-    if (x>=8 && x<10) *offset = ((view->scroll_y+y)*16);
-    if (x>=10 && x<58) *offset = ((view->scroll_y+y)*16)+((x-10)/3);
-    if (x>=58 && x<59) *offset = ((view->scroll_y+y)*16)+16;
-    if (x>=59 && x<75) *offset = ((view->scroll_y+y)*16)+x-59;
-    if (x>=76) *offset = ((view->scroll_y+y)*16)+16;
+    if (x>=8 && x<10) *offset = (file_offset_t)((view->scroll_y+y)*16);
+    if (x>=10 && x<58) *offset = (file_offset_t)(((view->scroll_y+y)*16)+((x-10)/3));
+    if (x>=58 && x<59) *offset = (file_offset_t)(((view->scroll_y+y)*16)+16);
+    if (x>=59 && x<75) *offset = (file_offset_t)(((view->scroll_y+y)*16)+x-59);
+    if (x>=76) *offset = (file_offset_t)(((view->scroll_y+y)*16)+16);
     if (*offset>file_size) *offset = file_size;
   }
 }
@@ -338,11 +338,11 @@ void document_hex_cursor_from_point(struct document* base, struct splitter* spli
 uint8_t document_hex_value(int cp) {
   uint8_t value = 0;
   if (cp>='0' && cp<='9') {
-    value = cp-'0';
+    value = (uint8_t)cp-'0';
   } else if (cp>='a' && cp<='f') {
-    value = cp-'a'+10;
+    value = (uint8_t)cp-'a'+10;
   } else if (cp>='A' && cp<='F') {
-    value = cp-'A'+10;
+    value = (uint8_t)cp-'A'+10;
   }
   return value;
 }
@@ -353,11 +353,11 @@ uint8_t document_hex_value_from_string(const char* text, size_t length) {
   for (size_t pos=0; pos<length; pos++) {
     char cp = *(text+pos);
     if (cp>='0' && cp<='9') {
-      value = value*16+cp-'0';
+      value = value*16+(uint8_t)cp-'0';
     } else if (cp>='a' && cp<='f') {
-      value = value*16+cp-'a'+10;
+      value = value*16+(uint8_t)cp-'a'+10;
     } else if (cp>='A' && cp<='F') {
-      value = value*16+cp-'A'+10;
+      value = value*16+(uint8_t)cp-'A'+10;
     } else {
       break;
     }

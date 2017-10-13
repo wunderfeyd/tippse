@@ -37,7 +37,7 @@ struct trie_static keywords_language_php[] = {
   {NULL, 0}
 };
 
-struct file_type* file_type_php_create() {
+struct file_type* file_type_php_create(void) {
   struct file_type_php* this = malloc(sizeof(struct file_type_php));
   this->vtbl.create = file_type_php_create;
   this->vtbl.destroy = file_type_php_destroy;
@@ -57,7 +57,7 @@ void file_type_php_destroy(struct file_type* base) {
   free(this);
 }
 
-const char* file_type_php_name() {
+const char* file_type_php_name(void) {
   return "PHP";
 }
 

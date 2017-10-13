@@ -2,7 +2,7 @@
 
 #include "patch.h"
 
-struct file_type* file_type_patch_create() {
+struct file_type* file_type_patch_create(void) {
   struct file_type_patch* this = malloc(sizeof(struct file_type_patch));
   this->vtbl.create = file_type_patch_create;
   this->vtbl.destroy = file_type_patch_destroy;
@@ -15,7 +15,7 @@ struct file_type* file_type_patch_create() {
 void file_type_patch_destroy(struct file_type* base) {
 }
 
-const char* file_type_patch_name() {
+const char* file_type_patch_name(void) {
   return "Patch";
 }
 

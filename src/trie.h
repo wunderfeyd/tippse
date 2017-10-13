@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_TRIE__
-#define __TIPPSE_TRIE__
+#ifndef TIPPSE_TRIE_H
+#define TIPPSE_TRIE_H
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -32,7 +32,7 @@ struct trie {
   size_t fill;
 };
 
-struct trie* trie_create();
+struct trie* trie_create(void);
 void trie_destroy(struct trie* trie);
 void trie_clear(struct trie* trie);
 struct trie_node* trie_create_node(struct trie* trie);
@@ -43,4 +43,4 @@ void trie_load_array(struct trie* trie, const struct trie_static* array);
 void trie_append_string_nocase(struct trie* trie, struct trie_node* parent, const char* text, intptr_t type);
 void trie_load_array_nocase(struct trie* trie, const struct trie_static* array);
 
-#endif  /* #ifndef __TIPPSE_TRIE__ */
+#endif  /* #ifndef TIPPSE_TRIE_H */

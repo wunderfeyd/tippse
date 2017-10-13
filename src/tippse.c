@@ -93,9 +93,6 @@ struct tippse_ansi_key ansi_keys[] = {
 };
 
 int main(int argc, const char** argv) {
-  unsigned char input_buffer[1024];
-  size_t input_pos = 0;
-
   char* base_path = realpath(".", NULL);
 
   unicode_init();
@@ -168,6 +165,8 @@ int main(int argc, const char** argv) {
     goto end;
   }
 
+  unsigned char input_buffer[1024];
+  size_t input_pos = 0;
   while (!close) {
     tabs_doc->buffer = range_tree_delete(tabs_doc->buffer, 0, tabs_doc->buffer?tabs_doc->buffer->length:0, TIPPSE_INSERTER_AUTO);
     struct list_node* doc = documents->first;
@@ -198,14 +197,14 @@ int main(int argc, const char** argv) {
       screen_setchar(screen, x, 0, 0, 0, screen->width, screen->height, &cp, 1, foreground, background);
     }
 
-    screen_drawtext(screen, 0, 0, 0, 0, screen->width, screen->height, focus->name, screen->width, foreground, background);
+    screen_drawtext(screen, 0, 0, 0, 0, screen->width, screen->height, focus->name, (size_t)screen->width, foreground, background);
     struct encoding_stream stream;
-    encoding_stream_from_plain(&stream, (uint8_t*)focus->status, ~0);
-    int length = encoding_utf8_strlen(NULL, &stream);
-    screen_drawtext(screen, screen->width-length, 0, 0, 0, screen->width, screen->height, focus->status, length, foreground, background);
+    encoding_stream_from_plain(&stream, (uint8_t*)focus->status, ~0u);
+    size_t length = encoding_utf8_strlen(NULL, &stream);
+    screen_drawtext(screen, screen->width-(int)length, 0, 0, 0, screen->width, screen->height, focus->status, length, foreground, background);
 
     screen_draw(screen);
-    int in = 0;
+    ssize_t in = 0;
     while (in==0) {
       fd_set set_read;
       struct timeval tv;
@@ -218,7 +217,7 @@ int main(int argc, const char** argv) {
       if (FD_ISSET(0, &set_read)) {
         in = read(STDIN_FILENO, &input_buffer[input_pos], sizeof(input_buffer)-input_pos);
         if (in>0) {
-          input_pos += in;
+          input_pos += (size_t)in;
         }
       } else {
         struct list_node* doc = documents->first;
@@ -443,7 +442,7 @@ int main(int argc, const char** argv) {
 
       if (!keep) {
         struct encoding_stream stream;
-        encoding_stream_from_plain(&stream, (const uint8_t*)&input_buffer[check], (const uint8_t*)&input_buffer[input_pos]-(const uint8_t*)&input_buffer[check]);
+        encoding_stream_from_plain(&stream, (const uint8_t*)&input_buffer[check], (size_t)((const uint8_t*)&input_buffer[input_pos]-(const uint8_t*)&input_buffer[check]));
         int cp = encoding_utf8_decode(NULL, &stream, &used);
         if (cp==-1) {
           used = 0;
@@ -477,7 +476,7 @@ end:;
     }
 
     printf("Update - Runtime %lld\r\n", (long long)(tick_count()-time_start));
-    printf("Node ratio %3.3f\r\n", (float)sizeof(struct range_tree_node)/(float)TREE_BLOCK_LENGTH_MAX);
+    printf("Node ratio %3.3f\r\n", (double)sizeof(struct range_tree_node)/(double)TREE_BLOCK_LENGTH_MAX);
     printf("Trie bucket size %d\r\n", (int)(sizeof(struct trie_node)*TRIE_NODES_PER_BUCKET));
 
     time_start = tick_count();

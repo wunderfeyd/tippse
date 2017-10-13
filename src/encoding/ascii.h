@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_ENCODING_ASCII__
-#define __TIPPSE_ENCODING_ASCII__
+#ifndef TIPPSE_ENCODING_ASCII_H
+#define TIPPSE_ENCODING_ASCII_H
 
 #include <stdlib.h>
 
@@ -11,10 +11,10 @@ struct encoding_ascii {
   struct encoding vtbl;
 };
 
-struct encoding* encoding_ascii_create();
+struct encoding* encoding_ascii_create(void);
 void encoding_ascii_destroy(struct encoding* base);
 
-const char* encoding_ascii_name();
+const char* encoding_ascii_name(void);
 size_t encoding_ascii_character_length(struct encoding* base);
 int encoding_ascii_visual(struct encoding* base, int cp);
 int encoding_ascii_decode(struct encoding* base, struct encoding_stream* stream, size_t* used);
@@ -24,4 +24,4 @@ size_t encoding_ascii_strnlen(struct encoding* base, struct encoding_stream* str
 size_t encoding_ascii_strlen(struct encoding* base, struct encoding_stream* stream);
 size_t encoding_ascii_seek(struct encoding* base, struct encoding_stream* stream, size_t pos);
 
-#endif  /* #ifndef __TIPPSE_ENCODING_ASCII__ */
+#endif  /* #ifndef TIPPSE_ENCODING_ASCII_H */

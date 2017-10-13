@@ -26,7 +26,7 @@ struct trie_static keywords_language_lua[] = {
   {NULL, 0}
 };
 
-struct file_type* file_type_lua_create() {
+struct file_type* file_type_lua_create(void) {
   struct file_type_lua* this = malloc(sizeof(struct file_type_lua));
   this->vtbl.create = file_type_lua_create;
   this->vtbl.destroy = file_type_lua_destroy;
@@ -46,7 +46,7 @@ void file_type_lua_destroy(struct file_type* base) {
   free(this);
 }
 
-const char* file_type_lua_name() {
+const char* file_type_lua_name(void) {
   return "Lua";
 }
 

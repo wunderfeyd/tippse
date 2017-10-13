@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_CONFIG__
-#define __TIPPSE_CONFIG__
+#ifndef TIPPSE_CONFIG_H
+#define TIPPSE_CONFIG_H
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -14,7 +14,7 @@ struct config {
   struct list* values;
 };
 
-struct config* config_create();
+struct config* config_create(void);
 void config_destroy(struct config* config);
 void config_clear(struct config* config);
 
@@ -27,4 +27,4 @@ int* config_find_ascii(struct config* config, const char* keyword);
 
 char* config_convert_ascii(int* codepoints);
 int64_t config_convert_int64(int* codepoints);
-#endif /* #ifndef __TIPPSE_CONFIG__ */
+#endif /* #ifndef TIPPSE_CONFIG_H */

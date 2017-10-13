@@ -22,7 +22,7 @@ uint16_t translate_cp850_unicode[256] = {
   0x00ad, 0x00b1, 0x2017, 0x00be, 0x00b6, 0x00a7, 0x00f7, 0x00b8, 0x00b0, 0x00a8, 0x00b7, 0x00b9, 0x00b3, 0x00b2, 0x25a0, 0x00a0
 };
 
-struct encoding* encoding_cp850_create() {
+struct encoding* encoding_cp850_create(void) {
   struct encoding_cp850* this = malloc(sizeof(struct encoding_cp850));
   this->vtbl.create = encoding_cp850_create;
   this->vtbl.destroy = encoding_cp850_destroy;
@@ -43,7 +43,7 @@ void encoding_cp850_destroy(struct encoding* base) {
   free(this);
 }
 
-const char* encoding_cp850_name() {
+const char* encoding_cp850_name(void) {
   return "CP850";
 }
 
@@ -70,7 +70,7 @@ int encoding_cp850_decode(struct encoding* base, struct encoding_stream* stream,
 }
 
 size_t encoding_cp850_encode(struct encoding* base, int cp, uint8_t* text, size_t size) {
-  *text = cp;
+  *text = (uint8_t)cp;
   return 1;
 }
 

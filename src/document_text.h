@@ -1,5 +1,5 @@
-#ifndef __TIPPSE_DOCUMENT_TEXT__
-#define __TIPPSE_DOCUMENT_TEXT__
+#ifndef TIPPSE_DOCUMENT_TEXT_H
+#define TIPPSE_DOCUMENT_TEXT_H
 
 #include <stdlib.h>
 
@@ -28,28 +28,28 @@ struct document_text {
 // Saved state between two render calls
 struct document_text_render_info {
   int append;
-  int x;
-  int y;
-  int y_view;
+  position_t x;
+  position_t y;
+  position_t y_view;
   struct range_tree_node* buffer;
   file_offset_t displacement;
   file_offset_t offset;
   file_offset_t offset_sync;
-  int xs;
-  int ys;
+  position_t xs;
+  position_t ys;
   int indentations;
   int indentations_extra;
   int indentation;
   int indentation_extra;
-  int lines;
-  int line;
-  int columns;
-  int column;
+  position_t lines;
+  position_t line;
+  position_t columns;
+  position_t column;
   file_offset_t characters;
   file_offset_t character;
   int visual_detail;
   int draw_indentation;
-  int width;
+  position_t width;
   int keyword_color;
   int keyword_length;
   int whitespaced;
@@ -73,31 +73,31 @@ struct document_text_position {
 
   file_offset_t offset;                 // Offset in file
 
-  int x;                                // Position X of viewport
-  int x_min;                            // Left margin
-  int x_max;                            // Right margin
+  position_t x;                         // Position X of viewport
+  position_t x_min;                     // Left margin
+  position_t x_max;                     // Right margin
 
-  int y;                                // Position Y of viewport
-  int y_drawn;                          // Target row/line was found
+  position_t y;                         // Position Y of viewport
+  position_t y_drawn;                   // Target row/line was found
 
-  int line;                             // Line in file
-  int column;                           // Column in line
+  position_t line;                      // Line in file
+  position_t column;                    // Column in line
   file_offset_t character;              // Character in file
 
   int visual_detail;                    // Visual detail at current stop
 
-  int bracket;                          // Bracket number
+  size_t bracket;                       // Bracket number
   int bracket_search;                   // Bracket depth to search for
   int bracket_match;                    // Type of bracket below the cursor
 
   int depth[VISUAL_BRACKET_MAX];        // Bracket information
   int depth_line[VISUAL_BRACKET_MAX];   // Bracket information
   int min_line[VISUAL_BRACKET_MAX];     // Bracket information
-  int lines;                            // Number of lines rendered in this page
+  position_t lines;                     // Number of lines rendered in this page
   int indented;                         // Cursor in indentation area
 };
 
-struct document* document_text_create();
+struct document* document_text_create(void);
 void document_text_destroy(struct document* base);
 
 void document_text_reset(struct document* base, struct splitter* splitter);
@@ -107,9 +107,9 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 
 void document_text_toggle_bookmark(struct document* base, struct splitter* splitter, file_offset_t offset);
 
-void document_text_render_clear(struct document_text_render_info* render_info, int width);
+void document_text_render_clear(struct document_text_render_info* render_info, position_t width);
 void document_text_render_seek(struct document_text_render_info* render_info, struct range_tree_node* buffer, struct encoding* encoding, struct document_text_position* in);
-int document_text_render_lookahead_word_wrap(struct document_file* file, struct encoding_cache* cache, int max);
+position_t document_text_render_lookahead_word_wrap(struct document_file* file, struct encoding_cache* cache, position_t max);
 int document_text_render_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel);
 
 file_offset_t document_text_cursor_position_partial(struct document_text_render_info* render_info, struct splitter* splitter, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel);
@@ -120,4 +120,4 @@ void document_text_raise_indentation(struct document* base, struct splitter* spl
 
 int document_text_mark_brackets(struct document* base, struct screen* screen, struct splitter* splitter, struct document_text_position* cursor);
 
-#endif /* #ifndef __TIPPSE_DOCUMENT_TEXT__ */
+#endif /* #ifndef TIPPSE_DOCUMENT_TEXT_H */

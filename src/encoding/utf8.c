@@ -2,7 +2,7 @@
 
 #include "utf8.h"
 
-struct encoding* encoding_utf8_create() {
+struct encoding* encoding_utf8_create(void) {
   struct encoding_utf8* this = malloc(sizeof(struct encoding_utf8));
   this->vtbl.create = encoding_utf8_create;
   this->vtbl.destroy = encoding_utf8_destroy;
@@ -23,7 +23,7 @@ void encoding_utf8_destroy(struct encoding* base) {
   free(this);
 }
 
-const char* encoding_utf8_name() {
+const char* encoding_utf8_name(void) {
   return "UTF-8";
 }
 

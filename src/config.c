@@ -30,7 +30,7 @@ const char* config_default =
   "}"
 ;
 
-struct config* config_create() {
+struct config* config_create(void) {
   struct config* config = malloc(sizeof(struct config));
   config->keywords = trie_create();
   config->values = list_create();
@@ -68,8 +68,8 @@ void config_load(struct config* config, const char* filename) {
     size_t keyword_length = 0;
     int value_codepoints[1024];
     size_t value_length = 0;
-    int bracket_positions[1024];
-    int brackets = 0;
+    size_t bracket_positions[1024];
+    size_t brackets = 0;
 
     int value = 0;
     int escape = 0;
@@ -91,7 +91,7 @@ void config_load(struct config* config, const char* filename) {
       int append = 0;
       if (!string) {
         if (cp==',' || cp=='{' || cp=='}') {
-          int keyword = keyword_length-((brackets>0)?bracket_positions[brackets-1]:0);
+          size_t keyword = keyword_length-((brackets>0)?bracket_positions[brackets-1]:0);
           if (cp!='{' && keyword) {
             value_codepoints[value_length] = 0;
             config_update(config, &keyword_codepoints[0], keyword_length, &value_codepoints[0], value_length+1);
@@ -264,7 +264,7 @@ char* config_convert_ascii(int* codepoints) {
   char* string = malloc(sizeof(char)*length);
   length = 0;
   do {
-    string[length] = codepoints[length];
+    string[length] = (char)codepoints[length];
   } while (codepoints[length++]);
 
   return string;

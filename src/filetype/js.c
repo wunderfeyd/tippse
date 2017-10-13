@@ -27,7 +27,7 @@ struct trie_static keywords_language_js[] = {
   {NULL, 0}
 };
 
-struct file_type* file_type_js_create() {
+struct file_type* file_type_js_create(void) {
   struct file_type_js* this = malloc(sizeof(struct file_type_js));
   this->vtbl.create = file_type_js_create;
   this->vtbl.destroy = file_type_js_destroy;
@@ -47,7 +47,7 @@ void file_type_js_destroy(struct file_type* base) {
   free(this);
 }
 
-const char* file_type_js_name() {
+const char* file_type_js_name(void) {
   return "JS";
 }
 
