@@ -56,7 +56,7 @@ struct range_tree_node* clipboard_get(void) {
 #ifdef __APPLE__
   data = clipboard_command_get("pbpaste");
 #elif __linux__
-  data = clipboard_command_get("xsel -o 2>/dev/null");
+  data = clipboard_command_get("xsel -k -o 2>/dev/null");
 #elif _WIN32
   data = clipboard_windows_get();
 #endif

@@ -12,6 +12,7 @@ struct trie_static keywords_language_c[] = {
   {"void", VISUAL_FLAG_COLOR_TYPE},
   {"bool", VISUAL_FLAG_COLOR_TYPE},
   {"size_t", VISUAL_FLAG_COLOR_TYPE},
+  {"ssize_t", VISUAL_FLAG_COLOR_TYPE},
   {"int8_t", VISUAL_FLAG_COLOR_TYPE},
   {"uint8_t", VISUAL_FLAG_COLOR_TYPE},
   {"int16_t", VISUAL_FLAG_COLOR_TYPE},

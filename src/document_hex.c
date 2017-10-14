@@ -129,10 +129,11 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
   int foreground = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
   int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
   int selection = file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
+  int linenumber = file->defaults.colors[VISUAL_FLAG_COLOR_LINENUMBER];
   int x = 0;
   char line[1024];
   sprintf(line, "%08lx", (unsigned long)offset);
-  splitter_drawtext(screen, splitter, x, (int)y, line, 8, foreground, background);
+  splitter_drawtext(screen, splitter, x, (int)y, line, 8, linenumber, background);
   x = 10;
   size_t data_pos;
   for (data_pos = 0; data_pos<data_size; data_pos++) {

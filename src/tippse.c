@@ -132,6 +132,8 @@ int main(int argc, const char** argv) {
   list_insert(documents, NULL, search_doc);
   list_insert(documents, NULL, browser_doc);
 
+  search->view->line_select = 0; // TODO: check why the search form needs this
+
   for (int n = argc-1; n>=1; n--) {
     if (n==1) {
       document_file_load(document_doc, argv[n]);

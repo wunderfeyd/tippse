@@ -90,3 +90,13 @@ size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offse
 
   return pos;
 }
+
+// Check visual width of unicode sequence
+int unicode_size(int* codepoints, size_t max) {
+  if (max<=0) {
+    return 1;
+  }
+
+  // Check if we have CJK ideographs (which are displayed in two columns each)
+  return 1;
+}

@@ -151,15 +151,19 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
   struct range_tree_node* buffer_new;
 
   int type = in->type;
-  if (type==VISUAL_SEEK_BRACKET_NEXT) {
-    type = VISUAL_SEEK_OFFSET;
-  } else if (type==VISUAL_SEEK_BRACKET_PREV) {
-    type = VISUAL_SEEK_OFFSET;
-  } else if (type==VISUAL_SEEK_INDENTATION_LAST) {
+  if (type==VISUAL_SEEK_BRACKET_NEXT || type==VISUAL_SEEK_BRACKET_PREV || type==VISUAL_SEEK_INDENTATION_LAST) {
     type = VISUAL_SEEK_OFFSET;
   }
 
   buffer_new = range_tree_find_visual(buffer, type, in->offset, in->x, in->y, in->line, in->column, &offset_new, &x_new, &y_new, &lines_new, &columns_new, &indentation_new, &indentation_extra_new, &characters_new);
+
+/*  if (in->y<0) {
+    in->y = 0;
+  }
+
+  if (in->line<0) {
+    in->line = 0;
+  }*/
 
   // TODO: Combine into single statement (if correctness is confirmed)
   int rerender = (debug&DEBUG_ALWAYSRERENDER)?1:0;
@@ -527,16 +531,12 @@ int document_text_render_span(struct document_text_render_info* render_info, str
             out->depth[n] = render_info->depth_new[n];
             out->min_line[n] = render_info->brackets_line[n].min;
           }
-
-          /*if ((in->type==VISUAL_SEEK_BRACKET_NEXT || in->type==VISUAL_SEEK_BRACKET_PREV) &&  (bracket_match&VISUAL_BRACKET_CLOSE)) {
-            out->depth[bracket_match&VISUAL_BRACKET_MASK]--;
-          }*/
         }
       }
-    } else {
-      if (drawn>=2 && !in->clip) {
-        stop = 1;
-      }
+    }
+
+    if (drawn>=2 && !in->clip) {
+      stop = 1;
     }
 
     if (boundary && page_count>1 && drawn<2 && !stop) {
@@ -642,7 +642,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 
     int fill = 0;
     if (((((cp!=newline_cp2 || newline_cp2==0) && cp!=0xfeff) || view->show_invisibles) && cp!='\t') || view->continuous) {
-      fill = 1;
+      fill = unicode_size(&codepoints[0], read);
     } else if (cp=='\t') {
       fill = file->tabstop_width-(render_info->x%file->tabstop_width);
     }
@@ -730,7 +730,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       }
     }
 
-    if ((!view->continuous && cp==newline_cp1) || (render_info->x+word_length>=render_info->width && view->wrapping) || (render_info->x+1>=render_info->width && view->continuous)) {
+    if ((!view->continuous && cp==newline_cp1) || (render_info->x+word_length>=render_info->width && view->wrapping) || (render_info->x+fill>=render_info->width && view->continuous)) {
       if (cp==newline_cp1) {
         render_info->indentations = 0;
         render_info->indentations_extra = 0;
@@ -956,11 +956,17 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     // Bookmark detection
     int marked = range_tree_marked(file->bookmarks, out.offset, render_info.offset-out.offset, TIPPSE_INSERTER_MARK);
 
-    if (out.line!=last_line) {
-      last_line = out.line;
+    if (in.y<=(file->buffer?file->buffer->visuals.ys:0)) {
       char line[1024];
-      int size = sprintf(line, "%5d", (int)(out.line+1));
-      splitter_drawtext(screen, splitter, 0, (int)y, line, (size_t)size, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[marked?VISUAL_FLAG_COLOR_PREPROCESSOR:VISUAL_FLAG_COLOR_BACKGROUND]);
+      int size;
+      if (out.line!=last_line) {
+        last_line = out.line;
+        size = sprintf(line, "%5d", (int)(out.line+1));
+      } else {
+        size = sprintf(line, "    |");
+      }
+
+      splitter_drawtext(screen, splitter, 0, (int)y, line, (size_t)size, file->defaults.colors[VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[marked?VISUAL_FLAG_COLOR_PREPROCESSOR:VISUAL_FLAG_COLOR_BACKGROUND]);
     }
   }
 
