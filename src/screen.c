@@ -127,14 +127,16 @@ void screen_draw_char(struct screen* screen, char** pos, int n, int* w, int* for
     *pos += sprintf(*pos, "\x1b[7m");
   }
 
-  size_t copy;
-  for (copy = 0; copy<c->length; copy++) {
-    *pos += encoding_utf8_encode(NULL, c->codepoints[copy], (uint8_t*)*pos, ~0u);
-  }
+  if (c->length==0 || c->codepoints[0]!=-1) {
+    size_t copy;
+    for (copy = 0; copy<c->length; copy++) {
+      *pos += encoding_utf8_encode(NULL, c->codepoints[copy], (uint8_t*)*pos, ~0u);
+    }
 
-  if (copy==0) {
-    **pos = 0x20;
-    *pos += 1;
+    if (copy==0) {
+      **pos = 0x20;
+      *pos += 1;
+    }
   }
 
   *w = n;

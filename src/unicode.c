@@ -4,8 +4,10 @@
 // TODO: preformance test if direct comparsion is better than a bit table in this case on supported platforms
 
 #include "unicode.h"
+#include "unicode_widths.h"
 
 unsigned int unicode_combining_marks[(UNICODE_COMBINE_MAX/sizeof(unsigned int))+1];
+unsigned int unicode_widths[(UNICODE_CODEPOINT_MAX/sizeof(unsigned int))+1];
 
 // Initialise static tables
 void unicode_init(void) {
@@ -36,6 +38,28 @@ void unicode_init(void) {
   for (codepoint = 0xfe20; codepoint<0xfe2e; codepoint++) {
     unicode_update_combining_mark(codepoint);
   }
+
+  // Decompress rle full width and half width table
+  memset(&unicode_widths[0], 0, sizeof(unicode_widths));
+  int* base = &unicode_widths_rle[0];
+  codepoint = 0;
+  unsigned int set = 0;
+  while (1) {
+    int codes = *base;
+    if (codes<0) {
+      break;
+    }
+
+    while (codes-->0) {
+      if (codepoint<UNICODE_CODEPOINT_MAX) {
+        unicode_widths[codepoint/((int)sizeof(unsigned int)*8)] |=  set<<(codepoint&((int)sizeof(unsigned int)*8-1));
+      }
+      codepoint++;
+    }
+
+    set ^= 1;
+    base++;
+  }
 }
 
 // Mark codepoint as combining in the bit table
@@ -47,6 +71,15 @@ void unicode_update_combining_mark(int codepoint) {
 inline int unicode_combining_mark(int codepoint) {
   if (codepoint>=0 && codepoint<UNICODE_COMBINE_MAX) {
     return (unicode_combining_marks[codepoint/((int)sizeof(unsigned int)*8)]>>(codepoint&((int)sizeof(unsigned int)*8-1)))&1;
+  }
+
+  return 0;
+}
+
+// Check if codepoint is marked as combining
+inline int unicode_width(int codepoint) {
+  if (codepoint>=0 && codepoint<UNICODE_CODEPOINT_MAX) {
+    return (unicode_widths[codepoint/((int)sizeof(unsigned int)*8)]>>(codepoint&((int)sizeof(unsigned int)*8-1)))&1;
   }
 
   return 0;
@@ -98,5 +131,5 @@ int unicode_size(int* codepoints, size_t max) {
   }
 
   // Check if we have CJK ideographs (which are displayed in two columns each)
-  return 1;
+  return unicode_width(codepoints[0])+1;
 }

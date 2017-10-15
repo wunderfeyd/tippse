@@ -277,13 +277,13 @@ position_t document_text_render_lookahead_word_wrap(struct document_file* file, 
     int codepoints[8];
     size_t advance = 1;
     size_t length = 1;
-    unicode_read_combined_sequence(cache, advanced, &codepoints[0], 8, &advance, &length);
+    size_t read = unicode_read_combined_sequence(cache, advanced, &codepoints[0], 8, &advance, &length);
 
     if (codepoints[0]<=' ') {
       break;
     }
 
-    count++;
+    count += unicode_size(&codepoints[0], read);
     advanced += advance;
   }
 
@@ -641,10 +641,12 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     }
 
     int fill = 0;
+    int fill_code = -1;
     if (((((cp!=newline_cp2 || newline_cp2==0) && cp!=0xfeff) || view->show_invisibles) && cp!='\t') || view->continuous) {
       fill = unicode_size(&codepoints[0], read);
     } else if (cp=='\t') {
       fill = file->tabstop_width-(render_info->x%file->tabstop_width);
+      fill_code = ' ';
     }
 
     if (screen && render_info->y_view==render_info->y) {
@@ -663,7 +665,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       } else if (cp==0x7f) {
         show = view->show_invisibles?0xfffd:' ';
       } else if (cp==0xfeff) {
-        show = view->show_invisibles?0x2433:' ';
+        show = view->show_invisibles?0x2433:'X';
       } else if (cp<0) {
         show = 0xfffd;
       }
@@ -687,7 +689,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         }
       }
 
-      show = ' ';
+      show = fill_code;
       int pos;
       for (pos = 1; pos<fill; pos++) {
         splitter_drawchar(screen, splitter, (int)x++, (int)y, &show, 1, color, background);

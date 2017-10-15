@@ -6,6 +6,7 @@
 #include "encoding.h"
 
 #define UNICODE_COMBINE_MAX 0x10000
+#define UNICODE_CODEPOINT_MAX 0x110000
 
 void unicode_init(void);
 void unicode_update_combining_mark(int codepoint);
