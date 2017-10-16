@@ -1,85 +1,52 @@
-/* Tippse - Unicode helpers - Unicode character combination, (de-)composition and transformations */
+/* Tippse - Unicode helpers - Unicode character information, combination, (de-)composition and transformations */
 
 // TODO: codepoints are represented as simple int which a) could not work on 16bit int platforms and b) could be negative without a need
-// TODO: preformance test if direct comparsion is better than a bit table in this case on supported platforms
 
 #include "unicode.h"
 #include "unicode_widths.h"
+#include "unicode_invisibles.h"
+#include "unicode_nonspacing_marks.h"
+#include "unicode_spacing_marks.h"
 
-unsigned int unicode_combining_marks[(UNICODE_COMBINE_MAX/sizeof(unsigned int))+1];
-unsigned int unicode_widths[(UNICODE_CODEPOINT_MAX/sizeof(unsigned int))+1];
+unsigned int unicode_nonspacing_marks[UNICODE_BITFIELD_MAX];
+unsigned int unicode_spacing_marks[UNICODE_BITFIELD_MAX];
+unsigned int unicode_invisibles[UNICODE_BITFIELD_MAX];
+unsigned int unicode_widths[UNICODE_BITFIELD_MAX];
 
 // Initialise static tables
 void unicode_init(void) {
-  memset(&unicode_combining_marks[0], 0, sizeof(unicode_combining_marks));
+  // Expand rle stored tables information
+  unicode_decode_rle(&unicode_nonspacing_marks[0], &unicode_nonspacing_marks_rle[0]);
+  unicode_decode_rle(&unicode_spacing_marks[0], &unicode_spacing_marks_rle[0]);
+  unicode_decode_rle(&unicode_invisibles[0], &unicode_invisibles_rle[0]);
+  unicode_decode_rle(&unicode_widths[0], &unicode_widths_rle[0]);
+}
 
-  int codepoint;
-  // combining diacritical marks
-  for (codepoint = 0x300; codepoint<0x370; codepoint++) {
-    unicode_update_combining_mark(codepoint);
-  }
-
-  // combining diacritical marks extended
-  for (codepoint = 0x1ab0; codepoint<0x1abf; codepoint++) {
-    unicode_update_combining_mark(codepoint);
-  }
-
-  // combining diacritical marks supplement
-  for (codepoint = 0x1dc0; codepoint<0x1e00; codepoint++) {
-    unicode_update_combining_mark(codepoint);
-  }
-
-  // combining diacritical marks for symbols
-  for (codepoint = 0x20d0; codepoint<0x20f1; codepoint++) {
-    unicode_update_combining_mark(codepoint);
-  }
-
-  // combining half marks
-  for (codepoint = 0xfe20; codepoint<0xfe2e; codepoint++) {
-    unicode_update_combining_mark(codepoint);
-  }
-
-  // Decompress rle full width and half width table
-  memset(&unicode_widths[0], 0, sizeof(unicode_widths));
-  int* base = &unicode_widths_rle[0];
-  codepoint = 0;
-  unsigned int set = 0;
+// Initialise static table from rle stream
+void unicode_decode_rle(unsigned int* table, uint16_t* rle) {
+  memset(table, 0, UNICODE_BITFIELD_MAX);
+  int codepoint = 0;
   while (1) {
-    int codes = *base;
-    if (codes<0) {
+    int codes = (int)*rle++;
+    if (codes==0) {
       break;
     }
 
+    unsigned int set = (unsigned int)(codes&1);
+    codes >>= 1;
     while (codes-->0) {
       if (codepoint<UNICODE_CODEPOINT_MAX) {
-        unicode_widths[codepoint/((int)sizeof(unsigned int)*8)] |=  set<<(codepoint&((int)sizeof(unsigned int)*8-1));
+        table[codepoint/((int)sizeof(unsigned int)*8)] |= set<<(codepoint&((int)sizeof(unsigned int)*8-1));
       }
       codepoint++;
     }
-
-    set ^= 1;
-    base++;
   }
 }
 
-// Mark codepoint as combining in the bit table
-void unicode_update_combining_mark(int codepoint) {
-  unicode_combining_marks[codepoint/((int)sizeof(unsigned int)*8)] |= 1u<<(codepoint&((int)sizeof(unsigned int)*8-1));
-}
-
-// Check if codepoint is marked as combining
-inline int unicode_combining_mark(int codepoint) {
-  if (codepoint>=0 && codepoint<UNICODE_COMBINE_MAX) {
-    return (unicode_combining_marks[codepoint/((int)sizeof(unsigned int)*8)]>>(codepoint&((int)sizeof(unsigned int)*8-1)))&1;
-  }
-
-  return 0;
-}
-
-// Check if codepoint is marked as combining
-inline int unicode_width(int codepoint) {
+// Check if codepoint is marked
+inline int unicode_bitfield_check(unsigned int* table, int codepoint) {
   if (codepoint>=0 && codepoint<UNICODE_CODEPOINT_MAX) {
-    return (unicode_widths[codepoint/((int)sizeof(unsigned int)*8)]>>(codepoint&((int)sizeof(unsigned int)*8-1)))&1;
+    return (table[codepoint/((int)sizeof(unsigned int)*8)]>>(codepoint&((int)sizeof(unsigned int)*8-1)))&1;
   }
 
   return 0;
@@ -90,7 +57,7 @@ size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offse
   size_t pos = 0;
   size_t read = 0;
   int codepoint = encoding_cache_find_codepoint(cache, offset+read++);
-  if (unicode_combining_mark(codepoint)) {
+  if (unicode_bitfield_check(&unicode_nonspacing_marks[0], codepoint) || unicode_bitfield_check(&unicode_spacing_marks[0], codepoint)) {
     codepoints[pos++] = 'o';
   }
 
@@ -98,7 +65,7 @@ size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offse
   if (codepoint>0x20) {
     while (pos<max) {
       codepoint = encoding_cache_find_codepoint(cache, offset+read);
-      if (unicode_combining_mark(codepoint)) {
+      if (unicode_bitfield_check(&unicode_nonspacing_marks[0], codepoint) || unicode_bitfield_check(&unicode_spacing_marks[0], codepoint)) {
         codepoints[pos++] = codepoint;
         read++;
         continue;
@@ -125,11 +92,16 @@ size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offse
 }
 
 // Check visual width of unicode sequence
-int unicode_size(int* codepoints, size_t max) {
+int unicode_width(int* codepoints, size_t max) {
   if (max<=0) {
     return 1;
   }
 
+  // Return width zero if character is invisible
+  if (unicode_bitfield_check(&unicode_invisibles[0], codepoints[0])) {
+    return 0;
+  }
+
   // Check if we have CJK ideographs (which are displayed in two columns each)
-  return unicode_width(codepoints[0])+1;
+  return unicode_bitfield_check(&unicode_widths[0], codepoints[0])+1;
 }

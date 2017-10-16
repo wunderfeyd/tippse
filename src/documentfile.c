@@ -335,7 +335,7 @@ void document_file_detect_properties(struct document_file* file) {
 }
 
 void document_file_expand(file_offset_t* pos, file_offset_t offset, file_offset_t length) {
-  if (*pos>=offset && *pos!=~0u) {
+  if (*pos>=offset && *pos!=FILE_OFFSET_T_MAX) {
     *pos+=length;
   }
 }
@@ -403,7 +403,7 @@ void document_file_insert_buffer(struct document_file* file, file_offset_t offse
 }
 
 void document_file_reduce(file_offset_t* pos, file_offset_t offset, file_offset_t length) {
-  if (*pos>=offset && *pos!=~0u) {
+  if (*pos>=offset && *pos!=FILE_OFFSET_T_MAX) {
     if ((*pos-offset)>=length) {
       *pos-=length;
     } else {
@@ -461,8 +461,8 @@ int document_file_delete_selection(struct document_file* file, struct document_v
 
   document_file_delete(file, low, high-low);
   view->offset = low;
-  view->selection_low = ~0u;
-  view->selection_high = ~0u;
+  view->selection_low = FILE_OFFSET_T_MAX;
+  view->selection_high = FILE_OFFSET_T_MAX;
   return 1;
 }
 

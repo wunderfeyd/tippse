@@ -283,7 +283,7 @@ position_t document_text_render_lookahead_word_wrap(struct document_file* file, 
       break;
     }
 
-    count += unicode_size(&codepoints[0], read);
+    count += unicode_width(&codepoints[0], read);
     advanced += advance;
   }
 
@@ -643,13 +643,13 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     int fill = 0;
     int fill_code = -1;
     if (((((cp!=newline_cp2 || newline_cp2==0) && cp!=0xfeff) || view->show_invisibles) && cp!='\t') || view->continuous) {
-      fill = unicode_size(&codepoints[0], read);
+      fill = unicode_width(&codepoints[0], read);
     } else if (cp=='\t') {
       fill = file->tabstop_width-(render_info->x%file->tabstop_width);
       fill_code = ' ';
     }
 
-    if (screen && render_info->y_view==render_info->y) {
+    if (screen && render_info->y_view==render_info->y && fill>0) {
       if (cp<0x20 && cp!=newline_cp1) {
         show = 0xfffd;
       }
@@ -1168,7 +1168,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
       view->cursor_x = out.x;
       view->cursor_y = out.y;
-      if (view->selection_start==~0u) {
+      if (view->selection_start==FILE_OFFSET_T_MAX) {
         view->selection_start = view->offset;
       }
       view->selection_end = view->offset;
@@ -1191,7 +1191,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
   } else if (cp==TIPPSE_KEY_TAB) {
     document_undo_chain(file, file->undos);
-    if (view->selection_low==~0u) {
+    if (view->selection_low==FILE_OFFSET_T_MAX) {
       uint8_t utf8[8];
       file_offset_t size;
       if (file->tabstop==TIPPSE_TABSTOP_SPACE) {
@@ -1214,7 +1214,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     selection_keep = 1;
   } else if (cp==TIPPSE_KEY_UNTAB) {
     document_undo_chain(file, file->undos);
-    if (view->selection_low!=~0u) {
+    if (view->selection_low!=FILE_OFFSET_T_MAX) {
       document_text_lower_indentation(base, splitter, view->selection_low, view->selection_high-1);
     }
     document_undo_chain(file, file->undos);
@@ -1226,7 +1226,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     selection_keep = 1;
   } else if (cp==TIPPSE_KEY_COPY || cp==TIPPSE_KEY_CUT) {
     document_undo_chain(file, file->undos);
-    if (view->selection_low!=~0u) {
+    if (view->selection_low!=FILE_OFFSET_T_MAX) {
       clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low), file->binary);
       if (cp==TIPPSE_KEY_CUT) {
         document_file_delete_selection(splitter->file, splitter->view);
@@ -1352,21 +1352,21 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   int selection_reset = 0;
   if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
-      if (!(button_old&TIPPSE_MOUSE_LBUTTON) && !(modifier&TIPPSE_KEY_MOD_SHIFT)) view->selection_start = ~0u;
-      if (view->selection_start==~0u) view->selection_start = view->offset;
+      if (!(button_old&TIPPSE_MOUSE_LBUTTON) && !(modifier&TIPPSE_KEY_MOD_SHIFT)) view->selection_start = FILE_OFFSET_T_MAX;
+      if (view->selection_start==FILE_OFFSET_T_MAX) view->selection_start = view->offset;
       view->selection_end = view->offset;
     }
   } else {
     if (modifier&TIPPSE_KEY_MOD_SHIFT) {
-      if (view->selection_start==~0u) view->selection_start = offset_old;
+      if (view->selection_start==FILE_OFFSET_T_MAX) view->selection_start = offset_old;
       view->selection_end = view->offset;
     } else {
       selection_reset = selection_keep ? 0 : 1;
     }
   }
   if (selection_reset) {
-    view->selection_start = ~0u;
-    view->selection_end = ~0u;
+    view->selection_start = FILE_OFFSET_T_MAX;
+    view->selection_end = FILE_OFFSET_T_MAX;
   }
   if (view->selection_start<view->selection_end) {
     view->selection_low = view->selection_start;

@@ -29,7 +29,7 @@ void document_undo_mark_save_point(struct document_file* file) {
 
 void document_undo_check_save_point(struct document_file* file) {
   if (file->undos->count+file->redos->count<file->undo_save_point) {
-    file->undo_save_point = ~0u;
+    file->undo_save_point = FILE_OFFSET_T_MAX;
   }
 }
 

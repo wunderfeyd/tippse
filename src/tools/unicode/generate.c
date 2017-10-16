@@ -72,8 +72,43 @@ void code_range(char* param, int* from, int* to) {
   (*to)++;
 }
 
+// Write RLE stream
+void write_rle(const char* to, const char* name, uint8_t* output, size_t output_size) {
+  FILE* file = fopen(to, "w");
+  if (file) {
+    fprintf(file, "uint16_t unicode_%s_rle[] = {", name);
+    int run = 0;
+    size_t runs;
+    uint8_t old = output[0];
+    size_t n = 0;
+    while (n<=output_size) {
+      if (n==output_size || old!=output[n] || run==0x7fff) {
+        if ((runs&15)==0) {
+          fprintf(file, "\r\n ");
+        }
+        runs++;
+        fprintf(file, " 0x%04x,", (run<<1)|old);
+
+        run = 0;
+        if (n==output_size) {
+          n++;
+        } else {
+          old = output[n];
+        }
+      } else {
+        run++;
+        n++;
+      }
+    }
+    fprintf(file, " 0};\r\n");
+    fclose(file);
+  } else {
+    printf("Can't create file '%s'\r\n", to);
+  }
+}
+
 // Extract full width and half width information from unicode database to build a bit array
-void convert_halffull(const char* from, const char* to) {
+void convert_widths(const char* from, const char* to) {
   size_t size;
   uint8_t* buffer = read_file(from, &size);
   if (!buffer) {
@@ -107,37 +142,55 @@ void convert_halffull(const char* from, const char* to) {
   }
 
   free(buffer);
+  write_rle(to, "widths", output, output_size);
+  free(output);
+}
 
-  FILE* file = fopen(to, "w");
-  if (file) {
-    fprintf(file, "int unicode_widths_rle[] = {");
-    int run = 0;
-    size_t runs;
-    uint8_t old = 0;
-    for (size_t n = 0; n<=output_size; n++) {
-      if (n==output_size || old!=output[n]) {
-        old = (n==output_size)?0:output[n];
-        if ((runs&7)==0) {
-          fprintf(file, "\r\n ");
-        }
-        runs++;
-        fprintf(file, " 0x%06x,", run);
-        run = 1;
-      } else {
-        run++;
-      }
-    }
-    fprintf(file, " -1};\r\n");
-    fclose(file);
-  } else {
-    printf("Can't create file '%s'\r\n", to);
+// Generic method for parsing (param1 is unicode range, param3 is compared parameter)
+void convert_range_param3(const char* from, const char* to, const char* name, const char* cmp0, const char* cmp1) {
+  size_t size;
+  uint8_t* buffer = read_file(from, &size);
+  if (!buffer) {
+    return;
   }
 
+  size_t output_size = UNICODE_MAX_CODEPOINT;
+  uint8_t* output = (uint8_t*)malloc(output_size);
+  memset(output, 0, output_size);
+
+  size_t offset = 0;
+  while (offset<size) {
+    char* param1 = read_param(buffer, size, &offset);
+    char* param2 = read_param(buffer, size, &offset);
+    char* param3 = read_param(buffer, size, &offset);
+
+    int from;
+    int to;
+    code_range(param1, &from, &to);
+    if (from!=-1) {
+      if ((cmp0 && strcmp(param3, cmp0)==0) || (cmp1 && strcmp(param3, cmp1)==0)) {
+        for (int n = from; n<to && n<UNICODE_MAX_CODEPOINT; n++) {
+          output[n] = 1;
+        }
+      }
+    }
+
+    free(param3);
+    free(param2);
+    free(param1);
+    next_line(buffer, size, &offset);
+  }
+
+  free(buffer);
+  write_rle(to, name, output, output_size);
   free(output);
 }
 
 int main(int argc, const char** argv) {
-  convert_halffull("download/EastAsianWidth.txt", "output/unicode_widths.h");
+  convert_widths("download/EastAsianWidth.txt", "output/unicode_widths.h");
+  convert_range_param3("download/UnicodeData.txt", "output/unicode_invisibles.h", "invisibles", "Cc", "Cf");
+  convert_range_param3("download/UnicodeData.txt", "output/unicode_nonspacing_marks.h", "nonspacing_marks", "Mn", "Me");
+  convert_range_param3("download/UnicodeData.txt", "output/unicode_spacing_marks.h", "spacing_marks", "Mc", NULL);
   return 0;
 }
 

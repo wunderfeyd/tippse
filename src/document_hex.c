@@ -219,7 +219,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     view->selection_end = file_size;
     selection_keep = 1;
   } else if (cp==TIPPSE_KEY_COPY || cp==TIPPSE_KEY_CUT) {
-    if (view->selection_low!=~0u) {
+    if (view->selection_low!=FILE_OFFSET_T_MAX) {
       clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low), 1);
       if (cp==TIPPSE_KEY_CUT) {
         document_undo_chain(file, file->undos);
@@ -243,14 +243,14 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   } else if (cp==TIPPSE_KEY_REDO) {
     document_undo_execute_chain(file, view, file->redos, file->undos, 1);
   } else if (cp==TIPPSE_KEY_BACKSPACE) {
-    if (view->selection_low!=~0u || document->cp_first!=0) {
+    if (view->selection_low!=FILE_OFFSET_T_MAX || document->cp_first!=0) {
       document_file_delete_selection(file, view);
     } else {
       view->offset--;
       document_file_delete(file, view->offset, 1);
     }
   } else if (cp==TIPPSE_KEY_DELETE) {
-    if (view->selection_low!=~0u || document->cp_first!=0) {
+    if (view->selection_low!=FILE_OFFSET_T_MAX || document->cp_first!=0) {
       document_file_delete_selection(file, view);
     } else {
       document_file_delete(file, view->offset, 1);
@@ -269,7 +269,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
       document_file_delete(file, view->offset, 1);
       document->cp_first = 0;
     } else {
-      if (view->selection_low!=~0u) {
+      if (view->selection_low!=FILE_OFFSET_T_MAX) {
         uint8_t text = file->binary?0:32;
         document_file_delete_selection(file, view);
         document_file_insert(file, view->offset, &text, 1);
@@ -291,21 +291,21 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   int selection_reset = 0;
   if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
-      if (!(button_old&TIPPSE_MOUSE_LBUTTON) && !(modifier&TIPPSE_KEY_MOD_SHIFT)) view->selection_start = ~0u;
-      if (view->selection_start==~0u) view->selection_start = view->offset;
+      if (!(button_old&TIPPSE_MOUSE_LBUTTON) && !(modifier&TIPPSE_KEY_MOD_SHIFT)) view->selection_start = FILE_OFFSET_T_MAX;
+      if (view->selection_start==FILE_OFFSET_T_MAX) view->selection_start = view->offset;
       view->selection_end = view->offset;
     }
   } else {
     if (modifier&TIPPSE_KEY_MOD_SHIFT) {
-      if (view->selection_start==~0u) view->selection_start = offset_old;
+      if (view->selection_start==FILE_OFFSET_T_MAX) view->selection_start = offset_old;
       view->selection_end = view->offset;
     } else {
       selection_reset = selection_keep ? 0 : 1;
     }
   }
   if (selection_reset) {
-    view->selection_start = ~0u;
-    view->selection_end = ~0u;
+    view->selection_start = FILE_OFFSET_T_MAX;
+    view->selection_end = FILE_OFFSET_T_MAX;
   }
   if (view->selection_start<view->selection_end) {
     view->selection_low = view->selection_start;

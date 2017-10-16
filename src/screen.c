@@ -130,7 +130,7 @@ void screen_draw_char(struct screen* screen, char** pos, int n, int* w, int* for
   if (c->length==0 || c->codepoints[0]!=-1) {
     size_t copy;
     for (copy = 0; copy<c->length; copy++) {
-      *pos += encoding_utf8_encode(NULL, c->codepoints[copy], (uint8_t*)*pos, ~0u);
+      *pos += encoding_utf8_encode(NULL, c->codepoints[copy], (uint8_t*)*pos, SIZE_T_MAX);
     }
 
     if (copy==0) {

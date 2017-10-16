@@ -78,15 +78,15 @@ void document_search(struct splitter* splitter, struct range_tree_node* text, fi
 
   file_offset_t offset = view->offset;
   if (forward) {
-    if (view->selection_low!=~0u) {
+    if (view->selection_low!=FILE_OFFSET_T_MAX) {
       offset = view->selection_high;
     }
   } else {
     offset--;
-    if (view->selection_low!=~0u) {
+    if (view->selection_low!=FILE_OFFSET_T_MAX) {
       offset = view->selection_low-1;
     }
-    if (offset==~0u) {
+    if (offset==FILE_OFFSET_T_MAX) {
       offset = file->buffer->length-1;
     }
   }
@@ -131,7 +131,7 @@ void document_search(struct splitter* splitter, struct range_tree_node* text, fi
     }
   } else {
     while (pos>offset || !wrap) {
-      if (displacement==~0u || !buffer->buffer) {
+      if (displacement==FILE_OFFSET_T_MAX || !buffer->buffer) {
         buffer = range_tree_prev(buffer);
         if (!buffer) {
           buffer = range_tree_last(file->buffer);

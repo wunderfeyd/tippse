@@ -27,10 +27,10 @@ void document_view_reset(struct document_view* view, struct document_file* file)
   view->scroll_y_max = 0;
   view->address_width = 0;
   view->show_scrollbar = 0;
-  view->selection_start = ~0u;
-  view->selection_end = ~0u;
-  view->selection_low = ~0u;
-  view->selection_high = ~0u;
+  view->selection_start = FILE_OFFSET_T_MAX;
+  view->selection_end = FILE_OFFSET_T_MAX;
+  view->selection_low = FILE_OFFSET_T_MAX;
+  view->selection_high = FILE_OFFSET_T_MAX;
   view->line_select = 0;
   document_view_filechange(view, file);
 }

@@ -201,7 +201,7 @@ int main(int argc, const char** argv) {
 
     screen_drawtext(screen, 0, 0, 0, 0, screen->width, screen->height, focus->name, (size_t)screen->width, foreground, background);
     struct encoding_stream stream;
-    encoding_stream_from_plain(&stream, (uint8_t*)focus->status, ~0u);
+    encoding_stream_from_plain(&stream, (uint8_t*)focus->status, SIZE_T_MAX);
     size_t length = encoding_utf8_strlen(NULL, &stream);
     screen_drawtext(screen, screen->width-(int)length, 0, 0, 0, screen->width, screen->height, focus->status, length, foreground, background);
 
