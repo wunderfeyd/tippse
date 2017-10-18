@@ -4,7 +4,7 @@
 
 const char* config_filename = ".tippse";
 
-// Default config
+// Default configuration
 const char* config_default =
   "{"
     "colors:{"
@@ -31,6 +31,7 @@ const char* config_default =
   "}"
 ;
 
+// Create configuration
 struct config* config_create(void) {
   struct config* config = malloc(sizeof(struct config));
   config->keywords = trie_create();
@@ -38,6 +39,7 @@ struct config* config_create(void) {
   return config;
 }
 
+// Destroy configuration
 void config_destroy(struct config* config) {
   config_clear(config);
   trie_destroy(config->keywords);
@@ -45,6 +47,7 @@ void config_destroy(struct config* config) {
   free(config);
 }
 
+// Clear configuration
 void config_clear(struct config* config) {
   trie_clear(config->keywords);
   while (config->values->first) {
@@ -252,7 +255,7 @@ int* config_find_ascii(struct config* config, const char* keyword) {
   return NULL;
 }
 
-// Convert code points to ascii
+// Convert code points to ASCII
 char* config_convert_ascii(int* codepoints) {
   if (!codepoints) {
     return strdup("");

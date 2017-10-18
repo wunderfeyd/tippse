@@ -20,6 +20,7 @@ struct document_file_type document_file_types[] = {
   {NULL,  NULL}
 };
 
+// Create file operations
 struct document_file* document_file_create(int save) {
   struct document_file* file = (struct document_file*)malloc(sizeof(struct document_file));
   file->buffer = NULL;
@@ -40,6 +41,7 @@ struct document_file* document_file_create(int save) {
   return file;
 }
 
+// Clear file operations
 void document_file_clear(struct document_file* file) {
   if (file->buffer) {
     range_tree_destroy(file->buffer);
@@ -54,6 +56,7 @@ void document_file_clear(struct document_file* file) {
   config_clear(file->config);
 }
 
+// Destroy file operations
 void document_file_destroy(struct document_file* file) {
   document_file_clear(file);
   document_undo_empty(file, file->undos);
@@ -216,6 +219,7 @@ void document_file_save(struct document_file* file, const char* filename) {
   //splitter_name(splitter, filename);
 }
 
+// Detect file properties
 void document_file_detect_properties(struct document_file* file) {
   if (!file->buffer) {
     return;
@@ -334,6 +338,7 @@ void document_file_detect_properties(struct document_file* file) {
   }
 }
 
+// Expand file buffer length
 void document_file_expand(file_offset_t* pos, file_offset_t offset, file_offset_t length) {
   if (*pos>=offset && *pos!=FILE_OFFSET_T_MAX) {
     *pos+=length;
@@ -402,6 +407,7 @@ void document_file_insert_buffer(struct document_file* file, file_offset_t offse
   document_undo_empty(file, file->redos);
 }
 
+// Reduce file buffer length
 void document_file_reduce(file_offset_t* pos, file_offset_t offset, file_offset_t length) {
   if (*pos>=offset && *pos!=FILE_OFFSET_T_MAX) {
     if ((*pos-offset)>=length) {
@@ -412,6 +418,7 @@ void document_file_reduce(file_offset_t* pos, file_offset_t offset, file_offset_
   }
 }
 
+// Delete file buffer
 void document_file_delete(struct document_file* file, file_offset_t offset, file_offset_t length) {
   if (!file->buffer || offset>=file->buffer->length) {
     return;
@@ -440,6 +447,7 @@ void document_file_delete(struct document_file* file, file_offset_t offset, file
   document_undo_empty(file, file->redos);
 }
 
+// Delete file buffer selection
 int document_file_delete_selection(struct document_file* file, struct document_view* view) {
   if (!file->buffer) {
     return 0;
@@ -478,6 +486,7 @@ void document_file_manualchange(struct document_file* file) {
   }
 }
 
+// Reload file configuration
 void document_file_reload_config(struct document_file* file) {
   config_clear(file->config);
 

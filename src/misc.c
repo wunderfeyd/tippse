@@ -2,6 +2,7 @@
 
 #include "misc.h"
 
+// Sort an array with merge sort, second array is a temporary buffer
 char** merge_sort(char** sort1, char** sort2, size_t count) {
   size_t m;
   for (m = 1; m<count; m<<=1) {
@@ -49,6 +50,7 @@ char** merge_sort(char** sort1, char** sort2, size_t count) {
   return sort1;
 }
 
+// Return directory path without file name
 char* strip_file_name(const char* file) {
   const char* last = file;
   const char* search = file;
@@ -67,6 +69,7 @@ char* strip_file_name(const char* file) {
   return stripped;
 }
 
+// Return merged strings
 char* combine_string(const char* string1, const char* string2) {
   size_t string1_length = strlen(string1);
   size_t string2_length = strlen(string2);
@@ -78,6 +81,7 @@ char* combine_string(const char* string1, const char* string2) {
   return combined;
 }
 
+// Returned merged directory path and file name
 char* combine_path_file(const char* path, const char* file) {
   if (*file=='/') {
     return strdup(file);
@@ -102,6 +106,7 @@ char* combine_path_file(const char* path, const char* file) {
   return combined;
 }
 
+// Return normalised directory path
 char* correct_path(const char* path) {
   size_t path_length = strlen(path);
   char* real = malloc(sizeof(char)*(path_length+2));
@@ -154,6 +159,7 @@ char* correct_path(const char* path) {
   return real;
 }
 
+// Return relative directory path
 char* relativate_path(const char* base, const char* path) {
   char* real = realpath(path, NULL);
   if (!real) {
@@ -181,6 +187,7 @@ char* relativate_path(const char* base, const char* path) {
   return real;
 }
 
+// Return user's home directory
 char* home_path(void) {
   char* env = getenv("HOME");
   if (env) {
@@ -195,6 +202,7 @@ char* home_path(void) {
   return strdup("");
 }
 
+// Check if directory
 int is_directory(const char* path) {
   struct stat statbuf;
   if (stat(path, &statbuf)!=0) {
@@ -204,6 +212,7 @@ int is_directory(const char* path) {
   return S_ISDIR(statbuf.st_mode);
 }
 
+// Return tick counter (microseconds)
 int64_t tick_count(void) {
   struct timeval t;
   gettimeofday(&t, NULL);

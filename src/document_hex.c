@@ -2,6 +2,7 @@
 
 #include "document_hex.h"
 
+// Create document
 struct document* document_hex_create(void) {
   struct document_hex* document = (struct document_hex*)malloc(sizeof(struct document_hex));
   document->cp_first = 0;
@@ -13,6 +14,7 @@ struct document* document_hex_create(void) {
   return (struct document*)document;
 }
 
+// Destroy document
 void document_hex_destroy(struct document* base) {
   free(base);
 }

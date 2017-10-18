@@ -13,6 +13,7 @@ int debug_draw = 0;
 struct screen* debug_screen = NULL;
 struct splitter* debug_splitter = NULL;
 
+// Create document
 struct document* document_text_create(void) {
   struct document_text* document = (struct document_text*)malloc(sizeof(struct document_text));
   document->keep_status = 0;
@@ -24,6 +25,7 @@ struct document* document_text_create(void) {
   return (struct document*)document;
 }
 
+// Destroy document
 void document_text_destroy(struct document* base) {
   free(base);
 }
@@ -121,13 +123,13 @@ file_offset_t document_text_cursor_position_partial(struct document_text_render_
   return out->offset;
 }
 
+// Goto specified position
 file_offset_t document_text_cursor_position(struct splitter* splitter, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel) {
   struct document_text_render_info render_info;
 
   document_text_render_clear(&render_info, splitter->client_width-splitter->view->address_width);
   return document_text_cursor_position_partial(&render_info, splitter, in, out, wrap, cancel);
 }
-
 
 // Clear renderer state to ensure a restart at next seek
 void document_text_render_clear(struct document_text_render_info* render_info, position_t width) {
@@ -1017,6 +1019,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   splitter_scrollbar(screen, splitter);
 }
 
+// Handle key press
 void document_text_keypress(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y) {
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;

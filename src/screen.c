@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include "screen.h"
 
+// Create screen
 struct screen* screen_create(void) {
   struct screen* screen = (struct screen*)malloc(sizeof(struct screen));
   screen->width = 0;
@@ -37,6 +38,7 @@ struct screen* screen_create(void) {
   return screen;
 }
 
+// Destroy screen
 void screen_destroy(struct screen* screen) {
   if (screen==NULL) {
     return;
@@ -58,6 +60,7 @@ void screen_destroy(struct screen* screen) {
   free(screen);
 }
 
+// Initialise screen
 void screen_check(struct screen* screen) {
   struct winsize w;
   ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
@@ -158,6 +161,7 @@ void screen_draw_update(struct screen* screen, char** pos, int old, int n, int* 
   }
 }
 
+// Set screen title
 void screen_title(struct screen* screen, const char* title) {
   if (screen->title_new) {
     free(screen->title_new);
@@ -166,6 +170,7 @@ void screen_title(struct screen* screen, const char* title) {
   screen->title_new = strdup(title);
 }
 
+// Set screen cursor
 void screen_cursor(struct screen* screen, int x, int y) {
   screen->cursor_x = x;
   screen->cursor_y = y;

@@ -2,6 +2,7 @@
 
 #include "splitter.h"
 
+// Create splitter
 struct splitter* splitter_create(int type, int split, struct splitter* side0, struct splitter* side1, const char* name) {
   struct splitter* splitter = malloc(sizeof(struct splitter));
   splitter->type = type;
@@ -37,6 +38,7 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
   return splitter;
 }
 
+// Destroy splitter
 void splitter_destroy(struct splitter* splitter) {
   if (!splitter) {
     return;
@@ -55,14 +57,17 @@ void splitter_destroy(struct splitter* splitter) {
   free(splitter);
 }
 
+// Draw character
 void splitter_drawchar(struct screen* screen, const struct splitter* splitter, int x, int y, int* codepoints, size_t length, int foreground, int background) {
   screen_setchar(screen, splitter->x+x, splitter->y+y, splitter->x, splitter->y, splitter->client_width, splitter->client_height, codepoints, length, foreground, background);
 }
 
+// Draw text
 void splitter_drawtext(struct screen* screen, const struct splitter* splitter, int x, int y, const char* text, size_t length, int foreground, int background) {
   screen_drawtext(screen, splitter->x+x, splitter->y+y, splitter->x, splitter->y, splitter->client_width, splitter->client_height, text, length, foreground, background);
 }
 
+// Set splitter name
 void splitter_name(struct splitter* splitter, const char* name) {
   if (name!=splitter->name) {
     free(splitter->name);
@@ -70,6 +75,7 @@ void splitter_name(struct splitter* splitter, const char* name) {
   }
 }
 
+// Set splitter status
 void splitter_status(struct splitter* splitter, const char* status, int status_inverted) {
   if (status!=splitter->status) {
     free(splitter->status);
@@ -79,11 +85,13 @@ void splitter_status(struct splitter* splitter, const char* status, int status_i
   splitter->status_inverted = status_inverted;
 }
 
+// Set cursor
 void splitter_cursor(struct screen* screen, struct splitter* splitter, int x, int y) {
   splitter->cursor_x = x;
   splitter->cursor_y = y;
 }
 
+// Set scrollbar
 void splitter_scrollbar(struct screen* screen, const struct splitter* splitter) {
   struct document_view* view = splitter->view;
 
