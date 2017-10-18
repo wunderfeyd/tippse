@@ -1,2 +1,4 @@
 .DS_Store
 tippse
+src/tools/unicode/output
+src/tools/unicode/generate

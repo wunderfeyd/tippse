@@ -452,104 +452,106 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     // bitset 0 = on line; 1 = above (line); 2 = above
 
     int drawn = 0;
-    if (in->type==VISUAL_SEEK_X_Y) {
-      if (render_info->y_view==in->y) {
-        drawn = (render_info->x>=in->x)?(2|1):1;
-      } else if (render_info->y_view>in->y) {
-        drawn = 4;
-      }
-    } else if (in->type==VISUAL_SEEK_LINE_COLUMN) {
-      if (render_info->line==in->line) {
-        drawn = (render_info->column>=in->column)?(2|1):1;
-      } else if (render_info->line>in->line) {
-        drawn = 4;
-      }
-    } else if (in->type==VISUAL_SEEK_OFFSET) {
-      drawn = (render_info->offset>=in->offset)?(4|2|1):1;
-    } else if (in->type==VISUAL_SEEK_BRACKET_NEXT) {
-      int bracket_correction = ((bracket_match&VISUAL_BRACKET_CLOSE) && ((bracket_match&VISUAL_BRACKET_MASK)==in->bracket))?1:0;
-      drawn = (render_info->offset>=in->offset && render_info->depth_new[in->bracket]-bracket_correction==in->bracket_search)?(4|2|1):0;
-      rendered = (render_info->offset>=in->offset && (out->type!=VISUAL_SEEK_NONE || (drawn&4)))?1:-1;
-    } else if (in->type==VISUAL_SEEK_BRACKET_PREV) {
-      int bracket_correction = ((bracket_match&VISUAL_BRACKET_CLOSE) && ((bracket_match&VISUAL_BRACKET_MASK)==in->bracket))?1:0;
-      drawn = (render_info->depth_new[in->bracket]-bracket_correction==in->bracket_search && render_info->offset<=in->offset)?1:0;
-      if (render_info->offset>=in->offset) {
-        rendered = (out->type!=VISUAL_SEEK_NONE || drawn)?1:-1;
-      } else {
-        rendered = 0;
-      }
-    } else if (in->type==VISUAL_SEEK_INDENTATION_LAST) {
-      if (render_info->line==in->line) {
-        drawn = ((render_info->visual_detail&VISUAL_INFO_NEWLINE) || (render_info->indented))?1:0;
-      } else if (render_info->line>in->line) {
-        drawn = 4;
-      }
-    }
-
-    if (out && stop!=1) {
-      out->y_drawn |= (drawn&1);
-
-      if (!(drawn&1) && out->y_drawn && in->type!=VISUAL_SEEK_BRACKET_PREV && in->type!=VISUAL_SEEK_BRACKET_NEXT && in->type!=VISUAL_SEEK_INDENTATION_LAST) {
-        stop = 1;
-      }
-
-      if (drawn&1) {
-        if (in->type==VISUAL_SEEK_X_Y) {
-          out->x_max = render_info->x;
-          out->x_min = (render_info->visual_detail&VISUAL_INFO_WRAPPED)?render_info->indentation+render_info->indentation_extra:0;
-        } else if (in->type==VISUAL_SEEK_LINE_COLUMN) {
-          out->x_max = render_info->column;
-          out->x_min = 0;
+    if (!(render_info->visual_detail&VISUAL_INFO_CONTROLCHARACTER) || view->show_invisibles) {
+      if (in->type==VISUAL_SEEK_X_Y) {
+        if (render_info->y_view==in->y) {
+          drawn = (render_info->x>=in->x)?(2|1):1;
+        } else if (render_info->y_view>in->y) {
+          drawn = 4;
+        }
+      } else if (in->type==VISUAL_SEEK_LINE_COLUMN) {
+        if (render_info->line==in->line) {
+          drawn = (render_info->column>=in->column)?(2|1):1;
+        } else if (render_info->line>in->line) {
+          drawn = 4;
+        }
+      } else if (in->type==VISUAL_SEEK_OFFSET) {
+        drawn = (render_info->offset>=in->offset)?(4|2|1):1;
+      } else if (in->type==VISUAL_SEEK_BRACKET_NEXT) {
+        int bracket_correction = ((bracket_match&VISUAL_BRACKET_CLOSE) && ((bracket_match&VISUAL_BRACKET_MASK)==in->bracket))?1:0;
+        drawn = (render_info->offset>=in->offset && render_info->depth_new[in->bracket]-bracket_correction==in->bracket_search)?(4|2|1):0;
+        rendered = (render_info->offset>=in->offset && (out->type!=VISUAL_SEEK_NONE || (drawn&4)))?1:-1;
+      } else if (in->type==VISUAL_SEEK_BRACKET_PREV) {
+        int bracket_correction = ((bracket_match&VISUAL_BRACKET_CLOSE) && ((bracket_match&VISUAL_BRACKET_MASK)==in->bracket))?1:0;
+        drawn = (render_info->depth_new[in->bracket]-bracket_correction==in->bracket_search && render_info->offset<=in->offset)?1:0;
+        if (render_info->offset>=in->offset) {
+          rendered = (out->type!=VISUAL_SEEK_NONE || drawn)?1:-1;
+        } else {
+          rendered = 0;
+        }
+      } else if (in->type==VISUAL_SEEK_INDENTATION_LAST) {
+        if (render_info->line==in->line) {
+          drawn = ((render_info->visual_detail&VISUAL_INFO_NEWLINE) || (render_info->indented))?1:0;
+        } else if (render_info->line>in->line) {
+          drawn = 4;
         }
       }
 
-      if ((drawn&1) && (!(render_info->visual_detail&VISUAL_INFO_CONTROLCHARACTER) || view->show_invisibles)) {
-        int set = 1;
-        if (drawn&2) {
-          if (cancel && out->type!=VISUAL_SEEK_NONE) {
-            if ((in->type==VISUAL_SEEK_OFFSET && render_info->offset>in->offset) || (in->type==VISUAL_SEEK_X_Y && render_info->x>in->x) || (in->type==VISUAL_SEEK_LINE_COLUMN && render_info->column>in->column) || (in->type==VISUAL_SEEK_INDENTATION_LAST)) {
-              set = 0;
-            }
-          }
+      if (out && stop!=1) {
+        out->y_drawn |= (drawn&1);
 
+        if (!(drawn&1) && out->y_drawn && in->type!=VISUAL_SEEK_BRACKET_PREV && in->type!=VISUAL_SEEK_BRACKET_NEXT && in->type!=VISUAL_SEEK_INDENTATION_LAST) {
           stop = 1;
         }
 
-        if (set) {
-          out->type = in->type;
-          out->x = render_info->x;
-          out->y = render_info->y_view;
-          out->offset = render_info->offset;
-          out->line = render_info->line;
-          out->column = render_info->column;
-          out->buffer = render_info->buffer;
-          out->displacement = render_info->displacement;
-          out->character = render_info->character;
-          out->bracket_match = bracket_match;
-          out->visual_detail = render_info->visual_detail;
-          out->lines = render_info->lines;
-          out->indented = render_info->indented;
-          for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
-            out->depth[n] = render_info->depth_new[n];
-            out->min_line[n] = render_info->brackets_line[n].min;
+        if (drawn&1) {
+          if (in->type==VISUAL_SEEK_X_Y) {
+            out->x_max = render_info->x;
+            out->x_min = (render_info->visual_detail&VISUAL_INFO_WRAPPED)?render_info->indentation+render_info->indentation_extra:0;
+          } else if (in->type==VISUAL_SEEK_LINE_COLUMN) {
+            out->x_max = render_info->column;
+            out->x_min = 0;
+          }
+        }
+
+        if (drawn&1) {
+          int set = 1;
+          if (drawn&2) {
+            if (cancel && out->type!=VISUAL_SEEK_NONE) {
+              if ((in->type==VISUAL_SEEK_OFFSET && render_info->offset>in->offset) || (in->type==VISUAL_SEEK_X_Y && render_info->x>in->x) || (in->type==VISUAL_SEEK_LINE_COLUMN && render_info->column>in->column) || (in->type==VISUAL_SEEK_INDENTATION_LAST)) {
+                set = 0;
+              }
+            }
+
+            stop = 1;
+          }
+
+          if (set) {
+            out->type = in->type;
+            out->x = render_info->x;
+            out->y = render_info->y_view;
+            out->offset = render_info->offset;
+            out->line = render_info->line;
+            out->column = render_info->column;
+            out->buffer = render_info->buffer;
+            out->displacement = render_info->displacement;
+            out->character = render_info->character;
+            out->bracket_match = bracket_match;
+            out->visual_detail = render_info->visual_detail;
+            out->lines = render_info->lines;
+            out->indented = render_info->indented;
+            for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
+              out->depth[n] = render_info->depth_new[n];
+              out->min_line[n] = render_info->brackets_line[n].min;
+            }
           }
         }
       }
-    }
 
-    if (drawn>=2 && !in->clip) {
-      stop = 1;
-    }
-
-    if (boundary && page_count>1 && drawn<2 && !stop) {
-      if (in->type==VISUAL_SEEK_BRACKET_NEXT) {
-      } else if (in->type==VISUAL_SEEK_BRACKET_PREV) {
-      } else if (in->type==VISUAL_SEEK_INDENTATION_LAST) {
-      } else {
-        rendered = 0;
+      if (drawn>=2 && !in->clip) {
+        stop = 1;
       }
 
-      stop = 1;
+      if (boundary && page_count>1 && drawn<2 && !stop) {
+        if (in->type==VISUAL_SEEK_BRACKET_NEXT) {
+        } else if (in->type==VISUAL_SEEK_BRACKET_PREV) {
+        } else if (in->type==VISUAL_SEEK_INDENTATION_LAST) {
+        } else {
+          rendered = 0;
+        }
+
+        stop = 1;
+      }
     }
 
     if (cp==newline_cp2 && newline_cp2!=0) {
@@ -622,7 +624,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         }
       }
 
-      if (render_info->whitespaced && cp!=newline_cp1) {
+      if (render_info->whitespaced && cp!=newline_cp1 && cp!=newline_cp2) {
         background = 1;
       }
     }
@@ -646,55 +648,62 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     int fill_code = -1;
     if (((((cp!=newline_cp2 || newline_cp2==0) && cp!=0xfeff) || view->show_invisibles) && cp!='\t') || view->continuous) {
       fill = unicode_width(&codepoints[0], read);
+      if (view->show_invisibles && fill<=0) {
+        fill = 1;
+      }
     } else if (cp=='\t') {
       fill = file->tabstop_width-(render_info->x%file->tabstop_width);
       fill_code = ' ';
     }
 
-    if (screen && render_info->y_view==render_info->y && fill>0) {
+    if (screen && render_info->y_view==render_info->y) {
       if (cp<0x20 && cp!=newline_cp1) {
         show = 0xfffd;
       }
 
-      if (cp=='\n') {
+      if (cp==newline_cp1) {
         show = view->show_invisibles?0x00ac:' ';
-      } else if (cp=='\r') {
-        show = view->show_invisibles?0x00ac:' ';
+      } else if (cp==newline_cp2 && newline_cp2!=0) {
+        show = view->show_invisibles?0x00ac:-1;
       } else if (cp=='\t') {
         show = view->show_invisibles?0x00bb:' ';
       } else if (cp==' ') {
         show = view->show_invisibles?0x22c5:' ';
       } else if (cp==0x7f) {
-        show = view->show_invisibles?0xfffd:' ';
+        show = view->show_invisibles?0xfffd:show;
       } else if (cp==0xfeff) {
-        show = view->show_invisibles?0x2433:'X';
+        show = view->show_invisibles?0x2433:show;
       } else if (cp<0) {
         show = 0xfffd;
       }
 
-      if (render_info->offset>=view->selection_low && render_info->offset<view->selection_high) {
-        background = file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
+      if (show!=-1 && cp!='\t') {
+        fill = 1;
       }
 
-      int codepoints_visual[8];
-      for (size_t code = 0; code<read; code++) {
-        codepoints_visual[code] = (file->encoding->visual)(file->encoding, codepoints[code]);
-      }
-
-      position_t x = render_info->x-view->scroll_x+view->address_width;
-      position_t y = render_info->y-view->scroll_y;
-      if (x>=view->address_width) {
-        if (show!=-1) {
-          splitter_drawchar(screen, splitter, (int)x++, (int)y, &show, 1, color, background);
-        } else {
-          splitter_drawchar(screen, splitter, (int)x++, (int)y, &codepoints_visual[0], read, color, background);
+      if (fill>0) {
+        if (render_info->offset>=view->selection_low && render_info->offset<view->selection_high) {
+          background = file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
         }
-      }
 
-      show = fill_code;
-      int pos;
-      for (pos = 1; pos<fill; pos++) {
-        splitter_drawchar(screen, splitter, (int)x++, (int)y, &show, 1, color, background);
+        int codepoints_visual[8];
+        for (size_t code = 0; code<read; code++) {
+          codepoints_visual[code] = (file->encoding->visual)(file->encoding, codepoints[code]);
+        }
+
+        position_t x = render_info->x-view->scroll_x+view->address_width;
+        position_t y = render_info->y-view->scroll_y;
+        if (x>=view->address_width) {
+          if (show!=-1) {
+            splitter_drawchar(screen, splitter, (int)x++, (int)y, &show, 1, color, background);
+          } else {
+            splitter_drawchar(screen, splitter, (int)x++, (int)y, &codepoints_visual[0], read, color, background);
+          }
+        }
+
+        for (int pos = 1; pos<fill; pos++) {
+          splitter_drawchar(screen, splitter, (int)x++, (int)y, &fill_code, 1, color, background);
+        }
       }
     }
 

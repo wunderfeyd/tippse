@@ -420,6 +420,7 @@ int main(int argc, const char** argv) {
                 struct document_file* docs_document_doc = (struct document_file*)docs->object;
                 if (document_undo_modified(docs_document_doc) && docs_document_doc->save) {
                   document_file_save(docs_document_doc, docs_document_doc->filename);
+                  document_file_detect_properties(docs_document_doc);
                 }
 
                 docs = docs->next;
