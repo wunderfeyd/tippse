@@ -16,8 +16,8 @@ struct document_undo;
 #define TIPPSE_UNDO_TYPE_INSERT 1
 
 struct document_undo {
-  file_offset_t offset;
-  file_offset_t length;
+  file_offset_t offset;             // offset of change
+  file_offset_t length;             // length of change
 
   file_offset_t cursor_insert;
   file_offset_t cursor_delete;
@@ -30,8 +30,8 @@ struct document_undo {
   int scroll_x;
   int scroll_y;
 
-  int type;
-  struct range_tree_node* buffer;
+  int type;                         // type of change, delete or insert
+  struct range_tree_node* buffer;   // refence to document buffer, corresponding page in tree
 };
 
 void document_undo_add(struct document_file* file, struct document_view* view, file_offset_t offset, file_offset_t length, int insert);

@@ -46,42 +46,42 @@ struct document_file;
 #include "config.h"
 
 struct document_file_defaults {
-  int colors[VISUAL_FLAG_COLOR_MAX];
+  int colors[VISUAL_FLAG_COLOR_MAX];    // color values
 
-  int invisibles;
-  int wrapping;
-  int continuous;
+  int invisibles;                       // show invisibles?
+  int wrapping;                         // show line wrapping?
+  int continuous;                       // ignore line wrapping?
 
-  int tabstop;
-  int tabstop_width;
-  int newline;
+  int tabstop;                          // type of tabstop
+  int tabstop_width;                    // number of spaces per tab
+  int newline;                          // type of newline, e.g. Unix or DOS
 };
 
 struct document_file_type {
-  const char* extension;
-  struct file_type* (*constructor)(void);
+  const char* extension;                // file extension
+  struct file_type* (*constructor)(void); // file type
 };
 
 struct document_file {
-  struct range_tree_node* buffer;
-  struct range_tree_node* bookmarks;
-  struct list* undos;
-  struct list* redos;
-  struct file_type* type;
-  struct encoding* encoding;
-  struct config* config;
-  int tabstop;
-  int tabstop_width;
-  int newline;
-  int binary;
+  struct range_tree_node* buffer;       // access to document buffer, root page
+  struct range_tree_node* bookmarks;    // access to bookmarks
+  struct list* undos;                   // undo information
+  struct list* redos;                   // redo information
+  struct file_type* type;               // file type
+  struct encoding* encoding;            // file encoding
+  struct config* config;                // configuration
+  int tabstop;                          // type of tabstop
+  int tabstop_width;                    // number of spaces per tab
+  int newline;                          // type of newline, e.g. Unix or DOS
+  int binary;                           // binary file?
 
-  char* filename;
-  int save;
-  size_t undo_save_point;
+  char* filename;                       // file name
+  int save;                             // file can be saved, is real file?
+  size_t undo_save_point;               // last save point in undo information
 
-  struct document_file_defaults defaults;
-  struct document_view* view;
-  struct list* views;
+  struct document_file_defaults defaults; // configuration
+  struct document_view* view;           // last used view
+  struct list* views;                   // available views
 };
 
 struct document_file* document_file_create(int save);

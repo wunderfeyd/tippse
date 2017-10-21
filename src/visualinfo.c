@@ -1,4 +1,4 @@
-/* Tippse - Visual information store - Holds information about variable length or long visuals like comments/strings etc. */
+// Tippse - Visual information store - Holds information about variable length or long visuals like comments/strings etc.
 
 #include "visualinfo.h"
 

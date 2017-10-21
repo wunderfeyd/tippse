@@ -1,4 +1,4 @@
-/* Tippse - Document Hex View - Cursor and display operations for hex mode */
+// Tippse - Document Hex View - Cursor and display operations for hex mode
 
 #include "document_hex.h"
 

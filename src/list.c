@@ -1,4 +1,4 @@
-/* Tippse - List - Simple double linked list */
+// Tippse - List - Simple double linked list
 
 #include "list.h"
 

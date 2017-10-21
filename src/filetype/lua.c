@@ -1,4 +1,4 @@
-/* Tippse - File type - Lua language */
+// Tippse - File type - Lua language
 
 #include "lua.h"
 

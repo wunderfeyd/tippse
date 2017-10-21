@@ -1,4 +1,4 @@
-/* Tippse - Config - Configuration loader and combiner */
+// Tippse - Config - Configuration loader and combiner
 
 #include "config.h"
 

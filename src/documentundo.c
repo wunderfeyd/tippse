@@ -1,7 +1,8 @@
-/* Tippse - Document undo - Manages undo and redo lists */
+// Tippse - Document undo - Manages undo and redo lists
 
 #include "documentundo.h"
 
+// Add an undo step
 void document_undo_add(struct document_file* file, struct document_view* view, file_offset_t offset, file_offset_t length, int type) {
   if (length==0) {
     return;
@@ -18,10 +19,12 @@ void document_undo_add(struct document_file* file, struct document_view* view, f
   list_insert(file->undos, NULL, undo);
 }
 
+// Check if document modified
 int document_undo_modified(struct document_file* file) {
    return (file->undo_save_point!=file->undos->count)?1:0;
 }
 
+// Set last save point
 void document_undo_mark_save_point(struct document_file* file) {
   document_undo_chain(file, file->undos);
   file->undo_save_point = file->undos->count;

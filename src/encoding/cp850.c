@@ -1,4 +1,4 @@
-/* Tippse - Encoding CP850 - Encode/Decode of code page 850 bytes to/from unicode code points */
+// Tippse - Encoding CP850 - Encode/Decode of code page 850 bytes to/from unicode code points
 
 #include "cp850.h"
 

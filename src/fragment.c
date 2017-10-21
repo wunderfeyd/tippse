@@ -1,4 +1,4 @@
-/* Tippse - Fragment - Holds a portion of a document, is a shared object using reference counting */
+// Tippse - Fragment - Holds a portion of a document, is a shared object using reference counting
 
 #include "fragment.h"
 

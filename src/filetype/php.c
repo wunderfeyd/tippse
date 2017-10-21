@@ -1,4 +1,4 @@
-/* Tippse - File type - PHP language */
+// Tippse - File type - PHP language
 
 #include "php.h"
 

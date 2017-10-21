@@ -1,4 +1,4 @@
-/* Tippse - Clipboard - Holds and sets clipboard data (interfaces to the system if possible) */
+// Tippse - Clipboard - Holds and sets clipboard data (interfaces to the system if possible)
 
 #include "clipboard.h"
 #include "document_hex.h"

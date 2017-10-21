@@ -1,4 +1,4 @@
-/* Tippse - Document Text View - Cursor and display operations for 2d text mode */
+// Tippse - Document Text View - Cursor and display operations for 2d text mode
 
 #include "document_text.h"
 

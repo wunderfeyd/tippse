@@ -1,4 +1,4 @@
-/* Tippse - Splitter - Binary spaced document view */
+// Tippse - Splitter - Binary spaced document view
 
 #include "splitter.h"
 

@@ -1,4 +1,4 @@
-/* Tippse - File type - XML */
+// Tippse - File type - XML
 
 #include "xml.h"
 

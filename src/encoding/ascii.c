@@ -1,4 +1,4 @@
-/* Tippse - Encoding ASCII - Encode/Decode of ASCII */
+// Tippse - Encoding ASCII - Encode/Decode of ASCII
 
 #include "ascii.h"
 

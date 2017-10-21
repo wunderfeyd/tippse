@@ -1,4 +1,4 @@
-/* Tippse - Misc - Functions that fit nowhere at the moment */
+// Tippse - Misc - Functions that fit nowhere at the moment
 
 #include "misc.h"
 

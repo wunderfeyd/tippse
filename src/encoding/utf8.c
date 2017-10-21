@@ -1,4 +1,4 @@
-/* Tippse - Encoding UTF-8 - Encode/Decode of UTF-8 codepoints */
+// Tippse - Encoding UTF-8 - Encode/Decode of UTF-8 codepoints
 
 #include "utf8.h"
 

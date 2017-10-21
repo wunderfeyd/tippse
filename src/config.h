@@ -10,8 +10,8 @@
 #include "documentfile.h"
 
 struct config {
-  struct trie* keywords;
-  struct list* values;
+  struct trie* keywords;    // all keys
+  struct list* values;      // all values
 };
 
 struct config* config_create(void);
@@ -27,4 +27,5 @@ int* config_find_ascii(struct config* config, const char* keyword);
 
 char* config_convert_ascii(int* codepoints);
 int64_t config_convert_int64(int* codepoints);
+
 #endif /* #ifndef TIPPSE_CONFIG_H */

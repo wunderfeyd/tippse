@@ -1,4 +1,4 @@
-/* Tippse - File type - Plain text */
+// Tippse - File type - Plain text
 
 #include "text.h"
 

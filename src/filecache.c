@@ -1,4 +1,4 @@
-/* Tippse - File cache - Keep last accessed file pages in memory */
+// Tippse - File cache - Keep last accessed file pages in memory
 
 #include "filecache.h"
 

@@ -1,4 +1,4 @@
-/* Tippse - File type - SQL */
+// Tippse - File type - SQL
 
 #include "sql.h"
 

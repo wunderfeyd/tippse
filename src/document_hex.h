@@ -20,14 +20,14 @@ struct document_hex;
 #include "documentundo.h"
 
 struct document_hex_char {
-  int codepoints[8];
-  int visuals[8];
-  size_t length;
+  int codepoints[8];        // Unicode code points
+  int visuals[8];           // Unicode code points to show
+  size_t length;            // number of code points
 };
 
 struct document_hex {
-  struct document vtbl;
-  int cp_first;
+  struct document vtbl;     // virtual table of document
+  int cp_first;             // first pressed key
 };
 
 struct document* document_hex_create(void);

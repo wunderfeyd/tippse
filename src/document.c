@@ -1,7 +1,8 @@
-/* Tippse - Document - Interface for different view types and common meta document functions */
+// Tippse - Document - Interface for different view types and common meta document functions
 
 #include "document.h"
 
+// Search in partial document
 int document_compare(struct range_tree_node* left, file_offset_t displacement_left, struct range_tree_node* right_root, file_offset_t length) {
   struct range_tree_node* right = right_root;
   size_t displacement_right = 0;
@@ -61,6 +62,7 @@ int document_compare(struct range_tree_node* left, file_offset_t displacement_le
   return found;
 }
 
+// Search in document
 void document_search(struct splitter* splitter, struct range_tree_node* text, file_offset_t length, int forward) {
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
@@ -165,6 +167,7 @@ void document_search(struct splitter* splitter, struct range_tree_node* text, fi
   splitter_status(splitter, "Not found!", 1);
 }
 
+// Read directory into document, sort by file name
 void document_directory(struct document_file* file) {
   DIR* directory = opendir(file->filename);
   if (directory) {

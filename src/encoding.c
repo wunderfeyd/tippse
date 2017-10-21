@@ -1,4 +1,4 @@
-/* Tippse - Encoding - Base for different encoding schemes (characters <-> bytes) */
+// Tippse - Encoding - Base for different encoding schemes (characters <-> bytes)
 
 #include "encoding.h"
 

@@ -1,4 +1,4 @@
-/* Tippse - Screen - Display for splitter (a console or a window, depends on OS) */
+// Tippse - Screen - Display for splitter (a console or a window, depends on OS)
 
 #include <stdlib.h>
 #include <sys/ioctl.h>

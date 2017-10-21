@@ -1,4 +1,4 @@
-/* Tippse - File type - Interface and helper functions for specialized document displaying and modification */
+// Tippse - File type - Interface and helper functions for specialized document displaying and modification
 
 #include "filetype.h"
 

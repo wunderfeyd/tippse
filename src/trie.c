@@ -1,4 +1,4 @@
-/* Tippse - Trie - Faster string lookups */
+// Tippse - Trie - Faster string lookups
 
 #include "trie.h"
 

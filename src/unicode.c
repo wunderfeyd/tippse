@@ -1,4 +1,4 @@
-/* Tippse - Unicode helpers - Unicode character information, combination, (de-)composition and transformations */
+// Tippse - Unicode helpers - Unicode character information, combination, (de-)composition and transformations
 
 // TODO: codepoints are represented as simple int which a) could not work on 16bit int platforms and b) could be negative without a need
 

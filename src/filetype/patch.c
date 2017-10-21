@@ -1,4 +1,4 @@
-/* Tippse - File type - Patch files */
+// Tippse - File type - Patch files
 
 #include "patch.h"
 

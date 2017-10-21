@@ -1,4 +1,4 @@
-/* Tippse - File type - JavaScript language */
+// Tippse - File type - JavaScript language
 
 #include "js.h"
 

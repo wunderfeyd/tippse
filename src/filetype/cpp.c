@@ -1,4 +1,4 @@
-/* Tippse - File type - C++ language */
+// Tippse - File type - C++ language
 
 #include "cpp.h"
 

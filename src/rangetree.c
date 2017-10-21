@@ -1,4 +1,4 @@
-/* Tippse - Range tree - For fast access to various attributes of the document */
+// Tippse - Range tree - For fast access to various attributes of the document
 
 #include "rangetree.h"
 

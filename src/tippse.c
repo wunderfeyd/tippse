@@ -1,6 +1,6 @@
-/* Tippse - A fast simple editor */
-/* Project is in early stage, use with care at your own risk, anything could happen */
-/* Project may change substantially during this phase */
+// Tippse - A fast simple editor
+// Project is in early stage, use with care at your own risk, anything could happen
+// Project may change substantially during this phase
 
 #include <stdio.h>
 #include <stdint.h>

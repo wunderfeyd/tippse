@@ -1,4 +1,4 @@
-/* Tippse - Document - File operations and file setup */
+// Tippse - Document - File operations and file setup
 
 #include "documentfile.h"
 
@@ -109,7 +109,7 @@ void document_file_encoding(struct document_file* file, struct encoding* encodin
   file->encoding = encoding;
 }
 
-// Load file into memory if lower than a certain threshold, otherwise just use file offset references
+// Load file from file system, up to a certain threshold
 void document_file_load(struct document_file* file, const char* filename) {
   document_file_clear(file);
   int f = open(filename, O_RDONLY);
@@ -156,6 +156,7 @@ void document_file_load(struct document_file* file, const char* filename) {
   document_view_reset(file->view, file);
 }
 
+// Load file from memory
 void document_file_load_memory(struct document_file* file, const uint8_t* buffer, size_t length) {
   document_file_clear(file);
   file_offset_t offset = 0;
@@ -176,7 +177,7 @@ void document_file_load_memory(struct document_file* file, const uint8_t* buffer
   document_view_reset(file->view, file);
 }
 
-// Save file directly to file
+// Save file directly to file system
 int document_file_save_plain(struct document_file* file, const char* filename) {
   int f = open(filename, O_RDWR|O_CREAT|O_TRUNC, 0644);
   if (f==-1) {
@@ -197,7 +198,7 @@ int document_file_save_plain(struct document_file* file, const char* filename) {
   return 1;
 }
 
-// Check file type and save via temporary file if needed
+// Save file, uses a temporary file if necessary
 void document_file_save(struct document_file* file, const char* filename) {
   if (file->buffer && (file->buffer->inserter&TIPPSE_INSERTER_FILE)) {
     char* tmpname = combine_string(filename, ".save.tmp");
@@ -474,6 +475,7 @@ int document_file_delete_selection(struct document_file* file, struct document_v
   return 1;
 }
 
+// Change document data structure if not real file
 void document_file_manualchange(struct document_file* file) {
   file->bookmarks = range_tree_static(file->bookmarks, file->buffer?file->buffer->length:0, 0);
 
