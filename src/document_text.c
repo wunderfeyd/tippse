@@ -444,6 +444,67 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       render_info->visual_detail |= VISUAL_INFO_CONTROLCHARACTER;
     }
 
+    int show = -1;
+    int color = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
+    int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
+
+    if (render_info->buffer) {
+      if (screen) {
+        if ((debug&DEBUG_PAGERENDERDISPLAY)) {
+          color = (intptr_t)render_info->buffer&0xff;
+        }
+
+        if ((debug&DEBUG_RERENDERDISPLAY)) {
+          background = (debug_draw%22)*6+21;
+        }
+
+        // Whitespace look ahead in current buffer
+        // TODO: Hack for testing / speed me up
+        if ((cp==' ' || cp=='\t' || cp==newline_cp2) && !render_info->whitespaced) {
+          file_offset_t displacement = render_info->displacement;
+          size_t pos = 0;
+          while (1) {
+            if (displacement>=render_info->buffer->length) {
+              struct range_tree_node* buffer_new = range_tree_next(render_info->buffer);
+              render_info->whitespaced = buffer_new?range_tree_find_whitespaced(buffer_new):1;
+              break;
+            }
+
+            displacement += encoding_cache_find_length(&render_info->cache, pos);
+            int cp = encoding_cache_find_codepoint(&render_info->cache, pos);
+            if (cp==newline_cp1 || cp==0) {
+              if (pos>0) {
+                render_info->whitespaced = 1;
+                break;
+              }
+            }
+
+            if (cp!=' ' && cp!='\t' && cp!=newline_cp2) {
+              break;
+            }
+
+            pos++;
+          }
+        }
+
+        if (render_info->whitespaced && cp!=newline_cp1 && cp!=newline_cp2) {
+          background = 1;
+        }
+      }
+
+      if (!(render_info->buffer->inserter&TIPPSE_INSERTER_READONLY)) {
+        if (render_info->keyword_length==0) {
+          int visual_flag = 0;
+
+          (*file->type->mark)(file->type, &render_info->visual_detail, &render_info->cache, (render_info->y_view==render_info->y)?1:0, &render_info->keyword_length, &visual_flag);
+
+          render_info->keyword_color = file->defaults.colors[visual_flag];
+        }
+      } else {
+        color = file->defaults.colors[VISUAL_FLAG_COLOR_READONLY];
+      }
+    }
+
     int bracket_match = (*file->type->bracket_match)(render_info->visual_detail, &codepoints[0], read);
 
     // Character bounds / location based stops
@@ -580,68 +641,9 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 
     if (render_info->keyword_length==0) {
       render_info->offset_sync = render_info->offset;
-    }
-
-    int show = -1;
-    int color = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
-    int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
-
-    if (screen) {
-      if ((debug&DEBUG_PAGERENDERDISPLAY)) {
-        color = (intptr_t)render_info->buffer&0xff;
-      }
-
-      if ((debug&DEBUG_RERENDERDISPLAY)) {
-        background = (debug_draw%22)*6+21;
-      }
-
-      // Whitespace look ahead in current buffer
-      // TODO: Hack for testing / speed me up
-      if ((cp==' ' || cp=='\t' || cp==newline_cp2) && !render_info->whitespaced) {
-        file_offset_t displacement = render_info->displacement;
-        size_t pos = 0;
-        while (1) {
-          if (displacement>=render_info->buffer->length) {
-            struct range_tree_node* buffer_new = range_tree_next(render_info->buffer);
-            render_info->whitespaced = buffer_new?range_tree_find_whitespaced(buffer_new):1;
-            break;
-          }
-
-          displacement += encoding_cache_find_length(&render_info->cache, pos);
-          int cp = encoding_cache_find_codepoint(&render_info->cache, pos);
-          if (cp==newline_cp1 || cp==0) {
-            if (pos>0) {
-              render_info->whitespaced = 1;
-              break;
-            }
-          }
-
-          if (cp!=' ' && cp!='\t' && cp!=newline_cp2) {
-            break;
-          }
-
-          pos++;
-        }
-      }
-
-      if (render_info->whitespaced && cp!=newline_cp1 && cp!=newline_cp2) {
-        background = 1;
-      }
-    }
-
-    if (!(render_info->buffer->inserter&TIPPSE_INSERTER_READONLY)) {
-      if (render_info->keyword_length==0) {
-        int visual_flag = 0;
-
-        (*file->type->mark)(file->type, &render_info->visual_detail, &render_info->cache, (render_info->y_view==render_info->y)?1:0, &render_info->keyword_length, &visual_flag);
-
-        render_info->keyword_color = file->defaults.colors[visual_flag];
-      }
-
-      if (render_info->keyword_length>0) {
-        render_info->keyword_length--;
-        color = render_info->keyword_color;
-      }
+    } else if (render_info->keyword_length>0) {
+      render_info->keyword_length--;
+      color = render_info->keyword_color;
     }
 
     int fill = 0;
@@ -657,10 +659,6 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     }
 
     if (screen && render_info->y_view==render_info->y) {
-      if (cp<0x20 && cp!=newline_cp1) {
-        show = 0xfffd;
-      }
-
       if (cp==newline_cp1) {
         show = view->show_invisibles?0x00ac:' ';
       } else if (cp==newline_cp2 && newline_cp2!=0) {
@@ -1033,6 +1031,11 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
+  if (view->line_select) {
+    document_text_keypress_line_select(base, splitter, cp, modifier, button, button_old, x, y);
+    return;
+  }
+
   struct document_text_position out;
   struct document_text_position in_offset;
   in_offset.type = VISUAL_SEEK_OFFSET;
@@ -1387,6 +1390,100 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->selection_low = view->selection_end;
     view->selection_high = view->selection_start;
   }
+}
+
+// In line select mode the keyboard is used in a different way since the display shows a list of options one can't edit
+void document_text_keypress_line_select(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y) {
+  struct document_view* view = splitter->view;
+
+  struct document_text_position out;
+  struct document_text_position in_offset;
+  in_offset.type = VISUAL_SEEK_OFFSET;
+  in_offset.clip = 0;
+
+  struct document_text_position in_x_y;
+  in_x_y.type = VISUAL_SEEK_X_Y;
+  in_x_y.clip = 0;
+
+  struct document_text_position in_line_column;
+  in_line_column.type = VISUAL_SEEK_LINE_COLUMN;
+  in_line_column.clip = 0;
+
+  in_offset.offset = view->offset;
+  document_text_cursor_position(splitter, &in_offset, &out, 1, 1);
+  in_line_column.line = out.line;
+  in_line_column.column = 0;
+  in_x_y.x = 0;
+  in_x_y.y = out.y;
+
+  if (cp==TIPPSE_KEY_UP) {
+    in_line_column.line--;
+    view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    view->show_scrollbar = 1;
+  } else if (cp==TIPPSE_KEY_DOWN) {
+    in_line_column.line++;
+    view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    view->show_scrollbar = 1;
+  } else if (cp==TIPPSE_KEY_PAGEDOWN) {
+    int page = splitter->client_height;
+    in_x_y.y += page;
+    view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
+    if (out.line==in_line_column.line) {
+      in_line_column.line++;
+      view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    }
+    view->show_scrollbar = 1;
+  } else if (cp==TIPPSE_KEY_PAGEUP) {
+    int page = splitter->client_height;
+    in_x_y.y -= page;
+    view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
+    if (out.line==in_line_column.line) {
+      in_line_column.line--;
+      view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    }
+    view->show_scrollbar = 1;
+  } else if (cp==TIPPSE_KEY_HOME) {
+    in_line_column.line = 0;
+    view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 1, 1);
+    view->cursor_x = out.x;
+    view->cursor_y = out.y;
+    view->show_scrollbar = 1;
+  } else if (cp==TIPPSE_KEY_END) {
+    in_line_column.line = POSITION_T_MAX;
+    view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    view->show_scrollbar = 1;
+  } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
+    if (button&TIPPSE_MOUSE_LBUTTON) {
+      in_x_y.x = x-splitter->x+view->scroll_x-view->address_width;
+      in_x_y.y = y-splitter->y+view->scroll_y;
+      view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
+    } else if (button&TIPPSE_MOUSE_WHEEL_DOWN) {
+      int page = ((splitter->height-2)/3)+1;
+      in_x_y.y += page;
+      view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
+      if (out.line==in_line_column.line) {
+        in_line_column.line++;
+        view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+      }
+      view->show_scrollbar = 1;
+    } else if (button&TIPPSE_MOUSE_WHEEL_UP) {
+      int page = ((splitter->height-2)/3)+1;
+      in_x_y.y -= page;
+      view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
+      if (out.line==in_line_column.line) {
+        in_line_column.line--;
+        view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+      }
+      view->show_scrollbar = 1;
+    }
+  } else if (cp==TIPPSE_KEY_RETURN) {
+  }
+
+  in_offset.offset = view->offset;
+  document_text_cursor_position(splitter, &in_offset, &out, 1, 1);
+  view->offset = out.offset;
+  view->cursor_x = 0;
+  view->cursor_y = out.y;
 
   if (view->line_select) {
     in_offset.offset = view->offset;

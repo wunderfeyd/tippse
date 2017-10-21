@@ -175,8 +175,10 @@ int main(int argc, const char** argv) {
     while (doc) {
       struct document_file* file = (struct document_file*)doc->object;
       if (file!=browser_doc && file!=tabs_doc && file!=search_doc) {
-        tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->buffer?tabs_doc->buffer->length:0, (uint8_t*)file->filename, strlen(file->filename), TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
-        tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->buffer?tabs_doc->buffer->length:0, (uint8_t*)"\n", 1, TIPPSE_INSERTER_READONLY|TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+        if (tabs_doc->buffer) {
+          tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->buffer?tabs_doc->buffer->length:0, (uint8_t*)"\n", 1, TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+        }
+        tabs_doc->buffer = range_tree_insert_split(tabs_doc->buffer, tabs_doc->buffer?tabs_doc->buffer->length:0, (uint8_t*)file->filename, strlen(file->filename), TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
       }
       doc = doc->next;
     }
