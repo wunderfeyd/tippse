@@ -25,6 +25,7 @@ struct document_file* document_file_create(int save) {
   struct document_file* file = (struct document_file*)malloc(sizeof(struct document_file));
   file->buffer = NULL;
   file->bookmarks = NULL;
+  file->binary = 0;
   file->undos = list_create();
   file->redos = list_create();
   file->filename = strdup("");
@@ -37,6 +38,7 @@ struct document_file* document_file_create(int save) {
   file->newline = TIPPSE_NEWLINE_AUTO;
   file->config = config_create();
   file->view = document_view_create();
+  document_view_reset(file->view, file);
   document_undo_mark_save_point(file);
   return file;
 }
@@ -60,8 +62,8 @@ void document_file_clear(struct document_file* file) {
 void document_file_destroy(struct document_file* file) {
   document_file_clear(file);
   document_undo_empty(file, file->undos);
-  list_destroy(file->undos);
   document_undo_empty(file, file->redos);
+  list_destroy(file->undos);
   list_destroy(file->redos);
   list_destroy(file->views);
   free(file->filename);
@@ -93,8 +95,7 @@ void document_file_name(struct document_file* file, const char* filename) {
     last = search;
   }
 
-  size_t n;
-  for (n = 0; document_file_types[n].extension; n++) {
+  for (size_t n = 0; document_file_types[n].extension; n++) {
     if (strcasecmp(document_file_types[n].extension, last)==0) {
       (*file->type->destroy)(file->type);
       file->type = (*document_file_types[n].constructor)();

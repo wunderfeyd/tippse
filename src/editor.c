@@ -111,8 +111,7 @@ void editor_draw(struct editor* base) {
 
   int foreground = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_STATUS];
   int background = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
-  int x;
-  for (x = 0; x<base->screen->width; x++) {
+  for (int x = 0; x<base->screen->width; x++) {
     int cp = 0x20;
     screen_setchar(base->screen, x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, foreground, background);
   }
@@ -141,24 +140,30 @@ void editor_tick(struct editor* base) {
 // An input event was signalled (intercept events belonging to the editor main form)
 void editor_keypress(struct editor* base, int cp, int modifier, int button, int button_old, int x, int y) {
   if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
-    if (button!=0 && button_old==0) {
-      struct splitter* select = splitter_by_coordinate(base->splitters, x, y);
-      if (select) {
-        x -= select->x;
-        y -= select->y;
-        base->focus->active = 0;
-        base->focus = select;
-        base->focus->active = 1;
-        if (select->content) {
-          base->document = select;
-        }
+    struct splitter* select = splitter_by_coordinate(base->splitters, x, y);
+    if (select && button!=0 && button_old==0) {
+      base->focus->active = 0;
+      base->focus = select;
+      base->focus->active = 1;
+      if (select->content) {
+        base->document = select;
+      }
 
-        if (select!=base->panel) {
-          base->last_document = select;
-        }
+      if (select!=base->panel) {
+        base->last_document = select;
       }
     }
-  } else if (cp==TIPPSE_KEY_CLOSE) {
+  }
+
+  if (cp==TIPPSE_KEY_DOCUMENTSELECTION) {
+    splitter_assign_document_file(base->document, base->tabs_doc, base->document->content);
+    base->document->view->line_select = 1;
+  } else if (cp==TIPPSE_KEY_BROWSER) {
+    splitter_assign_document_file(base->document, base->browser_doc, base->document->content);
+    base->document->view->line_select = 1;
+  }
+
+  if (cp==TIPPSE_KEY_CLOSE) {
     base->close = 1;
   } else if (cp==TIPPSE_KEY_SHOW_INVISIBLES) {
     // TODO: handle this in the document itself?
@@ -168,12 +173,6 @@ void editor_keypress(struct editor* base, int cp, int modifier, int button, int 
     // TODO: handle this in the document itself?
     base->focus->view->wrapping ^= 1;
     (*base->focus->document->reset)(base->focus->document, base->focus);
-  } else if (cp==TIPPSE_KEY_DOCUMENTSELECTION) {
-    splitter_assign_document_file(base->document, base->tabs_doc, base->document->content);
-    base->document->view->line_select = 1;
-  } else if (cp==TIPPSE_KEY_BROWSER) {
-    splitter_assign_document_file(base->document, base->browser_doc, base->document->content);
-    base->document->view->line_select = 1;
   } else if (cp==TIPPSE_KEY_SEARCH) {
     base->focus->active = 0;
     if (base->focus==base->document) {
@@ -285,7 +284,7 @@ void editor_keypress(struct editor* base, int cp, int modifier, int button, int 
 
       docs = docs->next;
     }
+  } else {
+    (*base->focus->document->keypress)(base->focus->document, base->focus, cp, modifier, button, button_old, x-base->focus->x, y-base->focus->y);
   }
-
-  (*base->focus->document->keypress)(base->focus->document, base->focus, cp, modifier, button, button_old, x, y);
 }

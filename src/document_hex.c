@@ -89,12 +89,12 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   splitter_status(splitter, &status[0], 0);
 
   size_t char_size = 1;
-  int x, y;
+  int y;
   for (y = 0; y<splitter->client_height; y++) {
     uint8_t data[16];
     struct document_hex_char chars[16];
     size_t data_size = file_size-offset>16?16:file_size-offset;
-    for (x = 0; x<(int)data_size; x++) {
+    for (int x = 0; x<(int)data_size; x++) {
       char_size--;
       if (char_size==0) {
         size_t advance = 1;
@@ -323,8 +323,6 @@ void document_hex_cursor_from_point(struct document* base, struct splitter* spli
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
-  x -= splitter->x;
-  y -= splitter->y;
   file_offset_t file_size = file->buffer?file->buffer->length:0;
   if (y<0) *offset = 0;
   if (y>=0 && y<splitter->client_height) {

@@ -126,8 +126,7 @@ int main(int argc, const char** argv) {
     while (1) {
       size_t used = 0;
       int keep = 0;
-      size_t pos;
-      for (pos = 0; ansi_keys[pos].cp!=0; pos++) {
+      for (size_t pos = 0; ansi_keys[pos].cp!=0; pos++) {
         size_t c;
         for (c = 0; c<input_pos-check; c++) {
           if (ansi_keys[pos].text[c]==0 || (ansi_keys[pos].text[c]!=input_buffer[c+check] && ansi_keys[pos].text[c]!='?')) {

@@ -207,6 +207,7 @@ void config_update(struct config* config, int* keyword_codepoints, size_t keywor
     parent = trie_append_codepoint(config->keywords, parent, *keyword_codepoints, 0);
     if (keyword_length==0) {
       if (parent->type!=0) { // TODO: 0 != NULL
+        free(((struct list_node*)parent->type)->object);
         list_remove(config->values, (struct list_node*)parent->type);
       }
 

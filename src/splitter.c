@@ -16,6 +16,12 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
   splitter->view = document_view_create();
   splitter->cursor_x = -1;
   splitter->cursor_y = -1;
+  splitter->width = 0;
+  splitter->height = 0;
+  splitter->client_width = 0;
+  splitter->client_height = 0;
+  splitter->x = 0;
+  splitter->y = 0;
 
   if (!side0 || !side1) {
     splitter->side[0] = NULL;
@@ -174,10 +180,9 @@ void splitter_assign_document_file(struct splitter* splitter, struct document_fi
 }
 
 void splitter_draw(struct screen* screen, struct splitter* splitter) {
-  int xx, yy;
   int cp = 0x20;
-  for (yy=0; yy<splitter->height; yy++) {
-    for (xx=0; xx<splitter->width; xx++) {
+  for (int yy = 0; yy<splitter->height; yy++) {
+    for (int xx = 0; xx<splitter->width; xx++) {
       screen_setchar(screen, splitter->x+xx, splitter->y+yy, splitter->x, splitter->y, splitter->client_width, splitter->client_height, &cp, 1, splitter->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], splitter->file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
     }
   }
@@ -197,9 +202,8 @@ struct document_file* splitter_first_document(const struct splitter* splitter) {
 void splitter_draw_split_horizontal(struct screen* screen, const struct splitter* splitter, int x, int y, int width) {
   struct document_file* file = splitter_first_document(splitter);
 
-  int n;
   int cp = 0x2500;
-  for (n = 0; n<width; n++) {
+  for (int n = 0; n<width; n++) {
     screen_setchar(screen, x+n, y, 0, 0, screen->width, screen->height, &cp, 1, file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
   }
 
@@ -223,9 +227,8 @@ void splitter_draw_split_horizontal(struct screen* screen, const struct splitter
 
 void splitter_draw_split_vertical(struct screen* screen, const struct splitter* splitter, int x, int y, int height) {
   struct document_file* file = splitter_first_document(splitter);
-  int n;
   int cp = 0x2502;
-  for (n = 0; n<height; n++) {
+  for (int n = 0; n<height; n++) {
     screen_setchar(screen, x, y+n, 0, 0, screen->width, screen->height, &cp, 1, file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
   }
 

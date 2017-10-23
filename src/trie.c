@@ -36,8 +36,7 @@ struct trie_node* trie_create_node(struct trie* trie) {
   struct trie_node* node = &((struct trie_node*)trie->buckets->first->object)[trie->fill];
   node->parent = NULL;
   node->type = 0;
-  int side;
-  for (side = 0; side<16; side++) {
+  for (int side = 0; side<16; side++) {
     node->side[side] = NULL;
   }
 
@@ -54,8 +53,7 @@ struct trie_node* trie_append_codepoint(struct trie* trie, struct trie_node* par
     }
   }
 
-  int bit;
-  for (bit = TRIE_CODEPOINT_BIT-4; bit>=0; bit-=4) {
+  for (int bit = TRIE_CODEPOINT_BIT-4; bit>=0; bit-=4) {
     int set = (cp>>bit)&15;
     struct trie_node* node = parent->side[set];
     if (node==NULL) {
@@ -80,8 +78,7 @@ struct trie_node* trie_find_codepoint(struct trie* trie, struct trie_node* paren
     }
   }
 
-  int bit;
-  for (bit = TRIE_CODEPOINT_BIT-4; bit>=0; bit-=4) {
+  for (int bit = TRIE_CODEPOINT_BIT-4; bit>=0; bit-=4) {
     int set = (cp>>bit)&15;
     struct trie_node* node = parent->side[set];
     if (node==NULL) {

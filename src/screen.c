@@ -25,6 +25,7 @@ struct screen* screen_create(void) {
   tcgetattr(STDIN_FILENO, &screen->termios_original);
 
   struct termios raw;
+  memset(&raw, 0, sizeof(raw));
   cfmakeraw(&raw);
   tcsetattr(STDIN_FILENO, TCSANOW, &raw);
 
@@ -40,10 +41,6 @@ struct screen* screen_create(void) {
 
 // Destroy screen
 void screen_destroy(struct screen* screen) {
-  if (screen==NULL) {
-    return;
-  }
-
   write(STDOUT_FILENO, "\x1b[?1005l", 8);
   write(STDOUT_FILENO, "\x1b[?1003l", 8);
   write(STDOUT_FILENO, "\x1b[?2004l", 8);
@@ -73,9 +70,8 @@ void screen_check(struct screen* screen) {
     screen->buffer = (struct screen_char*)malloc(sizeof(struct screen_char)*(size_t)(screen->width*screen->height));
     screen->visible = (struct screen_char*)malloc(sizeof(struct screen_char)*(size_t)(screen->width*screen->height));
 
-    int x, y;
-    for (y=0; y<screen->height; y++) {
-      for (x=0; x<screen->width; x++) {
+    for (int y = 0; y<screen->height; y++) {
+      for (int x = 0; x<screen->width; x++) {
         struct screen_char* c = &screen->buffer[y*screen->width+x];
         c->length = 0;
         c->codepoints[0] = 0x20;
@@ -177,7 +173,6 @@ void screen_cursor(struct screen* screen, int x, int y) {
 }
 
 void screen_draw(struct screen* screen) {
-  int n, w, old;
   int foreground_old = -3;
   int background_old = -3;
   struct screen_char* c;
@@ -192,7 +187,6 @@ void screen_draw(struct screen* screen) {
 
       screen->title = screen->title_new;
       screen->title_new = NULL;
-      // pos += sprintf(pos, "\x1b[0;%s\x07", screen->title);
     }
 
     if (screen->title_new) {
@@ -203,17 +197,17 @@ void screen_draw(struct screen* screen) {
   }
 
   pos += sprintf(pos, "\x1b[?25l\x1b[H");
-  w = 0;
-  old = 0;
-  for (n=0; n<screen->width*screen->height; n++) {
+  int w = 0;
+  int old = 0;
+  int n;
+  for (n = 0; n<screen->width*screen->height; n++) {
     c = &screen->buffer[n];
     v = &screen->visible[n];
     int modified = 0;
     if (v->length!=c->length) {
       modified = 1;
     } else {
-      size_t check;
-      for (check = 0; check<c->length; check++) {
+      for (size_t check = 0; check<c->length; check++) {
         if (v->codepoints[check]!=c->codepoints[check]) {
           modified = 1;
           break;
@@ -228,8 +222,7 @@ void screen_draw(struct screen* screen) {
       v->length = c->length;
       v->foreground = c->foreground;
       v->background = c->background;
-      size_t copy;
-      for (copy = 0; copy<c->length; copy++) {
+      for (size_t copy = 0; copy<c->length; copy++) {
         v->codepoints[copy] = c->codepoints[copy];
       }
     }
@@ -285,8 +278,7 @@ void screen_setchar(const struct screen* screen, int x, int y, int clip_x, int c
   }
 
   struct screen_char* c = &screen->buffer[y*screen->width+x];
-  size_t copy;
-  for (copy = 0; copy<length; copy++) {
+  for (size_t copy = 0; copy<length; copy++) {
     c->codepoints[copy] = codepoints[copy];
   }
 

@@ -7,8 +7,7 @@ struct file_cache* file_cache_create(const char* filename) {
   base->filename = strdup(filename);
   base->count = 1;
 
-  size_t count;
-  for (count = 0; count<FILE_CACHE_NODES; count++) {
+  for (size_t count = 0; count<FILE_CACHE_NODES; count++) {
     base->open[count] = &base->nodes[FILE_CACHE_NODES-1-count];
   }
 

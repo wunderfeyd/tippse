@@ -30,7 +30,7 @@ void document_text_destroy(struct document* base) {
   free(base);
 }
 
-// Called after a new document was assigned
+// Called after a new document was assigned (correct to next character)
 void document_text_reset(struct document* base, struct splitter* splitter) {
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
@@ -90,7 +90,7 @@ file_offset_t document_text_cursor_position_partial(struct document_text_render_
           *y = file->buffer?file->buffer->visuals.lines:0;
         }
 
-        *x = 100000000;
+        *x = POSITION_T_MAX;
         continue;
       }
     } else {
@@ -107,7 +107,7 @@ file_offset_t document_text_cursor_position_partial(struct document_text_render_
       } else if (*x<out->x_min) {
         if (*y>0 && wrap) {
           *y = (*y)-1;
-          *x = 100000000;
+          *x = POSITION_T_MAX;
           wrap = 0;
           continue;
         } else {
@@ -126,7 +126,6 @@ file_offset_t document_text_cursor_position_partial(struct document_text_render_
 // Goto specified position
 file_offset_t document_text_cursor_position(struct splitter* splitter, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel) {
   struct document_text_render_info render_info;
-
   document_text_render_clear(&render_info, splitter->client_width-splitter->view->address_width);
   return document_text_cursor_position_partial(&render_info, splitter, in, out, wrap, cancel);
 }
@@ -134,10 +133,7 @@ file_offset_t document_text_cursor_position(struct splitter* splitter, struct do
 // Clear renderer state to ensure a restart at next seek
 void document_text_render_clear(struct document_text_render_info* render_info, position_t width) {
   memset(render_info, 0, sizeof(struct document_text_render_info));
-  render_info->buffer = NULL;
   render_info->width = width;
-  render_info->offset = 0;
-  render_info->append = 0;
 }
 
 // Update renderer state to restart at the given position or to continue if possible
@@ -158,14 +154,6 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
   }
 
   buffer_new = range_tree_find_visual(buffer, type, in->offset, in->x, in->y, in->line, in->column, &offset_new, &x_new, &y_new, &lines_new, &columns_new, &indentation_new, &indentation_extra_new, &characters_new);
-
-/*  if (in->y<0) {
-    in->y = 0;
-  }
-
-  if (in->line<0) {
-    in->line = 0;
-  }*/
 
   // TODO: Combine into single statement (if correctness is confirmed)
   int rerender = (debug&DEBUG_ALWAYSRERENDER)?1:0;
@@ -193,7 +181,7 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
     }
   }
 
-  if (dirty && render_info->buffer!=range_tree_next(buffer_new) && render_info->buffer!=buffer_new) {
+  if (dirty && (!buffer_new || render_info->buffer!=range_tree_next(buffer_new)) && render_info->buffer!=buffer_new) {
     rerender = 1;
   } else if (!dirty && render_info->buffer!=buffer_new) {
     rerender = 1;
@@ -201,9 +189,6 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
 
   if (rerender) {
     debug_draw++;
-  }
-
-  if (rerender) {
     render_info->append = 1;
     if (buffer_new) {
       render_info->visual_detail = buffer_new->visuals.detail_before;
@@ -1149,7 +1134,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
   } else if (cp==TIPPSE_KEY_LAST) {
     in_line_column.line = out.line;
-    in_line_column.column = 1000000000;
+    in_line_column.column = POSITION_T_MAX;
     view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
@@ -1161,8 +1146,8 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_END) {
-    in_x_y.x = 1000000000;
-    in_x_y.y = 1000000000;
+    in_x_y.x = POSITION_T_MAX;
+    in_x_y.y = POSITION_T_MAX;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
@@ -1178,8 +1163,8 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     return;
   } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
-      in_x_y.x = x-splitter->x+view->scroll_x-view->address_width;
-      in_x_y.y = y-splitter->y+view->scroll_y;
+      in_x_y.x = x-view->scroll_x-view->address_width;
+      in_x_y.y = y-view->scroll_y;
       view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
       view->cursor_x = out.x;
       view->cursor_y = out.y;
@@ -1454,8 +1439,8 @@ void document_text_keypress_line_select(struct document* base, struct splitter* 
     view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
-      in_x_y.x = x-splitter->x+view->scroll_x-view->address_width;
-      in_x_y.y = y-splitter->y+view->scroll_y;
+      in_x_y.x = x-view->scroll_x-view->address_width;
+      in_x_y.y = y-view->scroll_y;
       view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
     } else if (button&TIPPSE_MOUSE_WHEEL_DOWN) {
       int page = ((splitter->height-2)/3)+1;
@@ -1496,7 +1481,7 @@ void document_text_keypress_line_select(struct document* base, struct splitter* 
     in_line_column.column = 0;
     document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
     view->selection_low = view->selection_start = out.offset;
-    in_line_column.column = 100000000;
+    in_line_column.column = POSITION_T_MAX;
     document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
     view->selection_high = view->selection_end = out.offset;
   }
@@ -1524,7 +1509,7 @@ void document_text_toggle_bookmark(struct document* base, struct splitter* split
   in_line_column.column = 0;
   document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
   file_offset_t start = out.offset;
-  in_line_column.column = 100000000;
+  in_line_column.column = POSITION_T_MAX;
   document_text_cursor_position(splitter, &in_line_column, &out, 1, 1);
   file_offset_t end = out.offset;
 
