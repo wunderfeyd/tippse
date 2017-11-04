@@ -1163,8 +1163,8 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     return;
   } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
-      in_x_y.x = x-view->scroll_x-view->address_width;
-      in_x_y.y = y-view->scroll_y;
+      in_x_y.x = x+view->scroll_x-view->address_width;
+      in_x_y.y = y+view->scroll_y;
       view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
       view->cursor_x = out.x;
       view->cursor_y = out.y;
@@ -1439,8 +1439,8 @@ void document_text_keypress_line_select(struct document* base, struct splitter* 
     view->show_scrollbar = 1;
   } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
-      in_x_y.x = x-view->scroll_x-view->address_width;
-      in_x_y.y = y-view->scroll_y;
+      in_x_y.x = x+view->scroll_x-view->address_width;
+      in_x_y.y = y+view->scroll_y;
       view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
     } else if (button&TIPPSE_MOUSE_WHEEL_DOWN) {
       int page = ((splitter->height-2)/3)+1;
