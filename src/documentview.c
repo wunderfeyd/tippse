@@ -49,6 +49,7 @@ void document_view_clone(struct document_view* dst, struct document_view* src, s
   document_view_filechange(dst, file);
 }
 
+// Copy file defaults
 void document_view_filechange(struct document_view* view, struct document_file* file) {
   view->wrapping = file->defaults.wrapping;
   view->show_invisibles = file->defaults.invisibles;

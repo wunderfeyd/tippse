@@ -30,12 +30,14 @@ void document_undo_mark_save_point(struct document_file* file) {
   file->undo_save_point = file->undos->count;
 }
 
+// Set last save point as invalid
 void document_undo_check_save_point(struct document_file* file) {
   if (file->undos->count+file->redos->count<file->undo_save_point) {
     file->undo_save_point = SIZE_T_MAX;
   }
 }
 
+// Set marker for a chain of undo steps
 void document_undo_chain(struct document_file* file, struct list* list) {
   struct list_node* node = list->first;
   if (!node) {
@@ -52,6 +54,7 @@ void document_undo_chain(struct document_file* file, struct list* list) {
   }
 }
 
+// Clear undo list
 void document_undo_empty(struct document_file* file, struct list* list) {
   while (1) {
     struct list_node* node = list->first;
@@ -71,11 +74,13 @@ void document_undo_empty(struct document_file* file, struct list* list) {
   document_undo_check_save_point(file);
 }
 
+// Execute a chain of undo steps
 void document_undo_execute_chain(struct document_file* file, struct document_view* view, struct list* from, struct list* to, int reverse) {
   document_undo_execute(file, view, from, to, 1);
   while (document_undo_execute(file, view, from, to, reverse)) {}
 }
 
+// Execute an undo steps
 int document_undo_execute(struct document_file* file, struct document_view* view, struct list* from, struct list* to, int override) {
   int chain = 0;
   struct list_node* node = from->first;

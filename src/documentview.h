@@ -6,29 +6,28 @@
 #include "rangetree.h"
 
 struct document_view {
-  file_offset_t offset;
+  file_offset_t offset;                 // file offset
 
-  position_t cursor_x;
-  position_t cursor_y;
+  position_t cursor_x;                  // cursor X position, without scroll offset
+  position_t cursor_y;                  // cursor Y position, without scroll offset
 
-  file_offset_t selection_start;
-  file_offset_t selection_end;
+  file_offset_t selection_start;        // start position of selection
+  file_offset_t selection_end;          // end position of selection
+  file_offset_t selection_low;          // smallest position of selection
+  file_offset_t selection_high;         // highest position of selection
+  struct range_tree_node* selection;    // information for multiple selections
 
-  file_offset_t selection_low;
-  file_offset_t selection_high;
-  struct range_tree_node* selection;
-
-  position_t scroll_x;
-  position_t scroll_y;
-  position_t scroll_x_old;
-  position_t scroll_y_old;
-  position_t scroll_y_max;
-  position_t address_width;
-  int show_scrollbar;
-  int show_invisibles;
-  int wrapping;
-  int continuous;
-  int line_select;
+  position_t scroll_x;                  // scroll X offset
+  position_t scroll_y;                  // scroll Y offset
+  position_t scroll_x_old;              // scroll X offset, last renedering
+  position_t scroll_y_old;              // scroll Y offset, last renedering
+  position_t scroll_y_max;              // maximum scroll Y offset
+  position_t address_width;             // width of address column, used for line number too
+  int show_scrollbar;                   // show scrollbar?
+  int show_invisibles;                  // show invisibles?
+  int wrapping;                         // show word wrapping?
+  int continuous;                       // ignore line break?
+  int line_select;                      // show whole line selected?
 };
 
 #include "documentfile.h"

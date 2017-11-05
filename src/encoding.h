@@ -16,22 +16,22 @@ struct encoding_cache_codepoint;
 #define ENCODING_CACHE_SIZE 1024
 
 struct encoding_stream {
-  int type;
+  int type;                             // type of stream (plain or paged)
 
-  const uint8_t* plain;
-  struct range_tree_node* buffer;
+  const uint8_t* plain;                 // address of buffer
+  struct range_tree_node* buffer;       // page in tree, if paged stream
 
-  size_t displacement;
-  size_t cache_length;
+  size_t displacement;                  // offset in buffer
+  size_t cache_length;                  // length of buffer
 };
 
 struct encoding_cache {
-  size_t start;
-  size_t end;
-  struct encoding* encoding;
-  struct encoding_stream* stream;
-  int codepoints[ENCODING_CACHE_SIZE];
-  size_t lengths[ENCODING_CACHE_SIZE];
+  size_t start;                         // current position in cache
+  size_t end;                           // last position in cache
+  struct encoding* encoding;            // encoding used for stream
+  struct encoding_stream* stream;       // input stream
+  int codepoints[ENCODING_CACHE_SIZE];  // cache with codepoints
+  size_t lengths[ENCODING_CACHE_SIZE];  // cache with lengths of codepoints
 };
 
 struct encoding {

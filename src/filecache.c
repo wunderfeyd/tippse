@@ -2,6 +2,7 @@
 
 #include "filecache.h"
 
+// Create file cache
 struct file_cache* file_cache_create(const char* filename) {
   struct file_cache* base = malloc(sizeof(struct file_cache));
   base->filename = strdup(filename);
@@ -17,10 +18,12 @@ struct file_cache* file_cache_create(const char* filename) {
   return base;
 }
 
+// Increase reference counter of file cache
 void file_cache_reference(struct file_cache* base) {
   base->count++;
 }
 
+// Decrease reference counter of file cache
 void file_cache_dereference(struct file_cache* base) {
   base->count--;
 
@@ -30,6 +33,7 @@ void file_cache_dereference(struct file_cache* base) {
   }
 }
 
+// Add used node and return it
 struct file_cache_node* file_cache_acquire_node(struct file_cache* base) {
   if (base->left==0) {
     file_cache_release_node(base, base->last);
@@ -42,6 +46,7 @@ struct file_cache_node* file_cache_acquire_node(struct file_cache* base) {
   return node;
 }
 
+// Add unused node
 void file_cache_link_node(struct file_cache* base, struct file_cache_node* node) {
   node->next = base->first;
   node->prev = NULL;
@@ -57,6 +62,7 @@ void file_cache_link_node(struct file_cache* base, struct file_cache_node* node)
   }
 }
 
+// Remove used node
 void file_cache_release_node(struct file_cache* base, struct file_cache_node* node) {
   if (node->reference) {
     *node->reference = NULL;
@@ -66,6 +72,7 @@ void file_cache_release_node(struct file_cache* base, struct file_cache_node* no
   base->open[base->left++] = node;
 }
 
+// Remove unused node
 void file_cache_unlink_node(struct file_cache* base, struct file_cache_node* node) {
   if (node->prev) {
     node->prev->next = node->next;
@@ -84,6 +91,7 @@ void file_cache_unlink_node(struct file_cache* base, struct file_cache_node* nod
   }
 }
 
+// Mark node as used and transfar file content
 uint8_t* file_cache_use_node(struct file_cache* base, struct file_cache_node** reference, file_offset_t offset, size_t length) {
   struct file_cache_node* node = *reference;
   if (node) {
