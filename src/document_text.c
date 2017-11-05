@@ -1012,12 +1012,12 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 }
 
 // Handle key press
-void document_text_keypress(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y) {
+void document_text_keypress(struct document* base, struct splitter* splitter, int command, int key, int cp, int button, int button_old, int x, int y) {
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
   if (view->line_select) {
-    document_text_keypress_line_select(base, splitter, cp, modifier, button, button_old, x, y);
+    document_text_keypress_line_select(base, splitter, command, key, cp, button, button_old, x, y);
     return;
   }
 
@@ -1040,7 +1040,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   int seek = 0;
   int selection_keep = 0;
 
-  if (cp!=TIPPSE_KEY_UP && cp!=TIPPSE_KEY_DOWN && cp!=TIPPSE_KEY_PAGEDOWN && cp!=TIPPSE_KEY_PAGEUP) {
+  if (cp!=TIPPSE_CMD_UP && cp!=TIPPSE_CMD_DOWN && cp!=TIPPSE_CMD_PAGEDOWN && cp!=TIPPSE_CMD_PAGEUP) {
     in_offset.offset = view->offset;
     document_text_cursor_position(splitter, &in_offset, &out, 1, 1);
     view->cursor_x = out.x;
@@ -1050,57 +1050,57 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   in_x_y.x = view->cursor_x;
   in_x_y.y = view->cursor_y;
 
-  if (cp==TIPPSE_KEY_UP) {
+  if (command==TIPPSE_CMD_UP) {
     in_x_y.y--;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_DOWN) {
+  } else if (command==TIPPSE_CMD_DOWN) {
     in_x_y.y++;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_LEFT) {
+  } else if (command==TIPPSE_CMD_LEFT) {
     in_x_y.x--;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
     seek = 1;
-  } else if (cp==TIPPSE_KEY_RIGHT) {
+  } else if (command==TIPPSE_CMD_RIGHT) {
     in_x_y.x++;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 0);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
     seek = 1;
-  } else if (cp==TIPPSE_KEY_PAGEDOWN) {
+  } else if (command==TIPPSE_CMD_PAGEDOWN) {
     int page = splitter->client_height;
     in_x_y.y += page;
     view->scroll_y += page;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_PAGEUP) {
+  } else if (command==TIPPSE_CMD_PAGEUP) {
     int page = splitter->client_height;
     in_x_y.y -= page;
     view->scroll_y -= page;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_BACKSPACE) {
+  } else if (command==TIPPSE_CMD_BACKSPACE) {
     if (!document_file_delete_selection(splitter->file, splitter->view)) {
       in_x_y.x--;
       file_offset_t start = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
       document_file_delete(splitter->file, start, view->offset-start);
     }
     seek = 1;
-  } else if (cp==TIPPSE_KEY_DELETE) {
+  } else if (command==TIPPSE_CMD_DELETE) {
     if (!document_file_delete_selection(splitter->file, splitter->view)) {
       in_x_y.x++;
       file_offset_t end = document_text_cursor_position(splitter, &in_x_y, &out, 1, 0);
       document_file_delete(splitter->file, view->offset, end-view->offset);
     }
     seek = 1;
-  } else if (cp==TIPPSE_KEY_FIRST) {
+  } else if (command==TIPPSE_CMD_FIRST) {
     struct range_tree_node* first = range_tree_find_indentation_last(out.buffer, out.lines, out.buffer?out.buffer:range_tree_last(file->buffer));
     int seek_first = 1;
 
@@ -1132,36 +1132,36 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       view->cursor_x = out.x;
       view->cursor_y = out.y;
     }
-  } else if (cp==TIPPSE_KEY_LAST) {
+  } else if (command==TIPPSE_CMD_LAST) {
     in_line_column.line = out.line;
     in_line_column.column = POSITION_T_MAX;
     view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
-  } else if (cp==TIPPSE_KEY_HOME) {
+  } else if (command==TIPPSE_CMD_HOME) {
     in_x_y.x = 0;
     in_x_y.y = 0;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_END) {
+  } else if (command==TIPPSE_CMD_END) {
     in_x_y.x = POSITION_T_MAX;
     in_x_y.y = POSITION_T_MAX;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_UNDO) {
+  } else if (command==TIPPSE_CMD_UNDO) {
     document_undo_execute_chain(file, view, file->undos, file->redos, 0);
     return;
-  } else if (cp==TIPPSE_KEY_REDO) {
+  } else if (command==TIPPSE_CMD_REDO) {
     document_undo_execute_chain(file, view, file->redos, file->undos, 1);
     return;
-  } else if (cp==TIPPSE_KEY_BOOKMARK) {
+  } else if (command==TIPPSE_CMD_BOOKMARK) {
     document_text_toggle_bookmark(base, splitter, view->offset);
     return;
-  } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
+  } else if (command==TIPPSE_CMD_MOUSE) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
       in_x_y.x = x+view->scroll_x-view->address_width;
       in_x_y.y = y+view->scroll_y;
@@ -1189,7 +1189,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       view->cursor_y = out.y;
       view->show_scrollbar = 1;
     }
-  } else if (cp==TIPPSE_KEY_TAB) {
+  } else if (command==TIPPSE_CMD_TAB) {
     document_undo_chain(file, file->undos);
     if (view->selection_low==FILE_OFFSET_T_MAX) {
       uint8_t utf8[8];
@@ -1212,7 +1212,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     document_undo_chain(file, file->undos);
     seek = 1;
     selection_keep = 1;
-  } else if (cp==TIPPSE_KEY_UNTAB) {
+  } else if (command==TIPPSE_CMD_UNTAB) {
     document_undo_chain(file, file->undos);
     if (view->selection_low!=FILE_OFFSET_T_MAX) {
       document_text_lower_indentation(base, splitter, view->selection_low, view->selection_high-1);
@@ -1220,15 +1220,15 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     document_undo_chain(file, file->undos);
     seek = 1;
     selection_keep = 1;
-  } else if (cp==TIPPSE_KEY_SELECT_ALL) {
+  } else if (command==TIPPSE_CMD_SELECT_ALL) {
     view->selection_start = 0;
     view->selection_end = file_size;
     selection_keep = 1;
-  } else if (cp==TIPPSE_KEY_COPY || cp==TIPPSE_KEY_CUT) {
+  } else if (command==TIPPSE_CMD_COPY || command==TIPPSE_CMD_CUT) {
     document_undo_chain(file, file->undos);
     if (view->selection_low!=FILE_OFFSET_T_MAX) {
       clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low), file->binary);
-      if (cp==TIPPSE_KEY_CUT) {
+      if (command==TIPPSE_CMD_CUT) {
         document_file_delete_selection(splitter->file, splitter->view);
       } else {
         selection_keep = 1;
@@ -1236,7 +1236,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
     document_undo_chain(file, file->undos);
     seek = 1;
-  } else if (cp==TIPPSE_KEY_PASTE || cp==TIPPSE_KEY_BRACKET_PASTE_START) {
+  } else if (command==TIPPSE_CMD_PASTE) {
     document_undo_chain(file, file->undos);
     document_file_delete_selection(splitter->file, splitter->view);
 
@@ -1247,7 +1247,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 
     document_undo_chain(file, file->undos);
     seek = 1;
-  } else if (cp==TIPPSE_KEY_RETURN) {
+  } else if (command==TIPPSE_CMD_RETURN) {
     if (out.lines==0) {
       range_tree_find_bracket_lowest(out.buffer, out.min_line, out.buffer?out.buffer:range_tree_last(file->buffer));
     }
@@ -1321,7 +1321,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     // --- End test auto indentation ... opening bracket
 
     seek = 1;
-  } else if (cp>=0) {
+  } else if (command==TIPPSE_CMD_CHARACTER) {
     document_file_delete_selection(splitter->file, splitter->view);
     uint8_t utf8[8];
     size_t size = encoding_utf8_encode(NULL, cp, &utf8[0], 8);
@@ -1350,14 +1350,14 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   }
 
   int selection_reset = 0;
-  if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
+  if (command==TIPPSE_CMD_MOUSE) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
-      if (!(button_old&TIPPSE_MOUSE_LBUTTON) && !(modifier&TIPPSE_KEY_MOD_SHIFT)) view->selection_start = FILE_OFFSET_T_MAX;
+      if (!(button_old&TIPPSE_MOUSE_LBUTTON) && !(key&TIPPSE_KEY_MOD_SHIFT)) view->selection_start = FILE_OFFSET_T_MAX;
       if (view->selection_start==FILE_OFFSET_T_MAX) view->selection_start = view->offset;
       view->selection_end = view->offset;
     }
   } else {
-    if (modifier&TIPPSE_KEY_MOD_SHIFT) {
+    if (key&TIPPSE_KEY_MOD_SHIFT) {
       if (view->selection_start==FILE_OFFSET_T_MAX) view->selection_start = offset_old;
       view->selection_end = view->offset;
     } else {
@@ -1378,7 +1378,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 }
 
 // In line select mode the keyboard is used in a different way since the display shows a list of options one can't edit
-void document_text_keypress_line_select(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y) {
+void document_text_keypress_line_select(struct document* base, struct splitter* splitter, int command, int key, int cp, int button, int button_old, int x, int y) {
   struct document_view* view = splitter->view;
 
   struct document_text_position out;
@@ -1401,15 +1401,15 @@ void document_text_keypress_line_select(struct document* base, struct splitter* 
   in_x_y.x = 0;
   in_x_y.y = out.y;
 
-  if (cp==TIPPSE_KEY_UP) {
+  if (command==TIPPSE_CMD_UP) {
     in_line_column.line--;
     view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_DOWN) {
+  } else if (command==TIPPSE_CMD_DOWN) {
     in_line_column.line++;
     view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_PAGEDOWN) {
+  } else if (command==TIPPSE_CMD_PAGEDOWN) {
     int page = splitter->client_height;
     in_x_y.y += page;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
@@ -1418,7 +1418,7 @@ void document_text_keypress_line_select(struct document* base, struct splitter* 
       view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
     }
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_PAGEUP) {
+  } else if (command==TIPPSE_CMD_PAGEUP) {
     int page = splitter->client_height;
     in_x_y.y -= page;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
@@ -1427,17 +1427,17 @@ void document_text_keypress_line_select(struct document* base, struct splitter* 
       view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
     }
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_HOME) {
+  } else if (command==TIPPSE_CMD_HOME) {
     in_line_column.line = 0;
     view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 1, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_END) {
+  } else if (command==TIPPSE_CMD_END) {
     in_line_column.line = POSITION_T_MAX;
     view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
+  } else if (command==TIPPSE_CMD_MOUSE) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
       in_x_y.x = x+view->scroll_x-view->address_width;
       in_x_y.y = y+view->scroll_y;
@@ -1461,7 +1461,7 @@ void document_text_keypress_line_select(struct document* base, struct splitter* 
       }
       view->show_scrollbar = 1;
     }
-  } else if (cp==TIPPSE_KEY_RETURN) {
+  } else if (command==TIPPSE_CMD_RETURN) {
   }
 
   in_offset.offset = view->offset;

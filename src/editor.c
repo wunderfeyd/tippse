@@ -2,12 +2,99 @@
 
 #include "editor.h"
 
+const char* editor_key_names[TIPPSE_KEY_MAX] = {
+  "",
+  "up",
+  "down",
+  "right",
+  "left",
+  "pageup",
+  "pagedown",
+  "backspace",
+  "delete",
+  "insert",
+  "first",
+  "last",
+  "tab",
+  "mouse",
+  "return",
+  "pastestart",
+  "pastestop",
+  "escape",
+  "f1",
+  "f2",
+  "f3",
+  "f4",
+  "f5",
+  "f6",
+  "f7",
+  "f8",
+  "f9",
+  "f10",
+  "f11",
+  "f12"
+};
+
+const char* editor_commands[TIPPSE_CMD_MAX] = {
+  "",
+  "up",
+  "down",
+  "right",
+  "left",
+  "close",
+  "pageup",
+  "pagedown",
+  "backspace",
+  "delete",
+  "insert",
+  "first",
+  "last",
+  "home",
+  "end",
+  "search",
+  "searchnext",
+  "undo",
+  "redo",
+  "cut",
+  "copy",
+  "paste",
+  "tab",
+  "untab",
+  "save",
+  "mouse",
+  "searchprevious",
+  "open",
+  "newtab",
+  "invisibles",
+  "browser",
+  "switch",
+  "bookmark",
+  "wordwrap",
+  "documents",
+  "return",
+  "selectall"
+};
+
 // Create editor
 struct editor* editor_create(const char* base_path, struct screen* screen, int argc, const char** argv) {
   struct editor* base = (struct editor*)malloc(sizeof(struct editor));
   base->close = 0;
   base->base_path = base_path;
   base->screen = screen;
+
+  base->commands = trie_create();
+  for (size_t n = 0; n<TIPPSE_CMD_MAX; n++) {
+    struct trie_node* parent = NULL;
+    const char* command = editor_commands[n];
+    while (*command) {
+      parent = trie_append_codepoint(base->commands, parent, *command, 0);
+      command++;
+    }
+
+    if (parent) {
+      parent->type = (intptr_t)n;
+    }
+  }
 
   base->documents = list_create();
 
@@ -71,6 +158,7 @@ void editor_destroy(struct editor* base) {
   }
 
   list_destroy(base->documents);
+  trie_destroy(base->commands);
 
   free(base);
 }
@@ -137,9 +225,44 @@ void editor_tick(struct editor* base) {
   splitter_draw_multiple(base->screen, base->splitters, 1);
 }
 
-// An input event was signalled (intercept events belonging to the editor main form)
-void editor_keypress(struct editor* base, int cp, int modifier, int button, int button_old, int x, int y) {
-  if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
+// An input event was signalled ... translate it to a command if possible
+void editor_keypress(struct editor* base, int key, int cp, int button, int button_old, int x, int y) {
+  // Woops... we have a reencode here ... try to remove me (beside the performance loss the codepoints aren't recovered correctly)
+  uint8_t utf8[8];
+  size_t size = encoding_utf8_encode(NULL, cp, &utf8[0], 8);
+  utf8[size] = 0;
+
+  // But our lookup has to be an integer array before
+  char key_lookup[1024];
+  const char* key_name = editor_key_names[key&TIPPSE_KEY_MASK];
+  sprintf(&key_lookup[0], "/keys/%s%s%s%s", (key&TIPPSE_KEY_MOD_SHIFT)?"shift+":"", (key&TIPPSE_KEY_MOD_CTRL)?"ctrl+":"", (key&TIPPSE_KEY_MOD_ALT)?"alt+":"", (cp!=0)?(const char*)&utf8[0]:key_name);
+
+  int command = TIPPSE_KEY_CHARACTER;
+  int* codepoints = config_find_ascii(base->focus->file->config, &key_lookup[0]);
+  if (codepoints) {
+    struct trie_node* parent = NULL;
+    while (*codepoints) {
+      parent = trie_find_codepoint(base->commands, parent, *codepoints);
+      if (!parent) {
+        break;
+      }
+
+      codepoints++;
+    }
+
+    if (parent && parent->type!=0) {
+      command = (int)parent->type;
+    }
+  }
+
+  if (command!=TIPPSE_KEY_CHARACTER || cp>=0x20) {
+    editor_intercept(base, command, key, cp, button, button_old, x, y);
+  }
+}
+
+// After event translation we can intercept the core commands (for now)
+void editor_intercept(struct editor* base, int command, int key, int cp, int button, int button_old, int x, int y) {
+  if (command==TIPPSE_CMD_MOUSE) {
     struct splitter* select = splitter_by_coordinate(base->splitters, x, y);
     if (select && button!=0 && button_old==0) {
       base->focus->active = 0;
@@ -155,25 +278,25 @@ void editor_keypress(struct editor* base, int cp, int modifier, int button, int 
     }
   }
 
-  if (cp==TIPPSE_KEY_DOCUMENTSELECTION) {
+  if (command==TIPPSE_CMD_DOCUMENTSELECTION) {
     splitter_assign_document_file(base->document, base->tabs_doc, base->document->content);
     base->document->view->line_select = 1;
-  } else if (cp==TIPPSE_KEY_BROWSER) {
+  } else if (command==TIPPSE_CMD_BROWSER) {
     splitter_assign_document_file(base->document, base->browser_doc, base->document->content);
     base->document->view->line_select = 1;
   }
 
-  if (cp==TIPPSE_KEY_CLOSE) {
+  if (command==TIPPSE_CMD_CLOSE) {
     base->close = 1;
-  } else if (cp==TIPPSE_KEY_SHOW_INVISIBLES) {
+  } else if (command==TIPPSE_CMD_SHOW_INVISIBLES) {
     // TODO: handle this in the document itself?
     base->focus->view->show_invisibles ^= 1;
     (*base->focus->document->reset)(base->focus->document, base->focus);
-  } else if (cp==TIPPSE_KEY_WORDWRAP) {
+  } else if (command==TIPPSE_CMD_WORDWRAP) {
     // TODO: handle this in the document itself?
     base->focus->view->wrapping ^= 1;
     (*base->focus->document->reset)(base->focus->document, base->focus);
-  } else if (cp==TIPPSE_KEY_SEARCH) {
+  } else if (command==TIPPSE_CMD_SEARCH) {
     base->focus->active = 0;
     if (base->focus==base->document) {
       base->focus = base->panel;
@@ -182,27 +305,27 @@ void editor_keypress(struct editor* base, int cp, int modifier, int button, int 
     }
 
     base->focus->active = 1;
-  } else if (cp==TIPPSE_KEY_SEARCH_NEXT) {
+  } else if (command==TIPPSE_CMD_SEARCH_NEXT) {
     base->focus->active = 0;
     base->focus = base->document;
     base->focus->active = 1;
     if (base->search_doc->buffer) {
       document_search(base->last_document, range_tree_first(base->search_doc->buffer), base->search_doc->buffer->length, 1);
     }
-  } else if (cp==TIPPSE_KEY_SEARCH_PREV) {
+  } else if (command==TIPPSE_CMD_SEARCH_PREV) {
     base->focus->active = 0;
     base->focus = base->document;
     base->focus->active = 1;
     if (base->search_doc->buffer) {
       document_search(base->last_document, range_tree_first(base->search_doc->buffer), base->search_doc->buffer->length, 0);
     }
-  } else if (cp==TIPPSE_KEY_VIEW_SWITCH) {
+  } else if (command==TIPPSE_CMD_VIEW_SWITCH) {
     if (base->focus->document==base->focus->document_hex) {
       base->focus->document = base->focus->document_text;
     } else {
       base->focus->document = base->focus->document_hex;
     }
-  } else if (cp==TIPPSE_KEY_OPEN || (base->focus->view->line_select && cp==TIPPSE_KEY_RETURN)) {
+  } else if (command==TIPPSE_CMD_OPEN || (base->focus->view->line_select && command==TIPPSE_CMD_RETURN)) {
     if (base->focus->view->selection_low!=base->focus->view->selection_high) {
       struct list_node* views = base->document->file->views->first;
       while (views) {
@@ -260,7 +383,7 @@ void editor_keypress(struct editor* base, int cp, int modifier, int button, int 
 
       free(name);
     }
-  } else if (cp==TIPPSE_KEY_NEW_VERT_TAB) {
+  } else if (command==TIPPSE_CMD_NEW_VERT_TAB) {
     struct splitter* parent = base->document->parent;
     struct splitter* split = splitter_create(0, 0, NULL, NULL, "Document");
 
@@ -273,7 +396,7 @@ void editor_keypress(struct editor* base, int cp, int modifier, int button, int 
       parent->side[1] = splitter;
     }
     splitter->parent = parent;
-  } else if (cp==TIPPSE_KEY_SAVE) {
+  } else if (command==TIPPSE_CMD_SAVE) {
     struct list_node* docs = base->documents->first;
     while (docs) {
       struct document_file* docs_document_doc = (struct document_file*)docs->object;
@@ -285,6 +408,6 @@ void editor_keypress(struct editor* base, int cp, int modifier, int button, int 
       docs = docs->next;
     }
   } else {
-    (*base->focus->document->keypress)(base->focus->document, base->focus, cp, modifier, button, button_old, x-base->focus->x, y-base->focus->y);
+    (*base->focus->document->keypress)(base->focus->document, base->focus, command, key, cp, button, button_old, x-base->focus->x, y-base->focus->y);
   }
 }

@@ -167,7 +167,7 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
 }
 
 // Handle key press
-void document_hex_keypress(struct document* base, struct splitter* splitter, int cp, int modifier, int button, int button_old, int x, int y) {
+void document_hex_keypress(struct document* base, struct splitter* splitter, int command, int key, int cp, int button, int button_old, int x, int y) {
   struct document_hex* document = (struct document_hex*)base;
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
@@ -176,35 +176,35 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   file_offset_t offset_old = view->offset;
   int selection_keep = 0;
 
-  if (cp==TIPPSE_KEY_UP) {
+  if (command==TIPPSE_CMD_UP) {
     view->offset-=16;
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_DOWN) {
+  } else if (command==TIPPSE_CMD_DOWN) {
     view->offset+=16;
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_LEFT) {
+  } else if (command==TIPPSE_CMD_LEFT) {
     view->offset--;
-  } else if (cp==TIPPSE_KEY_RIGHT) {
+  } else if (command==TIPPSE_CMD_RIGHT) {
     view->offset++;
-  } else if (cp==TIPPSE_KEY_PAGEUP) {
+  } else if (command==TIPPSE_CMD_PAGEUP) {
     view->offset -= (file_offset_t)(splitter->client_height*16);
     view->scroll_y -= splitter->client_height;
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_PAGEDOWN) {
+  } else if (command==TIPPSE_CMD_PAGEDOWN) {
     view->offset += (file_offset_t)(splitter->client_height*16);
     view->scroll_y += splitter->client_height;
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_FIRST) {
+  } else if (command==TIPPSE_CMD_FIRST) {
     view->offset -= view->offset%16;
-  } else if (cp==TIPPSE_KEY_LAST) {
+  } else if (command==TIPPSE_CMD_LAST) {
     view->offset += 15-(view->offset%16);
-  } else if (cp==TIPPSE_KEY_HOME) {
+  } else if (command==TIPPSE_CMD_HOME) {
     view->offset = 0;
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_END) {
+  } else if (command==TIPPSE_CMD_END) {
     view->offset = file_size;
     view->show_scrollbar = 1;
-  } else if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
+  } else if (command==TIPPSE_CMD_MOUSE) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
       document_hex_cursor_from_point(base, splitter, x, y, &view->offset);
     } else if (button&TIPPSE_MOUSE_WHEEL_UP) {
@@ -216,21 +216,21 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
       view->scroll_y += splitter->client_height/3;
       view->show_scrollbar = 1;
     }
-  } else if (cp==TIPPSE_KEY_SELECT_ALL) {
+  } else if (command==TIPPSE_CMD_SELECT_ALL) {
     view->selection_start = 0;
     view->selection_end = file_size;
     selection_keep = 1;
-  } else if (cp==TIPPSE_KEY_COPY || cp==TIPPSE_KEY_CUT) {
+  } else if (command==TIPPSE_CMD_COPY || command==TIPPSE_CMD_CUT) {
     if (view->selection_low!=FILE_OFFSET_T_MAX) {
       clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low), 1);
-      if (cp==TIPPSE_KEY_CUT) {
+      if (command==TIPPSE_CMD_CUT) {
         document_undo_chain(file, file->undos);
         document_file_delete_selection(splitter->file, splitter->view);
       } else {
         selection_keep = 1;
       }
     }
-  } else if (cp==TIPPSE_KEY_PASTE) {
+  } else if (command==TIPPSE_CMD_PASTE) {
     document_undo_chain(file, file->undos);
     document_file_delete_selection(splitter->file, splitter->view);
 
@@ -240,31 +240,31 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     }
 
     document_undo_chain(file, file->undos);
-  } else if (cp==TIPPSE_KEY_UNDO) {
+  } else if (command==TIPPSE_CMD_UNDO) {
     document_undo_execute_chain(file, view, file->undos, file->redos, 0);
-  } else if (cp==TIPPSE_KEY_REDO) {
+  } else if (command==TIPPSE_CMD_REDO) {
     document_undo_execute_chain(file, view, file->redos, file->undos, 1);
-  } else if (cp==TIPPSE_KEY_BACKSPACE) {
+  } else if (command==TIPPSE_CMD_BACKSPACE) {
     if (view->selection_low!=FILE_OFFSET_T_MAX || document->cp_first!=0) {
       document_file_delete_selection(file, view);
     } else {
       view->offset--;
       document_file_delete(file, view->offset, 1);
     }
-  } else if (cp==TIPPSE_KEY_DELETE) {
+  } else if (command==TIPPSE_CMD_DELETE) {
     if (view->selection_low!=FILE_OFFSET_T_MAX || document->cp_first!=0) {
       document_file_delete_selection(file, view);
     } else {
       document_file_delete(file, view->offset, 1);
     }
-  } else if (cp==TIPPSE_KEY_RETURN) {
+  } else if (command==TIPPSE_CMD_RETURN) {
     uint8_t text = file->binary?0:32;
     document_file_delete_selection(file, view);
     document_file_insert(file, view->offset, &text, 1);
     view->offset--;
   }
 
-  if ((cp>='0' && cp<='9') || (cp>='a' && cp<='f') || (cp>='A' && cp<='F')){
+  if (command==TIPPSE_CMD_CHARACTER && ((cp>='0' && cp<='9') || (cp>='a' && cp<='f') || (cp>='A' && cp<='F'))){
     if (document->cp_first!=0) {
       uint8_t text = (uint8_t)((document_hex_value(document->cp_first)<<4)+document_hex_value(cp));
       document_file_insert(file, view->offset, &text, 1);
@@ -279,7 +279,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
       }
       document->cp_first = cp;
     }
-  } else if (cp!=TIPPSE_KEY_TIPPSE_MOUSE_INPUT || button!=0) {
+  } else if (cp!=TIPPSE_CMD_MOUSE || button!=0) {
     document->cp_first = 0;
   }
 
@@ -291,14 +291,14 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   }
 
   int selection_reset = 0;
-  if (cp==TIPPSE_KEY_TIPPSE_MOUSE_INPUT) {
+  if (command==TIPPSE_CMD_MOUSE) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
-      if (!(button_old&TIPPSE_MOUSE_LBUTTON) && !(modifier&TIPPSE_KEY_MOD_SHIFT)) view->selection_start = FILE_OFFSET_T_MAX;
+      if (!(button_old&TIPPSE_MOUSE_LBUTTON) && !(key&TIPPSE_KEY_MOD_SHIFT)) view->selection_start = FILE_OFFSET_T_MAX;
       if (view->selection_start==FILE_OFFSET_T_MAX) view->selection_start = view->offset;
       view->selection_end = view->offset;
     }
   } else {
-    if (modifier&TIPPSE_KEY_MOD_SHIFT) {
+    if (key&TIPPSE_KEY_MOD_SHIFT) {
       if (view->selection_start==FILE_OFFSET_T_MAX) view->selection_start = offset_old;
       view->selection_end = view->offset;
     } else {
