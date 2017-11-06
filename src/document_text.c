@@ -1050,36 +1050,36 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   in_x_y.x = view->cursor_x;
   in_x_y.y = view->cursor_y;
 
-  if (command==TIPPSE_CMD_UP) {
+  if (command==TIPPSE_CMD_UP || command==TIPPSE_CMD_SELECT_UP) {
     in_x_y.y--;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
-  } else if (command==TIPPSE_CMD_DOWN) {
+  } else if (command==TIPPSE_CMD_DOWN || command==TIPPSE_CMD_SELECT_DOWN) {
     in_x_y.y++;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
-  } else if (command==TIPPSE_CMD_LEFT) {
+  } else if (command==TIPPSE_CMD_LEFT || command==TIPPSE_CMD_SELECT_LEFT) {
     in_x_y.x--;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
     seek = 1;
-  } else if (command==TIPPSE_CMD_RIGHT) {
+  } else if (command==TIPPSE_CMD_RIGHT || command==TIPPSE_CMD_SELECT_RIGHT) {
     in_x_y.x++;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 0);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
     seek = 1;
-  } else if (command==TIPPSE_CMD_PAGEDOWN) {
+  } else if (command==TIPPSE_CMD_PAGEDOWN || command==TIPPSE_CMD_SELECT_PAGEDOWN) {
     int page = splitter->client_height;
     in_x_y.y += page;
     view->scroll_y += page;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
-  } else if (command==TIPPSE_CMD_PAGEUP) {
+  } else if (command==TIPPSE_CMD_PAGEUP || command==TIPPSE_CMD_SELECT_PAGEUP) {
     int page = splitter->client_height;
     in_x_y.y -= page;
     view->scroll_y -= page;
@@ -1100,7 +1100,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       document_file_delete(splitter->file, view->offset, end-view->offset);
     }
     seek = 1;
-  } else if (command==TIPPSE_CMD_FIRST) {
+  } else if (command==TIPPSE_CMD_FIRST || command==TIPPSE_CMD_SELECT_FIRST) {
     struct range_tree_node* first = range_tree_find_indentation_last(out.buffer, out.lines, out.buffer?out.buffer:range_tree_last(file->buffer));
     int seek_first = 1;
 
@@ -1132,20 +1132,20 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       view->cursor_x = out.x;
       view->cursor_y = out.y;
     }
-  } else if (command==TIPPSE_CMD_LAST) {
+  } else if (command==TIPPSE_CMD_LAST || command==TIPPSE_CMD_SELECT_LAST) {
     in_line_column.line = out.line;
     in_line_column.column = POSITION_T_MAX;
     view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
-  } else if (command==TIPPSE_CMD_HOME) {
+  } else if (command==TIPPSE_CMD_HOME || command==TIPPSE_CMD_SELECT_HOME) {
     in_x_y.x = 0;
     in_x_y.y = 0;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
-  } else if (command==TIPPSE_CMD_END) {
+  } else if (command==TIPPSE_CMD_END || command==TIPPSE_CMD_SELECT_END) {
     in_x_y.x = POSITION_T_MAX;
     in_x_y.y = POSITION_T_MAX;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
@@ -1357,11 +1357,11 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       view->selection_end = view->offset;
     }
   } else {
-    if (key&TIPPSE_KEY_MOD_SHIFT) {
+    if (command==TIPPSE_CMD_SELECT_UP || command==TIPPSE_CMD_SELECT_DOWN || command==TIPPSE_CMD_SELECT_LEFT || command==TIPPSE_CMD_SELECT_RIGHT || command==TIPPSE_CMD_SELECT_PAGEUP || command==TIPPSE_CMD_SELECT_PAGEDOWN || command==TIPPSE_CMD_SELECT_FIRST || command==TIPPSE_CMD_SELECT_LAST || command==TIPPSE_CMD_SELECT_HOME || command==TIPPSE_CMD_SELECT_END) {
       if (view->selection_start==FILE_OFFSET_T_MAX) view->selection_start = offset_old;
       view->selection_end = view->offset;
     } else {
-      selection_reset = selection_keep ? 0 : 1;
+      selection_reset = selection_keep?0:1;
     }
   }
   if (selection_reset) {

@@ -37,20 +37,20 @@ const char* editor_key_names[TIPPSE_KEY_MAX] = {
 
 const char* editor_commands[TIPPSE_CMD_MAX] = {
   "",
+  "close",
   "up",
   "down",
   "right",
   "left",
-  "close",
   "pageup",
   "pagedown",
-  "backspace",
-  "delete",
-  "insert",
   "first",
   "last",
   "home",
   "end",
+  "backspace",
+  "delete",
+  "insert",
   "search",
   "searchnext",
   "undo",
@@ -72,7 +72,17 @@ const char* editor_commands[TIPPSE_CMD_MAX] = {
   "wordwrap",
   "documents",
   "return",
-  "selectall"
+  "selectall",
+  "selectup",
+  "selectdown",
+  "selectright",
+  "selectleft",
+  "selectpageup",
+  "selectpagedown",
+  "selectfirst",
+  "selectlast",
+  "selecthome",
+  "selectend"
 };
 
 // Create editor

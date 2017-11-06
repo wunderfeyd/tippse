@@ -176,32 +176,32 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   file_offset_t offset_old = view->offset;
   int selection_keep = 0;
 
-  if (command==TIPPSE_CMD_UP) {
+  if (command==TIPPSE_CMD_UP || command==TIPPSE_CMD_SELECT_UP) {
     view->offset-=16;
     view->show_scrollbar = 1;
-  } else if (command==TIPPSE_CMD_DOWN) {
+  } else if (command==TIPPSE_CMD_DOWN || command==TIPPSE_CMD_SELECT_DOWN) {
     view->offset+=16;
     view->show_scrollbar = 1;
-  } else if (command==TIPPSE_CMD_LEFT) {
+  } else if (command==TIPPSE_CMD_LEFT || command==TIPPSE_CMD_SELECT_LEFT) {
     view->offset--;
-  } else if (command==TIPPSE_CMD_RIGHT) {
+  } else if (command==TIPPSE_CMD_RIGHT || command==TIPPSE_CMD_SELECT_RIGHT) {
     view->offset++;
-  } else if (command==TIPPSE_CMD_PAGEUP) {
+  } else if (command==TIPPSE_CMD_PAGEUP || command==TIPPSE_CMD_SELECT_PAGEUP) {
     view->offset -= (file_offset_t)(splitter->client_height*16);
     view->scroll_y -= splitter->client_height;
     view->show_scrollbar = 1;
-  } else if (command==TIPPSE_CMD_PAGEDOWN) {
+  } else if (command==TIPPSE_CMD_PAGEDOWN || command==TIPPSE_CMD_SELECT_PAGEDOWN) {
     view->offset += (file_offset_t)(splitter->client_height*16);
     view->scroll_y += splitter->client_height;
     view->show_scrollbar = 1;
-  } else if (command==TIPPSE_CMD_FIRST) {
+  } else if (command==TIPPSE_CMD_FIRST || command==TIPPSE_CMD_SELECT_FIRST) {
     view->offset -= view->offset%16;
-  } else if (command==TIPPSE_CMD_LAST) {
+  } else if (command==TIPPSE_CMD_LAST || command==TIPPSE_CMD_SELECT_LAST) {
     view->offset += 15-(view->offset%16);
-  } else if (command==TIPPSE_CMD_HOME) {
+  } else if (command==TIPPSE_CMD_HOME || command==TIPPSE_CMD_SELECT_HOME) {
     view->offset = 0;
     view->show_scrollbar = 1;
-  } else if (command==TIPPSE_CMD_END) {
+  } else if (command==TIPPSE_CMD_END || command==TIPPSE_CMD_SELECT_END) {
     view->offset = file_size;
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_MOUSE) {
@@ -298,11 +298,11 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
       view->selection_end = view->offset;
     }
   } else {
-    if (key&TIPPSE_KEY_MOD_SHIFT) {
+    if (command==TIPPSE_CMD_SELECT_UP || command==TIPPSE_CMD_SELECT_DOWN || command==TIPPSE_CMD_SELECT_LEFT || command==TIPPSE_CMD_SELECT_RIGHT || command==TIPPSE_CMD_SELECT_PAGEUP || command==TIPPSE_CMD_SELECT_PAGEDOWN || command==TIPPSE_CMD_SELECT_FIRST || command==TIPPSE_CMD_SELECT_LAST || command==TIPPSE_CMD_SELECT_HOME || command==TIPPSE_CMD_SELECT_END) {
       if (view->selection_start==FILE_OFFSET_T_MAX) view->selection_start = offset_old;
       view->selection_end = view->offset;
     } else {
-      selection_reset = selection_keep ? 0 : 1;
+      selection_reset = selection_keep?0:1;
     }
   }
   if (selection_reset) {
