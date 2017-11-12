@@ -49,7 +49,7 @@
 #define TIPPSE_KEY_MAX 30
 
 #define TIPPSE_CMD_CHARACTER 0
-#define TIPPSE_CMD_CLOSE 1
+#define TIPPSE_CMD_QUIT 1
 #define TIPPSE_CMD_UP 2
 #define TIPPSE_CMD_DOWN 3
 #define TIPPSE_CMD_RIGHT 4
@@ -76,7 +76,7 @@
 #define TIPPSE_CMD_MOUSE 25
 #define TIPPSE_CMD_SEARCH_PREV 26
 #define TIPPSE_CMD_OPEN 27
-#define TIPPSE_CMD_NEW_VERT_TAB 28
+#define TIPPSE_CMD_SPLIT 28
 #define TIPPSE_CMD_SHOW_INVISIBLES 29
 #define TIPPSE_CMD_BROWSER 30
 #define TIPPSE_CMD_VIEW_SWITCH 31
@@ -95,7 +95,10 @@
 #define TIPPSE_CMD_SELECT_LAST 44
 #define TIPPSE_CMD_SELECT_HOME 45
 #define TIPPSE_CMD_SELECT_END 46
-#define TIPPSE_CMD_MAX 47
+#define TIPPSE_CMD_CLOSE 47
+#define TIPPSE_CMD_SAVEALL 48
+#define TIPPSE_CMD_UNSPLIT 49
+#define TIPPSE_CMD_MAX 50
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -131,4 +134,10 @@ void editor_draw(struct editor* base);
 void editor_tick(struct editor* base);
 void editor_keypress(struct editor* base, int key, int cp, int button, int button_old, int x, int y);
 void editor_intercept(struct editor* base, int command, int key, int cp, int button, int button_old, int x, int y);
+
+void editor_split(struct editor* base, struct splitter* splitter);
+struct splitter* editor_unsplit(struct editor* base, struct splitter* splitter);
+void editor_save_document(struct editor* base, struct document_file* file);
+void editor_save_documents(struct editor* base);
+void editor_close_document(struct editor* base, struct document_file* file);
 #endif /* #ifndef TIPPSE_EDITOR_H */

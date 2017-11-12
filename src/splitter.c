@@ -29,7 +29,6 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
     splitter->active = 0;
     splitter->status_inverted = 0;
     splitter->type = type;
-    splitter->content = 0;
 
     splitter->document_text = document_text_create();
     splitter->document_hex = document_hex_create();
@@ -151,7 +150,7 @@ void splitter_unassign_document_file(struct splitter* splitter) {
   splitter->file = NULL;
 }
 
-void splitter_assign_document_file(struct splitter* splitter, struct document_file* file, int content) {
+void splitter_assign_document_file(struct splitter* splitter, struct document_file* file) {
   splitter_unassign_document_file(splitter);
 
   if (!file) {
@@ -160,7 +159,6 @@ void splitter_assign_document_file(struct splitter* splitter, struct document_fi
 
   splitter->file = file;
   document_file_reload_config(file);
-  splitter->content = content;
   if (splitter->file->views->first) {
     document_view_clone(splitter->view, (struct document_view*)splitter->file->views->first->object, splitter->file);
   } else {
@@ -176,6 +174,22 @@ void splitter_assign_document_file(struct splitter* splitter, struct document_fi
     splitter->document = splitter->document_hex;
   } else {
     splitter->document = splitter->document_text;
+  }
+}
+
+// Replace a document in all splitters with another
+void splitter_exchange_document_file(struct splitter* splitter, struct document_file* from, struct document_file* to) {
+  if (splitter->file==from) {
+    splitter_unassign_document_file(splitter);
+    splitter_assign_document_file(splitter, to);
+  }
+
+  if (splitter->side[0]) {
+    splitter_exchange_document_file(splitter->side[0], from, to);
+  }
+
+  if (splitter->side[1]) {
+    splitter_exchange_document_file(splitter->side[1], from, to);
   }
 }
 

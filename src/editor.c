@@ -37,7 +37,7 @@ const char* editor_key_names[TIPPSE_KEY_MAX] = {
 
 const char* editor_commands[TIPPSE_CMD_MAX] = {
   "",
-  "close",
+  "quit",
   "up",
   "down",
   "right",
@@ -64,7 +64,7 @@ const char* editor_commands[TIPPSE_CMD_MAX] = {
   "mouse",
   "searchprevious",
   "open",
-  "newtab",
+  "split",
   "invisibles",
   "browser",
   "switch",
@@ -82,7 +82,10 @@ const char* editor_commands[TIPPSE_CMD_MAX] = {
   "selectfirst",
   "selectlast",
   "selecthome",
-  "selectend"
+  "selectend",
+  "close",
+  "saveall",
+  "unsplit"
 };
 
 // Create editor
@@ -119,7 +122,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->document_doc = document_file_create(1);
   document_file_name(base->document_doc, "Untitled");
   base->document = splitter_create(0, 0, NULL, NULL,  "");
-  splitter_assign_document_file(base->document, base->document_doc, 1);
+  splitter_assign_document_file(base->document, base->document_doc);
   document_view_reset(base->document->view, base->document_doc);
 
   base->search_doc = document_file_create(0);
@@ -127,9 +130,10 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->search_doc->binary = 0;
 
   base->panel = splitter_create(0, 0, NULL, NULL, "");
-  splitter_assign_document_file(base->panel, base->search_doc, 0);
+  splitter_assign_document_file(base->panel, base->search_doc);
 
   base->splitters = splitter_create(TIPPSE_SPLITTER_VERT|TIPPSE_SPLITTER_FIXED0, 5, base->panel, base->document, "");
+  list_insert(base->documents, NULL, base->document_doc);
   list_insert(base->documents, NULL, base->tabs_doc);
   list_insert(base->documents, NULL, base->search_doc);
   list_insert(base->documents, NULL, base->browser_doc);
@@ -139,10 +143,9 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   for (int n = argc-1; n>=1; n--) {
     if (n==1) {
       document_file_load(base->document_doc, argv[n]);
-      list_insert(base->documents, NULL, base->document_doc);
-      splitter_assign_document_file(base->document, base->document_doc, 1);
+      splitter_assign_document_file(base->document, base->document_doc);
     } else {
-      struct document_file* document_add = document_file_create(0);
+      struct document_file* document_add = document_file_create(1);
       document_file_load(document_add, argv[n]);
       list_insert(base->documents, NULL, document_add);
     }
@@ -278,7 +281,7 @@ void editor_intercept(struct editor* base, int command, int key, int cp, int but
       base->focus->active = 0;
       base->focus = select;
       base->focus->active = 1;
-      if (select->content) {
+      if (select->file->save) {
         base->document = select;
       }
 
@@ -289,14 +292,14 @@ void editor_intercept(struct editor* base, int command, int key, int cp, int but
   }
 
   if (command==TIPPSE_CMD_DOCUMENTSELECTION) {
-    splitter_assign_document_file(base->document, base->tabs_doc, base->document->content);
+    splitter_assign_document_file(base->document, base->tabs_doc);
     base->document->view->line_select = 1;
   } else if (command==TIPPSE_CMD_BROWSER) {
-    splitter_assign_document_file(base->document, base->browser_doc, base->document->content);
+    splitter_assign_document_file(base->document, base->browser_doc);
     base->document->view->line_select = 1;
   }
 
-  if (command==TIPPSE_CMD_CLOSE) {
+  if (command==TIPPSE_CMD_QUIT) {
     base->close = 1;
   } else if (command==TIPPSE_CMD_SHOW_INVISIBLES) {
     // TODO: handle this in the document itself?
@@ -335,6 +338,8 @@ void editor_intercept(struct editor* base, int command, int key, int cp, int but
     } else {
       base->focus->document = base->focus->document_hex;
     }
+  } else if (command==TIPPSE_CMD_CLOSE) {
+    editor_close_document(base, base->focus->file);
   } else if (command==TIPPSE_CMD_OPEN || (base->focus->view->line_select && command==TIPPSE_CMD_RETURN)) {
     if (base->focus->view->selection_low!=base->focus->view->selection_high) {
       struct list_node* views = base->document->file->views->first;
@@ -382,7 +387,7 @@ void editor_intercept(struct editor* base, int command, int key, int cp, int but
 
         if (new_document_doc) {
           list_insert(base->documents, NULL, new_document_doc);
-          splitter_assign_document_file(base->document, new_document_doc, base->document->content);
+          splitter_assign_document_file(base->document, new_document_doc);
         }
 
         free(relative);
@@ -393,31 +398,123 @@ void editor_intercept(struct editor* base, int command, int key, int cp, int but
 
       free(name);
     }
-  } else if (command==TIPPSE_CMD_NEW_VERT_TAB) {
-    struct splitter* parent = base->document->parent;
-    struct splitter* split = splitter_create(0, 0, NULL, NULL, "Document");
-
-    splitter_assign_document_file(split, base->document->file, base->document->content);
-
-    struct splitter* splitter = splitter_create(TIPPSE_SPLITTER_HORZ, 50, base->document, split, "");
-    if (parent->side[0]==base->document) {
-      parent->side[0] = splitter;
-    } else {
-      parent->side[1] = splitter;
+  } else if (command==TIPPSE_CMD_SPLIT) {
+    editor_split(base, base->document);
+  } else if (command==TIPPSE_CMD_UNSPLIT) {
+    struct splitter* document = editor_unsplit(base, base->document);
+    if (base->focus==base->document) {
+      base->focus->active = 0;
+      base->focus = document;
+      base->focus->active = 1;
     }
-    splitter->parent = parent;
+
+    base->document = document;
   } else if (command==TIPPSE_CMD_SAVE) {
-    struct list_node* docs = base->documents->first;
-    while (docs) {
-      struct document_file* docs_document_doc = (struct document_file*)docs->object;
-      if (document_undo_modified(docs_document_doc) && docs_document_doc->save) {
-        document_file_save(docs_document_doc, docs_document_doc->filename);
-        document_file_detect_properties(docs_document_doc);
-      }
-
-      docs = docs->next;
-    }
+    editor_save_document(base, base->document->file);
+  } else if (command==TIPPSE_CMD_SAVEALL) {
+    editor_save_documents(base);
   } else {
     (*base->focus->document->keypress)(base->focus->document, base->focus, command, key, cp, button, button_old, x-base->focus->x, y-base->focus->y);
+  }
+}
+
+// Split view
+void editor_split(struct editor* base, struct splitter* node) {
+  struct splitter* parent = node->parent;
+  struct splitter* split = splitter_create(0, 0, NULL, NULL, "Document");
+
+  splitter_assign_document_file(split, node->file);
+
+  struct splitter* splitter = splitter_create(TIPPSE_SPLITTER_HORZ, 50, node, split, "");
+  if (parent->side[0]==node) {
+    parent->side[0] = splitter;
+  } else {
+    parent->side[1] = splitter;
+  }
+  splitter->parent = parent;
+}
+
+// Combine splitted view
+struct splitter* editor_unsplit(struct editor* base, struct splitter* node) {
+  if (node->side[0] || node->side[1]) {
+    return node;
+  }
+
+  struct splitter* parent = node->parent;
+  if (base->splitters==parent) {
+    return node;
+  }
+
+  struct splitter* parentup = parent->parent;
+  if (!parentup) {
+    return node;
+  }
+
+  struct splitter* other = (node!=parent->side[0])?parent->side[0]:parent->side[1];
+
+  if (parentup->side[0]==parent) {
+    parentup->side[0] = other;
+  } else {
+    parentup->side[1] = other;
+  }
+
+  other->parent = parentup;
+
+  parent->side[0] = NULL;
+  parent->side[1] = NULL;
+  splitter_destroy(parent);
+  splitter_destroy(node);
+  return other;
+}
+
+// Save single modified document
+void editor_save_document(struct editor* base, struct document_file* file) {
+  if (document_undo_modified(file) && file->save) {
+    document_file_save(file, file->filename);
+    document_file_detect_properties(file);
+  }
+}
+
+// Save all modified documents
+void editor_save_documents(struct editor* base) {
+  struct list_node* docs = base->documents->first;
+  while (docs) {
+    editor_save_document(base, (struct document_file*)docs->object);
+    docs = docs->next;
+  }
+}
+
+// Close single document and reassign splitters
+void editor_close_document(struct editor* base, struct document_file* file) {
+  if (!file->save) {
+    return;
+  }
+
+  struct list_node* docs = base->documents->first;
+  struct list_node* remove = NULL;
+  struct document_file* assign = NULL;
+  while (docs && (!remove || !assign)) {
+    if ((struct document_file*)docs->object==file) {
+      remove = docs;
+    } else {
+      if (((struct document_file*)docs->object)->save) {
+        assign = (struct document_file*)docs->object;
+      }
+    }
+
+    docs = docs->next;
+  }
+
+  if (remove) {
+    if (!assign) {
+      assign = document_file_create(1);
+      document_file_name(assign, "Untitled");
+      list_insert(base->documents, NULL, assign);
+    }
+
+    struct document_file* replace = (struct document_file*)remove->object;
+    splitter_exchange_document_file(base->splitters, replace, assign);
+    document_file_destroy(replace);
+    list_remove(base->documents, remove);
   }
 }

@@ -852,7 +852,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
-  if (splitter->content && file->buffer) {
+  if (file->save && file->buffer) {
     if (file->buffer->length!=view->selection->length) {
       printf("\r\nSelection area and file length differ %d<>%d\r\n", (int)file->buffer->length, (int)view->selection->length);
       exit(0);

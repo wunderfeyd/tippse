@@ -36,7 +36,6 @@ struct splitter {
   char* name;
   char* status;
   int status_inverted;
-  int content;
 
   struct document_file* file;
   struct document_view* view;
@@ -56,7 +55,8 @@ void splitter_cursor(struct screen* screen, struct splitter* splitter, int x, in
 void splitter_scrollbar(struct screen* screen, const struct splitter* splitter);
 void splitter_hilight(struct screen* screen, const struct splitter* splitter, int x, int y, int color);
 void splitter_unassign_document_file(struct splitter* splitter);
-void splitter_assign_document_file(struct splitter* splitter, struct document_file* file, int content);
+void splitter_assign_document_file(struct splitter* splitter, struct document_file* file);
+void splitter_exchange_document_file(struct splitter* splitter, struct document_file* from, struct document_file* to);
 void splitter_draw(struct screen* screen, struct splitter* splitter);
 struct document_file* splitter_first_document(const struct splitter* splitter);
 void splitter_draw_split_horizontal(struct screen* screen, const struct splitter* splitter, int x, int y, int width);
