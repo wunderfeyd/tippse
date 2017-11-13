@@ -38,6 +38,8 @@ struct document_file* document_file_create(int save) {
   file->newline = TIPPSE_NEWLINE_AUTO;
   file->config = config_create();
   file->view = document_view_create();
+  file->pipefd[0] = -1;
+  file->pipefd[1] = -1;
   document_view_reset(file->view, file);
   document_undo_mark_save_point(file);
   return file;
@@ -108,6 +110,62 @@ void document_file_name(struct document_file* file, const char* filename) {
 void document_file_encoding(struct document_file* file, struct encoding* encoding) {
   (*file->encoding->destroy)(file->encoding);
   file->encoding = encoding;
+}
+
+// Execute system command and push output into file contents
+void document_file_pipe(struct document_file* file, const char* command) {
+  range_tree_destroy(file->buffer);
+  file->buffer = NULL;
+
+  close(file->pipefd[0]);
+  //close(file->pipefd[1]);
+
+  pipe(file->pipefd);
+
+  pid_t pid = fork();
+  if (pid==0) {
+    dup2(file->pipefd[0], 0);
+    dup2(file->pipefd[1], 1);
+    dup2(file->pipefd[1], 2);
+    close(file->pipefd[0]);
+    close(file->pipefd[1]);
+    char* argv[4];
+    argv[0] = "/bin/sh";
+    argv[1] = "-c";
+    argv[2] = (char*)command;
+    argv[3] = NULL;
+    execv(argv[0], &argv[0]);
+    printf("command broken\r\n");
+    exit(0);
+  } else {
+    close(file->pipefd[1]);
+
+    int flags = fcntl(file->pipefd[0], F_GETFL, 0);
+    fcntl(file->pipefd[0], F_SETFL, flags|O_NONBLOCK);
+
+    document_undo_mark_save_point(file);
+    document_file_name(file, command);
+    document_file_detect_properties(file);
+    file->bookmarks = range_tree_static(file->bookmarks, file->buffer?file->buffer->length:0, 0);
+    document_view_reset(file->view, file);
+  }
+}
+
+// Append incoming data from pipe
+void document_file_fill_pipe(struct document_file* file, uint8_t* buffer, size_t length) {
+  if (length>0) {
+    uint8_t* copy = (uint8_t*)malloc(length);
+    memcpy(copy, buffer, length);
+    file->bookmarks = range_tree_expand(file->bookmarks, file->buffer?file->buffer->length:0, length);
+    file->buffer = range_tree_insert(file->buffer, file->buffer?file->buffer->length:0, fragment_create_memory(copy, length), 0, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
+  }
+}
+
+// Close incoming pipe
+void document_file_close_pipe(struct document_file* file) {
+  close(file->pipefd[0]);
+  file->pipefd[0] = -1;
+  file->pipefd[1] = -1;
 }
 
 // Load file from file system, up to a certain threshold

@@ -85,7 +85,8 @@ const char* editor_commands[TIPPSE_CMD_MAX] = {
   "selectend",
   "close",
   "saveall",
-  "unsplit"
+  "unsplit",
+  "compile"
 };
 
 // Create editor
@@ -129,6 +130,8 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   document_file_name(base->search_doc, "Search");
   base->search_doc->binary = 0;
 
+  base->compiler_doc = document_file_create(0);
+
   base->panel = splitter_create(0, 0, NULL, NULL, "");
   splitter_assign_document_file(base->panel, base->search_doc);
 
@@ -137,6 +140,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   list_insert(base->documents, NULL, base->tabs_doc);
   list_insert(base->documents, NULL, base->search_doc);
   list_insert(base->documents, NULL, base->browser_doc);
+  list_insert(base->documents, NULL, base->compiler_doc);
 
   base->panel->view->line_select = 0; // TODO: check why the panel form needs this
 
@@ -151,9 +155,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
     }
   }
 
-  base->focus = base->document;
-  base->last_document = base->document;
-  base->focus->active = 1;
+  editor_focus(base, base->document, 0);
 
   document_directory(base->browser_doc);
   document_file_manualchange(base->browser_doc);
@@ -278,16 +280,7 @@ void editor_intercept(struct editor* base, int command, int key, int cp, int but
   if (command==TIPPSE_CMD_MOUSE) {
     struct splitter* select = splitter_by_coordinate(base->splitters, x, y);
     if (select && button!=0 && button_old==0) {
-      base->focus->active = 0;
-      base->focus = select;
-      base->focus->active = 1;
-      if (select->file->save) {
-        base->document = select;
-      }
-
-      if (select!=base->panel) {
-        base->last_document = select;
-      }
+      editor_focus(base, select, 1);
     }
   }
 
@@ -301,34 +294,19 @@ void editor_intercept(struct editor* base, int command, int key, int cp, int but
 
   if (command==TIPPSE_CMD_QUIT) {
     base->close = 1;
-  } else if (command==TIPPSE_CMD_SHOW_INVISIBLES) {
-    // TODO: handle this in the document itself?
-    base->focus->view->show_invisibles ^= 1;
-    (*base->focus->document->reset)(base->focus->document, base->focus);
-  } else if (command==TIPPSE_CMD_WORDWRAP) {
-    // TODO: handle this in the document itself?
-    base->focus->view->wrapping ^= 1;
-    (*base->focus->document->reset)(base->focus->document, base->focus);
   } else if (command==TIPPSE_CMD_SEARCH) {
-    base->focus->active = 0;
     if (base->focus==base->document) {
-      base->focus = base->panel;
+      editor_focus(base, base->panel, 1);
     } else {
-      base->focus = base->document;
+      editor_focus(base, base->document, 1);
     }
-
-    base->focus->active = 1;
   } else if (command==TIPPSE_CMD_SEARCH_NEXT) {
-    base->focus->active = 0;
-    base->focus = base->document;
-    base->focus->active = 1;
+    editor_focus(base, base->document, 1);
     if (base->search_doc->buffer) {
       document_search(base->last_document, range_tree_first(base->search_doc->buffer), base->search_doc->buffer->length, 1);
     }
   } else if (command==TIPPSE_CMD_SEARCH_PREV) {
-    base->focus->active = 0;
-    base->focus = base->document;
-    base->focus->active = 1;
+    editor_focus(base, base->document, 1);
     if (base->search_doc->buffer) {
       document_search(base->last_document, range_tree_first(base->search_doc->buffer), base->search_doc->buffer->length, 0);
     }
@@ -341,80 +319,44 @@ void editor_intercept(struct editor* base, int command, int key, int cp, int but
   } else if (command==TIPPSE_CMD_CLOSE) {
     editor_close_document(base, base->focus->file);
   } else if (command==TIPPSE_CMD_OPEN || (base->focus->view->line_select && command==TIPPSE_CMD_RETURN)) {
-    if (base->focus->view->selection_low!=base->focus->view->selection_high) {
-      struct list_node* views = base->document->file->views->first;
-      while (views) {
-        struct document_view* view = (struct document_view*)views->object;
-        if (view==base->document->view) {
-          list_remove(base->document->file->views, views);
-          break;
-        }
-
-        views = views->next;
-      }
-
-      char* name = (char*)range_tree_raw(base->focus->file->buffer, base->focus->view->selection_low, base->focus->view->selection_high);
-      if (*name) {
-        char* path_only = (base->focus->file==base->browser_doc)?strdup(base->focus->file->filename):strip_file_name(base->focus->file->filename);
-        char* combined = combine_path_file(path_only, name);
-        char* corrected = correct_path(combined);
-        char* relative = relativate_path(base->base_path, corrected);
-
-        struct document_file* new_document_doc = NULL;
-        struct list_node* docs = base->documents->first;
-        while (docs) {
-          struct document_file* docs_document_doc = (struct document_file*)docs->object;
-          if (strcmp(docs_document_doc->filename, relative)==0 && docs_document_doc!=base->focus->file) {
-            new_document_doc = docs_document_doc;
-            list_remove(base->documents, docs);
-            break;
-          }
-
-          docs = docs->next;
-        }
-
-        if (!new_document_doc) {
-          if (is_directory(relative)) {
-            document_file_name(base->document->file, relative);
-            document_directory(base->browser_doc);
-            document_view_reset(base->document->view, base->browser_doc);
-            base->document->view->line_select = 1;
-          } else {
-            new_document_doc = document_file_create(1);
-            document_file_load(new_document_doc, relative);
-          }
-        }
-
-        if (new_document_doc) {
-          list_insert(base->documents, NULL, new_document_doc);
-          splitter_assign_document_file(base->document, new_document_doc);
-        }
-
-        free(relative);
-        free(combined);
-        free(path_only);
-        free(corrected);
-      }
-
-      free(name);
-    }
+    editor_open_selection(base, base->focus, base->document);
   } else if (command==TIPPSE_CMD_SPLIT) {
     editor_split(base, base->document);
   } else if (command==TIPPSE_CMD_UNSPLIT) {
     struct splitter* document = editor_unsplit(base, base->document);
     if (base->focus==base->document) {
-      base->focus->active = 0;
-      base->focus = document;
-      base->focus->active = 1;
+      editor_focus(base, document, 0);
     }
-
-    base->document = document;
   } else if (command==TIPPSE_CMD_SAVE) {
     editor_save_document(base, base->document->file);
   } else if (command==TIPPSE_CMD_SAVEALL) {
     editor_save_documents(base);
+  } else if (command==TIPPSE_CMD_COMPILE) {
+    splitter_assign_document_file(base->document, base->compiler_doc);
+    document_file_pipe(base->document->file, "find / -iname \"*.*\"");
   } else {
     (*base->focus->document->keypress)(base->focus->document, base->focus, command, key, cp, button, button_old, x-base->focus->x, y-base->focus->y);
+  }
+}
+
+// Set focus to other document
+void editor_focus(struct editor* base, struct splitter* node, int disable) {
+  if (base->focus==node) {
+    return;
+  }
+
+  if (base->focus && disable) {
+    base->focus->active = 0;
+  }
+
+  base->focus = node;
+  base->focus->active = 1;
+  if (node->file->save) {
+    base->document = node;
+  }
+
+  if (node!=base->panel) {
+    base->last_document = node;
   }
 }
 
@@ -465,6 +407,86 @@ struct splitter* editor_unsplit(struct editor* base, struct splitter* node) {
   splitter_destroy(parent);
   splitter_destroy(node);
   return other;
+}
+
+// Use selection from specified view to open a new document
+void editor_open_selection(struct editor* base, struct splitter* node, struct splitter* destination) {
+  if (node->view->selection_low!=node->view->selection_high) {
+    struct list_node* views = destination->file->views->first;
+    while (views) {
+      struct document_view* view = (struct document_view*)views->object;
+      if (view==destination->view) {
+        list_remove(destination->file->views, views);
+        break;
+      }
+
+      views = views->next;
+    }
+
+    char* name = (char*)range_tree_raw(node->file->buffer, node->view->selection_low, node->view->selection_high);
+    if (*name) {
+      editor_open_document(base, name, node, destination);
+    }
+
+    free(name);
+  }
+}
+
+// Open file into destination splitter
+void editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination) {
+  char* path_only;
+  if (node) {
+    if (node->file==base->browser_doc) {
+      path_only = strdup(node->file->filename);
+    } else {
+      path_only = strip_file_name(node->file->filename);
+    }
+  } else {
+    path_only = strdup("");
+  }
+
+  char* combined = combine_path_file(path_only, name);
+  char* corrected = correct_path(combined);
+  char* relative = relativate_path(base->base_path, corrected);
+
+  struct document_file* new_document_doc = NULL;
+  struct list_node* docs = base->documents->first;
+  while (docs) {
+    struct document_file* docs_document_doc = (struct document_file*)docs->object;
+    if (strcmp(docs_document_doc->filename, relative)==0 && (!node || docs_document_doc!=node->file)) {
+      new_document_doc = docs_document_doc;
+      list_remove(base->documents, docs);
+      break;
+    }
+
+    docs = docs->next;
+  }
+
+  if (!new_document_doc) {
+    if (is_directory(relative)) {
+      if (destination) {
+        document_file_name(destination->file, relative);
+        document_directory(base->browser_doc);
+        document_view_reset(destination->view, base->browser_doc);
+        destination->view->line_select = 1;
+      }
+    } else {
+      new_document_doc = document_file_create(1);
+      document_file_load(new_document_doc, relative);
+    }
+  }
+
+  if (new_document_doc) {
+    list_insert(base->documents, NULL, new_document_doc);
+    if (destination) {
+      splitter_assign_document_file(destination, new_document_doc);
+    }
+  }
+
+  free(relative);
+  free(combined);
+  free(path_only);
+  free(corrected);
 }
 
 // Save single modified document

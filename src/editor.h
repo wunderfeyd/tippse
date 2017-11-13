@@ -98,7 +98,8 @@
 #define TIPPSE_CMD_CLOSE 47
 #define TIPPSE_CMD_SAVEALL 48
 #define TIPPSE_CMD_UNSPLIT 49
-#define TIPPSE_CMD_MAX 50
+#define TIPPSE_CMD_COMPILE 50
+#define TIPPSE_CMD_MAX 51
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -119,12 +120,15 @@ struct editor {
   struct document_file* browser_doc;  // document: list of file from current directory
   struct document_file* search_doc;   // document: current search text
   struct document_file* document_doc; // document: inital empty document
+  struct document_file* compiler_doc; // document: compiler output
 
   struct splitter* splitters;         // Tree of splitters
   struct splitter* panel;             // Extra panel for toolbox user input
   struct splitter* focus;             // Current focused document
   struct splitter* document;          // Current selected document
   struct splitter* last_document;     // Last selected user document
+
+  int pipefd[2];                      // Process stdin/stdout pipes
 };
 
 struct editor* editor_create(const char* base_path, struct screen* screen, int argc, const char** argv);
@@ -135,8 +139,11 @@ void editor_tick(struct editor* base);
 void editor_keypress(struct editor* base, int key, int cp, int button, int button_old, int x, int y);
 void editor_intercept(struct editor* base, int command, int key, int cp, int button, int button_old, int x, int y);
 
-void editor_split(struct editor* base, struct splitter* splitter);
-struct splitter* editor_unsplit(struct editor* base, struct splitter* splitter);
+void editor_focus(struct editor* base, struct splitter* node, int disable);
+void editor_split(struct editor* base, struct splitter* node);
+struct splitter* editor_unsplit(struct editor* base, struct splitter* node);
+void editor_open_selection(struct editor* base, struct splitter* node, struct splitter* destination);
+void editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination);
 void editor_save_document(struct editor* base, struct document_file* file);
 void editor_save_documents(struct editor* base);
 void editor_close_document(struct editor* base, struct document_file* file);

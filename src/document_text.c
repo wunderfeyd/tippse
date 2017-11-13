@@ -1247,6 +1247,12 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 
     document_undo_chain(file, file->undos);
     seek = 1;
+  } else if (command==TIPPSE_CMD_SHOW_INVISIBLES) {
+    view->show_invisibles ^= 1;
+    (*base->reset)(base, splitter);
+  } else if (command==TIPPSE_CMD_WORDWRAP) {
+    view->wrapping ^= 1;
+    (*base->reset)(base, splitter);
   } else if (command==TIPPSE_CMD_RETURN) {
     if (out.lines==0) {
       range_tree_find_bracket_lowest(out.buffer, out.min_line, out.buffer?out.buffer:range_tree_last(file->buffer));

@@ -80,6 +80,7 @@ const char* config_default =
       "return:return,"
       "ctrl+a:selectall,"
       "pastestart:paste,"
+      "f5:compile,"
     "},"
   "}"
 ;

@@ -72,12 +72,20 @@ struct tippse_ansi_key ansi_keys[] = {
   {"\x1b[200~", TIPPSE_KEY_BRACKET_PASTE_START, 0},
   {"\x1b[201~", TIPPSE_KEY_BRACKET_PASTE_STOP, 0},
   {"\x1b[1;m~", TIPPSE_KEY_FIRST, 0},
+  {"\x1b[15;m~", TIPPSE_KEY_F5, 0},
+  {"\x1b[17;m~", TIPPSE_KEY_F6, 0},
+  {"\x1b[18;m~", TIPPSE_KEY_F7, 0},
+  {"\x1b[19;m~", TIPPSE_KEY_F8, 0},
   {"\x1b[2;m~", TIPPSE_KEY_INSERT, 0},
   {"\x1b[3;m~", TIPPSE_KEY_DELETE, 0},
   {"\x1b[4;m~", TIPPSE_KEY_LAST, 0},
   {"\x1b[5;m~", TIPPSE_KEY_PAGEUP, 0},
   {"\x1b[6;m~", TIPPSE_KEY_PAGEDOWN, 0},
   {"\x1b[1~", TIPPSE_KEY_FIRST, 0},
+  {"\x1b[15~", TIPPSE_KEY_F5, 0},
+  {"\x1b[17~", TIPPSE_KEY_F6, 0},
+  {"\x1b[18~", TIPPSE_KEY_F7, 0},
+  {"\x1b[19~", TIPPSE_KEY_F8, 0},
   {"\x1b[2~", TIPPSE_KEY_INSERT, 0},
   {"\x1b[3~", TIPPSE_KEY_DELETE, 0},
   {"\x1b[4~", TIPPSE_KEY_LAST, 0},
@@ -101,6 +109,47 @@ struct tippse_ansi_key ansi_keys[] = {
   {NULL, 0, 0}
 };
 
+// Helper for crawling document pipes
+void tippse_append_inputs(struct splitter* splitter, fd_set* set_read, fd_set* set_write, int* nfds) {
+  if (splitter->side[0] || splitter->side[1]) {
+    tippse_append_inputs(splitter->side[0], set_read, set_write, nfds);
+    tippse_append_inputs(splitter->side[1], set_read, set_write, nfds);
+    return;
+  }
+
+  if (splitter->file->pipefd[0]!=-1) {
+    FD_SET(splitter->file->pipefd[0], set_read);
+    if (splitter->file->pipefd[0]>*nfds) {
+      *nfds = splitter->file->pipefd[0];
+    }
+  }
+}
+
+int tippse_check_inputs(struct splitter* splitter, fd_set* set_read, fd_set* set_write, int* nfds) {
+  int input = 0;
+  if (splitter->side[0] || splitter->side[1]) {
+    input |= tippse_check_inputs(splitter->side[0], set_read, set_write, nfds);
+    input |= tippse_check_inputs(splitter->side[1], set_read, set_write, nfds);
+    return input;
+  }
+
+  if (splitter->file->pipefd[0]!=-1) {
+    if (FD_ISSET(splitter->file->pipefd[0], set_read)) {
+      uint8_t buffer[1024];
+      ssize_t length = read(splitter->file->pipefd[0], &buffer[0], 1024);
+      if (length>0) {
+        document_file_fill_pipe(splitter->file, &buffer[0], (size_t)length);
+      } else if (length==0) {
+        document_file_fill_pipe(splitter->file, (uint8_t*)"\r\nDONE\r\n", 8);
+        document_file_close_pipe(splitter->file);
+      }
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
 int main(int argc, const char** argv) {
   char* base_path = realpath(".", NULL);
 
@@ -123,20 +172,28 @@ int main(int argc, const char** argv) {
     ssize_t in = 0;
     while (in==0) {
       fd_set set_read;
+      fd_set set_write;
       struct timeval tv;
       tv.tv_sec = 0;
       tv.tv_usec = 500*1000;
       FD_ZERO(&set_read);
+      FD_ZERO(&set_write);
+      int nfds = STDIN_FILENO;
       FD_SET(STDIN_FILENO, &set_read);
 
-      select(1, &set_read, NULL, NULL, &tv);
-      if (FD_ISSET(0, &set_read)) {
+      tippse_append_inputs(editor->splitters, &set_read, &set_write, &nfds);
+      select(nfds+1, &set_read, NULL, NULL, &tv);
+      if (FD_ISSET(STDIN_FILENO, &set_read)) {
         in = read(STDIN_FILENO, &input_buffer[input_pos], sizeof(input_buffer)-input_pos);
         if (in>0) {
           input_pos += (size_t)in;
         }
       } else {
         editor_tick(editor);
+      }
+
+      if (tippse_check_inputs(editor->splitters, &set_read, &set_write, &nfds)) {
+        break;
       }
     }
 
