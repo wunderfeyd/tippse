@@ -219,7 +219,18 @@ void editor_draw(struct editor* base) {
     screen_setchar(base->screen, x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, foreground, background);
   }
 
-  screen_drawtext(base->screen, 0, 0, 0, 0, base->screen->width, base->screen->height, base->focus->name, (size_t)base->screen->width, foreground, background);
+  int running = 0;
+  struct list_node* docs = base->documents->first;
+  while (docs && !running) {
+    running |= (((struct document_file*)docs->object)->pipefd[0]!=-1)?1:0;
+    docs = docs->next;
+  }
+  if (running) {
+    int cp = 'R';
+    screen_setchar(base->screen, 0, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], background);
+  }
+
+  screen_drawtext(base->screen, running?2:0, 0, 0, 0, base->screen->width, base->screen->height, base->focus->name, (size_t)base->screen->width, foreground, background);
   struct encoding_stream stream;
   encoding_stream_from_plain(&stream, (uint8_t*)base->focus->status, SIZE_T_MAX);
   size_t length = encoding_utf8_strlen(NULL, &stream);

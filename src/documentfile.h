@@ -103,10 +103,12 @@ void document_file_detect_properties(struct document_file* file);
 
 void document_file_reload_config(struct document_file* file);
 
+void document_file_expand_all(struct document_file* file, file_offset_t offset, file_offset_t length);
 void document_file_expand(file_offset_t* pos, file_offset_t offset, file_offset_t length);
 void document_file_insert(struct document_file* file, file_offset_t offset, const uint8_t* text, size_t length);
 void document_file_insert_buffer(struct document_file* file, file_offset_t offset, struct range_tree_node* buffer);
 
+void document_file_reduce_all(struct document_file* file, file_offset_t offset, file_offset_t length);
 void document_file_reduce(file_offset_t* pos, file_offset_t offset, file_offset_t length);
 void document_file_delete(struct document_file* file, file_offset_t offset, file_offset_t length);
 int document_file_delete_selection(struct document_file* file, struct document_view* view);

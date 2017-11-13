@@ -135,7 +135,6 @@ void document_file_pipe(struct document_file* file, const char* command) {
     argv[2] = (char*)command;
     argv[3] = NULL;
     execv(argv[0], &argv[0]);
-    printf("command broken\r\n");
     exit(0);
   } else {
     close(file->pipefd[1]);
@@ -156,8 +155,10 @@ void document_file_fill_pipe(struct document_file* file, uint8_t* buffer, size_t
   if (length>0) {
     uint8_t* copy = (uint8_t*)malloc(length);
     memcpy(copy, buffer, length);
-    file->bookmarks = range_tree_expand(file->bookmarks, file->buffer?file->buffer->length:0, length);
-    file->buffer = range_tree_insert(file->buffer, file->buffer?file->buffer->length:0, fragment_create_memory(copy, length), 0, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
+    file_offset_t offset = file->buffer?file->buffer->length:0;
+    file->buffer = range_tree_insert(file->buffer, offset, fragment_create_memory(copy, length), 0, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
+
+    document_file_expand_all(file, offset, length);
   }
 }
 
@@ -398,10 +399,27 @@ void document_file_detect_properties(struct document_file* file) {
   }
 }
 
-// Expand file buffer length
+// Correct file offset by expansion offset and length
 void document_file_expand(file_offset_t* pos, file_offset_t offset, file_offset_t length) {
   if (*pos>=offset && *pos!=FILE_OFFSET_T_MAX) {
     *pos+=length;
+  }
+}
+
+// Correct all file offsets by expansion offset and length
+void document_file_expand_all(struct document_file* file, file_offset_t offset, file_offset_t length) {
+  struct list_node* views = file->views->first;
+  while (views) {
+    struct document_view* view = (struct document_view*)views->object;
+    view->selection = range_tree_expand(view->selection, offset, length);
+    file->bookmarks = range_tree_expand(file->bookmarks, offset, length);
+    document_file_expand(&view->selection_end, offset, length);
+    document_file_expand(&view->selection_start, offset, length);
+    document_file_expand(&view->selection_low, offset, length);
+    document_file_expand(&view->selection_high, offset, length);
+    document_file_expand(&view->offset, offset, length);
+
+    views = views->next;
   }
 }
 
@@ -418,21 +436,7 @@ void document_file_insert(struct document_file* file, file_offset_t offset, cons
   }
 
   document_undo_add(file, NULL, offset, length, TIPPSE_UNDO_TYPE_INSERT);
-
-  struct list_node* views = file->views->first;
-  while (views) {
-    struct document_view* view = (struct document_view*)views->object;
-    view->selection = range_tree_expand(view->selection, offset, length);
-    file->bookmarks = range_tree_expand(file->bookmarks, offset, length);
-    document_file_expand(&view->selection_end, offset, length);
-    document_file_expand(&view->selection_start, offset, length);
-    document_file_expand(&view->selection_low, offset, length);
-    document_file_expand(&view->selection_high, offset, length);
-    document_file_expand(&view->offset, offset, length);
-
-    views = views->next;
-  }
-
+  document_file_expand_all(file, offset, length);
   document_undo_empty(file, file->redos);
 }
 
@@ -467,7 +471,7 @@ void document_file_insert_buffer(struct document_file* file, file_offset_t offse
   document_undo_empty(file, file->redos);
 }
 
-// Reduce file buffer length
+// Correct file offset by reduce offset and length
 void document_file_reduce(file_offset_t* pos, file_offset_t offset, file_offset_t length) {
   if (*pos>=offset && *pos!=FILE_OFFSET_T_MAX) {
     if ((*pos-offset)>=length) {
@@ -475,6 +479,23 @@ void document_file_reduce(file_offset_t* pos, file_offset_t offset, file_offset_
     } else {
       *pos = offset;
     }
+  }
+}
+
+// Correct all file offsets by reduce offset and length
+void document_file_reduce_all(struct document_file* file, file_offset_t offset, file_offset_t length) {
+  struct list_node* views = file->views->first;
+  while (views) {
+    struct document_view* view = (struct document_view*)views->object;
+    view->selection = range_tree_reduce(view->selection, offset, length);
+    file->bookmarks = range_tree_reduce(file->bookmarks, offset, length);
+    document_file_reduce(&view->selection_end, offset, length);
+    document_file_reduce(&view->selection_start, offset, length);
+    document_file_reduce(&view->selection_low, offset, length);
+    document_file_reduce(&view->selection_high, offset, length);
+    document_file_reduce(&view->offset, offset, length);
+
+    views = views->next;
   }
 }
 
@@ -490,20 +511,7 @@ void document_file_delete(struct document_file* file, file_offset_t offset, file
   file->buffer = range_tree_delete(file->buffer, offset, length, 0);
   length = old_length-(file->buffer?file->buffer->length:0);
 
-  struct list_node* views = file->views->first;
-  while (views) {
-    struct document_view* view = (struct document_view*)views->object;
-    view->selection = range_tree_reduce(view->selection, offset, length);
-    file->bookmarks = range_tree_reduce(file->bookmarks, offset, length);
-    document_file_reduce(&view->selection_end, offset, length);
-    document_file_reduce(&view->selection_start, offset, length);
-    document_file_reduce(&view->selection_low, offset, length);
-    document_file_reduce(&view->selection_high, offset, length);
-    document_file_reduce(&view->offset, offset, length);
-
-    views = views->next;
-  }
-
+  document_file_reduce_all(file, offset, length);
   document_undo_empty(file, file->redos);
 }
 

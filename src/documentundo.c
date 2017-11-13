@@ -94,19 +94,7 @@ int document_undo_execute(struct document_file* file, struct document_view* view
     file->buffer = range_tree_delete(file->buffer, undo->offset, undo->length, 0);
     offset = undo->cursor_delete;
 
-    struct list_node* views = file->views->first;
-    while (views) {
-      struct document_view* view = (struct document_view*)views->object;
-      view->selection = range_tree_reduce(view->selection, undo->offset, undo->length);
-      file->bookmarks = range_tree_reduce(file->bookmarks, undo->offset, undo->length);
-      document_file_reduce(&view->selection_end, undo->offset, undo->length);
-      document_file_reduce(&view->selection_start, undo->offset, undo->length);
-      document_file_reduce(&view->selection_low, undo->offset, undo->length);
-      document_file_reduce(&view->selection_high, undo->offset, undo->length);
-      document_file_reduce(&view->offset, undo->offset, undo->length);
-
-      views = views->next;
-    }
+    document_file_reduce_all(file, undo->offset, undo->length);
 
     undo->type = TIPPSE_UNDO_TYPE_DELETE;
     view->offset = offset;
@@ -115,19 +103,7 @@ int document_undo_execute(struct document_file* file, struct document_view* view
     file->buffer = range_tree_paste(file->buffer, undo->buffer, undo->offset);
     offset = undo->cursor_insert;
 
-    struct list_node* views = file->views->first;
-    while (views) {
-      struct document_view* view = (struct document_view*)views->object;
-      view->selection = range_tree_expand(view->selection, undo->offset, undo->length);
-      file->bookmarks = range_tree_expand(file->bookmarks, undo->offset, undo->length);
-      document_file_expand(&view->selection_end, undo->offset, undo->length);
-      document_file_expand(&view->selection_start, undo->offset, undo->length);
-      document_file_expand(&view->selection_low, undo->offset, undo->length);
-      document_file_expand(&view->selection_high, undo->offset, undo->length);
-      document_file_expand(&view->offset, undo->offset, undo->length);
-
-      views = views->next;
-    }
+    document_file_expand_all(file, undo->offset, undo->length);
 
     undo->type = TIPPSE_UNDO_TYPE_INSERT;
     chain = 1;
