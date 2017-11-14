@@ -170,12 +170,19 @@ int main(int argc, const char** argv) {
     editor_draw(editor);
 
     ssize_t in = 0;
+    int stop = 0;
+    int64_t start = tick_count();
     while (in==0) {
+      int64_t left = 100000-(tick_count()-start);
+      if (left<0 && stop) {
+        break;
+      }
+
       fd_set set_read;
       fd_set set_write;
       struct timeval tv;
       tv.tv_sec = 0;
-      tv.tv_usec = 500*1000;
+      tv.tv_usec = left;
       FD_ZERO(&set_read);
       FD_ZERO(&set_write);
       int nfds = STDIN_FILENO;
@@ -193,7 +200,7 @@ int main(int argc, const char** argv) {
       }
 
       if (tippse_check_inputs(editor->splitters, &set_read, &set_write, &nfds)) {
-        break;
+        stop = 1;
       }
     }
 

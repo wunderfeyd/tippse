@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <signal.h>
 
 struct document_file;
 

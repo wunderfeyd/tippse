@@ -115,13 +115,15 @@ void document_file_encoding(struct document_file* file, struct encoding* encodin
 // Execute system command and push output into file contents
 void document_file_pipe(struct document_file* file, const char* command) {
   range_tree_destroy(file->buffer);
+  document_undo_empty(file, file->undos);
+  document_undo_empty(file, file->redos);
   file->buffer = NULL;
 
   close(file->pipefd[0]);
-  //close(file->pipefd[1]);
 
   pipe(file->pipefd);
 
+  signal(SIGCHLD, SIG_IGN);
   pid_t pid = fork();
   if (pid==0) {
     dup2(file->pipefd[0], 0);

@@ -343,8 +343,11 @@ void editor_intercept(struct editor* base, int command, int key, int cp, int but
   } else if (command==TIPPSE_CMD_SAVEALL) {
     editor_save_documents(base);
   } else if (command==TIPPSE_CMD_COMPILE) {
-    splitter_assign_document_file(base->document, base->compiler_doc);
-    document_file_pipe(base->document->file, "find / -iname \"*.*\"");
+    if (base->document->file->pipefd[1]==-1 && base->document->file==base->compiler_doc) {
+      document_file_pipe(base->document->file, "find / -iname \"*.*\"");
+    } else {
+      splitter_assign_document_file(base->document, base->compiler_doc);
+    }
   } else {
     (*base->focus->document->keypress)(base->focus->document, base->focus, command, key, cp, button, button_old, x-base->focus->x, y-base->focus->y);
   }
