@@ -84,7 +84,8 @@ struct document_file {
   struct document_view* view;           // last used view
   struct list* views;                   // available views
 
-  int pipefd[2];                        // Test: Pipe to other process
+  int pipefd[2];                        // Pipe to child process
+  pid_t pid;                            // Child process id
 };
 
 struct document_file* document_file_create(int save);

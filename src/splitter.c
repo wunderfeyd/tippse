@@ -115,6 +115,7 @@ void splitter_scrollbar(struct screen* screen, const struct splitter* splitter) 
         splitter_drawchar(screen, splitter, splitter->client_width-1, y, &cp, 1, 17, 102);
       }
     }
+
     view->show_scrollbar = 0;
   }
 }

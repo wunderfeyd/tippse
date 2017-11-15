@@ -63,6 +63,7 @@ void document_file_clear(struct document_file* file) {
 // Destroy file operations
 void document_file_destroy(struct document_file* file) {
   document_file_clear(file);
+  document_file_close_pipe(file);
   document_undo_empty(file, file->undos);
   document_undo_empty(file, file->redos);
   list_destroy(file->undos);
@@ -119,13 +120,13 @@ void document_file_pipe(struct document_file* file, const char* command) {
   document_undo_empty(file, file->redos);
   file->buffer = NULL;
 
-  close(file->pipefd[0]);
+  document_file_close_pipe(file);
 
   pipe(file->pipefd);
 
   signal(SIGCHLD, SIG_IGN);
-  pid_t pid = fork();
-  if (pid==0) {
+  file->pid = fork();
+  if (file->pid==0) {
     dup2(file->pipefd[0], 0);
     dup2(file->pipefd[1], 1);
     dup2(file->pipefd[1], 2);
@@ -166,7 +167,12 @@ void document_file_fill_pipe(struct document_file* file, uint8_t* buffer, size_t
 
 // Close incoming pipe
 void document_file_close_pipe(struct document_file* file) {
+  if (file->pipefd[0]==-1) {
+    return;
+  }
+
   close(file->pipefd[0]);
+
   file->pipefd[0] = -1;
   file->pipefd[1] = -1;
 }

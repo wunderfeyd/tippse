@@ -253,21 +253,20 @@ void editor_tick(struct editor* base) {
 
 // An input event was signalled ... translate it to a command if possible
 void editor_keypress(struct editor* base, int key, int cp, int button, int button_old, int x, int y) {
-  // Woops... we have a reencode here ... try to remove me (beside the performance loss the codepoints aren't recovered correctly)
-  uint8_t utf8[8];
-  size_t size = encoding_utf8_encode(NULL, cp, &utf8[0], 8);
-  utf8[size] = 0;
-
-  // But our lookup has to be an integer array before
   char key_lookup[1024];
   const char* key_name = editor_key_names[key&TIPPSE_KEY_MASK];
-  sprintf(&key_lookup[0], "/keys/%s%s%s%s", (key&TIPPSE_KEY_MOD_SHIFT)?"shift+":"", (key&TIPPSE_KEY_MOD_CTRL)?"ctrl+":"", (key&TIPPSE_KEY_MOD_ALT)?"alt+":"", (cp!=0)?(const char*)&utf8[0]:key_name);
+  sprintf(&key_lookup[0], "/keys/%s%s%s%s", (key&TIPPSE_KEY_MOD_SHIFT)?"shift+":"", (key&TIPPSE_KEY_MOD_CTRL)?"ctrl+":"", (key&TIPPSE_KEY_MOD_ALT)?"alt+":"", (cp!=0)?"":key_name);
+
+  struct trie_node* parent = config_find_ascii(base->focus->file->config, &key_lookup[0]);
+  if (cp!=0 && parent) {
+    parent = config_advance_codepoints(base->focus->file->config, parent, &cp, 1);
+  }
 
   int command = TIPPSE_KEY_CHARACTER;
-  int* codepoints = config_find_ascii(base->focus->file->config, &key_lookup[0]);
+  int* codepoints = config_value(parent);
   if (codepoints) {
     struct trie_node* parent = NULL;
-    while (*codepoints) {
+    while (*codepoints!=0 && *codepoints!=' ') {
       parent = trie_find_codepoint(base->commands, parent, *codepoints);
       if (!parent) {
         break;

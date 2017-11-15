@@ -272,28 +272,27 @@ void config_update(struct config* config, int* keyword_codepoints, size_t keywor
   }
 }
 
-// Find keyword by code point list
-int* config_find_codepoints(struct config* config, int* keyword_codepoints, size_t keyword_length) {
-  struct trie_node* parent = NULL;
+// Find entry by code point list
+struct trie_node* config_advance_codepoints(struct config* config, struct trie_node* parent, int* keyword_codepoints, size_t keyword_length) {
   while (keyword_length-->0) {
     parent = trie_find_codepoint(config->keywords, parent, *keyword_codepoints);
     if (!parent) {
       return NULL;
     }
 
-    if (parent->type!=0 && keyword_length==0) {
-      return (int*)(((struct list_node*)parent->type)->object);
-    }
-
     keyword_codepoints++;
   }
 
-  return NULL;
+  return parent;
+}
+
+// Find entry by code point list from root
+struct trie_node* config_find_codepoints(struct config* config, int* keyword_codepoints, size_t keyword_length) {
+  return config_advance_codepoints(config, NULL, keyword_codepoints, keyword_length);
 }
 
 // Find keyword by ASCII string
-int* config_find_ascii(struct config* config, const char* keyword) {
-  struct trie_node* parent = NULL;
+struct trie_node* config_advance_ascii(struct config* config, struct trie_node* parent, const char* keyword) {
   while (*keyword) {
     parent = trie_find_codepoint(config->keywords, parent, *(uint8_t*)keyword);
     if (!parent) {
@@ -301,17 +300,27 @@ int* config_find_ascii(struct config* config, const char* keyword) {
     }
 
     keyword++;
+  }
 
-    if (parent->type!=0 && !*keyword) {
-      return (int*)(((struct list_node*)parent->type)->object);
-    }
+  return parent;
+}
+
+// Find keyword by ASCII string from root
+struct trie_node* config_find_ascii(struct config* config, const char* keyword) {
+  return config_advance_ascii(config, NULL, keyword);
+}
+
+// Get value at found position
+int* config_value(struct trie_node* parent) {
+  if (parent && parent->type!=0) {
+    return (int*)(((struct list_node*)parent->type)->object);
   }
 
   return NULL;
 }
 
 // Convert code points to ASCII
-char* config_convert_ascii(int* codepoints) {
+char* config_convert_ascii_plain(int* codepoints) {
   if (!codepoints) {
     return strdup("");
   }
@@ -329,8 +338,13 @@ char* config_convert_ascii(int* codepoints) {
   return string;
 }
 
+// Convert value to ASCII
+char* config_convert_ascii(struct trie_node* parent) {
+  return config_convert_ascii_plain(config_value(parent));
+}
+
 // Convert code points to integer
-int64_t config_convert_int64(int* codepoints) {
+int64_t config_convert_int64_plain(int* codepoints) {
   if (!codepoints) {
     return 0;
   }
@@ -352,4 +366,9 @@ int64_t config_convert_int64(int* codepoints) {
   }
 
   return value;
+}
+
+// Convert value to integer
+int64_t config_convert_int64(struct trie_node* parent) {
+  return config_convert_int64_plain(config_value(parent));
 }

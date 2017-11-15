@@ -110,44 +110,44 @@ struct tippse_ansi_key ansi_keys[] = {
 };
 
 // Helper for crawling document pipes
-void tippse_append_inputs(struct splitter* splitter, fd_set* set_read, fd_set* set_write, int* nfds) {
-  if (splitter->side[0] || splitter->side[1]) {
-    tippse_append_inputs(splitter->side[0], set_read, set_write, nfds);
-    tippse_append_inputs(splitter->side[1], set_read, set_write, nfds);
-    return;
-  }
-
-  if (splitter->file->pipefd[0]!=-1) {
-    FD_SET(splitter->file->pipefd[0], set_read);
-    if (splitter->file->pipefd[0]>*nfds) {
-      *nfds = splitter->file->pipefd[0];
+void tippse_append_inputs(struct editor* editor, fd_set* set_read, fd_set* set_write, int* nfds) {
+  struct list_node* docs = editor->documents->first;
+  while (docs) {
+    struct document_file* file = (struct document_file*)docs->object;
+    if (file->pipefd[0]!=-1) {
+      FD_SET(file->pipefd[0], set_read);
+      if (file->pipefd[0]>*nfds) {
+        *nfds = file->pipefd[0];
+      }
     }
+
+    docs = docs->next;
   }
 }
 
-int tippse_check_inputs(struct splitter* splitter, fd_set* set_read, fd_set* set_write, int* nfds) {
+int tippse_check_inputs(struct editor* editor, fd_set* set_read, fd_set* set_write, int* nfds) {
   int input = 0;
-  if (splitter->side[0] || splitter->side[1]) {
-    input |= tippse_check_inputs(splitter->side[0], set_read, set_write, nfds);
-    input |= tippse_check_inputs(splitter->side[1], set_read, set_write, nfds);
-    return input;
-  }
+  struct list_node* docs = editor->documents->first;
+  while (docs) {
+    struct document_file* file = (struct document_file*)docs->object;
+    if (file->pipefd[0]!=-1) {
+      if (FD_ISSET(file->pipefd[0], set_read)) {
+        input = 1;
 
-  if (splitter->file->pipefd[0]!=-1) {
-    if (FD_ISSET(splitter->file->pipefd[0], set_read)) {
-      uint8_t buffer[1024];
-      ssize_t length = read(splitter->file->pipefd[0], &buffer[0], 1024);
-      if (length>0) {
-        document_file_fill_pipe(splitter->file, &buffer[0], (size_t)length);
-      } else if (length==0) {
-        document_file_fill_pipe(splitter->file, (uint8_t*)"\r\nDONE\r\n", 8);
-        document_file_close_pipe(splitter->file);
+        uint8_t buffer[1024];
+        ssize_t length = read(file->pipefd[0], &buffer[0], 1024);
+        if (length>0) {
+          document_file_fill_pipe(file, &buffer[0], (size_t)length);
+        } else if (length==0) {
+          document_file_close_pipe(file);
+        }
       }
-      return 1;
     }
+
+    docs = docs->next;
   }
 
-  return 0;
+  return input;
 }
 
 int main(int argc, const char** argv) {
@@ -171,10 +171,15 @@ int main(int argc, const char** argv) {
 
     ssize_t in = 0;
     int stop = 0;
-    int64_t start = tick_count();
+    int64_t start;
     while (in==0) {
-      int64_t left = 100000-(tick_count()-start);
-      if (left<0 && stop) {
+      int64_t tick = tick_count();
+      if (!stop) {
+        start = tick;
+      }
+
+      int64_t left = 100000-(tick-start);
+      if (left<=0) {
         break;
       }
 
@@ -188,7 +193,7 @@ int main(int argc, const char** argv) {
       int nfds = STDIN_FILENO;
       FD_SET(STDIN_FILENO, &set_read);
 
-      tippse_append_inputs(editor->splitters, &set_read, &set_write, &nfds);
+      tippse_append_inputs(editor, &set_read, &set_write, &nfds);
       select(nfds+1, &set_read, NULL, NULL, &tv);
       if (FD_ISSET(STDIN_FILENO, &set_read)) {
         in = read(STDIN_FILENO, &input_buffer[input_pos], sizeof(input_buffer)-input_pos);
@@ -199,7 +204,7 @@ int main(int argc, const char** argv) {
         editor_tick(editor);
       }
 
-      if (tippse_check_inputs(editor->splitters, &set_read, &set_write, &nfds)) {
+      if (tippse_check_inputs(editor, &set_read, &set_write, &nfds)) {
         stop = 1;
       }
     }
