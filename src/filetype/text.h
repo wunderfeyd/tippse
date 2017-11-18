@@ -5,15 +5,15 @@
 
 struct file_type_text;
 
-#include "../trie.h"
 #include "../filetype.h"
-#include "../rangetree.h"
 
 struct file_type_text {
   struct file_type vtbl;
 };
 
-struct file_type* file_type_text_create(void);
+#include "../trie.h"
+
+struct file_type* file_type_text_create(struct config* config);
 void file_type_text_destroy(struct file_type* base);
 void file_type_text_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int same_line, int* length, int* flags);
 const char* file_type_text_name(void);

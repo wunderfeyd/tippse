@@ -9,7 +9,15 @@
 #include <dirent.h>
 
 struct document;
+struct screen;
 struct splitter;
+
+struct document {
+  void (*reset)(struct document* base, struct splitter* splitter);
+  void (*draw)(struct document* base, struct screen* screen, struct splitter* splitter);
+  void (*keypress)(struct document* base, struct splitter* splitter, int command, int key, int cp, int button, int button_old, int x, int y);
+  int (*incremental_update)(struct document* base, struct splitter* splitter);
+};
 
 #include "misc.h"
 #include "trie.h"
@@ -21,14 +29,6 @@ struct splitter;
 #include "documentfile.h"
 #include "encoding.h"
 #include "unicode.h"
-
-struct document {
-  void (*reset)(struct document* base, struct splitter* splitter);
-  void (*draw)(struct document* base, struct screen* screen, struct splitter* splitter);
-  void (*keypress)(struct document* base, struct splitter* splitter, int command, int key, int cp, int button, int button_old, int x, int y);
-  int (*incremental_update)(struct document* base, struct splitter* splitter);
-};
-
 #include "splitter.h"
 #include "document_text.h"
 

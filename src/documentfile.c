@@ -2,6 +2,9 @@
 
 #include "documentfile.h"
 
+extern struct config_cache screen_color_codes[];
+extern struct config_cache visual_color_codes[VISUAL_FLAG_COLOR_MAX+1];
+
 // TODO: this has to be covered by the settings subsystem in future
 struct document_file_type document_file_types[] = {
   {"c", file_type_c_create},
@@ -21,7 +24,7 @@ struct document_file_type document_file_types[] = {
 };
 
 // Create file operations
-struct document_file* document_file_create(int save) {
+struct document_file* document_file_create(int save, int config) {
   struct document_file* file = (struct document_file*)malloc(sizeof(struct document_file));
   file->buffer = NULL;
   file->bookmarks = NULL;
@@ -31,17 +34,18 @@ struct document_file* document_file_create(int save) {
   file->filename = strdup("");
   file->views = list_create();
   file->save = save;
-  file->type = file_type_text_create();
   file->encoding = encoding_utf8_create();
   file->tabstop = TIPPSE_TABSTOP_AUTO;
   file->tabstop_width = 4;
   file->newline = TIPPSE_NEWLINE_AUTO;
-  file->config = config_create();
+  file->config = config?config_create():NULL;
+  file->type = file_type_text_create(file->config);
   file->view = document_view_create();
   file->pipefd[0] = -1;
   file->pipefd[1] = -1;
   document_view_reset(file->view, file);
   document_undo_mark_save_point(file);
+  document_file_reload_config(file);
   return file;
 }
 
@@ -57,7 +61,9 @@ void document_file_clear(struct document_file* file) {
     file->bookmarks = NULL;
   }
 
-  config_clear(file->config);
+  if (file->config) {
+    config_clear(file->config);
+  }
 }
 
 // Destroy file operations
@@ -72,8 +78,11 @@ void document_file_destroy(struct document_file* file) {
   free(file->filename);
   (*file->type->destroy)(file->type);
   (*file->encoding->destroy)(file->encoding);
-  config_destroy(file->config);
   document_view_destroy(file->view);
+  if (file->config) {
+    config_destroy(file->config);
+  }
+
   free(file);
 }
 
@@ -83,6 +92,8 @@ void document_file_name(struct document_file* file, const char* filename) {
     free(file->filename);
     file->filename = strdup(filename);
   }
+
+  document_file_reload_config(file);
 
   const char* search = filename;
   const char* last = filename;
@@ -101,7 +112,7 @@ void document_file_name(struct document_file* file, const char* filename) {
   for (size_t n = 0; document_file_types[n].extension; n++) {
     if (strcasecmp(document_file_types[n].extension, last)==0) {
       (*file->type->destroy)(file->type);
-      file->type = (*document_file_types[n].constructor)();
+      file->type = (*document_file_types[n].constructor)(file->config);
       break;
     }
   }
@@ -565,6 +576,10 @@ void document_file_manualchange(struct document_file* file) {
 
 // Reload file configuration
 void document_file_reload_config(struct document_file* file) {
+  if (!file->config) {
+    return;
+  }
+
   config_clear(file->config);
 
   if (*file->filename) {
@@ -573,22 +588,12 @@ void document_file_reload_config(struct document_file* file) {
     config_loadpaths(file->config, ".", 0);
   }
 
-  file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/background"));
-  file->defaults.colors[VISUAL_FLAG_COLOR_TEXT] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/text"));
-  file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/selection"));
-  file->defaults.colors[VISUAL_FLAG_COLOR_READONLY] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/readonly"));
-  file->defaults.colors[VISUAL_FLAG_COLOR_STATUS] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/status"));
-  file->defaults.colors[VISUAL_FLAG_COLOR_FRAME] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/frame"));
-  file->defaults.colors[VISUAL_FLAG_COLOR_STRING] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/string"));
-  file->defaults.colors[VISUAL_FLAG_COLOR_TYPE] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/type"));
-  file->defaults.colors[VISUAL_FLAG_COLOR_KEYWORD] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/keyword"));
-  file->defaults.colors[VISUAL_FLAG_COLOR_PREPROCESSOR] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/preprocessor"));
-  file->defaults.colors[VISUAL_FLAG_COLOR_LINECOMMENT] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/linecomment"));
-  file->defaults.colors[VISUAL_FLAG_COLOR_BLOCKCOMMENT] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/blockcomment"));
-  file->defaults.colors[VISUAL_FLAG_COLOR_PLUS] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/plus"));
-  file->defaults.colors[VISUAL_FLAG_COLOR_MINUS] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/minus"));
-  file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/bracket"));
-  file->defaults.colors[VISUAL_FLAG_COLOR_LINENUMBER] = (int)config_convert_int64(config_find_ascii(file->config, "/colors/linenumber"));
+  struct trie_node* color_base = config_find_ascii(file->config, "/colors/");
+  if (color_base) {
+    for (size_t n = 0; visual_color_codes[n].text; n++) {
+      file->defaults.colors[visual_color_codes[n].value] = (int)config_convert_int64_cache(config_advance_ascii(file->config, color_base, visual_color_codes[n].text), &screen_color_codes[0]);
+    }
+  }
 
   file->defaults.wrapping = (int)config_convert_int64(config_find_ascii(file->config, "/wrapping"));
   file->defaults.invisibles = (int)config_convert_int64(config_find_ascii(file->config, "/invisibles"));

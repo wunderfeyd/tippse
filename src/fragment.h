@@ -8,7 +8,8 @@ struct fragment;
 
 #include <stdlib.h>
 #include "types.h"
-#include "filecache.h"
+struct file_cache;
+struct file_cache_node;
 
 struct fragment {
   int count;
@@ -20,6 +21,8 @@ struct fragment {
 
   size_t length;
 };
+
+#include "filecache.h"
 
 struct fragment* fragment_create_memory(uint8_t* buffer, size_t length);
 struct fragment* fragment_create_file(struct file_cache* cache, file_offset_t offset, size_t length);

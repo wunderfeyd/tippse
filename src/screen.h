@@ -5,7 +5,6 @@ struct screen_char;
 struct screen;
 
 #include <termios.h>
-#include "encoding/utf8.h"
 
 struct screen_char {
   int codepoints[8];
@@ -25,6 +24,9 @@ struct screen {
   char* title_new;
   struct termios termios_original;
 };
+
+#include "encoding/utf8.h"
+#include "config.h"
 
 void screen_destroy(struct screen* screen);
 struct screen* screen_create(void);

@@ -90,32 +90,3 @@ struct trie_node* trie_find_codepoint(struct trie* trie, struct trie_node* paren
 
   return parent;
 }
-
-void trie_append_string(struct trie* trie, const char* text, intptr_t type) {
-  struct trie_node* parent = NULL;
-  while (*text) {
-    parent = trie_append_codepoint(trie, parent, *(unsigned char*)text, (text[1]=='\0')?type:0);
-    text++;
-  }
-}
-
-void trie_load_array(struct trie* trie, const struct trie_static* array) {
-  while (array->text) {
-    trie_append_string(trie, array->text, array->type);
-    array++;
-  }
-}
-
-void trie_append_string_nocase(struct trie* trie, struct trie_node* parent, const char* text, intptr_t type) {
-  if (*text) {
-    trie_append_string_nocase(trie, trie_append_codepoint(trie, parent, *(unsigned char*)text, (text[1]=='\0')?type:0), text+1, type);
-    trie_append_string_nocase(trie, trie_append_codepoint(trie, parent, toupper(*(unsigned char*)text), (text[1]=='\0')?type:0), text+1, type);
-  }
-}
-
-void trie_load_array_nocase(struct trie* trie, const struct trie_static* array) {
-  while (array->text) {
-    trie_append_string_nocase(trie, NULL, array->text, array->type);
-    array++;
-  }
-}

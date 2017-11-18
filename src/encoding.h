@@ -2,13 +2,13 @@
 #define TIPPSE_ENCODING_H
 
 #include <stdlib.h>
+#include "types.h"
 
+struct range_tree_node;
 struct encoding;
 struct encoding_stream;
 struct encoding_cache;
 struct encoding_cache_codepoint;
-
-#include "rangetree.h"
 
 #define ENCODING_STREAM_PLAIN 0
 #define ENCODING_STREAM_PAGED 1
@@ -48,6 +48,8 @@ struct encoding {
   size_t (*seek)(struct encoding*, struct encoding_stream*, size_t);
   size_t (*encode)(struct encoding*, int, struct encoding_stream*, size_t);
 };
+
+#include "rangetree.h"
 
 void encoding_stream_from_plain(struct encoding_stream* stream, const uint8_t* plain, size_t size);
 void encoding_stream_from_page(struct encoding_stream* stream, struct range_tree_node* buffer, file_offset_t displacement);

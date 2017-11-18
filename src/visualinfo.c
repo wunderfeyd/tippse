@@ -2,6 +2,45 @@
 
 #include "visualinfo.h"
 
+// color names from https://jonasjacek.github.io/colors
+#define VISUAL_FLAG_COLOR_BACKGROUND 0
+#define VISUAL_FLAG_COLOR_TEXT 1
+#define VISUAL_FLAG_COLOR_SELECTION 2
+#define VISUAL_FLAG_COLOR_READONLY 3
+#define VISUAL_FLAG_COLOR_STATUS 4
+#define VISUAL_FLAG_COLOR_FRAME 5
+#define VISUAL_FLAG_COLOR_STRING 6
+#define VISUAL_FLAG_COLOR_TYPE 7
+#define VISUAL_FLAG_COLOR_KEYWORD 8
+#define VISUAL_FLAG_COLOR_PREPROCESSOR 9
+#define VISUAL_FLAG_COLOR_LINECOMMENT 10
+#define VISUAL_FLAG_COLOR_BLOCKCOMMENT 11
+#define VISUAL_FLAG_COLOR_PLUS 12
+#define VISUAL_FLAG_COLOR_MINUS 13
+#define VISUAL_FLAG_COLOR_BRACKET 14
+#define VISUAL_FLAG_COLOR_LINENUMBER 15
+#define VISUAL_FLAG_COLOR_MAX 16
+
+struct config_cache visual_color_codes[VISUAL_FLAG_COLOR_MAX+1] = {
+  {"background", VISUAL_FLAG_COLOR_BACKGROUND},
+  {"text", VISUAL_FLAG_COLOR_TEXT},
+  {"selection", VISUAL_FLAG_COLOR_SELECTION},
+  {"readonly", VISUAL_FLAG_COLOR_READONLY},
+  {"status", VISUAL_FLAG_COLOR_STATUS},
+  {"frame", VISUAL_FLAG_COLOR_FRAME},
+  {"string", VISUAL_FLAG_COLOR_STRING},
+  {"type", VISUAL_FLAG_COLOR_TYPE},
+  {"keyword", VISUAL_FLAG_COLOR_KEYWORD},
+  {"preprocessor", VISUAL_FLAG_COLOR_PREPROCESSOR},
+  {"linecomment", VISUAL_FLAG_COLOR_LINECOMMENT},
+  {"blockcomment", VISUAL_FLAG_COLOR_BLOCKCOMMENT},
+  {"plus", VISUAL_FLAG_COLOR_PLUS},
+  {"minus", VISUAL_FLAG_COLOR_MINUS},
+  {"bracket", VISUAL_FLAG_COLOR_BRACKET},
+  {"linenumber", VISUAL_FLAG_COLOR_LINENUMBER},
+  {NULL, 0}
+};
+
 // Reset structure to known state
 void visual_info_clear(struct visual_info* visuals) {
   memset(visuals, 0, sizeof(struct visual_info));

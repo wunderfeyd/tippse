@@ -2,27 +2,18 @@
 
 #include "xml.h"
 
-struct trie_static keywords_language_xml[] = {
-  {NULL, 0}
-};
-
-struct file_type* file_type_xml_create(void) {
+struct file_type* file_type_xml_create(struct config* config) {
   struct file_type_xml* this = malloc(sizeof(struct file_type_xml));
   this->vtbl.create = file_type_xml_create;
   this->vtbl.destroy = file_type_xml_destroy;
   this->vtbl.name = file_type_xml_name;
   this->vtbl.mark = file_type_xml_mark;
   this->vtbl.bracket_match = file_type_bracket_match;
-
-  this->keywords = trie_create();
-  trie_load_array(this->keywords, &keywords_language_xml[0]);
-
   return (struct file_type*)this;
 }
 
 void file_type_xml_destroy(struct file_type* base) {
   struct file_type_xml* this = (struct file_type_xml*)base;
-  trie_destroy(this->keywords);
   free(this);
 }
 
@@ -31,8 +22,6 @@ const char* file_type_xml_name(void) {
 }
 
 void file_type_xml_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int same_line, int* length, int* flags) {
-  struct file_type_xml* this = (struct file_type_xml*)base;
-
   int cp1 = encoding_cache_find_codepoint(cache, 0);
   int cp2 = encoding_cache_find_codepoint(cache, 1);
 
@@ -101,7 +90,7 @@ void file_type_xml_mark(struct file_type* base, int* visual_detail, struct encod
   } else {
     if (!(before&VISUAL_INFO_WORD) && (after&VISUAL_INFO_WORD)) {
       *length = 0;
-      *flags = file_type_keyword(cache, this->keywords, length);
+      *flags = 0;
     }
 
     if (*flags==0) {

@@ -5,20 +5,7 @@
 
 struct document_text;
 
-#include "misc.h"
-#include "trie.h"
-#include "filetype.h"
-#include "rangetree.h"
-#include "screen.h"
-#include "clipboard.h"
-#include "documentview.h"
-#include "documentfile.h"
-#include "encoding.h"
-#include "unicode.h"
 #include "document.h"
-#include "splitter.h"
-#include "documentundo.h"
-#include "editor.h"
 
 struct document_text {
   struct document vtbl;             // virtual table of document
@@ -96,6 +83,21 @@ struct document_text_position {
   position_t lines;                     // number of lines rendered in this page
   int indented;                         // cursor in indentation area
 };
+
+#include "misc.h"
+#include "trie.h"
+#include "filetype.h"
+#include "rangetree.h"
+#include "screen.h"
+#include "clipboard.h"
+#include "documentview.h"
+#include "documentfile.h"
+#include "encoding.h"
+#include "unicode.h"
+#include "document.h"
+#include "splitter.h"
+#include "documentundo.h"
+#include "editor.h"
 
 struct document* document_text_create(void);
 void document_text_destroy(struct document* base);

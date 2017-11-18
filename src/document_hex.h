@@ -5,20 +5,7 @@
 
 struct document_hex;
 
-#include "misc.h"
-#include "trie.h"
-#include "filetype.h"
-#include "rangetree.h"
-#include "screen.h"
-#include "clipboard.h"
-#include "documentview.h"
-#include "documentfile.h"
-#include "encoding.h"
-#include "unicode.h"
 #include "document.h"
-#include "splitter.h"
-#include "documentundo.h"
-#include "editor.h"
 
 struct document_hex_char {
   int codepoints[8];        // Unicode code points
@@ -30,6 +17,20 @@ struct document_hex {
   struct document vtbl;     // virtual table of document
   int cp_first;             // first pressed key
 };
+
+#include "misc.h"
+#include "trie.h"
+#include "filetype.h"
+#include "rangetree.h"
+#include "screen.h"
+#include "clipboard.h"
+#include "documentview.h"
+#include "documentfile.h"
+#include "encoding.h"
+#include "unicode.h"
+#include "splitter.h"
+#include "documentundo.h"
+#include "editor.h"
 
 struct document* document_hex_create(void);
 void document_hex_destroy(struct document* base);

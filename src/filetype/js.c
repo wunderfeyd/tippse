@@ -2,48 +2,22 @@
 
 #include "js.h"
 
-struct trie_static keywords_language_js[] = {
-  {"this", VISUAL_FLAG_COLOR_TYPE},
-  {"var", VISUAL_FLAG_COLOR_TYPE},
-  {"const", VISUAL_FLAG_COLOR_TYPE},
-  {"true", VISUAL_FLAG_COLOR_TYPE},
-  {"false", VISUAL_FLAG_COLOR_TYPE},
-  {"null", VISUAL_FLAG_COLOR_TYPE},
-  {"in", VISUAL_FLAG_COLOR_KEYWORD},
-  {"for", VISUAL_FLAG_COLOR_KEYWORD},
-  {"do", VISUAL_FLAG_COLOR_KEYWORD},
-  {"while", VISUAL_FLAG_COLOR_KEYWORD},
-  {"if", VISUAL_FLAG_COLOR_KEYWORD},
-  {"else", VISUAL_FLAG_COLOR_KEYWORD},
-  {"return", VISUAL_FLAG_COLOR_KEYWORD},
-  {"break", VISUAL_FLAG_COLOR_KEYWORD},
-  {"continue", VISUAL_FLAG_COLOR_KEYWORD},
-  {"function", VISUAL_FLAG_COLOR_KEYWORD},
-  {"switch", VISUAL_FLAG_COLOR_KEYWORD},
-  {"case", VISUAL_FLAG_COLOR_KEYWORD},
-  {"default", VISUAL_FLAG_COLOR_KEYWORD},
-  {"new", VISUAL_FLAG_COLOR_KEYWORD},
-  {"let", VISUAL_FLAG_COLOR_KEYWORD},
-  {NULL, 0}
-};
-
-struct file_type* file_type_js_create(void) {
+struct file_type* file_type_js_create(struct config* config) {
   struct file_type_js* this = malloc(sizeof(struct file_type_js));
+  this->vtbl.config = config;
   this->vtbl.create = file_type_js_create;
   this->vtbl.destroy = file_type_js_destroy;
   this->vtbl.name = file_type_js_name;
   this->vtbl.mark = file_type_js_mark;
   this->vtbl.bracket_match = file_type_bracket_match;
 
-  this->keywords = trie_create();
-  trie_load_array(this->keywords, &keywords_language_js[0]);
+  this->keywords = file_type_config_base((struct file_type*)this, "colors/keywords");
 
   return (struct file_type*)this;
 }
 
 void file_type_js_destroy(struct file_type* base) {
   struct file_type_js* this = (struct file_type_js*)base;
-  trie_destroy(this->keywords);
   free(this);
 }
 
@@ -123,7 +97,7 @@ void file_type_js_mark(struct file_type* base, int* visual_detail, struct encodi
   } else {
     if (!(before&VISUAL_INFO_WORD) && (after&VISUAL_INFO_WORD)) {
       *length = 0;
-      *flags = file_type_keyword(cache, this->keywords, length);
+      *flags = file_type_keyword_config(base, cache, this->keywords, length, 0);
     }
 
     if (*flags==0) {

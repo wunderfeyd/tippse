@@ -2,14 +2,10 @@
 #define TIPPSE_DOCUMENTUNDO_H
 
 #include <stdlib.h>
+#include "types.h"
 
 struct document_undo;
-
-#include "list.h"
-#include "rangetree.h"
-#include "documentview.h"
-#include "documentfile.h"
-#include "document.h"
+struct range_tree_node;
 
 #define TIPPSE_UNDO_TYPE_CHAIN -1
 #define TIPPSE_UNDO_TYPE_DELETE 0
@@ -25,6 +21,12 @@ struct document_undo {
   int type;                         // type of change, delete or insert
   struct range_tree_node* buffer;   // refence to document buffer, corresponding page in tree
 };
+
+#include "list.h"
+#include "rangetree.h"
+#include "documentview.h"
+#include "documentfile.h"
+#include "document.h"
 
 void document_undo_add(struct document_file* file, struct document_view* view, file_offset_t offset, file_offset_t length, int insert);
 void document_undo_mark_save_point(struct document_file* file);

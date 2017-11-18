@@ -8,22 +8,22 @@ const char* config_filename = ".tippse";
 const char* config_default =
   "{"
     "colors:{"
-      "background:-2,"
-      "text:-1,"
-      "selection:-1,"
-      "status:8,"
-      "frame:-1,"
-      "readonly:8,"
-      "type:2,"
-      "keyword:11,"
-      "linecomment:12,"
-      "blockcomment:12,"
-      "string:11,"
-      "preprocessor:14,"
-      "bracket:12,"
-      "plus:10,"
-      "minus:9,"
-      "linenumber:8,"
+      "background:background,"
+      "text:foreground,"
+      "selection:foreground,"
+      "status:grey,"
+      "frame:foreground,"
+      "readonly:grey,"
+      "type:green,"
+      "keyword:yellow,"
+      "linecomment:blue,"
+      "blockcomment:blue,"
+      "string:yellow,"
+      "preprocessor:aqua,"
+      "bracket:blue,"
+      "plus:lime,"
+      "minus:red,"
+      "linenumber:grey,"
     "},"
     "wrapping:1,"
     "invisibles:0,"
@@ -82,8 +82,312 @@ const char* config_default =
       "pastestart:paste,"
       "f5:compile,"
     "},"
+    "filetypes:{"
+      "C:{"
+        "colors:{"
+          "keywords:{"
+            "int:type,"
+            "unsigned:type,"
+            "signed:type,"
+            "char:type,"
+            "short:type,"
+            "long:type,"
+            "void:type,"
+            "bool:type,"
+            "size_t:type,"
+            "ssize_t:type,"
+            "int8_t:type,"
+            "uint8_t:type,"
+            "int16_t:type,"
+            "uint16_t:type,"
+            "int32_t:type,"
+            "uint32_t:type,"
+            "int64_t:type,"
+            "uint64_t:type,"
+            "nullptr:type,"
+            "const:type,"
+            "struct:type,"
+            "static:type,"
+            "inline:type,"
+            "for:keyword,"
+            "do:keyword,"
+            "while:keyword,"
+            "if:keyword,"
+            "else:keyword,"
+            "return:keyword,"
+            "break:keyword,"
+            "continue:keyword,"
+            "sizeof:keyword,"
+            "NULL:keyword,"
+          "},"
+          "preprocessor:{"
+            "include:preprocessor,"
+            "define:preprocessor,"
+            "if:preprocessor,"
+            "ifdef:preprocessor,"
+            "ifndef:preprocessor,"
+            "else:preprocessor,"
+            "elif:preprocessor,"
+            "endif:preprocessor,"
+          "}"
+        "}"
+      "},"
+      "C++:{"
+        "colors:{"
+          "keywords:{"
+            "int:type,"
+            "unsigned:type,"
+            "signed:type,"
+            "char:type,"
+            "short:type,"
+            "long:type,"
+            "void:type,"
+            "bool:type,"
+            "size_t:type,"
+            "ssize_t:type,"
+            "int8_t:type,"
+            "uint8_t:type,"
+            "int16_t:type,"
+            "uint16_t:type,"
+            "int32_t:type,"
+            "uint32_t:type,"
+            "int64_t:type,"
+            "uint64_t:type,"
+            "nullptr:type,"
+            "const:type,"
+            "struct:type,"
+            "class:type,"
+            "public:type,"
+            "private:type,"
+            "protected:type,"
+            "virtual:type,"
+            "template:type,"
+            "static:type,"
+            "inline:type,"
+            "for:keyword,"
+            "do:keyword,"
+            "while:keyword,"
+            "if:keyword,"
+            "else:keyword,"
+            "return:keyword,"
+            "break:keyword,"
+            "continue:keyword,"
+            "using:keyword,"
+            "namespace:keyword,"
+            "new:keyword,"
+            "delete:keyword,"
+            "sizeof:keyword,"
+            "NULL:keyword,"
+          "},"
+          "preprocessor:{"
+            "include:preprocessor,"
+            "define:preprocessor,"
+            "if:preprocessor,"
+            "ifdef:preprocessor,"
+            "ifndef:preprocessor,"
+            "else:preprocessor,"
+            "elif:preprocessor,"
+            "endif:preprocessor,"
+          "}"
+        "}"
+      "},"
+      "JS:{"
+        "colors:{"
+          "keywords:{"
+            "this:type,"
+            "var:type,"
+            "const:type,"
+            "true:type,"
+            "false:type,"
+            "null:type,"
+            "in:keyword,"
+            "for:keyword,"
+            "do:keyword,"
+            "while:keyword,"
+            "if:keyword,"
+            "else:keyword,"
+            "return:keyword,"
+            "break:keyword,"
+            "continue:keyword,"
+            "function:keyword,"
+            "switch:keyword,"
+            "case:keyword,"
+            "default:keyword,"
+            "new:keyword,"
+            "let:keyword,"
+          "}"
+        "}"
+      "},"
+      "Lua:{"
+        "colors:{"
+          "keywords:{"
+            "nil:type,"
+            "self:type,"
+            "true:type,"
+            "false:type,"
+            "for:keyword,"
+            "do:keyword,"
+            "while:keyword,"
+            "if:keyword,"
+            "else:keyword,"
+            "elseif:keyword,"
+            "end:keyword,"
+            "then:keyword,"
+            "break:keyword,"
+            "function:keyword,"
+            "local:keyword,"
+            "return:keyword,"
+            "dofile:keyword,"
+            "and:keyword,"
+            "or:keyword,"
+            "not:keyword,"
+          "}"
+        "}"
+      "},"
+      "PHP:{"
+        "colors:{"
+          "keywords:{"
+            "$this:type,"
+            "const:type,"
+            "var:type,"
+            "true:type,"
+            "false:type,"
+            "max:type,"
+            "min:type,"
+            "is_set:type,"
+            "is_null:type,"
+            "empty:keyword,"
+            "as:keyword,"
+            "foreach:keyword,"
+            "for:keyword,"
+            "do:keyword,"
+            "while:keyword,"
+            "if:keyword,"
+            "else:keyword,"
+            "return:keyword,"
+            "break:keyword,"
+            "continue:keyword,"
+            "function:keyword,"
+            "defined:keyword,"
+            "echo:keyword,"
+            "class:keyword,"
+            "global:keyword,"
+            "include:keyword,"
+            "require:keyword,"
+            "require_once:keyword,"
+            "switch:keyword,"
+            "case:keyword,"
+            "default:keyword,"
+          "}"
+        "}"
+      "},"
+      "SQL:{"
+        "colors:{"
+          "keywords:{"
+            "create:keyword,"
+            "database:keyword,"
+            "use:keyword,"
+            "from:keyword,"
+            "to:keyword,"
+            "into:keyword,"
+            "join:keyword,"
+            "where:keyword,"
+            "order:keyword,"
+            "group:keyword,"
+            "by:keyword,"
+            "on:keyword,"
+            "as:keyword,"
+            "is:keyword,"
+            "in:keyword,"
+            "out:keyword,"
+            "begin:keyword,"
+            "end:keyword,"
+            "delimiter:keyword,"
+            "sql:keyword,"
+            "data:keyword,"
+            "insert:keyword,"
+            "select:keyword,"
+            "update:keyword,"
+            "delete:keyword,"
+            "replace:keyword,"
+            "drop:keyword,"
+            "duplicate:keyword,"
+            "temporary:keyword,"
+            "modifies:keyword,"
+            "reads:keyword,"
+            "returns:keyword,"
+            "exists:keyword,"
+            "return:keyword,"
+            "leave:keyword,"
+            "call:keyword,"
+            "execute:keyword,"
+            "show:keyword,"
+            "function:keyword,"
+            "procedure:keyword,"
+            "declare:keyword,"
+            "if:keyword,"
+            "then:keyword,"
+            "elseif:keyword,"
+            "else:keyword,"
+            "not:keyword,"
+            "table:keyword,"
+            "values:keyword,"
+            "key:keyword,"
+            "unique:keyword,"
+            "primary:keyword,"
+            "foreign:keyword,"
+            "constraint:keyword,"
+            "references:keyword,"
+            "cascade:keyword,"
+            "default:keyword,"
+            "engine:keyword,"
+            "charset:keyword,"
+            "auto_increment:keyword,"
+            "definer:keyword,"
+            "and:keyword,"
+            "or:keyword,"
+            "set:keyword,"
+            "count:keyword,"
+            "limit:keyword,"
+            "now:type,"
+            "max:type,"
+            "min:type,"
+            "sum:type,"
+            "null:type,"
+            "bit:type,"
+            "int:type,"
+            "bigint:type,"
+            "char:type,"
+            "varchar:type,"
+            "string:type,"
+            "boolean:type,"
+            "short:type,"
+            "date:type,"
+            "time:type,"
+            "datetime:type,"
+            "decimal:type,"
+            "true:type,"
+            "false:type,"
+          "}"
+        "}"
+      "}"
+    "}"
   "}"
 ;
+
+// Create configuration entry assigned value
+struct config_value* config_value_create(int* value_codepoints, size_t value_length) {
+  struct config_value* base = malloc(sizeof(struct config_value));
+  base->cached = 0;
+  base->codepoints = malloc(sizeof(int)*value_length);
+  memcpy(base->codepoints, value_codepoints, sizeof(int)*value_length);
+  return base;
+}
+
+void config_value_destroy(struct config_value* base) {
+  free(base->codepoints);
+  free(base);
+}
 
 // Create configuration
 struct config* config_create(void) {
@@ -105,14 +409,14 @@ void config_destroy(struct config* config) {
 void config_clear(struct config* config) {
   trie_clear(config->keywords);
   while (config->values->first) {
-    free(config->values->first->object);
+    config_value_destroy((struct config_value*)config->values->first->object);
     list_remove(config->values, config->values->first);
   }
 }
 
 // Load configuration file from disk or memory
 void config_load(struct config* config, const char* filename) {
-  struct document_file* file = document_file_create(0);
+  struct document_file* file = document_file_create(0, 0);
   if (filename) {
     document_file_load(file, filename);
   } else {
@@ -252,16 +556,19 @@ void config_loadpaths(struct config* config, const char* filename, int strip) {
 
 // Update configuration keyword
 void config_update(struct config* config, int* keyword_codepoints, size_t keyword_length, int* value_codepoints, size_t value_length) {
-  int* values = malloc(sizeof(int)*value_length);
-  memcpy(values, value_codepoints, sizeof(int)*value_length);
-  struct list_node* node = list_insert(config->values, NULL, values);
+  if (keyword_length==0) {
+    return;
+  }
+
+  struct config_value* value = config_value_create(value_codepoints, value_length);
+  struct list_node* node = list_insert(config->values, NULL, value);
 
   struct trie_node* parent = NULL;
   while (keyword_length-->0) {
     parent = trie_append_codepoint(config->keywords, parent, *keyword_codepoints, 0);
     if (keyword_length==0) {
       if (parent->type!=0) { // TODO: 0 != NULL
-        free(((struct list_node*)parent->type)->object);
+        config_value_destroy((struct config_value*)((struct list_node*)parent->type)->object);
         list_remove(config->values, (struct list_node*)parent->type);
       }
 
@@ -313,7 +620,7 @@ struct trie_node* config_find_ascii(struct config* config, const char* keyword) 
 // Get value at found position
 int* config_value(struct trie_node* parent) {
   if (parent && parent->type!=0) {
-    return (int*)(((struct list_node*)parent->type)->object);
+    return ((struct config_value*)((struct list_node*)parent->type)->object)->codepoints;
   }
 
   return NULL;
@@ -371,4 +678,35 @@ int64_t config_convert_int64_plain(int* codepoints) {
 // Convert value to integer
 int64_t config_convert_int64(struct trie_node* parent) {
   return config_convert_int64_plain(config_value(parent));
+}
+
+// Convert value to integer and cache keywords
+int64_t config_convert_int64_cache(struct trie_node* parent, struct config_cache* cache) {
+  if (parent && parent->type!=0) {
+    struct config_value* value = (struct config_value*)((struct list_node*)parent->type)->object;
+    if (value->cached) {
+      return value->value;
+    }
+
+    value->cached = 1;
+    while (cache->text) {
+      int* left = value->codepoints;
+      const char* right = cache->text;
+      while ((*left && (int)*right) && (*left==(int)*right)) {
+        left++;
+        right++;
+      }
+
+      if (!*left && !*right) {
+        value->value = cache->value;
+        return value->value;
+      }
+      cache++;
+    }
+
+    value->value = config_convert_int64_plain(value->codepoints);
+    return value->value;
+  }
+
+  return 0;
 }

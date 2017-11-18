@@ -2,75 +2,23 @@
 
 #include "c.h"
 
-struct trie_static keywords_language_c[] = {
-  {"int", VISUAL_FLAG_COLOR_TYPE},
-  {"unsigned", VISUAL_FLAG_COLOR_TYPE},
-  {"signed", VISUAL_FLAG_COLOR_TYPE},
-  {"char", VISUAL_FLAG_COLOR_TYPE},
-  {"short", VISUAL_FLAG_COLOR_TYPE},
-  {"long", VISUAL_FLAG_COLOR_TYPE},
-  {"void", VISUAL_FLAG_COLOR_TYPE},
-  {"bool", VISUAL_FLAG_COLOR_TYPE},
-  {"size_t", VISUAL_FLAG_COLOR_TYPE},
-  {"ssize_t", VISUAL_FLAG_COLOR_TYPE},
-  {"int8_t", VISUAL_FLAG_COLOR_TYPE},
-  {"uint8_t", VISUAL_FLAG_COLOR_TYPE},
-  {"int16_t", VISUAL_FLAG_COLOR_TYPE},
-  {"uint16_t", VISUAL_FLAG_COLOR_TYPE},
-  {"int32_t", VISUAL_FLAG_COLOR_TYPE},
-  {"uint32_t", VISUAL_FLAG_COLOR_TYPE},
-  {"int64_t", VISUAL_FLAG_COLOR_TYPE},
-  {"uint64_t", VISUAL_FLAG_COLOR_TYPE},
-  {"nullptr", VISUAL_FLAG_COLOR_TYPE},
-  {"const", VISUAL_FLAG_COLOR_TYPE},
-  {"struct", VISUAL_FLAG_COLOR_TYPE},
-  {"static", VISUAL_FLAG_COLOR_TYPE},
-  {"inline", VISUAL_FLAG_COLOR_TYPE},
-  {"for", VISUAL_FLAG_COLOR_KEYWORD},
-  {"do", VISUAL_FLAG_COLOR_KEYWORD},
-  {"while", VISUAL_FLAG_COLOR_KEYWORD},
-  {"if", VISUAL_FLAG_COLOR_KEYWORD},
-  {"else", VISUAL_FLAG_COLOR_KEYWORD},
-  {"return", VISUAL_FLAG_COLOR_KEYWORD},
-  {"break", VISUAL_FLAG_COLOR_KEYWORD},
-  {"continue", VISUAL_FLAG_COLOR_KEYWORD},
-  {"sizeof", VISUAL_FLAG_COLOR_KEYWORD},
-  {"NULL", VISUAL_FLAG_COLOR_KEYWORD},
-  {NULL, 0}
-};
-
-struct trie_static keywords_preprocessor_language_c[] = {
-  {"include", VISUAL_FLAG_COLOR_PREPROCESSOR},
-  {"define", VISUAL_FLAG_COLOR_PREPROCESSOR},
-  {"if", VISUAL_FLAG_COLOR_PREPROCESSOR},
-  {"ifdef", VISUAL_FLAG_COLOR_PREPROCESSOR},
-  {"ifndef", VISUAL_FLAG_COLOR_PREPROCESSOR},
-  {"else", VISUAL_FLAG_COLOR_PREPROCESSOR},
-  {"elif", VISUAL_FLAG_COLOR_PREPROCESSOR},
-  {"endif", VISUAL_FLAG_COLOR_PREPROCESSOR},
-  {NULL, 0}
-};
-
-struct file_type* file_type_c_create(void) {
+struct file_type* file_type_c_create(struct config* config) {
   struct file_type_c* this = malloc(sizeof(struct file_type_c));
+  this->vtbl.config = config;
   this->vtbl.create = file_type_c_create;
   this->vtbl.destroy = file_type_c_destroy;
   this->vtbl.name = file_type_c_name;
   this->vtbl.mark = file_type_c_mark;
   this->vtbl.bracket_match = file_type_bracket_match;
 
-  this->keywords = trie_create();
-  this->keywords_preprocessor = trie_create();
-  trie_load_array(this->keywords, &keywords_language_c[0]);
-  trie_load_array(this->keywords_preprocessor, &keywords_preprocessor_language_c[0]);
+  this->keywords = file_type_config_base((struct file_type*)this, "colors/keywords");
+  this->keywords_preprocessor = file_type_config_base((struct file_type*)this, "colors/preprocessor");
 
   return (struct file_type*)this;
 }
 
 void file_type_c_destroy(struct file_type* base) {
   struct file_type_c* this = (struct file_type_c*)base;
-  trie_destroy(this->keywords_preprocessor);
-  trie_destroy(this->keywords);
   free(this);
 }
 
@@ -156,7 +104,7 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct encodin
       if (cp1>' ' && (before&VISUAL_INFO_PREPROCESSOR)) {
         after &= ~VISUAL_INFO_PREPROCESSOR;
         *length = 0;
-        *flags = file_type_keyword(cache, this->keywords_preprocessor, length);
+        *flags = file_type_keyword_config(base, cache, this->keywords_preprocessor, length, 0);
       }
 
       if (*flags==0) {
@@ -170,7 +118,7 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct encodin
     } else {
       if (!(before&VISUAL_INFO_WORD) && (after&VISUAL_INFO_WORD)) {
         *length = 0;
-        *flags = file_type_keyword(cache, this->keywords, length);
+        *flags = file_type_keyword_config(base, cache, this->keywords, length, 0);
       }
 
       if (*flags==0) {

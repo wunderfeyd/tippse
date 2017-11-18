@@ -3,7 +3,8 @@
 
 #include <stdlib.h>
 #include "types.h"
-#include "rangetree.h"
+
+struct range_tree_node;
 
 struct document_view {
   file_offset_t offset;                 // file offset
@@ -30,6 +31,7 @@ struct document_view {
   int line_select;                      // show whole line selected?
 };
 
+#include "rangetree.h"
 #include "documentfile.h"
 
 struct document_view* document_view_create(void);

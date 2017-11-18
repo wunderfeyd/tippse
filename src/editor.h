@@ -4,12 +4,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "misc.h"
-#include "documentfile.h"
-#include "screen.h"
-#include "splitter.h"
-#include "list.h"
-#include "trie.h"
+struct screen;
+struct list;
+struct trie;
+struct document_file;
+struct splitter;
 
 #define TIPPSE_KEY_MOD_SHIFT 0x1000
 #define TIPPSE_KEY_MOD_CTRL 0x2000
@@ -114,8 +113,6 @@ struct editor {
   struct screen* screen;      // display manager
   struct list* documents;     // open documents
 
-  struct trie* commands;      // command name to command id
-
   struct document_file* tabs_doc;     // document: open documents
   struct document_file* browser_doc;  // document: list of file from current directory
   struct document_file* search_doc;   // document: current search text
@@ -130,6 +127,13 @@ struct editor {
 
   int pipefd[2];                      // Process stdin/stdout pipes
 };
+
+#include "misc.h"
+#include "documentfile.h"
+#include "screen.h"
+#include "splitter.h"
+#include "list.h"
+#include "trie.h"
 
 struct editor* editor_create(const char* base_path, struct screen* screen, int argc, const char** argv);
 void editor_destroy(struct editor* base);

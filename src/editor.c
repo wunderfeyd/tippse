@@ -35,58 +35,59 @@ const char* editor_key_names[TIPPSE_KEY_MAX] = {
   "f12"
 };
 
-const char* editor_commands[TIPPSE_CMD_MAX] = {
-  "",
-  "quit",
-  "up",
-  "down",
-  "right",
-  "left",
-  "pageup",
-  "pagedown",
-  "first",
-  "last",
-  "home",
-  "end",
-  "backspace",
-  "delete",
-  "insert",
-  "search",
-  "searchnext",
-  "undo",
-  "redo",
-  "cut",
-  "copy",
-  "paste",
-  "tab",
-  "untab",
-  "save",
-  "mouse",
-  "searchprevious",
-  "open",
-  "split",
-  "invisibles",
-  "browser",
-  "switch",
-  "bookmark",
-  "wordwrap",
-  "documents",
-  "return",
-  "selectall",
-  "selectup",
-  "selectdown",
-  "selectright",
-  "selectleft",
-  "selectpageup",
-  "selectpagedown",
-  "selectfirst",
-  "selectlast",
-  "selecthome",
-  "selectend",
-  "close",
-  "saveall",
-  "unsplit",
-  "compile"
+struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
+  {"", TIPPSE_CMD_CHARACTER},
+  {"quit", TIPPSE_CMD_QUIT},
+  {"up", TIPPSE_CMD_UP},
+  {"down", TIPPSE_CMD_DOWN},
+  {"right", TIPPSE_CMD_RIGHT},
+  {"left", TIPPSE_CMD_LEFT},
+  {"pageup", TIPPSE_CMD_PAGEUP},
+  {"pagedown", TIPPSE_CMD_PAGEDOWN},
+  {"first", TIPPSE_CMD_FIRST},
+  {"last", TIPPSE_CMD_LAST},
+  {"home", TIPPSE_CMD_HOME},
+  {"end", TIPPSE_CMD_END},
+  {"backspace", TIPPSE_CMD_BACKSPACE},
+  {"delete", TIPPSE_CMD_DELETE},
+  {"insert", TIPPSE_CMD_INSERT},
+  {"search", TIPPSE_CMD_SEARCH},
+  {"searchnext", TIPPSE_CMD_SEARCH_NEXT},
+  {"undo", TIPPSE_CMD_UNDO},
+  {"redo", TIPPSE_CMD_REDO},
+  {"cut", TIPPSE_CMD_CUT},
+  {"copy", TIPPSE_CMD_COPY},
+  {"paste", TIPPSE_CMD_PASTE},
+  {"tab", TIPPSE_CMD_TAB},
+  {"untab", TIPPSE_CMD_UNTAB},
+  {"save", TIPPSE_CMD_SAVE},
+  {"mouse", TIPPSE_CMD_MOUSE},
+  {"searchprevious", TIPPSE_CMD_SEARCH_PREV},
+  {"open", TIPPSE_CMD_OPEN},
+  {"split", TIPPSE_CMD_SPLIT},
+  {"invisibles", TIPPSE_CMD_SHOW_INVISIBLES},
+  {"browser", TIPPSE_CMD_BROWSER},
+  {"switch", TIPPSE_CMD_VIEW_SWITCH},
+  {"bookmark", TIPPSE_CMD_BOOKMARK},
+  {"wordwrap", TIPPSE_CMD_WORDWRAP},
+  {"documents", TIPPSE_CMD_DOCUMENTSELECTION},
+  {"return", TIPPSE_CMD_RETURN},
+  {"selectall", TIPPSE_CMD_SELECT_ALL},
+  {"selectup", TIPPSE_CMD_SELECT_UP},
+  {"selectdown", TIPPSE_CMD_SELECT_DOWN},
+  {"selectright", TIPPSE_CMD_SELECT_RIGHT},
+  {"selectleft", TIPPSE_CMD_SELECT_LEFT},
+  {"selectpageup", TIPPSE_CMD_SELECT_PAGEUP},
+  {"selectpagedown", TIPPSE_CMD_SELECT_PAGEDOWN},
+  {"selectfirst", TIPPSE_CMD_SELECT_FIRST},
+  {"selectlast", TIPPSE_CMD_SELECT_LAST},
+  {"selecthome", TIPPSE_CMD_SELECT_HOME},
+  {"selectend", TIPPSE_CMD_SELECT_END},
+  {"close", TIPPSE_CMD_CLOSE},
+  {"saveall", TIPPSE_CMD_SAVEALL},
+  {"unsplit", TIPPSE_CMD_UNSPLIT},
+  {"compile", TIPPSE_CMD_COMPILE},
+  {NULL, 0}
 };
 
 // Create editor
@@ -96,41 +97,27 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->base_path = base_path;
   base->screen = screen;
 
-  base->commands = trie_create();
-  for (size_t n = 0; n<TIPPSE_CMD_MAX; n++) {
-    struct trie_node* parent = NULL;
-    const char* command = editor_commands[n];
-    while (*command) {
-      parent = trie_append_codepoint(base->commands, parent, *command, 0);
-      command++;
-    }
-
-    if (parent) {
-      parent->type = (intptr_t)n;
-    }
-  }
-
   base->documents = list_create();
 
-  base->tabs_doc = document_file_create(0);
+  base->tabs_doc = document_file_create(0, 1);
   document_file_name(base->tabs_doc, "Open");
   base->tabs_doc->defaults.wrapping = 0;
 
-  base->browser_doc = document_file_create(0);
+  base->browser_doc = document_file_create(0, 1);
   document_file_name(base->browser_doc, base->base_path);
   base->browser_doc->defaults.wrapping = 0;
 
-  base->document_doc = document_file_create(1);
+  base->document_doc = document_file_create(1, 1);
   document_file_name(base->document_doc, "Untitled");
   base->document = splitter_create(0, 0, NULL, NULL,  "");
   splitter_assign_document_file(base->document, base->document_doc);
   document_view_reset(base->document->view, base->document_doc);
 
-  base->search_doc = document_file_create(0);
+  base->search_doc = document_file_create(0, 1);
   document_file_name(base->search_doc, "Search");
   base->search_doc->binary = 0;
 
-  base->compiler_doc = document_file_create(0);
+  base->compiler_doc = document_file_create(0, 1);
 
   base->panel = splitter_create(0, 0, NULL, NULL, "");
   splitter_assign_document_file(base->panel, base->search_doc);
@@ -149,7 +136,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
       document_file_load(base->document_doc, argv[n]);
       splitter_assign_document_file(base->document, base->document_doc);
     } else {
-      struct document_file* document_add = document_file_create(1);
+      struct document_file* document_add = document_file_create(1, 1);
       document_file_load(document_add, argv[n]);
       list_insert(base->documents, NULL, document_add);
     }
@@ -173,7 +160,6 @@ void editor_destroy(struct editor* base) {
   }
 
   list_destroy(base->documents);
-  trie_destroy(base->commands);
 
   free(base);
 }
@@ -262,24 +248,7 @@ void editor_keypress(struct editor* base, int key, int cp, int button, int butto
     parent = config_advance_codepoints(base->focus->file->config, parent, &cp, 1);
   }
 
-  int command = TIPPSE_KEY_CHARACTER;
-  int* codepoints = config_value(parent);
-  if (codepoints) {
-    struct trie_node* parent = NULL;
-    while (*codepoints!=0 && *codepoints!=' ') {
-      parent = trie_find_codepoint(base->commands, parent, *codepoints);
-      if (!parent) {
-        break;
-      }
-
-      codepoints++;
-    }
-
-    if (parent && parent->type!=0) {
-      command = (int)parent->type;
-    }
-  }
-
+  int command = config_convert_int64_cache(parent, &editor_commands[0]);
   if (command!=TIPPSE_KEY_CHARACTER || cp>=0x20) {
     editor_intercept(base, command, key, cp, button, button_old, x, y);
   }
@@ -484,7 +453,7 @@ void editor_open_document(struct editor* base, const char* name, struct splitter
         destination->view->line_select = 1;
       }
     } else {
-      new_document_doc = document_file_create(1);
+      new_document_doc = document_file_create(1, 1);
       document_file_load(new_document_doc, relative);
     }
   }
@@ -542,7 +511,7 @@ void editor_close_document(struct editor* base, struct document_file* file) {
 
   if (remove) {
     if (!assign) {
-      assign = document_file_create(1);
+      assign = document_file_create(1, 1);
       document_file_name(assign, "Untitled");
       list_insert(base->documents, NULL, assign);
     }

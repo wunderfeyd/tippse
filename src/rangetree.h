@@ -7,6 +7,7 @@
 
 #include "types.h"
 
+struct fragment;
 struct range_tree_node;
 
 #define TREE_BLOCK_LENGTH_MAX 1024
@@ -21,9 +22,7 @@ struct range_tree_node;
 #define TIPPSE_INSERTER_LEAF 64
 #define TIPPSE_INSERTER_MARK 128
 
-#include "fragment.h"
 #include "visualinfo.h"
-#include "filetype.h"
 
 struct range_tree_node {
   struct range_tree_node* parent;
@@ -39,6 +38,8 @@ struct range_tree_node {
   file_offset_t offset;
   struct visual_info visuals;
 };
+
+#include "fragment.h"
 
 void range_tree_print(struct range_tree_node* node, int depth, int side);
 void range_tree_check(struct range_tree_node* node);

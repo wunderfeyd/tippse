@@ -3,10 +3,11 @@
 
 #include <stdlib.h>
 #include "types.h"
-#include "encoding.h"
 
 #define UNICODE_CODEPOINT_MAX 0x110000
 #define UNICODE_BITFIELD_MAX ((UNICODE_CODEPOINT_MAX/sizeof(unsigned int))+1)
+
+#include "encoding.h"
 
 void unicode_init(void);
 void unicode_decode_rle(unsigned int* table, uint16_t* rle);

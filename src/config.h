@@ -3,16 +3,33 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+struct trie;
+struct list;
+
+struct config_value {
+  int64_t value;            // cached value
+  int cached;               // cached?
+  int* codepoints;          // codepoints
+};
+
+struct config {
+  struct trie* keywords;    // all keys
+  struct list* values;      // all values
+};
+
+struct config_cache {
+  const char* text;         // key
+  int64_t value;            // value
+};
+
 #include "list.h"
 #include "trie.h"
 #include "rangetree.h"
 #include "encoding.h"
 #include "documentfile.h"
 
-struct config {
-  struct trie* keywords;    // all keys
-  struct list* values;      // all values
-};
+struct config_value* config_value_create(int* value_codepoints, size_t value_length);
+void config_value_destroy(struct config_value* base);
 
 struct config* config_create(void);
 void config_destroy(struct config* config);
@@ -32,6 +49,7 @@ int* config_value(struct trie_node* parent);
 
 char* config_convert_ascii(struct trie_node* parent);
 char* config_convert_ascii_plain(int* codepoints);
+int64_t config_convert_int64_cache(struct trie_node* parent, struct config_cache* cache);
 int64_t config_convert_int64(struct trie_node* parent);
 int64_t config_convert_int64_plain(int* codepoints);
 

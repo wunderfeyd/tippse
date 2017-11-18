@@ -11,6 +11,14 @@
 #include <signal.h>
 
 struct document_file;
+struct document_view;
+struct file_type;
+struct range_tree_node;
+struct list;
+struct encoding;
+struct config;
+
+#include "visualinfo.h"
 
 #define TIPPSE_DOCUMENT_MEMORY_LOADMAX 1024*1024
 
@@ -24,27 +32,6 @@ struct document_file;
 #define TIPPSE_NEWLINE_CR 2
 #define TIPPSE_NEWLINE_CRLF 3
 #define TIPPSE_NEWLINE_MAX 4
-
-#include "misc.h"
-#include "list.h"
-#include "rangetree.h"
-#include "documentundo.h"
-#include "documentview.h"
-#include "filetype.h"
-#include "filetype/c.h"
-#include "filetype/cpp.h"
-#include "filetype/sql.h"
-#include "filetype/text.h"
-#include "filetype/js.h"
-#include "filetype/lua.h"
-#include "filetype/patch.h"
-#include "filetype/php.h"
-#include "filetype/xml.h"
-#include "encoding.h"
-#include "encoding/utf8.h"
-#include "encoding/cp850.h"
-#include "encoding/ascii.h"
-#include "config.h"
 
 struct document_file_defaults {
   int colors[VISUAL_FLAG_COLOR_MAX];    // color values
@@ -60,7 +47,7 @@ struct document_file_defaults {
 
 struct document_file_type {
   const char* extension;                // file extension
-  struct file_type* (*constructor)(void); // file type
+  struct file_type* (*constructor)(struct config* config); // file type
 };
 
 struct document_file {
@@ -88,7 +75,28 @@ struct document_file {
   pid_t pid;                            // Child process id
 };
 
-struct document_file* document_file_create(int save);
+#include "misc.h"
+#include "list.h"
+#include "rangetree.h"
+#include "documentundo.h"
+#include "documentview.h"
+#include "config.h"
+#include "filetype.h"
+#include "filetype/c.h"
+#include "filetype/cpp.h"
+#include "filetype/sql.h"
+#include "filetype/text.h"
+#include "filetype/js.h"
+#include "filetype/lua.h"
+#include "filetype/patch.h"
+#include "filetype/php.h"
+#include "filetype/xml.h"
+#include "encoding.h"
+#include "encoding/utf8.h"
+#include "encoding/cp850.h"
+#include "encoding/ascii.h"
+
+struct document_file* document_file_create(int save, int config);
 void document_file_clear(struct document_file* file);
 void document_file_destroy(struct document_file* file);
 void document_file_name(struct document_file* file, const char* filename);

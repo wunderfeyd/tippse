@@ -2,47 +2,22 @@
 
 #include "lua.h"
 
-struct trie_static keywords_language_lua[] = {
-  {"nil", VISUAL_FLAG_COLOR_TYPE},
-  {"self", VISUAL_FLAG_COLOR_TYPE},
-  {"true", VISUAL_FLAG_COLOR_TYPE},
-  {"false", VISUAL_FLAG_COLOR_TYPE},
-  {"for", VISUAL_FLAG_COLOR_KEYWORD},
-  {"do", VISUAL_FLAG_COLOR_KEYWORD},
-  {"while", VISUAL_FLAG_COLOR_KEYWORD},
-  {"if", VISUAL_FLAG_COLOR_KEYWORD},
-  {"else", VISUAL_FLAG_COLOR_KEYWORD},
-  {"elseif", VISUAL_FLAG_COLOR_KEYWORD},
-  {"end", VISUAL_FLAG_COLOR_KEYWORD},
-  {"then", VISUAL_FLAG_COLOR_KEYWORD},
-  {"break", VISUAL_FLAG_COLOR_KEYWORD},
-  {"function", VISUAL_FLAG_COLOR_KEYWORD},
-  {"local", VISUAL_FLAG_COLOR_KEYWORD},
-  {"return", VISUAL_FLAG_COLOR_KEYWORD},
-  {"dofile", VISUAL_FLAG_COLOR_KEYWORD},
-  {"and", VISUAL_FLAG_COLOR_KEYWORD},
-  {"or", VISUAL_FLAG_COLOR_KEYWORD},
-  {"not", VISUAL_FLAG_COLOR_KEYWORD},
-  {NULL, 0}
-};
-
-struct file_type* file_type_lua_create(void) {
+struct file_type* file_type_lua_create(struct config* config) {
   struct file_type_lua* this = malloc(sizeof(struct file_type_lua));
+  this->vtbl.config = config;
   this->vtbl.create = file_type_lua_create;
   this->vtbl.destroy = file_type_lua_destroy;
   this->vtbl.name = file_type_lua_name;
   this->vtbl.mark = file_type_lua_mark;
   this->vtbl.bracket_match = file_type_bracket_match;
 
-  this->keywords = trie_create();
-  trie_load_array(this->keywords, &keywords_language_lua[0]);
+  this->keywords = file_type_config_base((struct file_type*)this, "colors/keywords");
 
   return (struct file_type*)this;
 }
 
 void file_type_lua_destroy(struct file_type* base) {
   struct file_type_lua* this = (struct file_type_lua*)base;
-  trie_destroy(this->keywords);
   free(this);
 }
 
@@ -133,7 +108,7 @@ void file_type_lua_mark(struct file_type* base, int* visual_detail, struct encod
   } else {
     if (!(before&VISUAL_INFO_WORD) && (after&VISUAL_INFO_WORD)) {
       *length = 0;
-      *flags = file_type_keyword(cache, this->keywords, length);
+      *flags = file_type_keyword_config(base, cache, this->keywords, length, 0);
     }
 
     if (*flags==0) {

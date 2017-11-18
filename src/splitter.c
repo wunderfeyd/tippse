@@ -159,7 +159,6 @@ void splitter_assign_document_file(struct splitter* splitter, struct document_fi
   }
 
   splitter->file = file;
-  document_file_reload_config(file);
   if (splitter->file->views->first) {
     document_view_clone(splitter->view, (struct document_view*)splitter->file->views->first->object, splitter->file);
   } else {

@@ -10,6 +10,29 @@
 #include <unistd.h>
 #include "screen.h"
 
+// color names from https://jonasjacek.github.io/colors
+struct config_cache screen_color_codes[] = {
+  {"background", -2},
+  {"foreground", -1},
+  {"black", 0},
+  {"maroon", 1},
+  {"green", 2},
+  {"olive", 3},
+  {"navy", 4},
+  {"purple", 5},
+  {"teal", 6},
+  {"silver", 7},
+  {"grey", 8},
+  {"red", 9},
+  {"lime", 10},
+  {"yellow", 11},
+  {"blue", 12},
+  {"fuchsia", 13},
+  {"aqua", 14},
+  {"white", 15},
+  {NULL, 0}
+};
+
 // Create screen
 struct screen* screen_create(void) {
   struct screen* screen = (struct screen*)malloc(sizeof(struct screen));
@@ -33,7 +56,7 @@ struct screen* screen_create(void) {
   write(STDOUT_FILENO, "\x1b[?25l", 6);
   write(STDOUT_FILENO, "\x1b""7", 2);
   write(STDOUT_FILENO, "\x1b[?2004h", 8);
-  write(STDOUT_FILENO, "\x1b[?1003h", 8);
+  write(STDOUT_FILENO, "\x1b[?1002h", 8);
   write(STDOUT_FILENO, "\x1b[?1005h", 8);
 
   return screen;
@@ -42,7 +65,7 @@ struct screen* screen_create(void) {
 // Destroy screen
 void screen_destroy(struct screen* screen) {
   write(STDOUT_FILENO, "\x1b[?1005l", 8);
-  write(STDOUT_FILENO, "\x1b[?1003l", 8);
+  write(STDOUT_FILENO, "\x1b[?1002l", 8);
   write(STDOUT_FILENO, "\x1b[?2004l", 8);
   write(STDOUT_FILENO, "\x1b""8", 2);
   write(STDOUT_FILENO, "\x1b[?25h", 6);

@@ -2,7 +2,7 @@
 
 #include "text.h"
 
-struct file_type* file_type_text_create(void) {
+struct file_type* file_type_text_create(struct config* config) {
   struct file_type_text* this = malloc(sizeof(struct file_type_text));
   this->vtbl.create = file_type_text_create;
   this->vtbl.destroy = file_type_text_destroy;
