@@ -66,7 +66,7 @@ int file_type_keyword_config(struct file_type* base, struct encoding_cache* cach
     return 0;
   }
 
-  return config_convert_int64_cache(last, &visual_color_codes[0]);
+  return (int)config_convert_int64_cache(last, &visual_color_codes[0]);
 }
 
 int file_type_bracket_match(int visual_detail, int* cp, size_t length) {

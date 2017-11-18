@@ -540,6 +540,7 @@ void config_loadpaths(struct config* config, const char* filename, int strip) {
     char* relative = correct_path(up);
     free(up);
     if (strcmp(relative, corrected)==0) {
+      free(relative);
       break;
     }
 

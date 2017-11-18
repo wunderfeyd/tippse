@@ -1374,12 +1374,18 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->selection_start = FILE_OFFSET_T_MAX;
     view->selection_end = FILE_OFFSET_T_MAX;
   }
-  if (view->selection_start<view->selection_end) {
-    view->selection_low = view->selection_start;
-    view->selection_high = view->selection_end;
+
+  if (view->selection_start!=view->selection_end) {
+    if (view->selection_start<view->selection_end) {
+      view->selection_low = view->selection_start;
+      view->selection_high = view->selection_end;
+    } else {
+      view->selection_low = view->selection_end;
+      view->selection_high = view->selection_start;
+    }
   } else {
-    view->selection_low = view->selection_end;
-    view->selection_high = view->selection_start;
+    view->selection_low = FILE_OFFSET_T_MAX;
+    view->selection_high = FILE_OFFSET_T_MAX;
   }
 }
 

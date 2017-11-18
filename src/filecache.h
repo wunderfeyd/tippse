@@ -13,7 +13,8 @@
 struct file_cache;
 struct file_cache_node;
 
-#define FILE_CACHE_NODES 16384
+// One megabyte of cache
+#define FILE_CACHE_NODES (((1024*1024)/TREE_BLOCK_LENGTH_MAX)+1)
 
 #include "rangetree.h"
 
@@ -30,8 +31,9 @@ struct file_cache {
   char* filename;                           // name of file
   int count;                                // reference counter
 
-  struct file_cache_node nodes[FILE_CACHE_NODES]; // nodes pool
+  struct file_cache_node* nodes[FILE_CACHE_NODES]; // nodes pool
   struct file_cache_node* open[FILE_CACHE_NODES]; // nodes unused
+  size_t allocated;                         // position of first allocated node in pool
   size_t left;                              // number of unused nodes
   struct file_cache_node* first;            // first used node
   struct file_cache_node* last;             // last used node

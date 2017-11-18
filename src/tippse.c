@@ -125,6 +125,10 @@ struct tippse_ansi_key ansi_keys[] = {
   {NULL, 0, 0}
 };
 
+// Local document crawler
+void tippse_append_inputs(struct editor* editor, fd_set* set_read, fd_set* set_write, int* nfds);
+int tippse_check_inputs(struct editor* editor, fd_set* set_read, fd_set* set_write, int* nfds);
+
 // Helper for crawling document pipes
 void tippse_append_inputs(struct editor* editor, fd_set* set_read, fd_set* set_write, int* nfds) {
   struct list_node* docs = editor->documents->first;
@@ -187,7 +191,7 @@ int main(int argc, const char** argv) {
 
     ssize_t in = 0;
     int stop = 0;
-    int64_t start;
+    int64_t start = 0;
     while (in==0) {
       int64_t tick = tick_count();
       if (!stop) {

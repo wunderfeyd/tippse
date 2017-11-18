@@ -96,6 +96,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->close = 0;
   base->base_path = base_path;
   base->screen = screen;
+  base->focus = NULL;
 
   base->documents = list_create();
 
@@ -184,7 +185,7 @@ void editor_draw(struct editor* base) {
   document_file_manualchange(base->tabs_doc);
 
   if (base->focus==base->panel) {
-    int height = (base->panel->file->buffer?base->panel->file->buffer->visuals.ys:0)+1;
+    int height = (int)(base->panel->file->buffer?base->panel->file->buffer->visuals.ys:0)+1;
     int max = (base->screen->height/4)+1;
     if (height>max) {
       height = max;
@@ -211,6 +212,7 @@ void editor_draw(struct editor* base) {
     running |= (((struct document_file*)docs->object)->pipefd[0]!=-1)?1:0;
     docs = docs->next;
   }
+
   if (running) {
     int cp = 'R';
     screen_setchar(base->screen, 0, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], background);
@@ -248,7 +250,7 @@ void editor_keypress(struct editor* base, int key, int cp, int button, int butto
     parent = config_advance_codepoints(base->focus->file->config, parent, &cp, 1);
   }
 
-  int command = config_convert_int64_cache(parent, &editor_commands[0]);
+  int command = (int)config_convert_int64_cache(parent, &editor_commands[0]);
   if (command!=TIPPSE_KEY_CHARACTER || cp>=0x20) {
     editor_intercept(base, command, key, cp, button, button_old, x, y);
   }

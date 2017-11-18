@@ -21,7 +21,7 @@ void list_destroy(struct list* list) {
 struct list_node* list_insert(struct list* list, struct list_node* prev, void* object) {
   struct list_node* node = malloc(sizeof(struct list_node));
   node->object = object;
-  if (prev==NULL) {
+  if (!prev) {
     node->prev = NULL;
     node->next = list->first;
     if (node->next) {

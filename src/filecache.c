@@ -7,12 +7,8 @@ struct file_cache* file_cache_create(const char* filename) {
   struct file_cache* base = malloc(sizeof(struct file_cache));
   base->filename = strdup(filename);
   base->count = 1;
-
-  for (size_t count = 0; count<FILE_CACHE_NODES; count++) {
-    base->open[count] = &base->nodes[FILE_CACHE_NODES-1-count];
-  }
-
   base->left = FILE_CACHE_NODES;
+  base->allocated = FILE_CACHE_NODES;
   base->first = NULL;
   base->last = NULL;
   return base;
@@ -28,6 +24,10 @@ void file_cache_dereference(struct file_cache* base) {
   base->count--;
 
   if (base->count==0) {
+    for (size_t count = base->allocated; count<FILE_CACHE_NODES; count++) {
+      free(base->nodes[count]);
+    }
+
     free(base->filename);
     free(base);
   }
@@ -40,6 +40,11 @@ struct file_cache_node* file_cache_acquire_node(struct file_cache* base) {
   }
 
   base->left--;
+  if (base->left<base->allocated) {
+    base->allocated = base->left;
+    base->open[base->left] = base->nodes[base->left] = malloc(sizeof(struct file_cache_node));
+  }
+
   struct file_cache_node* node = base->open[base->left];
   file_cache_link_node(base, node);
 
