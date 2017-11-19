@@ -87,6 +87,10 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"saveall", TIPPSE_CMD_SAVEALL},
   {"unsplit", TIPPSE_CMD_UNSPLIT},
   {"compile", TIPPSE_CMD_COMPILE},
+  {"replace", TIPPSE_CMD_REPLACE},
+  {"replacenext", TIPPSE_CMD_REPLACE_NEXT},
+  {"replaceprevious", TIPPSE_CMD_REPLACE_PREV},
+  {"replaceall", TIPPSE_CMD_REPLACE_ALL},
   {NULL, 0}
 };
 
@@ -118,6 +122,10 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   document_file_name(base->search_doc, "Search");
   base->search_doc->binary = 0;
 
+  base->replace_doc = document_file_create(0, 1);
+  document_file_name(base->replace_doc, "Replace");
+  base->replace_doc->binary = 0;
+
   base->compiler_doc = document_file_create(0, 1);
 
   base->panel = splitter_create(0, 0, NULL, NULL, "");
@@ -127,6 +135,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   list_insert(base->documents, NULL, base->document_doc);
   list_insert(base->documents, NULL, base->tabs_doc);
   list_insert(base->documents, NULL, base->search_doc);
+  list_insert(base->documents, NULL, base->replace_doc);
   list_insert(base->documents, NULL, base->browser_doc);
   list_insert(base->documents, NULL, base->compiler_doc);
 
@@ -222,7 +231,7 @@ void editor_draw(struct editor* base) {
   struct encoding_stream stream;
   encoding_stream_from_plain(&stream, (uint8_t*)base->focus->status, SIZE_T_MAX);
   size_t length = encoding_utf8_strlen(NULL, &stream);
-  screen_drawtext(base->screen, base->screen->width-(int)length, 0, 0, 0, base->screen->width, base->screen->height, base->focus->status, length, foreground, background);
+  screen_drawtext(base->screen, base->screen->width-(int)length, 0, 0, 0, base->screen->width, base->screen->height, base->focus->status, length, base->focus->status_inverted?background:foreground, base->focus->status_inverted?foreground:background);
 
   screen_draw(base->screen);
 }
@@ -276,20 +285,33 @@ void editor_intercept(struct editor* base, int command, int key, int cp, int but
   if (command==TIPPSE_CMD_QUIT) {
     base->close = 1;
   } else if (command==TIPPSE_CMD_SEARCH) {
-    if (base->focus==base->document) {
-      editor_focus(base, base->panel, 1);
-    } else {
-      editor_focus(base, base->document, 1);
-    }
+    editor_panel_assign(base, base->search_doc);
   } else if (command==TIPPSE_CMD_SEARCH_NEXT) {
     editor_focus(base, base->document, 1);
     if (base->search_doc->buffer) {
-      document_search(base->last_document, range_tree_first(base->search_doc->buffer), base->search_doc->buffer->length, 1);
+      document_search(base->last_document, range_tree_first(base->search_doc->buffer), base->search_doc->buffer->length, NULL, 0, 1, 0, 0);
     }
   } else if (command==TIPPSE_CMD_SEARCH_PREV) {
     editor_focus(base, base->document, 1);
     if (base->search_doc->buffer) {
-      document_search(base->last_document, range_tree_first(base->search_doc->buffer), base->search_doc->buffer->length, 0);
+      document_search(base->last_document, range_tree_first(base->search_doc->buffer), base->search_doc->buffer->length, NULL, 0, 0, 0, 0);
+    }
+  } else if (command==TIPPSE_CMD_REPLACE) {
+    editor_panel_assign(base, base->replace_doc);
+  } else if (command==TIPPSE_CMD_REPLACE_NEXT) {
+    editor_focus(base, base->document, 1);
+    if (base->search_doc->buffer) {
+      document_search(base->last_document, range_tree_first(base->search_doc->buffer), base->search_doc->buffer->length, range_tree_first(base->replace_doc->buffer), base->replace_doc->buffer->length, 1, 0, 1);
+    }
+  } else if (command==TIPPSE_CMD_REPLACE_PREV) {
+    editor_focus(base, base->document, 1);
+    if (base->search_doc->buffer) {
+      document_search(base->last_document, range_tree_first(base->search_doc->buffer), base->search_doc->buffer->length, range_tree_first(base->replace_doc->buffer), base->replace_doc->buffer->length, 0, 0, 1);
+    }
+  } else if (command==TIPPSE_CMD_REPLACE_ALL) {
+    editor_focus(base, base->document, 1);
+    if (base->search_doc->buffer) {
+      document_search(base->last_document, range_tree_first(base->search_doc->buffer), base->search_doc->buffer->length, range_tree_first(base->replace_doc->buffer), base->replace_doc->buffer->length, 1, 1, 1);
     }
   } else if (command==TIPPSE_CMD_VIEW_SWITCH) {
     if (base->focus->document==base->focus->document_hex) {
@@ -522,5 +544,15 @@ void editor_close_document(struct editor* base, struct document_file* file) {
     splitter_exchange_document_file(base->splitters, replace, assign);
     document_file_destroy(replace);
     list_remove(base->documents, remove);
+  }
+}
+
+// Assign new document to panel
+void editor_panel_assign(struct editor* base, struct document_file* file) {
+  if (base->focus==base->document || base->panel->file!=file) {
+    splitter_assign_document_file(base->panel, file);
+    editor_focus(base, base->panel, 1);
+  } else {
+    editor_focus(base, base->document, 1);
   }
 }

@@ -98,7 +98,11 @@ struct splitter;
 #define TIPPSE_CMD_SAVEALL 48
 #define TIPPSE_CMD_UNSPLIT 49
 #define TIPPSE_CMD_COMPILE 50
-#define TIPPSE_CMD_MAX 51
+#define TIPPSE_CMD_REPLACE 51
+#define TIPPSE_CMD_REPLACE_NEXT 52
+#define TIPPSE_CMD_REPLACE_PREV 53
+#define TIPPSE_CMD_REPLACE_ALL 54
+#define TIPPSE_CMD_MAX 55
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -116,6 +120,7 @@ struct editor {
   struct document_file* tabs_doc;     // document: open documents
   struct document_file* browser_doc;  // document: list of file from current directory
   struct document_file* search_doc;   // document: current search text
+  struct document_file* replace_doc;  // document: current replace text
   struct document_file* document_doc; // document: inital empty document
   struct document_file* compiler_doc; // document: compiler output
 
@@ -151,4 +156,5 @@ void editor_open_document(struct editor* base, const char* name, struct splitter
 void editor_save_document(struct editor* base, struct document_file* file);
 void editor_save_documents(struct editor* base);
 void editor_close_document(struct editor* base, struct document_file* file);
+void editor_panel_assign(struct editor* base, struct document_file* file);
 #endif /* #ifndef TIPPSE_EDITOR_H */
