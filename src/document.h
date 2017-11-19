@@ -33,7 +33,7 @@ struct document {
 #include "document_text.h"
 
 int document_compare(struct range_tree_node* left, file_offset_t displacement_left, struct range_tree_node* right_root, file_offset_t length);
-int document_search(struct splitter* splitter, struct range_tree_node* search_text, file_offset_t search_length, struct range_tree_node* replace_text, file_offset_t replace_length, int forward, int all, int replace);
+int document_search(struct splitter* splitter, struct range_tree_node* search_text, struct range_tree_node* replace_text, int forward, int all, int replace);
 void document_directory(struct document_file* file);
 
 #endif /* #ifndef TIPPSE_DOCUMENT_H */

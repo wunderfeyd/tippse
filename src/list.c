@@ -3,36 +3,36 @@
 #include "list.h"
 
 struct list* list_create(void) {
-  struct list* list = malloc(sizeof(struct list));
-  list->first = NULL;
-  list->last = NULL;
-  list->count = 0;
-  return list;
+  struct list* base = malloc(sizeof(struct list));
+  base->first = NULL;
+  base->last = NULL;
+  base->count = 0;
+  return base;
 }
 
-void list_destroy(struct list* list) {
-  if (list->count!=0) {
+void list_destroy(struct list* base) {
+  if (base->count!=0) {
     printf("list not empty\r\n");
   }
 
-  free(list);
+  free(base);
 }
 
-struct list_node* list_insert(struct list* list, struct list_node* prev, void* object) {
+struct list_node* list_insert(struct list* base, struct list_node* prev, void* object) {
   struct list_node* node = malloc(sizeof(struct list_node));
   node->object = object;
   if (!prev) {
     node->prev = NULL;
-    node->next = list->first;
+    node->next = base->first;
     if (node->next) {
       node->next->prev = node;
     }
 
-    if (!list->last) {
-      list->last = node;
+    if (!base->last) {
+      base->last = node;
     }
 
-    list->first = node;
+    base->first = node;
   } else {
     node->prev = prev;
     node->next = prev->next;
@@ -40,24 +40,24 @@ struct list_node* list_insert(struct list* list, struct list_node* prev, void* o
     if (node->next) {
       node->next->prev = node;
     } else {
-      list->last = node;
+      base->last = node;
     }
   }
 
-  list->count++;
+  base->count++;
 
   return node;
 }
 
-void* list_remove(struct list* list, struct list_node* node) {
+void* list_remove(struct list* base, struct list_node* node) {
   void* object = node->object;
 
-  if (list->first==node) {
-    list->first = node->next;
+  if (base->first==node) {
+    base->first = node->next;
   }
 
-  if (list->last==node) {
-    list->last = node->prev;
+  if (base->last==node) {
+    base->last = node->prev;
   }
 
   if (node->next) {
@@ -68,7 +68,7 @@ void* list_remove(struct list* list, struct list_node* node) {
     node->prev->next = node->next;
   }
 
-  list->count--;
+  base->count--;
   free(node);
   return object;
 }

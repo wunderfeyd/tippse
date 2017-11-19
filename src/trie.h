@@ -28,10 +28,10 @@ struct trie {
 #include "list.h"
 
 struct trie* trie_create(void);
-void trie_destroy(struct trie* trie);
-void trie_clear(struct trie* trie);
-struct trie_node* trie_create_node(struct trie* trie);
-struct trie_node* trie_append_codepoint(struct trie* trie, struct trie_node* parent, int cp, intptr_t type);
-struct trie_node* trie_find_codepoint(struct trie* trie, struct trie_node* parent, int cp);
+void trie_destroy(struct trie* base);
+void trie_clear(struct trie* base);
+struct trie_node* trie_create_node(struct trie* base);
+struct trie_node* trie_append_codepoint(struct trie* base, struct trie_node* parent, int cp, intptr_t type);
+struct trie_node* trie_find_codepoint(struct trie* base, struct trie_node* parent, int cp);
 
 #endif  /* #ifndef TIPPSE_TRIE_H */

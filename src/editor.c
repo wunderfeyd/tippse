@@ -289,30 +289,24 @@ void editor_intercept(struct editor* base, int command, int key, int cp, int but
   } else if (command==TIPPSE_CMD_SEARCH_NEXT) {
     editor_focus(base, base->document, 1);
     if (base->search_doc->buffer) {
-      document_search(base->last_document, range_tree_first(base->search_doc->buffer), base->search_doc->buffer->length, NULL, 0, 1, 0, 0);
+      document_search(base->last_document, base->search_doc->buffer, NULL, 1, 0, 0);
     }
   } else if (command==TIPPSE_CMD_SEARCH_PREV) {
     editor_focus(base, base->document, 1);
     if (base->search_doc->buffer) {
-      document_search(base->last_document, range_tree_first(base->search_doc->buffer), base->search_doc->buffer->length, NULL, 0, 0, 0, 0);
+      document_search(base->last_document, base->search_doc->buffer, NULL, 0, 0, 0);
     }
   } else if (command==TIPPSE_CMD_REPLACE) {
     editor_panel_assign(base, base->replace_doc);
   } else if (command==TIPPSE_CMD_REPLACE_NEXT) {
     editor_focus(base, base->document, 1);
-    if (base->search_doc->buffer) {
-      document_search(base->last_document, range_tree_first(base->search_doc->buffer), base->search_doc->buffer->length, range_tree_first(base->replace_doc->buffer), base->replace_doc->buffer->length, 1, 0, 1);
-    }
+    document_search(base->last_document, base->search_doc->buffer, base->replace_doc->buffer, 1, 0, 1);
   } else if (command==TIPPSE_CMD_REPLACE_PREV) {
     editor_focus(base, base->document, 1);
-    if (base->search_doc->buffer) {
-      document_search(base->last_document, range_tree_first(base->search_doc->buffer), base->search_doc->buffer->length, range_tree_first(base->replace_doc->buffer), base->replace_doc->buffer->length, 0, 0, 1);
-    }
+    document_search(base->last_document, base->search_doc->buffer, base->replace_doc->buffer, 0, 0, 1);
   } else if (command==TIPPSE_CMD_REPLACE_ALL) {
     editor_focus(base, base->document, 1);
-    if (base->search_doc->buffer) {
-      document_search(base->last_document, range_tree_first(base->search_doc->buffer), base->search_doc->buffer->length, range_tree_first(base->replace_doc->buffer), base->replace_doc->buffer->length, 1, 1, 1);
-    }
+    document_search(base->last_document, base->search_doc->buffer, base->replace_doc->buffer, 1, 1, 1);
   } else if (command==TIPPSE_CMD_VIEW_SWITCH) {
     if (base->focus->document==base->focus->document_hex) {
       base->focus->document = base->focus->document_text;

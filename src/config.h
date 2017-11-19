@@ -32,18 +32,18 @@ struct config_value* config_value_create(int* value_codepoints, size_t value_len
 void config_value_destroy(struct config_value* base);
 
 struct config* config_create(void);
-void config_destroy(struct config* config);
-void config_clear(struct config* config);
+void config_destroy(struct config* base);
+void config_clear(struct config* base);
 
-void config_load(struct config* config, const char* filename);
-void config_loadpaths(struct config* config, const char* filename, int strip);
+void config_load(struct config* base, const char* filename);
+void config_loadpaths(struct config* base, const char* filename, int strip);
 
-void config_update(struct config* config, int* keyword_codepoints, size_t keyword_length, int* value_codepoints, size_t value_length);
-struct trie_node* config_find_codepoints(struct config* config, int* keyword_codepoints, size_t keyword_length);
-struct trie_node* config_find_ascii(struct config* config, const char* keyword);
+void config_update(struct config* base, int* keyword_codepoints, size_t keyword_length, int* value_codepoints, size_t value_length);
+struct trie_node* config_find_codepoints(struct config* base, int* keyword_codepoints, size_t keyword_length);
+struct trie_node* config_find_ascii(struct config* base, const char* keyword);
 
-struct trie_node* config_advance_codepoints(struct config* config, struct trie_node* parent, int* keyword_codepoints, size_t keyword_length);
-struct trie_node* config_advance_ascii(struct config* config, struct trie_node* parent, const char* keyword);
+struct trie_node* config_advance_codepoints(struct config* base, struct trie_node* parent, int* keyword_codepoints, size_t keyword_length);
+struct trie_node* config_advance_ascii(struct config* base, struct trie_node* parent, const char* keyword);
 
 int* config_value(struct trie_node* parent);
 

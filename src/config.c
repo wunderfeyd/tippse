@@ -395,31 +395,31 @@ void config_value_destroy(struct config_value* base) {
 
 // Create configuration
 struct config* config_create(void) {
-  struct config* config = malloc(sizeof(struct config));
-  config->keywords = trie_create();
-  config->values = list_create();
-  return config;
+  struct config* base = malloc(sizeof(struct config));
+  base->keywords = trie_create();
+  base->values = list_create();
+  return base;
 }
 
 // Destroy configuration
-void config_destroy(struct config* config) {
-  config_clear(config);
-  trie_destroy(config->keywords);
-  list_destroy(config->values);
-  free(config);
+void config_destroy(struct config* base) {
+  config_clear(base);
+  trie_destroy(base->keywords);
+  list_destroy(base->values);
+  free(base);
 }
 
 // Clear configuration
-void config_clear(struct config* config) {
-  trie_clear(config->keywords);
-  while (config->values->first) {
-    config_value_destroy((struct config_value*)config->values->first->object);
-    list_remove(config->values, config->values->first);
+void config_clear(struct config* base) {
+  trie_clear(base->keywords);
+  while (base->values->first) {
+    config_value_destroy((struct config_value*)base->values->first->object);
+    list_remove(base->values, base->values->first);
   }
 }
 
 // Load configuration file from disk or memory
-void config_load(struct config* config, const char* filename) {
+void config_load(struct config* base, const char* filename) {
   struct document_file* file = document_file_create(0, 0);
   if (filename) {
     document_file_load(file, filename);
@@ -460,7 +460,7 @@ void config_load(struct config* config, const char* filename) {
           size_t keyword = keyword_length-((brackets>0)?bracket_positions[brackets-1]:0);
           if (cp!='{' && keyword) {
             value_codepoints[value_length] = 0;
-            config_update(config, &keyword_codepoints[0], keyword_length, &value_codepoints[0], value_length+1);
+            config_update(base, &keyword_codepoints[0], keyword_length, &value_codepoints[0], value_length+1);
           }
 
           if (cp=='{') {
@@ -520,14 +520,14 @@ void config_load(struct config* config, const char* filename) {
 }
 
 // Search all paths from filename to root
-void config_loadpaths(struct config* config, const char* filename, int strip) {
-  config_load(config, NULL);
+void config_loadpaths(struct config* base, const char* filename, int strip) {
+  config_load(base, NULL);
 
   char* home = home_path();
   char* home_name = combine_path_file(home, config_filename);
   char* home_name2 = combine_path_file(home_name, config_filename);
   free(home);
-  config_load(config, home_name2);
+  config_load(base, home_name2);
   free(home_name2);
   free(home_name);
 
@@ -538,7 +538,7 @@ void config_loadpaths(struct config* config, const char* filename, int strip) {
   int c = 0;
   while (1) {
     char* name = combine_path_file(corrected, config_filename);
-    config_load(config, name);
+    config_load(base, name);
     free(name);
     char* up = combine_path_file(corrected, "..");
     char* relative = correct_path(up);
@@ -560,21 +560,21 @@ void config_loadpaths(struct config* config, const char* filename, int strip) {
 }
 
 // Update configuration keyword
-void config_update(struct config* config, int* keyword_codepoints, size_t keyword_length, int* value_codepoints, size_t value_length) {
+void config_update(struct config* base, int* keyword_codepoints, size_t keyword_length, int* value_codepoints, size_t value_length) {
   if (keyword_length==0) {
     return;
   }
 
   struct config_value* value = config_value_create(value_codepoints, value_length);
-  struct list_node* node = list_insert(config->values, NULL, value);
+  struct list_node* node = list_insert(base->values, NULL, value);
 
   struct trie_node* parent = NULL;
   while (keyword_length-->0) {
-    parent = trie_append_codepoint(config->keywords, parent, *keyword_codepoints, 0);
+    parent = trie_append_codepoint(base->keywords, parent, *keyword_codepoints, 0);
     if (keyword_length==0) {
       if (parent->type!=0) { // TODO: 0 != NULL
         config_value_destroy((struct config_value*)((struct list_node*)parent->type)->object);
-        list_remove(config->values, (struct list_node*)parent->type);
+        list_remove(base->values, (struct list_node*)parent->type);
       }
 
       parent->type = (intptr_t)node;
@@ -585,9 +585,9 @@ void config_update(struct config* config, int* keyword_codepoints, size_t keywor
 }
 
 // Find entry by code point list
-struct trie_node* config_advance_codepoints(struct config* config, struct trie_node* parent, int* keyword_codepoints, size_t keyword_length) {
+struct trie_node* config_advance_codepoints(struct config* base, struct trie_node* parent, int* keyword_codepoints, size_t keyword_length) {
   while (keyword_length-->0) {
-    parent = trie_find_codepoint(config->keywords, parent, *keyword_codepoints);
+    parent = trie_find_codepoint(base->keywords, parent, *keyword_codepoints);
     if (!parent) {
       return NULL;
     }
@@ -599,14 +599,14 @@ struct trie_node* config_advance_codepoints(struct config* config, struct trie_n
 }
 
 // Find entry by code point list from root
-struct trie_node* config_find_codepoints(struct config* config, int* keyword_codepoints, size_t keyword_length) {
-  return config_advance_codepoints(config, NULL, keyword_codepoints, keyword_length);
+struct trie_node* config_find_codepoints(struct config* base, int* keyword_codepoints, size_t keyword_length) {
+  return config_advance_codepoints(base, NULL, keyword_codepoints, keyword_length);
 }
 
 // Find keyword by ASCII string
-struct trie_node* config_advance_ascii(struct config* config, struct trie_node* parent, const char* keyword) {
+struct trie_node* config_advance_ascii(struct config* base, struct trie_node* parent, const char* keyword) {
   while (*keyword) {
-    parent = trie_find_codepoint(config->keywords, parent, *(uint8_t*)keyword);
+    parent = trie_find_codepoint(base->keywords, parent, *(uint8_t*)keyword);
     if (!parent) {
       return NULL;
     }
@@ -618,8 +618,8 @@ struct trie_node* config_advance_ascii(struct config* config, struct trie_node* 
 }
 
 // Find keyword by ASCII string from root
-struct trie_node* config_find_ascii(struct config* config, const char* keyword) {
-  return config_advance_ascii(config, NULL, keyword);
+struct trie_node* config_find_ascii(struct config* base, const char* keyword) {
+  return config_advance_ascii(base, NULL, keyword);
 }
 
 // Get value at found position

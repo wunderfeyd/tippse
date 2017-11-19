@@ -63,20 +63,26 @@ int document_compare(struct range_tree_node* left, file_offset_t displacement_le
 }
 
 // Search in document
-int document_search(struct splitter* splitter, struct range_tree_node* search_text, file_offset_t search_length, struct range_tree_node* replace_text, file_offset_t replace_length, int forward, int all, int replace) {
+int document_search(struct splitter* splitter, struct range_tree_node* search_text, struct range_tree_node* replace_text, int forward, int all, int replace) {
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
-  if (!search_text || !file->buffer || file->buffer->length==0) {
+
+  if (!search_text || !file->buffer) {
     ((struct document_text*)splitter->document_text)->keep_status = 1;
     splitter_status(splitter, "No text to search for!", 1);
     return 0;
   }
+
+  file_offset_t search_length = search_text->length;
+  file_offset_t replace_length = replace_text?replace_text->length:0;
 
   if (search_length>file->buffer->length) {
     ((struct document_text*)splitter->document_text)->keep_status = 1;
     splitter_status(splitter, "Not found!", 1);
     return 0;
   }
+
+  search_text = range_tree_first(search_text);
 
   file_offset_t offset = view->offset;
 
@@ -102,6 +108,10 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
       }
     }
 
+    if (!file->buffer || search_length>file->buffer->length) {
+      break;
+    }
+
     if (forward) {
       if (view->selection_low!=FILE_OFFSET_T_MAX) {
         offset = view->selection_high;
@@ -122,9 +132,7 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
     file_offset_t pos = offset;
     file_offset_t displacement;
     struct range_tree_node* buffer = range_tree_find_offset(file->buffer, offset, &displacement);
-    if (buffer && buffer->buffer) {
-      fragment_cache(buffer->buffer);
-    }
+    fragment_cache(buffer->buffer);
 
     int wrap = 0;
     if (forward) {
