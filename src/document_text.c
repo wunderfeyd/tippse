@@ -613,7 +613,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         int cp = 0x21aa;
         position_t x = render_info->x-file->tabstop_width-view->scroll_x+view->address_width;
         if (x>=view->address_width) {
-          splitter_drawchar(screen, splitter, (int)x, (int)(render_info->y-view->scroll_y), &cp, 1, file->defaults.colors[VISUAL_FLAG_COLOR_STATUS], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
+          splitter_drawchar(splitter, screen, (int)x, (int)(render_info->y-view->scroll_y), &cp, 1, file->defaults.colors[VISUAL_FLAG_COLOR_STATUS], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
         }
       }
     }
@@ -678,14 +678,14 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         position_t y = render_info->y-view->scroll_y;
         if (x>=view->address_width) {
           if (show!=-1) {
-            splitter_drawchar(screen, splitter, (int)x++, (int)y, &show, 1, color, background);
+            splitter_drawchar(splitter, screen, (int)x++, (int)y, &show, 1, color, background);
           } else {
-            splitter_drawchar(screen, splitter, (int)x++, (int)y, &codepoints_visual[0], read, color, background);
+            splitter_drawchar(splitter, screen, (int)x++, (int)y, &codepoints_visual[0], read, color, background);
           }
         }
 
         for (int pos = 1; pos<fill; pos++) {
-          splitter_drawchar(screen, splitter, (int)x++, (int)y, &fill_code, 1, color, background);
+          splitter_drawchar(splitter, screen, (int)x++, (int)y, &fill_code, 1, color, background);
         }
       }
     }
@@ -959,10 +959,10 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
         last_line = out.line;
         size = sprintf(line, "%5d", (int)(out.line+1));
       } else {
-        size = sprintf(line, "    |");
+        size = sprintf(line, "     ");
       }
 
-      splitter_drawtext(screen, splitter, 0, (int)y, line, (size_t)size, file->defaults.colors[VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[marked?VISUAL_FLAG_COLOR_PREPROCESSOR:VISUAL_FLAG_COLOR_BACKGROUND]);
+      splitter_drawtext(splitter, screen, 0, (int)y, line, (size_t)size, file->defaults.colors[VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[marked?VISUAL_FLAG_COLOR_PREPROCESSOR:VISUAL_FLAG_COLOR_BACKGROUND]);
     }
   }
 
@@ -982,9 +982,9 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   free(title);
 
   if (view->selection_low!=view->selection_high) {
-    splitter_cursor(screen, splitter, -1, -1);
+    splitter_cursor(splitter, screen, -1, -1);
   } else {
-    splitter_cursor(screen, splitter, (int)(cursor.x-view->scroll_x+view->address_width), (int)(cursor.y-view->scroll_y));
+    splitter_cursor(splitter, screen, (int)(cursor.x-view->scroll_x+view->address_width), (int)(cursor.y-view->scroll_y));
   }
 
   if (!document_text_mark_brackets(base, screen, splitter, &cursor) && cursor.column>0) {
@@ -1008,7 +1008,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 
   document->keep_status = 0;
   view->scroll_y_max = file->buffer?file->buffer->visuals.ys:0;
-  splitter_scrollbar(screen, splitter);
+  splitter_scrollbar(splitter, screen);
 }
 
 // Handle key press
@@ -1705,8 +1705,8 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
   }
 
   if (((cursor->bracket_match&VISUAL_BRACKET_OPEN) && out.offset>cursor->offset) || ((cursor->bracket_match&VISUAL_BRACKET_CLOSE) && out.offset<cursor->offset)) {
-    splitter_hilight(screen, splitter, (int)(cursor->x-view->scroll_x+view->address_width), (int)(cursor->y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
-    splitter_hilight(screen, splitter, (int)(out.x-view->scroll_x+view->address_width), (int)(out.y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
+    splitter_hilight(splitter, screen, (int)(cursor->x-view->scroll_x+view->address_width), (int)(cursor->y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
+    splitter_hilight(splitter, screen, (int)(out.x-view->scroll_x+view->address_width), (int)(out.y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
     return 1;
   }
 

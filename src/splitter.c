@@ -63,12 +63,12 @@ void splitter_destroy(struct splitter* base) {
 }
 
 // Draw character
-void splitter_drawchar(struct screen* screen, const struct splitter* base, int x, int y, int* codepoints, size_t length, int foreground, int background) {
+void splitter_drawchar(const struct splitter* base, struct screen* screen, int x, int y, int* codepoints, size_t length, int foreground, int background) {
   screen_setchar(screen, base->x+x, base->y+y, base->x, base->y, base->client_width, base->client_height, codepoints, length, foreground, background);
 }
 
 // Draw text
-void splitter_drawtext(struct screen* screen, const struct splitter* base, int x, int y, const char* text, size_t length, int foreground, int background) {
+void splitter_drawtext(const struct splitter* base, struct screen* screen, int x, int y, const char* text, size_t length, int foreground, int background) {
   screen_drawtext(screen, base->x+x, base->y+y, base->x, base->y, base->client_width, base->client_height, text, length, foreground, background);
 }
 
@@ -91,13 +91,13 @@ void splitter_status(struct splitter* base, const char* status, int status_inver
 }
 
 // Set cursor
-void splitter_cursor(struct screen* screen, struct splitter* base, int x, int y) {
+void splitter_cursor(struct splitter* base, struct screen* screen, int x, int y) {
   base->cursor_x = x;
   base->cursor_y = y;
 }
 
 // Set scrollbar
-void splitter_scrollbar(struct screen* screen, const struct splitter* base) {
+void splitter_scrollbar(const struct splitter* base, struct screen* screen) {
   struct document_view* view = base->view;
 
   if (view->show_scrollbar) {
@@ -110,9 +110,9 @@ void splitter_scrollbar(struct screen* screen, const struct splitter* base) {
     int cp = 0x20;
     for (int y = 0; y<base->client_height; y++) {
       if (y>=pos_start && y<=pos_end) {
-        splitter_drawchar(screen, base, base->client_width-1, y, &cp, 1, 17, 231);
+        splitter_drawchar(base, screen, base->client_width-1, y, &cp, 1, 17, 231);
       } else {
-        splitter_drawchar(screen, base, base->client_width-1, y, &cp, 1, 17, 102);
+        splitter_drawchar(base, screen, base->client_width-1, y, &cp, 1, 17, 102);
       }
     }
 
@@ -120,7 +120,7 @@ void splitter_scrollbar(struct screen* screen, const struct splitter* base) {
   }
 }
 
-void splitter_hilight(struct screen* screen, const struct splitter* base, int x, int y, int color) {
+void splitter_hilight(const struct splitter* base, struct screen* screen, int x, int y, int color) {
   if (y<0 || y>=base->client_height || x<0 || x>=base->client_width) {
     return;
   }
@@ -193,7 +193,7 @@ void splitter_exchange_document_file(struct splitter* base, struct document_file
   }
 }
 
-void splitter_draw(struct screen* screen, struct splitter* base) {
+void splitter_draw(struct splitter* base, struct screen* screen) {
   int cp = 0x20;
   for (int yy = 0; yy<base->height; yy++) {
     for (int xx = 0; xx<base->width; xx++) {
@@ -213,7 +213,7 @@ struct document_file* splitter_first_document(const struct splitter* base) {
 }
 
 // TODO: hardcoded color values
-void splitter_draw_split_horizontal(struct screen* screen, const struct splitter* base, int x, int y, int width) {
+void splitter_draw_split_horizontal(const struct splitter* base, struct screen* screen, int x, int y, int width) {
   struct document_file* file = splitter_first_document(base);
 
   int cp = 0x2500;
@@ -239,7 +239,7 @@ void splitter_draw_split_horizontal(struct screen* screen, const struct splitter
   screen_setchar(screen, x+width, y, 0, 0, screen->width, screen->height, &right, 1, file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
 }
 
-void splitter_draw_split_vertical(struct screen* screen, const struct splitter* base, int x, int y, int height) {
+void splitter_draw_split_vertical(const struct splitter* base, struct screen* screen, int x, int y, int height) {
   struct document_file* file = splitter_first_document(base);
   int cp = 0x2502;
   for (int n = 0; n<height; n++) {
@@ -264,7 +264,7 @@ void splitter_draw_split_vertical(struct screen* screen, const struct splitter* 
   screen_setchar(screen, x, y+height, 0, 0, screen->width, screen->height, &bottom, 1, file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
 }
 
-void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int width, int height, struct splitter* base, int incremental) {
+void splitter_draw_multiple_recursive(struct splitter* base, struct screen* screen, int x, int y, int width, int height, int incremental) {
   if (width<=0 && height<=0) {
     return;
   }
@@ -295,18 +295,18 @@ void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int w
 
     if (base->type&TIPPSE_SPLITTER_HORZ) {
       if (size0>0 && size1>0) {
-        splitter_draw_split_vertical(screen, base, x+size0, y, height);
+        splitter_draw_split_vertical(base, screen, x+size0, y, height);
       }
 
-      splitter_draw_multiple_recursive(screen, x, y, size0, height, base->side[0], incremental);
-      splitter_draw_multiple_recursive(screen, x+base0, y, size1, height, base->side[1], incremental);
+      splitter_draw_multiple_recursive(base->side[0], screen, x, y, size0, height, incremental);
+      splitter_draw_multiple_recursive(base->side[1], screen, x+base0, y, size1, height, incremental);
     } else {
       if (size0>0 && size1>0) {
-        splitter_draw_split_horizontal(screen, base, x, y+size0, width);
+        splitter_draw_split_horizontal(base, screen, x, y+size0, width);
       }
 
-      splitter_draw_multiple_recursive(screen, x, y, width, size0, base->side[0], incremental);
-      splitter_draw_multiple_recursive(screen, x, y+base0, width, size1, base->side[1], incremental);
+      splitter_draw_multiple_recursive(base->side[0], screen, x, y, width, size0, incremental);
+      splitter_draw_multiple_recursive(base->side[1], screen, x, y+base0, width, size1, incremental);
     }
   } else {
     base->x = x;
@@ -316,7 +316,7 @@ void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int w
     base->client_width = width;
     base->client_height = height;
     if (!incremental) {
-      splitter_draw(screen, base);
+      splitter_draw(base, screen);
     } else {
       (*base->document->incremental_update)(base->document, base);
     }
@@ -328,9 +328,9 @@ void splitter_draw_multiple_recursive(struct screen* screen, int x, int y, int w
   }
 }
 
-void splitter_draw_multiple(struct screen* screen, struct splitter* base, int incremental) {
+void splitter_draw_multiple(struct splitter* base, struct screen* screen, int incremental) {
   screen_cursor(screen, -1, -1);
-  splitter_draw_multiple_recursive(screen, 0, 1, screen->width, screen->height-1, base, incremental);
+  splitter_draw_multiple_recursive(base, screen, 0, 1, screen->width, screen->height-1, incremental);
 }
 
 struct splitter* splitter_by_coordinate(struct splitter* base, int x, int y) {

@@ -115,11 +115,11 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   }
   if (file_size && file_size%16==0) document_hex_render(base, screen, splitter, offset, y+1, NULL, 0, NULL);
   if (view->selection_low!=view->selection_high) {
-    splitter_cursor(screen, splitter, -1, -1);
+    splitter_cursor(splitter, screen, -1, -1);
   } else {
-    splitter_cursor(screen, splitter, (int)(10+(3*view->cursor_x)+(document->cp_first!=0)), (int)(view->cursor_y-view->scroll_y));
+    splitter_cursor(splitter, screen, (int)(10+(3*view->cursor_x)+(document->cp_first!=0)), (int)(view->cursor_y-view->scroll_y));
   }
-  splitter_scrollbar(screen, splitter);
+  splitter_scrollbar(splitter, screen);
 }
 
 // Render one line of data
@@ -135,20 +135,20 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
   int x = 0;
   char line[1024];
   sprintf(line, "%08lx", (unsigned long)offset);
-  splitter_drawtext(screen, splitter, x, (int)y, line, 8, linenumber, background);
+  splitter_drawtext(splitter, screen, x, (int)y, line, 8, linenumber, background);
   x = 10;
   size_t data_pos;
   for (data_pos = 0; data_pos<data_size; data_pos++) {
     sprintf(line, "%02x ", data[data_pos]);
     if (offset+data_pos<view->selection_low || offset+data_pos>=view->selection_high) {
-      splitter_drawtext(screen, splitter, x, (int)y, line, 2, foreground, background);
+      splitter_drawtext(splitter, screen, x, (int)y, line, 2, foreground, background);
     } else {
-      splitter_drawtext(screen, splitter, x, (int)y, line, data_pos==15?2:3, foreground, selection);
+      splitter_drawtext(splitter, screen, x, (int)y, line, data_pos==15?2:3, foreground, selection);
     }
     x += 3;
   }
   if (document->cp_first!=0 && y==view->cursor_y-view->scroll_y) {
-    splitter_drawchar(screen, splitter, (int)(10+(3*view->cursor_x)), (int)y, &document->cp_first, 1, foreground, background);
+    splitter_drawchar(splitter, screen, (int)(10+(3*view->cursor_x)), (int)y, &document->cp_first, 1, foreground, background);
   }
 
   x = 59;
@@ -158,9 +158,9 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
     }
     document_hex_convert(&chars[data_pos], view->show_invisibles, '.');
     if (offset+data_pos<view->selection_low || offset+data_pos>=view->selection_high) {
-      splitter_drawchar(screen, splitter, x, (int)y, chars[data_pos].visuals, chars[data_pos].length, foreground, background);
+      splitter_drawchar(splitter, screen, x, (int)y, chars[data_pos].visuals, chars[data_pos].length, foreground, background);
     } else {
-      splitter_drawchar(screen, splitter, x, (int)y, chars[data_pos].visuals, chars[data_pos].length, foreground, selection);
+      splitter_drawchar(splitter, screen, x, (int)y, chars[data_pos].visuals, chars[data_pos].length, foreground, selection);
     }
     x++;
   }

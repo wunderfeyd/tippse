@@ -206,7 +206,7 @@ void editor_draw(struct editor* base) {
   }
 
   screen_check(base->screen);
-  splitter_draw_multiple(base->screen, base->splitters, 0);
+  splitter_draw_multiple(base->splitters, base->screen, 0);
 
   int foreground = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_STATUS];
   int background = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
@@ -245,7 +245,7 @@ void editor_tick(struct editor* base) {
     doc = doc->next;
   }
 
-  splitter_draw_multiple(base->screen, base->splitters, 1);
+  splitter_draw_multiple(base->splitters, base->screen, 1);
 }
 
 // An input event was signalled ... translate it to a command if possible
