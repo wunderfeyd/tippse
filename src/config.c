@@ -24,6 +24,7 @@ const char* config_default =
       "plus:lime,"
       "minus:red,"
       "linenumber:grey,"
+      "bracketerror:red,"
     "},"
     "wrapping:1,"
     "invisibles:0,"

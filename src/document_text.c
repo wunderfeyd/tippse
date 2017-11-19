@@ -987,15 +987,25 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     splitter_cursor(splitter, screen, (int)(cursor.x-view->scroll_x+view->address_width), (int)(cursor.y-view->scroll_y));
   }
 
-  if (!document_text_mark_brackets(base, screen, splitter, &cursor) && cursor.column>0) {
+  int mark1 = document_text_mark_brackets(base, screen, splitter, &cursor);
+  if (mark1<=0) {
+    int mark2 = 0;
     struct document_text_position left;
-    in.type = VISUAL_SEEK_LINE_COLUMN;
-    in.clip = 0;
-    in.line = cursor.line;
-    in.column = cursor.column-1;
+    if (cursor.column>0 && mark1==-1) {
+      in.type = VISUAL_SEEK_LINE_COLUMN;
+      in.clip = 0;
+      in.line = cursor.line;
+      in.column = cursor.column-1;
 
-    document_text_cursor_position(splitter, &in, &left, 0, 1);
-    document_text_mark_brackets(base, screen, splitter, &left);
+      document_text_cursor_position(splitter, &in, &left, 0, 1);
+      mark2 = document_text_mark_brackets(base, screen, splitter, &left);
+    }
+
+    if (mark1==0) {
+      splitter_hilight(splitter, screen, (int)(cursor.x-view->scroll_x+view->address_width), (int)(cursor.y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKETERROR]);
+    } else if (mark2==0) {
+      splitter_hilight(splitter, screen, (int)(left.x-view->scroll_x+view->address_width), (int)(left.y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKETERROR]);
+    }
   }
 
   if (!document->keep_status) {
@@ -1643,7 +1653,7 @@ void document_text_raise_indentation(struct document* base, struct splitter* spl
 // Mark the bracket and its partner below the cursor position and return whether something was marked
 int document_text_mark_brackets(struct document* base, struct screen* screen, struct splitter* splitter, struct document_text_position* cursor) {
   if (!(cursor->bracket_match&(VISUAL_BRACKET_OPEN|VISUAL_BRACKET_CLOSE))) {
-    return 0;
+    return -1;
   }
 
   struct document_file* file = splitter->file;
@@ -1666,7 +1676,7 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
     if (bracket==in.bracket) {
       in.bracket_search--;
     }
-   }
+  }
 
   document_text_render_clear(&render_info, splitter->client_width-view->address_width);
   while (1) {
@@ -1704,7 +1714,7 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
     }
   }
 
-  if (((cursor->bracket_match&VISUAL_BRACKET_OPEN) && out.offset>cursor->offset) || ((cursor->bracket_match&VISUAL_BRACKET_CLOSE) && out.offset<cursor->offset)) {
+  if (((cursor->bracket_match&VISUAL_BRACKET_OPEN) && out.offset>cursor->offset) || ((cursor->bracket_match&VISUAL_BRACKET_CLOSE) && out.offset<cursor->offset && out.type!=VISUAL_SEEK_NONE)) {
     splitter_hilight(splitter, screen, (int)(cursor->x-view->scroll_x+view->address_width), (int)(cursor->y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
     splitter_hilight(splitter, screen, (int)(out.x-view->scroll_x+view->address_width), (int)(out.y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
     return 1;
