@@ -989,7 +989,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 
   int mark1 = document_text_mark_brackets(base, screen, splitter, &cursor);
   if (mark1<=0) {
-    int mark2 = 0;
+    int mark2 = -1;
     struct document_text_position left;
     if (cursor.column>0 && mark1==-1) {
       in.type = VISUAL_SEEK_LINE_COLUMN;
@@ -1721,4 +1721,22 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
   }
 
   return 0;
+}
+
+// Jump to specified line
+void document_text_goto(struct document* base, struct splitter* splitter, position_t line) {
+  struct document_view* view = splitter->view;
+
+  struct document_text_position in_line_column;
+  in_line_column.type = VISUAL_SEEK_LINE_COLUMN;
+  in_line_column.clip = 0;
+  in_line_column.column = 0;
+  in_line_column.line = line;
+
+  struct document_text_position out;
+
+  view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+  view->cursor_x = out.x;
+  view->cursor_y = out.y;
+  view->show_scrollbar = 1;
 }

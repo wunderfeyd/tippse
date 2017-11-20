@@ -123,4 +123,6 @@ void document_text_raise_indentation(struct document* base, struct splitter* spl
 
 int document_text_mark_brackets(struct document* base, struct screen* screen, struct splitter* splitter, struct document_text_position* cursor);
 
+void document_text_goto(struct document* base, struct splitter* splitter, position_t line);
+
 #endif /* #ifndef TIPPSE_DOCUMENT_TEXT_H */

@@ -14,6 +14,9 @@
 #include <unistd.h>
 #include <pwd.h>
 #include "types.h"
+#include "encoding.h"
+#include "encoding/native.h"
+#include "unicode.h"
 
 char** merge_sort(char** sort1, char** sort2, size_t count);
 
@@ -26,5 +29,7 @@ char* home_path(void);
 int is_directory(const char* path);
 
 int64_t tick_count(void);
+
+uint64_t decode_based_unsigned(struct encoding_cache* cache, int base);
 
 #endif /* #ifndef TIPPSE_MISC_H */

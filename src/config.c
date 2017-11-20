@@ -86,6 +86,7 @@ const char* config_default =
       "f6:replacenext,"
       "shift+f6:replaceprevious,"
       "f7:replaceall,"
+      "ctrl+g:goto,"
     "},"
     "filetypes:{"
       "C:{"

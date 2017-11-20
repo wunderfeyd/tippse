@@ -91,6 +91,7 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"replacenext", TIPPSE_CMD_REPLACE_NEXT},
   {"replaceprevious", TIPPSE_CMD_REPLACE_PREV},
   {"replaceall", TIPPSE_CMD_REPLACE_ALL},
+  {"goto", TIPPSE_CMD_GOTO},
   {NULL, 0}
 };
 
@@ -126,6 +127,10 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   document_file_name(base->replace_doc, "Replace");
   base->replace_doc->binary = 0;
 
+  base->goto_doc = document_file_create(0, 1);
+  document_file_name(base->goto_doc, "Goto");
+  base->goto_doc->binary = 0;
+
   base->compiler_doc = document_file_create(0, 1);
 
   base->panel = splitter_create(0, 0, NULL, NULL, "");
@@ -136,6 +141,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   list_insert(base->documents, NULL, base->tabs_doc);
   list_insert(base->documents, NULL, base->search_doc);
   list_insert(base->documents, NULL, base->replace_doc);
+  list_insert(base->documents, NULL, base->goto_doc);
   list_insert(base->documents, NULL, base->browser_doc);
   list_insert(base->documents, NULL, base->compiler_doc);
 
@@ -307,6 +313,8 @@ void editor_intercept(struct editor* base, int command, int key, int cp, int but
   } else if (command==TIPPSE_CMD_REPLACE_ALL) {
     editor_focus(base, base->document, 1);
     document_search(base->last_document, base->search_doc->buffer, base->replace_doc->buffer, 1, 1, 1);
+  } else if (command==TIPPSE_CMD_GOTO) {
+    editor_panel_assign(base, base->goto_doc);
   } else if (command==TIPPSE_CMD_VIEW_SWITCH) {
     if (base->focus->document==base->focus->document_hex) {
       base->focus->document = base->focus->document_text;
@@ -315,7 +323,30 @@ void editor_intercept(struct editor* base, int command, int key, int cp, int but
     }
   } else if (command==TIPPSE_CMD_CLOSE) {
     editor_close_document(base, base->focus->file);
-  } else if (command==TIPPSE_CMD_OPEN || (base->focus->view->line_select && command==TIPPSE_CMD_RETURN)) {
+  } else if (command==TIPPSE_CMD_RETURN && base->focus->file==base->goto_doc) {
+    struct encoding_stream stream;
+    encoding_stream_from_page(&stream, base->focus->file->buffer, 0);
+    struct encoding_cache cache;
+    encoding_cache_clear(&cache, base->focus->file->encoding, &stream);
+    // TODO: this should be handled by the specialized document classes
+    if (base->document->document==base->document->document_hex) {
+      file_offset_t offset = (file_offset_t)decode_based_unsigned(&cache, 16);
+      file_offset_t length = base->document->file->buffer?base->document->file->buffer->length:0;
+      if (offset>length) {
+        offset = length;
+      }
+
+      base->document->view->offset = offset;
+      base->document->view->show_scrollbar = 1;
+    } else {
+      position_t line = (position_t)decode_based_unsigned(&cache, 10);
+      if (line>0) {
+        document_text_goto(base->document->document, base->document, line-1);
+      }
+    }
+
+    editor_focus(base, base->document, 1);
+  } else if (command==TIPPSE_CMD_OPEN || (command==TIPPSE_CMD_RETURN && base->focus->view->line_select)) {
     editor_open_selection(base, base->focus, base->document);
   } else if (command==TIPPSE_CMD_SPLIT) {
     editor_split(base, base->document);

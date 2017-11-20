@@ -102,7 +102,8 @@ struct splitter;
 #define TIPPSE_CMD_REPLACE_NEXT 52
 #define TIPPSE_CMD_REPLACE_PREV 53
 #define TIPPSE_CMD_REPLACE_ALL 54
-#define TIPPSE_CMD_MAX 55
+#define TIPPSE_CMD_GOTO 55
+#define TIPPSE_CMD_MAX 56
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -121,6 +122,7 @@ struct editor {
   struct document_file* browser_doc;  // document: list of file from current directory
   struct document_file* search_doc;   // document: current search text
   struct document_file* replace_doc;  // document: current replace text
+  struct document_file* goto_doc;     // document: line/offset for position jump
   struct document_file* document_doc; // document: inital empty document
   struct document_file* compiler_doc; // document: compiler output
 
