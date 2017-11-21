@@ -62,6 +62,7 @@ struct document_file {
   int tabstop_width;                    // number of spaces per tab
   int newline;                          // type of newline, e.g. Unix or DOS
   int binary;                           // binary file?
+  int line_select;                      // Selection list?
 
   char* filename;                       // file name
   int save;                             // file can be saved, is real file?

@@ -34,6 +34,7 @@ struct document_file* document_file_create(int save, int config) {
   base->filename = strdup("");
   base->views = list_create();
   base->save = save;
+  base->line_select = 0;
   base->encoding = encoding_utf8_create();
   base->tabstop = TIPPSE_TABSTOP_AUTO;
   base->tabstop_width = 4;

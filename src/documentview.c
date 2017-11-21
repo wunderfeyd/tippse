@@ -34,7 +34,6 @@ void document_view_reset(struct document_view* base, struct document_file* file)
   base->selection_end = FILE_OFFSET_T_MAX;
   base->selection_low = FILE_OFFSET_T_MAX;
   base->selection_high = FILE_OFFSET_T_MAX;
-  base->line_select = 0;
   document_view_filechange(base, file);
 }
 
@@ -54,5 +53,6 @@ void document_view_filechange(struct document_view* base, struct document_file* 
   base->wrapping = file->defaults.wrapping;
   base->show_invisibles = file->defaults.invisibles;
   base->continuous = file->defaults.continuous;
+  base->line_select = file->line_select;
   base->selection = range_tree_static(base->selection, file->buffer?file->buffer->length:0, 0);
 }

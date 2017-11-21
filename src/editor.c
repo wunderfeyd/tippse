@@ -102,16 +102,21 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->base_path = base_path;
   base->screen = screen;
   base->focus = NULL;
+  base->tick = tick_count();
+  base->tick_undo = -1;
+  base->tick_incremental = -1;
 
   base->documents = list_create();
 
   base->tabs_doc = document_file_create(0, 1);
   document_file_name(base->tabs_doc, "Open");
   base->tabs_doc->defaults.wrapping = 0;
+  base->tabs_doc->line_select = 1;
 
   base->browser_doc = document_file_create(0, 1);
   document_file_name(base->browser_doc, base->base_path);
   base->browser_doc->defaults.wrapping = 0;
+  base->browser_doc->line_select = 1;
 
   base->document_doc = document_file_create(1, 1);
   document_file_name(base->document_doc, "Untitled");
@@ -121,15 +126,12 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
 
   base->search_doc = document_file_create(0, 1);
   document_file_name(base->search_doc, "Search");
-  base->search_doc->binary = 0;
 
   base->replace_doc = document_file_create(0, 1);
   document_file_name(base->replace_doc, "Replace");
-  base->replace_doc->binary = 0;
 
   base->goto_doc = document_file_create(0, 1);
   document_file_name(base->goto_doc, "Goto");
-  base->goto_doc->binary = 0;
 
   base->compiler_doc = document_file_create(0, 1);
 
@@ -144,8 +146,6 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   list_insert(base->documents, NULL, base->goto_doc);
   list_insert(base->documents, NULL, base->browser_doc);
   list_insert(base->documents, NULL, base->compiler_doc);
-
-  base->panel->view->line_select = 0; // TODO: check why the panel form needs this
 
   for (int n = argc-1; n>=1; n--) {
     if (n==1) {
@@ -186,7 +186,7 @@ void editor_draw(struct editor* base) {
   struct list_node* doc = base->documents->first;
   while (doc) {
     struct document_file* file = (struct document_file*)doc->object;
-    if (file!=base->browser_doc && file!=base->tabs_doc && file!=base->search_doc) {
+    if (file->save) {
       if (base->tabs_doc->buffer) {
         base->tabs_doc->buffer = range_tree_insert_split(base->tabs_doc->buffer, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, (uint8_t*)"\n", 1, TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
       }
@@ -200,6 +200,10 @@ void editor_draw(struct editor* base) {
   document_file_manualchange(base->tabs_doc);
 
   if (base->focus==base->panel) {
+    if (base->panel->document!=base->panel->document_hex) {
+      document_text_incremental_update(base->panel->document, base->panel);
+    }
+
     int height = (int)(base->panel->file->buffer?base->panel->file->buffer->visuals.ys:0)+1;
     int max = (base->screen->height/4)+1;
     if (height>max) {
@@ -244,18 +248,27 @@ void editor_draw(struct editor* base) {
 
 // Regular timer event (schedule processes)
 void editor_tick(struct editor* base) {
-  struct list_node* doc = base->documents->first;
-  while (doc) {
-    struct document_file* file = (struct document_file*)doc->object;
-    document_undo_chain(file, file->undos);
-    doc = doc->next;
+  int64_t tick = tick_count();
+  if (tick>base->tick_undo) {
+    base->tick_undo = tick+500000;
+    struct list_node* doc = base->documents->first;
+    while (doc) {
+      struct document_file* file = (struct document_file*)doc->object;
+      document_undo_chain(file, file->undos);
+      doc = doc->next;
+    }
   }
 
-  splitter_draw_multiple(base->splitters, base->screen, 1);
+  if (tick>base->tick_incremental) {
+    base->tick_incremental = tick+100000;
+    splitter_draw_multiple(base->splitters, base->screen, 1);
+  }
 }
 
 // An input event was signalled ... translate it to a command if possible
 void editor_keypress(struct editor* base, int key, int cp, int button, int button_old, int x, int y) {
+  base->tick_undo = tick_count()+500000;
+
   char key_lookup[1024];
   const char* key_name = editor_key_names[key&TIPPSE_KEY_MASK];
   sprintf(&key_lookup[0], "/keys/%s%s%s%s", (key&TIPPSE_KEY_MOD_SHIFT)?"shift+":"", (key&TIPPSE_KEY_MOD_CTRL)?"ctrl+":"", (key&TIPPSE_KEY_MOD_ALT)?"alt+":"", (cp!=0)?"":key_name);
@@ -282,10 +295,8 @@ void editor_intercept(struct editor* base, int command, int key, int cp, int but
 
   if (command==TIPPSE_CMD_DOCUMENTSELECTION) {
     splitter_assign_document_file(base->document, base->tabs_doc);
-    base->document->view->line_select = 1;
   } else if (command==TIPPSE_CMD_BROWSER) {
     splitter_assign_document_file(base->document, base->browser_doc);
-    base->document->view->line_select = 1;
   }
 
   if (command==TIPPSE_CMD_QUIT) {
@@ -498,6 +509,7 @@ void editor_open_document(struct editor* base, const char* name, struct splitter
       if (destination) {
         document_file_name(destination->file, relative);
         document_directory(base->browser_doc);
+        document_file_manualchange(base->browser_doc);
         document_view_reset(destination->view, base->browser_doc);
         destination->view->line_select = 1;
       }

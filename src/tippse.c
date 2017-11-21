@@ -188,7 +188,6 @@ int main(int argc, const char** argv) {
   size_t input_pos = 0;
   while (!editor->close) {
     editor_draw(editor);
-
     ssize_t in = 0;
     int stop = 0;
     int64_t start = 0;
@@ -220,9 +219,9 @@ int main(int argc, const char** argv) {
         if (in>0) {
           input_pos += (size_t)in;
         }
-      } else {
-        editor_tick(editor);
       }
+
+      editor_tick(editor);
 
       if (tippse_check_inputs(editor, &set_read, &set_write, &nfds)) {
         stop = 1;

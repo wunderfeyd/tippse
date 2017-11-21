@@ -132,6 +132,10 @@ struct editor {
   struct splitter* document;          // Current selected document
   struct splitter* last_document;     // Last selected user document
 
+  int64_t tick;             // Start tick
+  int64_t tick_undo;        // Tick count for next undo chaining
+  int64_t tick_incremental; // Tick count for next incremental document processing
+
   int pipefd[2];                      // Process stdin/stdout pipes
 };
 
