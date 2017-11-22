@@ -8,6 +8,7 @@ struct encoding* encoding_ascii_create(void) {
   this->vtbl.destroy = encoding_ascii_destroy;
   this->vtbl.name = encoding_ascii_name;
   this->vtbl.character_length = encoding_ascii_character_length;
+  this->vtbl.encode = encoding_ascii_encode;
   this->vtbl.decode = encoding_ascii_decode;
   this->vtbl.visual = encoding_ascii_visual;
   this->vtbl.next = encoding_ascii_next;
@@ -31,7 +32,7 @@ size_t encoding_ascii_character_length(struct encoding* base) {
   return 1;
 }
 
-int encoding_ascii_visual(struct encoding* base, int cp) {
+codepoint_t encoding_ascii_visual(struct encoding* base, codepoint_t cp) {
   if (cp<0 || cp>255) {
     return -1;
   } else if (cp<0x20) {
@@ -45,13 +46,13 @@ int encoding_ascii_visual(struct encoding* base, int cp) {
   return cp;
 }
 
-int encoding_ascii_decode(struct encoding* base, struct encoding_stream* stream, size_t* used) {
+codepoint_t encoding_ascii_decode(struct encoding* base, struct encoding_stream* stream, size_t* used) {
   uint8_t c = encoding_stream_peek(stream, 0);
   *used = 1;
-  return (int)c;
+  return (codepoint_t)c;
 }
 
-size_t encoding_ascii_encode(struct encoding* base, int cp, uint8_t* text, size_t size) {
+size_t encoding_ascii_encode(struct encoding* base, codepoint_t cp, uint8_t* text, size_t size) {
   *text = (uint8_t)cp;
   return 1;
 }
@@ -68,7 +69,7 @@ size_t encoding_ascii_strlen(struct encoding* base, struct encoding_stream* stre
   size_t length = 0;
   while (1) {
     size_t next;
-    int cp = encoding_ascii_decode(base, stream, &next);
+    codepoint_t cp = encoding_ascii_decode(base, stream, &next);
     if (cp==0) {
       break;
     }

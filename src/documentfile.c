@@ -339,12 +339,12 @@ void document_file_detect_properties(struct document_file* base) {
   int tabstop_tab = 0;
   int tabstop = TIPPSE_TABSTOP_AUTO;
   int tabstop_width = 8;
-  int last = 0;
+  codepoint_t last = 0;
   int start = 1;
   int spaces = 0;
   while (offset<TIPPSE_DOCUMENT_MEMORY_LOADMAX && offset<base->buffer->length) {
     size_t length = 1;
-    int cp = (*base->encoding->decode)(base->encoding, &stream, &length);
+    codepoint_t cp = (*base->encoding->decode)(base->encoding, &stream, &length);
     encoding_stream_forward(&stream, length);
 
     if (last==0 && cp==0) {

@@ -20,7 +20,7 @@
 struct tippse_ansi_key {
   const char* text; // text in input stream
   int key;          // associated key
-  int cp;           // codepoint if needed
+  codepoint_t cp;   // codepoint if needed
 };
 
 // Ansi command table
@@ -264,7 +264,7 @@ int main(int argc, const char** argv) {
               key |= TIPPSE_KEY_MOD_CTRL;
             }
 
-            int cp = ansi_keys[pos].cp;
+            codepoint_t cp = ansi_keys[pos].cp;
 
             if (!bracket_paste) {
               if (key==TIPPSE_KEY_MOUSE) {
@@ -312,7 +312,7 @@ int main(int argc, const char** argv) {
       if (!keep) {
         struct encoding_stream stream;
         encoding_stream_from_plain(&stream, (const uint8_t*)&input_buffer[check], (size_t)((const uint8_t*)&input_buffer[input_pos]-(const uint8_t*)&input_buffer[check]));
-        int cp = encoding_utf8_decode(NULL, &stream, &used);
+        codepoint_t cp = encoding_utf8_decode(NULL, &stream, &used);
         if (cp==-1) {
           used = 0;
           break;

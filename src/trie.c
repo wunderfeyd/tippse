@@ -44,7 +44,7 @@ struct trie_node* trie_create_node(struct trie* base) {
   return node;
 }
 
-struct trie_node* trie_append_codepoint(struct trie* base, struct trie_node* parent, int cp, intptr_t type) {
+struct trie_node* trie_append_codepoint(struct trie* base, struct trie_node* parent, codepoint_t cp, intptr_t type) {
   if (!parent) {
     parent = base->root;
     if (!parent) {
@@ -70,7 +70,7 @@ struct trie_node* trie_append_codepoint(struct trie* base, struct trie_node* par
   return parent;
 }
 
-struct trie_node* trie_find_codepoint(struct trie* base, struct trie_node* parent, int cp) {
+struct trie_node* trie_find_codepoint(struct trie* base, struct trie_node* parent, codepoint_t cp) {
   if (!parent) {
     parent = base->root;
     if (!parent) {

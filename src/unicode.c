@@ -1,7 +1,5 @@
 // Tippse - Unicode helpers - Unicode character information, combination, (de-)composition and transformations
 
-// TODO: codepoints are represented as simple int which a) could not work on 16bit int platforms and b) could be negative without a need
-
 #include "unicode.h"
 #include "unicode_widths.h"
 #include "unicode_invisibles.h"
@@ -25,7 +23,7 @@ void unicode_init(void) {
 // Initialise static table from rle stream
 void unicode_decode_rle(unsigned int* table, uint16_t* rle) {
   memset(table, 0, UNICODE_BITFIELD_MAX);
-  int codepoint = 0;
+  codepoint_t codepoint = 0;
   while (1) {
     int codes = (int)*rle++;
     if (codes==0) {
@@ -44,7 +42,7 @@ void unicode_decode_rle(unsigned int* table, uint16_t* rle) {
 }
 
 // Check if codepoint is marked
-inline int unicode_bitfield_check(unsigned int* table, int codepoint) {
+inline int unicode_bitfield_check(unsigned int* table, codepoint_t codepoint) {
   if (codepoint>=0 && codepoint<UNICODE_CODEPOINT_MAX) {
     return (table[codepoint/((int)sizeof(unsigned int)*8)]>>(codepoint&((int)sizeof(unsigned int)*8-1)))&1;
   }
@@ -53,10 +51,10 @@ inline int unicode_bitfield_check(unsigned int* table, int codepoint) {
 }
 
 // Return contents and length of combining character sequence
-size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offset, int* codepoints, size_t max, size_t* advance, size_t* length) {
+size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offset, codepoint_t* codepoints, size_t max, size_t* advance, size_t* length) {
   size_t pos = 0;
   size_t read = 0;
-  int codepoint = encoding_cache_find_codepoint(cache, offset+read++);
+  codepoint_t codepoint = encoding_cache_find_codepoint(cache, offset+read++);
   if (unicode_bitfield_check(&unicode_nonspacing_marks[0], codepoint) || unicode_bitfield_check(&unicode_spacing_marks[0], codepoint)) {
     codepoints[pos++] = 'o';
   }
@@ -92,7 +90,7 @@ size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offse
 }
 
 // Check visual width of unicode sequence
-int unicode_width(int* codepoints, size_t max) {
+int unicode_width(codepoint_t* codepoints, size_t max) {
   if (max<=0) {
     return 1;
   }

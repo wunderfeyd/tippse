@@ -23,17 +23,17 @@ const char* file_type_text_name(void) {
 }
 
 void file_type_text_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int same_line, int* length, int* flags) {
-  int cp1 = encoding_cache_find_codepoint(cache, 0);
+  codepoint_t cp1 = encoding_cache_find_codepoint(cache, 0);
 
   int before = *visual_detail;
-  int after = before&~(VISUAL_INFO_INDENTATION|VISUAL_INFO_WORD);
+  int after = before&~(VISUAL_DETAIL_INDENTATION|VISUAL_DETAIL_WORD);
 
   if (cp1=='\t' || cp1==' ') {
-    after |= VISUAL_INFO_INDENTATION;
+    after |= VISUAL_DETAIL_INDENTATION;
   }
 
   if ((cp1>='a' && cp1<='z') || (cp1>='A' && cp1<='Z') || (cp1>='0' && cp1<='9') || cp1=='_') {
-    after |= VISUAL_INFO_WORD;
+    after |= VISUAL_DETAIL_WORD;
   }
 
   *visual_detail = after;

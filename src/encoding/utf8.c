@@ -8,6 +8,7 @@ struct encoding* encoding_utf8_create(void) {
   this->vtbl.destroy = encoding_utf8_destroy;
   this->vtbl.name = encoding_utf8_name;
   this->vtbl.character_length = encoding_utf8_character_length;
+  this->vtbl.encode = encoding_utf8_encode;
   this->vtbl.decode = encoding_utf8_decode;
   this->vtbl.visual = encoding_utf8_visual;
   this->vtbl.next = encoding_utf8_next;
@@ -31,7 +32,7 @@ size_t encoding_utf8_character_length(struct encoding* base) {
   return 4;
 }
 
-int encoding_utf8_visual(struct encoding* base, int cp) {
+codepoint_t encoding_utf8_visual(struct encoding* base, codepoint_t cp) {
   if (cp<0) {
     return -1;
   } else if (cp<0x20) {
@@ -41,11 +42,11 @@ int encoding_utf8_visual(struct encoding* base, int cp) {
   return cp;
 }
 
-int encoding_utf8_decode(struct encoding* base, struct encoding_stream* stream, size_t* used) {
+codepoint_t encoding_utf8_decode(struct encoding* base, struct encoding_stream* stream, size_t* used) {
   uint8_t c = encoding_stream_peek(stream, 0);
   if ((c&0x80)==0) {
     *used = 1;
-    return (int)c;
+    return (codepoint_t)c;
   }
 
   if ((c&0xe0)==0xc0) {
@@ -129,7 +130,7 @@ int encoding_utf8_decode(struct encoding* base, struct encoding_stream* stream, 
   return -1;
 }
 
-size_t encoding_utf8_encode(struct encoding* base, int cp, uint8_t* text, size_t size) {
+size_t encoding_utf8_encode(struct encoding* base, codepoint_t cp, uint8_t* text, size_t size) {
   if (cp<0x80) {
     if (size<1) {
       return 0;
@@ -260,7 +261,7 @@ size_t encoding_utf8_strlen(struct encoding* base, struct encoding_stream* strea
   size_t length = 0;
   while (1) {
     size_t next;
-    int cp = encoding_utf8_decode(base, stream, &next);
+    codepoint_t cp = encoding_utf8_decode(base, stream, &next);
     if (cp==0) {
       break;
     }

@@ -222,22 +222,22 @@ uint64_t decode_based_unsigned(struct encoding_cache* cache, int base) {
   uint64_t output = 0;
   size_t advanced = 0;
   while (1) {
-    int codepoints[8];
+    codepoint_t codepoints[8];
     size_t advance = 1;
     size_t length = 1;
     unicode_read_combined_sequence(cache, advanced, &codepoints[0], 8, &advance, &length);
-    int cp = (uint64_t)codepoints[0];
+    codepoint_t cp = codepoints[0];
     if (cp==0) {
       break;
     }
 
     int value = 0;
     if (cp>='0' && cp<='9') {
-      value = cp-'0';
+      value = (int)cp-'0';
     } else if (cp>='A' && cp<='Z') {
-      value = cp-'A'+10;
+      value = (int)cp-'A'+10;
     } else if (cp>='a' && cp<='z') {
-      value = cp-'a'+10;
+      value = (int)cp-'a'+10;
     } else {
       break;
     }

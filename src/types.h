@@ -10,6 +10,9 @@ typedef uint64_t file_offset_t;
 // And this one limits the maximum cursor position etc. (signed type needed)
 typedef int64_t position_t;
 
+// Type for code points (signed type needed at the moment)
+typedef int32_t codepoint_t;
+
 // Max and min
 #define FILE_OFFSET_T_MAX (~(file_offset_t)0)
 #define POSITION_T_MAX ((position_t)((~(uint64_t)0)>>1))

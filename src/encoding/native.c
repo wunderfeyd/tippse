@@ -10,6 +10,7 @@ struct encoding* encoding_native_create(void) {
   this->vtbl.destroy = encoding_native_destroy;
   this->vtbl.name = encoding_native_name;
   this->vtbl.character_length = encoding_native_character_length;
+  this->vtbl.encode = encoding_native_encode;
   this->vtbl.decode = encoding_native_decode;
   this->vtbl.visual = encoding_native_visual;
   this->vtbl.next = encoding_native_next;
@@ -30,34 +31,34 @@ const char* encoding_native_name(void) {
 }
 
 size_t encoding_native_character_length(struct encoding* base) {
-  return sizeof(int);
+  return sizeof(codepoint_t);
 }
 
-int encoding_native_visual(struct encoding* base, int cp) {
+codepoint_t encoding_native_visual(struct encoding* base, codepoint_t cp) {
   return cp;
 }
 
-int encoding_native_decode(struct encoding* base, struct encoding_stream* stream, size_t* used) {
+codepoint_t encoding_native_decode(struct encoding* base, struct encoding_stream* stream, size_t* used) {
   union {
-    int cp;
+    codepoint_t cp;
     uint8_t c[sizeof(int)];
   } u;
 
-  for (size_t n = 0; n<sizeof(int); n++) {
+  for (size_t n = 0; n<sizeof(codepoint_t); n++) {
     u.c[n] = encoding_stream_peek(stream, n);
   }
 
-  *used = sizeof(int);
+  *used = sizeof(codepoint_t);
   return u.cp;
 }
 
-size_t encoding_native_encode(struct encoding* base, int cp, uint8_t* text, size_t size) {
-  *(int*)text = cp;
-  return sizeof(int);
+size_t encoding_native_encode(struct encoding* base, codepoint_t cp, uint8_t* text, size_t size) {
+  *(codepoint_t*)text = cp;
+  return sizeof(codepoint_t);
 }
 
 size_t encoding_native_next(struct encoding* base, struct encoding_stream* stream) {
-  return sizeof(int);
+  return sizeof(codepoint_t);
 }
 
 size_t encoding_native_strnlen(struct encoding* base, struct encoding_stream* stream, size_t size) {
@@ -68,7 +69,7 @@ size_t encoding_native_strlen(struct encoding* base, struct encoding_stream* str
   size_t length = 0;
   while (1) {
     size_t next;
-    int cp = encoding_native_decode(base, stream, &next);
+    codepoint_t cp = encoding_native_decode(base, stream, &next);
     if (cp==0) {
       break;
     }

@@ -30,7 +30,7 @@ struct encoding_cache {
   size_t end;                           // last position in cache
   struct encoding* encoding;            // encoding used for stream
   struct encoding_stream* stream;       // input stream
-  int codepoints[ENCODING_CACHE_SIZE];  // cache with codepoints
+  codepoint_t codepoints[ENCODING_CACHE_SIZE];  // cache with codepoints
   size_t lengths[ENCODING_CACHE_SIZE];  // cache with lengths of codepoints
 };
 
@@ -40,13 +40,13 @@ struct encoding {
 
   const char* (*name)(void);
   size_t (*character_length)(struct encoding*);
-  int (*visual)(struct encoding*, int);
-  int (*decode)(struct encoding*, struct encoding_stream*, size_t*);
+  codepoint_t (*visual)(struct encoding*, codepoint_t);
+  codepoint_t (*decode)(struct encoding*, struct encoding_stream*, size_t*);
   size_t (*next)(struct encoding*, struct encoding_stream*);
   size_t (*strnlen)(struct encoding*, struct encoding_stream*, size_t);
   size_t (*strlen)(struct encoding*, struct encoding_stream*);
   size_t (*seek)(struct encoding*, struct encoding_stream*, size_t);
-  size_t (*encode)(struct encoding*, int, struct encoding_stream*, size_t);
+  size_t (*encode)(struct encoding*, codepoint_t, uint8_t*, size_t);
 };
 
 #include "rangetree.h"
@@ -84,7 +84,7 @@ inline void encoding_cache_advance(struct encoding_cache* cache, size_t advance)
 
 void encoding_cache_buffer(struct encoding_cache* cache, size_t offset);
 // Returned code point from relative offset
-inline int encoding_cache_find_codepoint(struct encoding_cache* cache, size_t offset) {
+inline codepoint_t encoding_cache_find_codepoint(struct encoding_cache* cache, size_t offset) {
   if (offset+cache->start>=cache->end) {
     encoding_cache_buffer(cache, offset);
   }

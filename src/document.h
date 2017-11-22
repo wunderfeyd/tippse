@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include "types.h"
 
 struct document;
 struct screen;
@@ -15,7 +16,7 @@ struct splitter;
 struct document {
   void (*reset)(struct document* base, struct splitter* splitter);
   void (*draw)(struct document* base, struct screen* screen, struct splitter* splitter);
-  void (*keypress)(struct document* base, struct splitter* splitter, int command, int key, int cp, int button, int button_old, int x, int y);
+  void (*keypress)(struct document* base, struct splitter* splitter, int command, int key, codepoint_t cp, int button, int button_old, int x, int y);
   int (*incremental_update)(struct document* base, struct splitter* splitter);
 };
 

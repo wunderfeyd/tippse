@@ -63,7 +63,7 @@ void splitter_destroy(struct splitter* base) {
 }
 
 // Draw character
-void splitter_drawchar(const struct splitter* base, struct screen* screen, int x, int y, int* codepoints, size_t length, int foreground, int background) {
+void splitter_drawchar(const struct splitter* base, struct screen* screen, int x, int y, codepoint_t* codepoints, size_t length, int foreground, int background) {
   screen_setchar(screen, base->x+x, base->y+y, base->x, base->y, base->client_width, base->client_height, codepoints, length, foreground, background);
 }
 
@@ -107,7 +107,7 @@ void splitter_scrollbar(const struct splitter* base, struct screen* screen) {
 
     int pos_start = (int)((start*base->client_height)/(length+1));
     int pos_end = (int)((end*base->client_height)/(length+1));
-    int cp = 0x20;
+    codepoint_t cp = 0x20;
     for (int y = 0; y<base->client_height; y++) {
       if (y>=pos_start && y<=pos_end) {
         splitter_drawchar(base, screen, base->client_width-1, y, &cp, 1, 17, 231);
@@ -194,7 +194,7 @@ void splitter_exchange_document_file(struct splitter* base, struct document_file
 }
 
 void splitter_draw(struct splitter* base, struct screen* screen) {
-  int cp = 0x20;
+  codepoint_t cp = 0x20;
   for (int yy = 0; yy<base->height; yy++) {
     for (int xx = 0; xx<base->width; xx++) {
       screen_setchar(screen, base->x+xx, base->y+yy, base->x, base->y, base->client_width, base->client_height, &cp, 1, base->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], base->file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
@@ -212,17 +212,16 @@ struct document_file* splitter_first_document(const struct splitter* base) {
   return base->file;
 }
 
-// TODO: hardcoded color values
 void splitter_draw_split_horizontal(const struct splitter* base, struct screen* screen, int x, int y, int width) {
   struct document_file* file = splitter_first_document(base);
 
-  int cp = 0x2500;
+  codepoint_t cp = 0x2500;
   for (int n = 0; n<width; n++) {
     screen_setchar(screen, x+n, y, 0, 0, screen->width, screen->height, &cp, 1, file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
   }
 
-  int left = screen_getchar(screen, x-1, y);
-  int right = screen_getchar(screen, x+width, y);
+  codepoint_t left = screen_getchar(screen, x-1, y);
+  codepoint_t right = screen_getchar(screen, x+width, y);
   if (left==0x2502) {
     left = 0x251c;
   } else if (left==0x2524) {
@@ -241,13 +240,13 @@ void splitter_draw_split_horizontal(const struct splitter* base, struct screen* 
 
 void splitter_draw_split_vertical(const struct splitter* base, struct screen* screen, int x, int y, int height) {
   struct document_file* file = splitter_first_document(base);
-  int cp = 0x2502;
+  codepoint_t cp = 0x2502;
   for (int n = 0; n<height; n++) {
     screen_setchar(screen, x, y+n, 0, 0, screen->width, screen->height, &cp, 1, file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
   }
 
-  int top = screen_getchar(screen, x, y-1);
-  int bottom = screen_getchar(screen, x, y+height);
+  codepoint_t top = screen_getchar(screen, x, y-1);
+  codepoint_t bottom = screen_getchar(screen, x, y+height);
   if (top==0x2500) {
     top = 0x252c;
   } else if (top==0x2534) {

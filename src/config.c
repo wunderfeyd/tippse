@@ -382,11 +382,11 @@ const char* config_default =
 ;
 
 // Create configuration entry assigned value
-struct config_value* config_value_create(int* value_codepoints, size_t value_length) {
+struct config_value* config_value_create(codepoint_t* value_codepoints, size_t value_length) {
   struct config_value* base = malloc(sizeof(struct config_value));
   base->cached = 0;
-  base->codepoints = malloc(sizeof(int)*value_length);
-  memcpy(base->codepoints, value_codepoints, sizeof(int)*value_length);
+  base->codepoints = malloc(sizeof(codepoint_t)*value_length);
+  memcpy(base->codepoints, value_codepoints, sizeof(codepoint_t)*value_length);
   return base;
 }
 
@@ -432,9 +432,9 @@ void config_load(struct config* base, const char* filename) {
   if (file->buffer) {
     struct encoding_stream stream;
     encoding_stream_from_page(&stream, range_tree_first(file->buffer), 0);
-    int keyword_codepoints[1024];
+    codepoint_t keyword_codepoints[1024];
     size_t keyword_length = 0;
-    int value_codepoints[1024];
+    codepoint_t value_codepoints[1024];
     size_t value_length = 0;
     size_t bracket_positions[1024];
     size_t brackets = 0;
@@ -444,7 +444,7 @@ void config_load(struct config* base, const char* filename) {
     int string = 0;
     while (1) {
       size_t length;
-      int cp = (*file->encoding->decode)(file->encoding, &stream, &length);
+      codepoint_t cp = (*file->encoding->decode)(file->encoding, &stream, &length);
       encoding_stream_forward(&stream, length);
 
       if (cp==0) {
@@ -466,7 +466,7 @@ void config_load(struct config* base, const char* filename) {
           }
 
           if (cp=='{') {
-            if (keyword_length<sizeof(keyword_codepoints)/sizeof(int)) {
+            if (keyword_length<sizeof(keyword_codepoints)/sizeof(codepoint_t)) {
               keyword_codepoints[keyword_length++] = '/';
             }
 
@@ -506,11 +506,11 @@ void config_load(struct config* base, const char* filename) {
 
       if (append) {
         if (!value) {
-          if (keyword_length<sizeof(keyword_codepoints)/sizeof(int)) {
+          if (keyword_length<sizeof(keyword_codepoints)/sizeof(codepoint_t)) {
             keyword_codepoints[keyword_length++] = cp;
           }
         } else {
-          if (value_length<(sizeof(value_codepoints)/sizeof(int))-1) {
+          if (value_length<(sizeof(value_codepoints)/sizeof(codepoint_t))-1) {
             value_codepoints[value_length++] = cp;
           }
         }
@@ -562,7 +562,7 @@ void config_loadpaths(struct config* base, const char* filename, int strip) {
 }
 
 // Update configuration keyword
-void config_update(struct config* base, int* keyword_codepoints, size_t keyword_length, int* value_codepoints, size_t value_length) {
+void config_update(struct config* base, codepoint_t* keyword_codepoints, size_t keyword_length, codepoint_t* value_codepoints, size_t value_length) {
   if (keyword_length==0) {
     return;
   }
@@ -587,7 +587,7 @@ void config_update(struct config* base, int* keyword_codepoints, size_t keyword_
 }
 
 // Find entry by code point list
-struct trie_node* config_advance_codepoints(struct config* base, struct trie_node* parent, int* keyword_codepoints, size_t keyword_length) {
+struct trie_node* config_advance_codepoints(struct config* base, struct trie_node* parent, codepoint_t* keyword_codepoints, size_t keyword_length) {
   while (keyword_length-->0) {
     parent = trie_find_codepoint(base->keywords, parent, *keyword_codepoints);
     if (!parent) {
@@ -601,7 +601,7 @@ struct trie_node* config_advance_codepoints(struct config* base, struct trie_nod
 }
 
 // Find entry by code point list from root
-struct trie_node* config_find_codepoints(struct config* base, int* keyword_codepoints, size_t keyword_length) {
+struct trie_node* config_find_codepoints(struct config* base, codepoint_t* keyword_codepoints, size_t keyword_length) {
   return config_advance_codepoints(base, NULL, keyword_codepoints, keyword_length);
 }
 
@@ -625,7 +625,7 @@ struct trie_node* config_find_ascii(struct config* base, const char* keyword) {
 }
 
 // Get value at found position
-int* config_value(struct trie_node* parent) {
+codepoint_t* config_value(struct trie_node* parent) {
   if (parent && parent->type!=0) {
     return ((struct config_value*)((struct list_node*)parent->type)->object)->codepoints;
   }
@@ -634,7 +634,7 @@ int* config_value(struct trie_node* parent) {
 }
 
 // Convert code points to ASCII
-char* config_convert_ascii_plain(int* codepoints) {
+char* config_convert_ascii_plain(codepoint_t* codepoints) {
   if (!codepoints) {
     return strdup("");
   }
@@ -658,7 +658,7 @@ char* config_convert_ascii(struct trie_node* parent) {
 }
 
 // Convert code points to integer
-int64_t config_convert_int64_plain(int* codepoints) {
+int64_t config_convert_int64_plain(codepoint_t* codepoints) {
   if (!codepoints) {
     return 0;
   }
@@ -666,7 +666,7 @@ int64_t config_convert_int64_plain(int* codepoints) {
   int negate = 0;
   int64_t value = 0;
   while (*codepoints) {
-    int cp = *codepoints++;
+    codepoint_t cp = *codepoints++;
     if (cp=='-') {
       negate = 1;
     } else if (cp>='0' && cp<='9') {
@@ -697,9 +697,9 @@ int64_t config_convert_int64_cache(struct trie_node* parent, struct config_cache
 
     value->cached = 1;
     while (cache->text) {
-      int* left = value->codepoints;
+      codepoint_t* left = value->codepoints;
       const char* right = cache->text;
-      while ((*left && (int)*right) && (*left==(int)*right)) {
+      while ((*left && (codepoint_t)*right) && (*left==(codepoint_t)*right)) {
         left++;
         right++;
       }

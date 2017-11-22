@@ -196,14 +196,14 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
       render_info->displacement = buffer_new->visuals.displacement;
       render_info->offset = offset_new+buffer_new->visuals.displacement;
       if (offset_new==0) {
-        render_info->visual_detail = VISUAL_INFO_NEWLINE;
+        render_info->visual_detail = VISUAL_DETAIL_NEWLINE;
       }
 
       render_info->indented = range_tree_find_indentation(buffer_new);
       render_info->whitespaced = range_tree_find_whitespaced(buffer_new);
 
-      render_info->visual_detail |= VISUAL_INFO_WHITESPACED_COMPLETE;
-      render_info->visual_detail &= ~(VISUAL_INFO_WHITESPACED_START|VISUAL_INFO_STOPPED_INDENTATION);
+      render_info->visual_detail |= VISUAL_DETAIL_WHITESPACED_COMPLETE;
+      render_info->visual_detail &= ~(VISUAL_DETAIL_WHITESPACED_START|VISUAL_DETAIL_STOPPED_INDENTATION);
 
       render_info->indentation_extra = indentation_extra_new;
       render_info->indentation = indentation_new;
@@ -261,7 +261,7 @@ position_t document_text_render_lookahead_word_wrap(struct document_file* file, 
   position_t count = 0;
   size_t advanced = 0;
   while (count<max) {
-    int codepoints[8];
+    codepoint_t codepoints[8];
     size_t advance = 1;
     size_t length = 1;
     size_t read = unicode_read_combined_sequence(cache, advanced, &codepoints[0], 8, &advance, &length);
@@ -306,12 +306,12 @@ int document_text_render_span(struct document_text_render_info* render_info, str
   int page_count = 0;
   int page_dirty = (render_info->buffer && render_info->buffer->visuals.dirty)?1:0;
 
-  render_info->visual_detail |= (view->wrapping)?VISUAL_INFO_WRAPPING:0;
-  render_info->visual_detail |= (view->show_invisibles)?VISUAL_INFO_SHOW_INVISIBLES:0;
-  render_info->visual_detail |= (view->continuous)?VISUAL_INFO_CONTINUOUS:0;
+  render_info->visual_detail |= (view->wrapping)?VISUAL_DETAIL_WRAPPING:0;
+  render_info->visual_detail |= (view->show_invisibles)?VISUAL_DETAIL_SHOW_INVISIBLES:0;
+  render_info->visual_detail |= (view->continuous)?VISUAL_DETAIL_CONTINUOUS:0;
 
-  int newline_cp1 = (file->newline==TIPPSE_NEWLINE_CR)?'\r':'\n';
-  int newline_cp2 = (file->newline==TIPPSE_NEWLINE_CRLF)?'\r':0;
+  codepoint_t newline_cp1 = (file->newline==TIPPSE_NEWLINE_CR)?'\r':'\n';
+  codepoint_t newline_cp2 = (file->newline==TIPPSE_NEWLINE_CRLF)?'\r':0;
 
   while (1) {
     int boundary = 0;
@@ -389,8 +389,8 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       render_info->columns = 0;
       render_info->lines = 0;
       render_info->characters = 0;
-      render_info->visual_detail |= VISUAL_INFO_WHITESPACED_COMPLETE;
-      render_info->visual_detail &= ~(VISUAL_INFO_WHITESPACED_START|VISUAL_INFO_STOPPED_INDENTATION);
+      render_info->visual_detail |= VISUAL_DETAIL_WHITESPACED_COMPLETE;
+      render_info->visual_detail &= ~(VISUAL_DETAIL_WHITESPACED_START|VISUAL_DETAIL_STOPPED_INDENTATION);
       for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
         render_info->brackets[n].diff = 0;
         render_info->brackets[n].min = 0;
@@ -405,31 +405,31 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       page_dirty = (render_info->buffer && render_info->buffer->visuals.dirty)?1:0;
     }
 
-    int codepoints[8];
+    codepoint_t codepoints[8];
     size_t advance = 1;
     size_t length = 1;
     size_t read = unicode_read_combined_sequence(&render_info->cache, 0, &codepoints[0], 8, &advance, &length);
 
-    int cp = codepoints[0];
+    codepoint_t cp = codepoints[0];
 
 //    size_t length = encoding_cache_find_length(&render_info->cache, 0);
-//    int cp = encoding_cache_find_codepoint(&render_info->cache, 0);
+//    codepoint_t cp = encoding_cache_find_codepoint(&render_info->cache, 0);
 
 //    printf("%d %d %d\r\n", (int)length, cp, (int)render_info->offset);
 //    size_t length = 0;
-//    int cp = (*file->encoding->decode)(file->encoding, &render_info->stream, ~0, &length);
+//    codepoint_t cp = (*file->encoding->decode)(file->encoding, &render_info->stream, ~0, &length);
 //    size_t length = 1;
-//    int cp = ' ';
+//    codepoint_t cp = ' ';
 
     if (cp!=0xfeff && (cp!=newline_cp1 || newline_cp2==0)) {
-      render_info->visual_detail &= ~VISUAL_INFO_CONTROLCHARACTER;
+      render_info->visual_detail &= ~VISUAL_DETAIL_CONTROLCHARACTER;
     }
 
     if (cp==0xfeff) {
-      render_info->visual_detail |= VISUAL_INFO_CONTROLCHARACTER;
+      render_info->visual_detail |= VISUAL_DETAIL_CONTROLCHARACTER;
     }
 
-    int show = -1;
+    codepoint_t show = -1;
     int color = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
     int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
 
@@ -456,7 +456,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
             }
 
             displacement += encoding_cache_find_length(&render_info->cache, pos);
-            int cp = encoding_cache_find_codepoint(&render_info->cache, pos);
+            codepoint_t cp = encoding_cache_find_codepoint(&render_info->cache, pos);
             if (cp==newline_cp1 || cp==0) {
               if (pos>0) {
                 render_info->whitespaced = 1;
@@ -498,7 +498,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     // bitset 0 = on line; 1 = above (line); 2 = above
 
     int drawn = 0;
-    if (!(render_info->visual_detail&VISUAL_INFO_CONTROLCHARACTER) || view->show_invisibles) {
+    if (!(render_info->visual_detail&VISUAL_DETAIL_CONTROLCHARACTER) || view->show_invisibles) {
       if (in->type==VISUAL_SEEK_X_Y) {
         if (render_info->y_view==in->y) {
           drawn = (render_info->x>=in->x)?(2|1):1;
@@ -527,7 +527,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         }
       } else if (in->type==VISUAL_SEEK_INDENTATION_LAST) {
         if (render_info->line==in->line) {
-          drawn = ((render_info->visual_detail&VISUAL_INFO_NEWLINE) || (render_info->indented))?1:0;
+          drawn = ((render_info->visual_detail&VISUAL_DETAIL_NEWLINE) || (render_info->indented))?1:0;
         } else if (render_info->line>in->line) {
           drawn = 4;
         }
@@ -543,7 +543,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         if (drawn&1) {
           if (in->type==VISUAL_SEEK_X_Y) {
             out->x_max = render_info->x;
-            out->x_min = (render_info->visual_detail&VISUAL_INFO_WRAPPED)?render_info->indentation+render_info->indentation_extra:0;
+            out->x_min = (render_info->visual_detail&VISUAL_DETAIL_WRAPPED)?render_info->indentation+render_info->indentation_extra:0;
           } else if (in->type==VISUAL_SEEK_LINE_COLUMN) {
             out->x_max = render_info->column;
             out->x_min = 0;
@@ -601,16 +601,16 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     }
 
     if (cp==newline_cp2 && newline_cp2!=0) {
-      render_info->visual_detail |= VISUAL_INFO_CONTROLCHARACTER;
+      render_info->visual_detail |= VISUAL_DETAIL_CONTROLCHARACTER;
     }
 
     if (cp==newline_cp1) {
-      render_info->visual_detail &= ~VISUAL_INFO_CONTROLCHARACTER;
+      render_info->visual_detail &= ~VISUAL_DETAIL_CONTROLCHARACTER;
     }
 
     if (!view->continuous && render_info->draw_indentation && view->show_invisibles) {
       if (screen && render_info->y_view==render_info->y) {
-        int cp = 0x21aa;
+        codepoint_t cp = 0x21aa;
         position_t x = render_info->x-file->tabstop_width-view->scroll_x+view->address_width;
         if (x>=view->address_width) {
           splitter_drawchar(splitter, screen, (int)x, (int)(render_info->y-view->scroll_y), &cp, 1, file->defaults.colors[VISUAL_FLAG_COLOR_STATUS], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
@@ -632,7 +632,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     }
 
     int fill = 0;
-    int fill_code = -1;
+    codepoint_t fill_code = -1;
     if (((((cp!=newline_cp2 || newline_cp2==0) && cp!=0xfeff) || view->show_invisibles) && cp!='\t') || view->continuous) {
       fill = unicode_width(&codepoints[0], read);
       if (view->show_invisibles && fill<=0) {
@@ -669,7 +669,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
           background = file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
         }
 
-        int codepoints_visual[8];
+        codepoint_t codepoints_visual[8];
         for (size_t code = 0; code<read; code++) {
           codepoints_visual[code] = (file->encoding->visual)(file->encoding, codepoints[code]);
         }
@@ -691,13 +691,13 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     }
 
     render_info->x += fill;
-    if (render_info->visual_detail&VISUAL_INFO_NEWLINE) {
-      render_info->visual_detail &= ~VISUAL_INFO_NEWLINE;
+    if (render_info->visual_detail&VISUAL_DETAIL_NEWLINE) {
+      render_info->visual_detail &= ~VISUAL_DETAIL_NEWLINE;
       render_info->indented = 1;
     }
 
-    if (!(render_info->visual_detail&VISUAL_INFO_INDENTATION)) {
-      render_info->visual_detail |= VISUAL_INFO_STOPPED_INDENTATION;
+    if (!(render_info->visual_detail&VISUAL_DETAIL_INDENTATION)) {
+      render_info->visual_detail |= VISUAL_DETAIL_STOPPED_INDENTATION;
       render_info->indented = 0;
     }
 
@@ -741,7 +741,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
           render_info->indentation_extra = file->tabstop_width;
         }
 
-        render_info->visual_detail |= VISUAL_INFO_WRAPPED;
+        render_info->visual_detail |= VISUAL_DETAIL_WRAPPED;
       }
 
       render_info->ys++;
@@ -751,13 +751,13 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     }
 
     if (cp==newline_cp1) {
-      if (render_info->visual_detail&VISUAL_INFO_WHITESPACED_COMPLETE) {
-        render_info->visual_detail |= VISUAL_INFO_WHITESPACED_START;
+      if (render_info->visual_detail&VISUAL_DETAIL_WHITESPACED_COMPLETE) {
+        render_info->visual_detail |= VISUAL_DETAIL_WHITESPACED_START;
       }
 
-      render_info->visual_detail |= VISUAL_INFO_NEWLINE;
+      render_info->visual_detail |= VISUAL_DETAIL_NEWLINE;
 
-      render_info->visual_detail &= ~(VISUAL_INFO_WRAPPED|VISUAL_INFO_STOPPED_INDENTATION);
+      render_info->visual_detail &= ~(VISUAL_DETAIL_WRAPPED|VISUAL_DETAIL_STOPPED_INDENTATION);
 
       render_info->whitespaced = 0;
       render_info->indented = 0;
@@ -776,7 +776,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     }
 
     if (cp!='\t' && cp!=' ' && cp!=newline_cp2) {
-      render_info->visual_detail &= ~VISUAL_INFO_WHITESPACED_COMPLETE;
+      render_info->visual_detail &= ~VISUAL_DETAIL_WHITESPACED_COMPLETE;
     }
 
     if (bracket_match&VISUAL_BRACKET_CLOSE) {
@@ -1022,7 +1022,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 }
 
 // Handle key press
-void document_text_keypress(struct document* base, struct splitter* splitter, int command, int key, int cp, int button, int button_old, int x, int y) {
+void document_text_keypress(struct document* base, struct splitter* splitter, int command, int key, codepoint_t cp, int button, int button_old, int x, int y) {
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
@@ -1339,9 +1339,9 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     seek = 1;
   } else if (command==TIPPSE_CMD_CHARACTER) {
     document_file_delete_selection(splitter->file, splitter->view);
-    uint8_t utf8[8];
-    size_t size = encoding_utf8_encode(NULL, cp, &utf8[0], 8);
-    document_file_insert(splitter->file, view->offset, &utf8[0], size);
+    uint8_t coded[8];
+    size_t size = splitter->file->encoding->encode(splitter->file->encoding, cp, &coded[0], 8);
+    document_file_insert(splitter->file, view->offset, &coded[0], size);
 
     // --- Begin test auto indentation ... closing bracket
     struct document_text_position out_bracket;
@@ -1400,7 +1400,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 }
 
 // In line select mode the keyboard is used in a different way since the display shows a list of options one can't edit
-void document_text_keypress_line_select(struct document* base, struct splitter* splitter, int command, int key, int cp, int button, int button_old, int x, int y) {
+void document_text_keypress_line_select(struct document* base, struct splitter* splitter, int command, int key, codepoint_t cp, int button, int button_old, int x, int y) {
   struct document_view* view = splitter->view;
 
   struct document_text_position out;

@@ -151,8 +151,8 @@ void editor_destroy(struct editor* base);
 void editor_closed(struct editor* base);
 void editor_draw(struct editor* base);
 void editor_tick(struct editor* base);
-void editor_keypress(struct editor* base, int key, int cp, int button, int button_old, int x, int y);
-void editor_intercept(struct editor* base, int command, int key, int cp, int button, int button_old, int x, int y);
+void editor_keypress(struct editor* base, int key, codepoint_t cp, int button, int button_old, int x, int y);
+void editor_intercept(struct editor* base, int command, int key, codepoint_t cp, int button, int button_old, int x, int y);
 
 void editor_focus(struct editor* base, struct splitter* node, int disable);
 void editor_split(struct editor* base, struct splitter* node);

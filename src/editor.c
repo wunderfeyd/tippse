@@ -221,7 +221,7 @@ void editor_draw(struct editor* base) {
   int foreground = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_STATUS];
   int background = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
   for (int x = 0; x<base->screen->width; x++) {
-    int cp = 0x20;
+    codepoint_t cp = 0x20;
     screen_setchar(base->screen, x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, foreground, background);
   }
 
@@ -233,7 +233,7 @@ void editor_draw(struct editor* base) {
   }
 
   if (running) {
-    int cp = 'R';
+    codepoint_t cp = 'R';
     screen_setchar(base->screen, 0, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], background);
   }
 
@@ -266,7 +266,7 @@ void editor_tick(struct editor* base) {
 }
 
 // An input event was signalled ... translate it to a command if possible
-void editor_keypress(struct editor* base, int key, int cp, int button, int button_old, int x, int y) {
+void editor_keypress(struct editor* base, int key, codepoint_t cp, int button, int button_old, int x, int y) {
   base->tick_undo = tick_count()+500000;
 
   char key_lookup[1024];
@@ -285,7 +285,7 @@ void editor_keypress(struct editor* base, int key, int cp, int button, int butto
 }
 
 // After event translation we can intercept the core commands (for now)
-void editor_intercept(struct editor* base, int command, int key, int cp, int button, int button_old, int x, int y) {
+void editor_intercept(struct editor* base, int command, int key, codepoint_t cp, int button, int button_old, int x, int y) {
   if (command==TIPPSE_CMD_MOUSE) {
     struct splitter* select = splitter_by_coordinate(base->splitters, x, y);
     if (select && button!=0 && button_old==0) {

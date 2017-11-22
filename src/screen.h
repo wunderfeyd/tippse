@@ -5,9 +5,10 @@ struct screen_char;
 struct screen;
 
 #include <termios.h>
+#include "types.h"
 
 struct screen_char {
-  int codepoints[8];
+  codepoint_t codepoints[8];
   size_t length;
   int foreground;
   int background;
@@ -37,7 +38,7 @@ void screen_title(struct screen* base, const char* title);
 void screen_cursor(struct screen* base, int x, int y);
 void screen_draw(struct screen* base);
 void screen_drawtext(const struct screen* base, int x, int y, int clip_x, int clip_y, int clip_width, int clip_height, const char* text, size_t length, int foreground, int background);
-int screen_getchar(const struct screen* base, int x, int y);
-void screen_setchar(const struct screen* base, int x, int y, int clip_x, int clip_y, int clip_width, int clip_height, int* codepoints, size_t length, int foreground, int background);
+codepoint_t screen_getchar(const struct screen* base, int x, int y);
+void screen_setchar(const struct screen* base, int x, int y, int clip_x, int clip_y, int clip_width, int clip_height, codepoint_t* codepoints, size_t length, int foreground, int background);
 
 #endif /* #ifndef TIPPSE_SCREEN_H */

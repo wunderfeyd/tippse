@@ -10,6 +10,25 @@
 #include <unistd.h>
 #include "screen.h"
 
+// Screen ANSI initialization
+const char* screen_ansi_init =
+  "\x1b[?47h"    // Switch buffer
+  "\x1b[?25l"    // Hide cursor
+  "\x1b""7"      // Save cursor position
+  "\x1b[?2004h"  // Bracketed past mode (Needed to catch insert key)
+  "\x1b[?1002h"  // XTerm mouse mode (fallback/PuTTY)
+  "\x1b[?1005h"; // UTF-8 mouse mode
+
+// Screen ANSI restore
+const char* screen_ansi_restore =
+  "\x1b[?1005l"  // Disable UTF-8 mouse mode
+  "\x1b[?1002l"  // Disable XTerm mouse mode
+  "\x1b[?2004l"  // Non bracketed paste mode
+  "\x1b""8"      // Restore cursor position
+  "\x1b[?25h"    // Show cursor
+  "\x1b[?47l"    // Switch back to normal output
+  "\x1b[39;49m"; // Restore colors
+
 // color names from https://jonasjacek.github.io/colors
 struct config_cache screen_color_codes[] = {
   {"background", -2},
@@ -52,25 +71,14 @@ struct screen* screen_create(void) {
   cfmakeraw(&raw);
   tcsetattr(STDIN_FILENO, TCSANOW, &raw);
 
-  write(STDOUT_FILENO, "\x1b[?47h", 6);
-  write(STDOUT_FILENO, "\x1b[?25l", 6);
-  write(STDOUT_FILENO, "\x1b""7", 2);
-  write(STDOUT_FILENO, "\x1b[?2004h", 8);
-  write(STDOUT_FILENO, "\x1b[?1002h", 8);
-  write(STDOUT_FILENO, "\x1b[?1005h", 8);
+  write(STDOUT_FILENO, screen_ansi_init, strlen(screen_ansi_init));
 
   return base;
 }
 
 // Destroy screen
 void screen_destroy(struct screen* base) {
-  write(STDOUT_FILENO, "\x1b[?1005l", 8);
-  write(STDOUT_FILENO, "\x1b[?1002l", 8);
-  write(STDOUT_FILENO, "\x1b[?2004l", 8);
-  write(STDOUT_FILENO, "\x1b""8", 2);
-  write(STDOUT_FILENO, "\x1b[?25h", 6);
-  write(STDOUT_FILENO, "\x1b[?47l", 6);
-  write(STDOUT_FILENO, "\x1b[39;49m", 8);
+  write(STDOUT_FILENO, screen_ansi_restore, strlen(screen_ansi_restore));
   tcsetattr(STDIN_FILENO, TCSANOW, &base->termios_original);
 
   free(base->title);
@@ -111,6 +119,7 @@ void screen_check(struct screen* base) {
   }
 }
 
+// Put char on backbuffer
 void screen_draw_char(struct screen* base, char** pos, int n, int* w, int* foreground_old, int* background_old) {
   if ((n/base->width)!=((*w)/base->width)) {
     *pos += sprintf(*pos, "\r\n");
@@ -164,6 +173,7 @@ void screen_draw_char(struct screen* base, char** pos, int n, int* w, int* foreg
   *w = n;
 }
 
+// Check if a relocate is shorter than the complete write
 void screen_draw_update(struct screen* base, char** pos, int old, int n, int* w, int* foreground_old, int* background_old) {
   if (old>=n) {
     return;
@@ -195,6 +205,7 @@ void screen_cursor(struct screen* base, int x, int y) {
   base->cursor_y = y;
 }
 
+// Output screen difference data
 void screen_draw(struct screen* base) {
   int foreground_old = -3;
   int background_old = -3;
@@ -261,6 +272,7 @@ void screen_draw(struct screen* base) {
   free(output);
 }
 
+// Put text to a specific location
 void screen_drawtext(const struct screen* base, int x, int y, int clip_x, int clip_y, int clip_width, int clip_height, const char* text, size_t length, int foreground, int background) {
   if (y<clip_y || y>=clip_y+clip_height) {
     return;
@@ -270,7 +282,7 @@ void screen_drawtext(const struct screen* base, int x, int y, int clip_x, int cl
   encoding_stream_from_plain(&stream, (uint8_t*)text, length);
   while (length>0 && x<base->width) {
     size_t used;
-    int cp = encoding_utf8_decode(NULL, &stream, &used);
+    codepoint_t cp = encoding_utf8_decode(NULL, &stream, &used);
     if (cp==0) {
       break;
     }
@@ -287,7 +299,8 @@ void screen_drawtext(const struct screen* base, int x, int y, int clip_x, int cl
   }
 }
 
-int screen_getchar(const struct screen* base, int x, int y) {
+// Return codepoint at screen location
+codepoint_t screen_getchar(const struct screen* base, int x, int y) {
   if (y<0 || y>=base->height || x<0 || x>=base->width) {
     return 0;
   }
@@ -295,7 +308,8 @@ int screen_getchar(const struct screen* base, int x, int y) {
   return base->buffer[y*base->width+x].codepoints[0];
 }
 
-void screen_setchar(const struct screen* base, int x, int y, int clip_x, int clip_y, int clip_width, int clip_height, int* codepoints, size_t length, int foreground, int background) {
+// Update screen location with variable codepoint
+void screen_setchar(const struct screen* base, int x, int y, int clip_x, int clip_y, int clip_width, int clip_height, codepoint_t* codepoints, size_t length, int foreground, int background) {
   if (y<clip_y || y>=clip_y+clip_height || x<clip_x || x>=clip_x+clip_width) {
     return;
   }

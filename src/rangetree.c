@@ -527,14 +527,14 @@ struct range_tree_node* range_tree_find_indentation_last(struct range_tree_node*
     }
   }
 
-  if ((node->visuals.lines!=lines && from==node) || (node->visuals.detail_after&VISUAL_INFO_STOPPED_INDENTATION)) {
+  if ((node->visuals.lines!=lines && from==node) || (node->visuals.detail_after&VISUAL_DETAIL_STOPPED_INDENTATION)) {
     return node;
   }
 
   // Climb to last node of line or not indented node
   while (node->parent) {
     if (node->parent->side[0]==node) {
-      if (node->parent->side[1]->visuals.lines!=0 || (node->parent->side[1]->visuals.detail_after&VISUAL_INFO_STOPPED_INDENTATION)) {
+      if (node->parent->side[1]->visuals.lines!=0 || (node->parent->side[1]->visuals.detail_after&VISUAL_DETAIL_STOPPED_INDENTATION)) {
         node = node->parent;
         break;
       }
@@ -546,7 +546,7 @@ struct range_tree_node* range_tree_find_indentation_last(struct range_tree_node*
   node = node->side[1];
 
   while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
-    if (node->side[0]->visuals.lines==0 && !(node->side[0]->visuals.detail_after&VISUAL_INFO_STOPPED_INDENTATION)) {
+    if (node->side[0]->visuals.lines==0 && !(node->side[0]->visuals.detail_after&VISUAL_DETAIL_STOPPED_INDENTATION)) {
       node = node->side[1];
     } else {
       node = node->side[0];
@@ -569,7 +569,7 @@ int range_tree_find_indentation(struct range_tree_node* node) {
         break;
       }
 
-      if (node->parent->side[0]->visuals.detail_after&VISUAL_INFO_STOPPED_INDENTATION) {
+      if (node->parent->side[0]->visuals.detail_after&VISUAL_DETAIL_STOPPED_INDENTATION) {
         return 0;
       }
     }
@@ -581,7 +581,7 @@ int range_tree_find_indentation(struct range_tree_node* node) {
 
   while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
     if (node->side[1]->visuals.lines==0) {
-      if (node->side[1]->visuals.detail_after&VISUAL_INFO_STOPPED_INDENTATION) {
+      if (node->side[1]->visuals.detail_after&VISUAL_DETAIL_STOPPED_INDENTATION) {
         return 0;
       }
 
@@ -591,22 +591,22 @@ int range_tree_find_indentation(struct range_tree_node* node) {
     }
   }
 
-  return (node->visuals.detail_after&VISUAL_INFO_STOPPED_INDENTATION)?0:1;
+  return (node->visuals.detail_after&VISUAL_DETAIL_STOPPED_INDENTATION)?0:1;
 }
 
 // Check if whitespacing stops at line end
 int range_tree_find_whitespaced(struct range_tree_node* node) {
-  if (node->visuals.detail_after&VISUAL_INFO_WHITESPACED_START) {
+  if (node->visuals.detail_after&VISUAL_DETAIL_WHITESPACED_START) {
     return 1;
   }
 
-  if (!(node->visuals.detail_after&VISUAL_INFO_WHITESPACED_COMPLETE)) {
+  if (!(node->visuals.detail_after&VISUAL_DETAIL_WHITESPACED_COMPLETE)) {
     return 0;
   }
 
   while (node->parent) {
     if (node->parent->side[0]==node) {
-      if (!(node->parent->side[1]->visuals.detail_after&VISUAL_INFO_WHITESPACED_COMPLETE)) {
+      if (!(node->parent->side[1]->visuals.detail_after&VISUAL_DETAIL_WHITESPACED_COMPLETE)) {
         node = node->parent->side[1];
         break;
       }
@@ -620,14 +620,14 @@ int range_tree_find_whitespaced(struct range_tree_node* node) {
   }
 
   while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
-    if (!(node->side[0]->visuals.detail_after&VISUAL_INFO_WHITESPACED_COMPLETE)) {
+    if (!(node->side[0]->visuals.detail_after&VISUAL_DETAIL_WHITESPACED_COMPLETE)) {
       node = node->side[0];
     } else {
       node = node->side[1];
     }
   }
 
-  return (node->visuals.detail_after&(VISUAL_INFO_WHITESPACED_COMPLETE|VISUAL_INFO_WHITESPACED_START))?1:0;
+  return (node->visuals.detail_after&(VISUAL_DETAIL_WHITESPACED_COMPLETE|VISUAL_DETAIL_WHITESPACED_START))?1:0;
 }
 
 // Return base offset of given node

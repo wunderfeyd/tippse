@@ -28,6 +28,7 @@ struct encoding* encoding_cp850_create(void) {
   this->vtbl.destroy = encoding_cp850_destroy;
   this->vtbl.name = encoding_cp850_name;
   this->vtbl.character_length = encoding_cp850_character_length;
+  this->vtbl.encode = encoding_cp850_encode;
   this->vtbl.decode = encoding_cp850_decode;
   this->vtbl.visual = encoding_cp850_visual;
   this->vtbl.next = encoding_cp850_next;
@@ -51,25 +52,25 @@ size_t encoding_cp850_character_length(struct encoding* base) {
   return 1;
 }
 
-int encoding_cp850_visual(struct encoding* base, int cp) {
+codepoint_t encoding_cp850_visual(struct encoding* base, codepoint_t cp) {
   if (cp<0 || cp>=0x20) {
     return cp;
   }
 
-  return (int)translate_cp850_unicode[cp];
+  return (codepoint_t)translate_cp850_unicode[cp];
 }
 
-int encoding_cp850_decode(struct encoding* base, struct encoding_stream* stream, size_t* used) {
+codepoint_t encoding_cp850_decode(struct encoding* base, struct encoding_stream* stream, size_t* used) {
   uint8_t c = encoding_stream_peek(stream, 0);
   *used = 1;
   if (c>=0x20) {
-    return (int)translate_cp850_unicode[c];
+    return (codepoint_t)translate_cp850_unicode[c];
   } else {
     return c;
   }
 }
 
-size_t encoding_cp850_encode(struct encoding* base, int cp, uint8_t* text, size_t size) {
+size_t encoding_cp850_encode(struct encoding* base, codepoint_t cp, uint8_t* text, size_t size) {
   *text = (uint8_t)cp;
   return 1;
 }
@@ -86,7 +87,7 @@ size_t encoding_cp850_strlen(struct encoding* base, struct encoding_stream* stre
   size_t length = 0;
   while (1) {
     size_t next;
-    int cp = encoding_cp850_decode(base, stream, &next);
+    codepoint_t cp = encoding_cp850_decode(base, stream, &next);
     if (cp==0) {
       break;
     }

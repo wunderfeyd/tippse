@@ -167,7 +167,7 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
 }
 
 // Handle key press
-void document_hex_keypress(struct document* base, struct splitter* splitter, int command, int key, int cp, int button, int button_old, int x, int y) {
+void document_hex_keypress(struct document* base, struct splitter* splitter, int command, int key, codepoint_t cp, int button, int button_old, int x, int y) {
   struct document_hex* document = (struct document_hex*)base;
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
@@ -341,7 +341,7 @@ void document_hex_cursor_from_point(struct document* base, struct splitter* spli
 }
 
 // Return value from hex character
-uint8_t document_hex_value(int cp) {
+uint8_t document_hex_value(codepoint_t cp) {
   uint8_t value = 0;
   if (cp>='0' && cp<='9') {
     value = (uint8_t)cp-'0';
@@ -372,9 +372,9 @@ uint8_t document_hex_value_from_string(const char* text, size_t length) {
 }
 
 // Convert invisible characters
-void document_hex_convert(struct document_hex_char* cps, int show_invisibles, int cp_default) {
-  int cp = cps->codepoints[0];
-  int show = -1;
+void document_hex_convert(struct document_hex_char* cps, int show_invisibles, codepoint_t cp_default) {
+  codepoint_t cp = cps->codepoints[0];
+  codepoint_t show = -1;
   if (cp=='\n') {
     show = show_invisibles?0x00ac:cp_default;
   } else if (cp=='\r') {
