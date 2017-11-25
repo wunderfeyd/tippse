@@ -94,3 +94,20 @@ void encoding_cache_buffer(struct encoding_cache* cache, size_t offset) {
     cache->end++;
   }
 }
+
+// Invert lookup table for unicode and codepage translation
+uint16_t* encoding_reverse_table(uint16_t* table, size_t length, size_t max) {
+  uint16_t* output = (uint16_t*)malloc(sizeof(uint16_t)*max);
+  for (size_t n = 0; n<max; n++) {
+    output[n] = (uint16_t)~0u;
+  }
+
+  for (size_t n = 0; n<length; n++) {
+    size_t set = (size_t)table[n];
+    if (set<max) {
+      output[set] = (uint16_t)n;
+    }
+  }
+
+  return output;
+}

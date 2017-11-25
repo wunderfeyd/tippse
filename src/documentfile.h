@@ -124,5 +124,6 @@ void document_file_reduce(file_offset_t* pos, file_offset_t offset, file_offset_
 void document_file_delete(struct document_file* base, file_offset_t offset, file_offset_t length);
 int document_file_delete_selection(struct document_file* base, struct document_view* view);
 void document_file_manualchange(struct document_file* base);
+void document_file_reset_views(struct document_file* base);
 
 #endif /* #ifndef TIPPSE_DOCUMENTFILE_H */

@@ -55,6 +55,7 @@ struct config_cache screen_color_codes[] = {
 // Create screen
 struct screen* screen_create(void) {
   struct screen* base = (struct screen*)malloc(sizeof(struct screen));
+  base->encoding = encoding_utf8_create();
   base->width = 0;
   base->height = 0;
   base->buffer = NULL;
@@ -85,6 +86,7 @@ void screen_destroy(struct screen* base) {
   free(base->title_new);
   free(base->visible);
   free(base->buffer);
+  (*base->encoding->destroy)(base->encoding);
   free(base);
 }
 
@@ -161,7 +163,7 @@ void screen_draw_char(struct screen* base, char** pos, int n, int* w, int* foreg
   if (c->length==0 || c->codepoints[0]!=-1) {
     size_t copy;
     for (copy = 0; copy<c->length; copy++) {
-      *pos += encoding_utf8_encode(NULL, c->codepoints[copy], (uint8_t*)*pos, SIZE_T_MAX);
+      *pos += (*base->encoding->encode)(NULL, c->codepoints[copy], (uint8_t*)*pos, SIZE_T_MAX);
     }
 
     if (copy==0) {

@@ -101,4 +101,6 @@ inline size_t encoding_cache_find_length(struct encoding_cache* cache, size_t of
   return cache->lengths[(cache->start+offset)%ENCODING_CACHE_SIZE];
 }
 
+uint16_t* encoding_reverse_table(uint16_t* table, size_t length, size_t max);
+
 #endif  /* #ifndef TIPPSE_ENCODING_H */

@@ -3,6 +3,7 @@
 
 struct screen_char;
 struct screen;
+struct encoding;
 
 #include <termios.h>
 #include "types.h"
@@ -24,9 +25,12 @@ struct screen {
   char* title;
   char* title_new;
   struct termios termios_original;
+  struct encoding* encoding;
 };
 
 #include "encoding/utf8.h"
+#include "encoding/cp850.h"
+#include "encoding/ascii.h"
 #include "config.h"
 
 void screen_destroy(struct screen* base);

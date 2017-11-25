@@ -22,6 +22,10 @@ uint16_t translate_cp850_unicode[256] = {
   0x00ad, 0x00b1, 0x2017, 0x00be, 0x00b6, 0x00a7, 0x00f7, 0x00b8, 0x00b0, 0x00a8, 0x00b7, 0x00b9, 0x00b3, 0x00b2, 0x25a0, 0x00a0
 };
 
+#define CODEPOINT_MAX_CP850 0x3000
+
+uint16_t* translate_unicode_cp850 = NULL;
+
 struct encoding* encoding_cp850_create(void) {
   struct encoding_cp850* this = malloc(sizeof(struct encoding_cp850));
   this->vtbl.create = encoding_cp850_create;
@@ -35,6 +39,11 @@ struct encoding* encoding_cp850_create(void) {
   this->vtbl.strnlen = encoding_cp850_strnlen;
   this->vtbl.strlen = encoding_cp850_strlen;
   this->vtbl.seek = encoding_cp850_seek;
+
+  if (!translate_unicode_cp850) {
+    // TODO: this isn't freed at the moment
+    translate_unicode_cp850 = encoding_reverse_table(&translate_cp850_unicode[0], 256, CODEPOINT_MAX_CP850);
+  }
 
   return (struct encoding*)this;
 }
@@ -71,8 +80,15 @@ codepoint_t encoding_cp850_decode(struct encoding* base, struct encoding_stream*
 }
 
 size_t encoding_cp850_encode(struct encoding* base, codepoint_t cp, uint8_t* text, size_t size) {
-  *text = (uint8_t)cp;
-  return 1;
+  if (cp>=0 && cp<CODEPOINT_MAX_CP850) {
+    uint16_t converted = translate_unicode_cp850[cp];
+    if (converted!=(uint16_t)~0u) {
+      *text = (uint8_t)translate_unicode_cp850[cp];
+      return 1;
+    }
+  }
+
+  return 0;
 }
 
 size_t encoding_cp850_next(struct encoding* base, struct encoding_stream* stream) {

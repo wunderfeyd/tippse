@@ -44,7 +44,7 @@ struct document_file* document_file_create(int save, int config) {
   base->view = document_view_create();
   base->pipefd[0] = -1;
   base->pipefd[1] = -1;
-  document_view_reset(base->view, base);
+  document_file_reset_views(base);
   document_undo_mark_save_point(base);
   document_file_reload_config(base);
   return base;
@@ -128,9 +128,10 @@ void document_file_encoding(struct document_file* base, struct encoding* encodin
 // Execute system command and push output into file contents
 void document_file_pipe(struct document_file* base, const char* command) {
   range_tree_destroy(base->buffer);
+  base->buffer = NULL;
   document_undo_empty(base, base->undos);
   document_undo_empty(base, base->redos);
-  base->buffer = NULL;
+  document_file_reset_views(base);
 
   document_file_close_pipe(base);
 
@@ -161,7 +162,7 @@ void document_file_pipe(struct document_file* base, const char* command) {
     document_file_name(base, command);
     document_file_detect_properties(base);
     base->bookmarks = range_tree_static(base->bookmarks, base->buffer?base->buffer->length:0, 0);
-    document_view_reset(base->view, base);
+    document_file_reset_views(base);
   }
 }
 
@@ -233,7 +234,7 @@ void document_file_load(struct document_file* base, const char* filename) {
   document_file_name(base, filename);
   document_file_detect_properties(base);
   base->bookmarks = range_tree_static(base->bookmarks, base->buffer?base->buffer->length:0, 0);
-  document_view_reset(base->view, base);
+  document_file_reset_views(base);
 }
 
 // Load file from memory
@@ -254,7 +255,7 @@ void document_file_load_memory(struct document_file* base, const uint8_t* buffer
   document_file_name(base, "<memory>");
   document_file_detect_properties(base);
   base->bookmarks = range_tree_static(base->bookmarks, base->buffer?base->buffer->length:0, 0);
-  document_view_reset(base->view, base);
+  document_file_reset_views(base);
 }
 
 // Save file directly to file system
@@ -552,10 +553,24 @@ int document_file_delete_selection(struct document_file* base, struct document_v
 void document_file_manualchange(struct document_file* base) {
   base->bookmarks = range_tree_static(base->bookmarks, base->buffer?base->buffer->length:0, 0);
 
+  document_view_filechange(base->view, base);
+
   struct list_node* views = base->views->first;
   while (views) {
     struct document_view* view = (struct document_view*)views->object;
     document_view_filechange(view, base);
+
+    views = views->next;
+  }
+}
+
+// Reset all active views to the document
+void document_file_reset_views(struct document_file* base) {
+  document_view_reset(base->view, base);
+  struct list_node* views = base->views->first;
+  while (views) {
+    struct document_view* view = (struct document_view*)views->object;
+    document_view_reset(view, base);
 
     views = views->next;
   }
