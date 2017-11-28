@@ -153,7 +153,7 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
     type = VISUAL_SEEK_OFFSET;
   }
 
-  buffer_new = range_tree_find_visual(buffer, type, in->offset, in->x, in->y, in->line, in->column, &offset_new, &x_new, &y_new, &lines_new, &columns_new, &indentation_new, &indentation_extra_new, &characters_new);
+  buffer_new = range_tree_find_visual(buffer, type, in->offset, in->x, in->y, in->line, in->column, &offset_new, &x_new, &y_new, &lines_new, &columns_new, &indentation_new, &indentation_extra_new, &characters_new, 0);
 
   // TODO: Combine into single statement (if correctness is confirmed)
   int rerender = (debug&DEBUG_ALWAYSRERENDER)?1:0;
@@ -345,10 +345,6 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 
       render_info->displacement -= render_info->buffer->length;
       file_offset_t rewind = render_info->offset-render_info->offset_sync-render_info->displacement;
-      if (render_info->displacement==0 && render_info->keyword_length==0) { // TODO: this is somehow not as thought, at best this condition wouldn't be necessary
-        rewind = 0;
-      }
-
       render_info->buffer = range_tree_next(render_info->buffer);
 
       if (render_info->buffer) {
@@ -624,9 +620,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 
     render_info->draw_indentation = 0;
 
-    if (render_info->keyword_length==0) {
-      render_info->offset_sync = render_info->offset;
-    } else if (render_info->keyword_length>0) {
+    if (render_info->keyword_length>0) {
       render_info->keyword_length--;
       color = render_info->keyword_color;
     }
@@ -716,6 +710,12 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 
     render_info->displacement += length;
     render_info->offset += length;
+
+    if (render_info->keyword_length==0) {
+      if (!(render_info->visual_detail&VISUAL_DETAIL_CONTROLCHARACTER)) {
+        render_info->offset_sync = render_info->offset;
+      }
+    }
 
     position_t word_length = 0;
     if (cp<=' ' && view->wrapping) {

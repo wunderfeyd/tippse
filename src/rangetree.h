@@ -56,7 +56,7 @@ void range_tree_exchange(struct range_tree_node* node, struct range_tree_node* o
 struct range_tree_node* range_tree_rotate(struct range_tree_node* node, int side);
 struct range_tree_node* range_tree_balance(struct range_tree_node* node);
 struct range_tree_node* range_tree_update(struct range_tree_node* node);
-struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int find_type, file_offset_t find_offset, position_t find_x, position_t find_y, position_t find_line, position_t find_column, file_offset_t* offset, position_t* x, position_t* y, position_t* line, position_t* column, int* indentation, int* indentation_extra, file_offset_t* character);
+struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int find_type, file_offset_t find_offset, position_t find_x, position_t find_y, position_t find_line, position_t find_column, file_offset_t* offset, position_t* x, position_t* y, position_t* line, position_t* column, int* indentation, int* indentation_extra, file_offset_t* character, int retry);
 int range_tree_find_bracket(struct range_tree_node* node, size_t bracket);
 struct range_tree_node* range_tree_find_bracket_forward(struct range_tree_node* node, size_t bracket, int search);
 struct range_tree_node* range_tree_find_bracket_backward(struct range_tree_node* node, size_t bracket, int search);
