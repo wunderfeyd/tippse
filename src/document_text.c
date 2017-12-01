@@ -153,7 +153,7 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
     type = VISUAL_SEEK_OFFSET;
   }
 
-  buffer_new = range_tree_find_visual(buffer, type, in->offset, in->x, in->y, in->line, in->column, &offset_new, &x_new, &y_new, &lines_new, &columns_new, &indentation_new, &indentation_extra_new, &characters_new, 0);
+  buffer_new = range_tree_find_visual(buffer, type, in->offset, in->x, in->y, in->line, in->column, &offset_new, &x_new, &y_new, &lines_new, &columns_new, &indentation_new, &indentation_extra_new, &characters_new, 0, in->offset);
 
   // TODO: Combine into single statement (if correctness is confirmed)
   int rerender = (debug&DEBUG_ALWAYSRERENDER)?1:0;
@@ -1698,7 +1698,7 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
           }
         }
 
-        in.offset = range_tree_offset(node);
+        in.offset = range_tree_offset(node)+node->visuals.displacement;
       } else {
         struct range_tree_node* node = range_tree_find_bracket_backward(render_info.buffer, in.bracket, in.bracket_search);
         if (!node) {
@@ -1709,7 +1709,7 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
           break;
         }
 
-        in.offset = range_tree_offset(node)+node->length-1;
+        in.offset = range_tree_offset(node)+node->length-1-node->visuals.rewind;
       }
     }
   }

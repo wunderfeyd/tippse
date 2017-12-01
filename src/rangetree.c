@@ -255,7 +255,7 @@ struct range_tree_node* range_tree_update(struct range_tree_node* node) {
 }
 
 // Find first non dirty node before or at specified visualisation attributes
-struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int find_type, file_offset_t find_offset, position_t find_x, position_t find_y, position_t find_line, position_t find_column, file_offset_t* offset, position_t* x, position_t* y, position_t* line, position_t* column, int* indentation, int* indentation_extra, file_offset_t* character, int retry) {
+struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int find_type, file_offset_t find_offset, position_t find_x, position_t find_y, position_t find_line, position_t find_column, file_offset_t* offset, position_t* x, position_t* y, position_t* line, position_t* column, int* indentation, int* indentation_extra, file_offset_t* character, int retry, file_offset_t before) {
   struct range_tree_node* root = node;
   file_offset_t location = 0;
   position_t ys = 0;
@@ -319,8 +319,10 @@ struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int
 
   if (node && (node->inserter&TIPPSE_INSERTER_LEAF)) {
     if (node->visuals.rewind>0 && !retry) {
-//      printf("*R* %x %d %d *R*\r\n", (int)location, (int)node->visuals.rewind, (int)node->visuals.displacement);
-      return range_tree_find_visual(root, VISUAL_SEEK_OFFSET, location-node->visuals.rewind, find_x, find_y, find_line, find_column, offset, x, y, line, column, indentation, indentation_extra, character, 1);
+      root = range_tree_find_visual(root, VISUAL_SEEK_OFFSET, location-node->visuals.rewind, find_x, find_y, find_line, find_column, offset, x, y, line, column, indentation, indentation_extra, character, 1, before);
+      if (*offset>=before || location+node->length<=before) {
+        return root;
+      }
     }
 
     *x = xs;
