@@ -31,6 +31,7 @@ struct file_cache {
   char* filename;                           // name of file
   int fd;                                   // file descriptor
   int count;                                // reference counter
+  time_t modification_time;                 // modification time of file during load
 
   struct file_cache_node* nodes[FILE_CACHE_NODES]; // nodes pool
   struct file_cache_node* open[FILE_CACHE_NODES]; // nodes unused
@@ -43,6 +44,7 @@ struct file_cache {
 struct file_cache* file_cache_create(const char* filename);
 void file_cache_reference(struct file_cache* base);
 void file_cache_dereference(struct file_cache* base);
+int file_cache_modified(struct file_cache* base);
 
 struct file_cache_node* file_cache_acquire_node(struct file_cache* base);
 void file_cache_release_node(struct file_cache* base, struct file_cache_node* node);

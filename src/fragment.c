@@ -22,7 +22,7 @@ struct fragment* fragment_create_file(struct file_cache* cache, file_offset_t of
   base->offset = offset;
   base->length = length;
 
-  fragment_reference(base, NULL);
+  fragment_reference(base, file);
   file_cache_reference(base->cache);
 
   return base;

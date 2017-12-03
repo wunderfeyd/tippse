@@ -232,12 +232,20 @@ void editor_draw(struct editor* base) {
     docs = docs->next;
   }
 
+  int x = 0;
   if (running) {
     codepoint_t cp = 'R';
-    screen_setchar(base->screen, 0, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], background);
+    screen_setchar(base->screen, x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], background);
+    x ++;
   }
 
-  screen_drawtext(base->screen, running?2:0, 0, 0, 0, base->screen->width, base->screen->height, base->focus->name, (size_t)base->screen->width, foreground, background);
+  if (document_file_modified_cache(base->document->file)) {
+    codepoint_t cp = 'M';
+    screen_setchar(base->screen, x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], background);
+    x ++;
+  }
+
+  screen_drawtext(base->screen, (x>0)?x+1:x, 0, 0, 0, base->screen->width, base->screen->height, base->focus->name, (size_t)base->screen->width, foreground, background);
   struct encoding_stream stream;
   encoding_stream_from_plain(&stream, (uint8_t*)base->focus->status, SIZE_T_MAX);
   size_t length = encoding_utf8_strlen(NULL, &stream);

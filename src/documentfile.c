@@ -28,6 +28,7 @@ struct document_file* document_file_create(int save, int config) {
   struct document_file* base = (struct document_file*)malloc(sizeof(struct document_file));
   base->buffer = NULL;
   base->bookmarks = NULL;
+  base->cache = NULL;
   base->caches = list_create(sizeof(struct document_file_cache));
   base->binary = 0;
   base->undos = list_create(sizeof(struct document_undo));
@@ -53,6 +54,12 @@ struct document_file* document_file_create(int save, int config) {
 
 // Clear file operations
 void document_file_clear(struct document_file* base) {
+  if (base->cache) {
+    document_file_dereference_cache(base, base->cache);
+    file_cache_dereference(base->cache);
+    base->cache = NULL;
+  }
+
   if (base->buffer) {
     range_tree_destroy(base->buffer, base);
     base->buffer = NULL;
@@ -174,7 +181,9 @@ void document_file_fill_pipe(struct document_file* base, uint8_t* buffer, size_t
     uint8_t* copy = (uint8_t*)malloc(length);
     memcpy(copy, buffer, length);
     file_offset_t offset = base->buffer?base->buffer->length:0;
-    base->buffer = range_tree_insert(base->buffer, offset, fragment_create_memory(copy, length), 0, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, base);
+    struct fragment* fragment = fragment_create_memory(copy, length);
+    base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, base);
+    fragment_dereference(fragment, base);
 
     document_file_expand_all(base, offset, length);
   }
@@ -197,38 +206,39 @@ void document_file_load(struct document_file* base, const char* filename) {
   document_file_clear(base);
   int f = open(filename, O_RDONLY);
   if (f!=-1) {
-    struct file_cache* cache = file_cache_create(filename);
+    base->cache = file_cache_create(filename);
+    document_file_reference_cache(base, base->cache);
 
     file_offset_t length = (file_offset_t)lseek(f, 0, SEEK_END);
     lseek(f, 0, SEEK_SET);
     file_offset_t offset = 0;
     while (1) {
       file_offset_t block = 0;
-      struct fragment* buffer = NULL;
+      struct fragment* fragment = NULL;
       if (length<TIPPSE_DOCUMENT_MEMORY_LOADMAX) {
         uint8_t* copy = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MAX);
         ssize_t in = read(f, copy, TREE_BLOCK_LENGTH_MAX);
         block = (file_offset_t)((in>=0)?in:0);
-        buffer = fragment_create_memory(copy, (size_t)block);
+        fragment = fragment_create_memory(copy, (size_t)block);
       } else {
         block = length-offset;
         if (block>TREE_BLOCK_LENGTH_MAX) {
           block = TREE_BLOCK_LENGTH_MAX;
         }
 
-        buffer = fragment_create_file(cache, offset, (size_t)block, base);
+        fragment = fragment_create_file(base->cache, offset, (size_t)block, base);
       }
 
       if (block==0) {
-        fragment_dereference(buffer, base);
+        fragment_dereference(fragment, base);
         break;
       }
 
-      base->buffer = range_tree_insert(base->buffer, offset, buffer, 0, buffer->length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, base);
+      base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, fragment->length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, base);
+      fragment_dereference(fragment, base);
       offset += block;
     }
 
-    file_cache_dereference(cache);
     close(f);
   }
 
@@ -247,7 +257,9 @@ void document_file_load_memory(struct document_file* base, const uint8_t* buffer
     size_t max = (length>TREE_BLOCK_LENGTH_MAX)?TREE_BLOCK_LENGTH_MAX:length;
     uint8_t* copy = (uint8_t*)malloc(max);
     memcpy(copy, buffer, max);
-    base->buffer = range_tree_insert(base->buffer, offset, fragment_create_memory(copy, max), 0, max, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, base);
+    struct fragment* fragment = fragment_create_memory(copy, max);
+    base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, max, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, base);
+    fragment_dereference(fragment, base);
     offset += max;
     length -= max;
     buffer += max;
@@ -295,6 +307,13 @@ void document_file_save(struct document_file* base, const char* filename) {
   } else {
     if (document_file_save_plain(base, filename)) {
       document_undo_mark_save_point(base);
+    }
+
+    if (base->cache) {
+      document_file_dereference_cache(base, base->cache);
+      file_cache_dereference(base->cache);
+      base->cache = file_cache_create(filename);
+      document_file_reference_cache(base, base->cache);
     }
   }
 
@@ -604,8 +623,51 @@ void document_file_reload_config(struct document_file* base) {
   base->defaults.continuous = (int)config_convert_int64(config_find_ascii(base->config, "/continuous"));
 }
 
+// Link a cache to the current document and count how often it is referenced
 void document_file_reference_cache(struct document_file* base, struct file_cache* cache) {
+  struct list_node* caches = base->caches->first;
+  while (caches) {
+    struct document_file_cache* node = (struct document_file_cache*)list_object(caches);
+    if (node->cache==cache) {
+      node->count++;
+      return;
+    }
+
+    caches = caches->next;
+  }
+
+  struct document_file_cache* node = (struct document_file_cache*)list_object(list_insert_empty(base->caches, NULL));
+  node->count = 1;
+  node->cache = cache;
 }
 
+// Decrement reference counter and unlink cache if needed
 void document_file_dereference_cache(struct document_file* base, struct file_cache* cache) {
+  struct list_node* caches = base->caches->first;
+  while (caches) {
+    struct document_file_cache* node = (struct document_file_cache*)list_object(caches);
+    if (node->cache==cache) {
+      node->count--;
+      if (node->count==0) {
+        list_remove(base->caches, caches);
+      }
+
+      return;
+    }
+
+    caches = caches->next;
+  }
+}
+
+// Check if one of the linked file caches was invalidated
+int document_file_modified_cache(struct document_file* base) {
+  int modified = 0;
+  struct list_node* caches = base->caches->first;
+  while (caches) {
+    struct document_file_cache* node = (struct document_file_cache*)list_object(caches);
+    modified |= file_cache_modified(node->cache);
+    caches = caches->next;
+  }
+
+  return modified;
 }

@@ -51,13 +51,13 @@ struct document_file_type {
 };
 
 struct document_file_cache {
-  int index;                            // index number
   int count;                            // count of used fragments
   struct file_cache* cache;             // reference to cache
 };
 
 struct document_file {
   struct range_tree_node* buffer;       // access to document buffer, root page
+  struct file_cache* cache;             // base file cache that points directly to the selected file
   struct range_tree_node* bookmarks;    // access to bookmarks
   struct list* undos;                   // undo information
   struct list* redos;                   // redo information
@@ -137,5 +137,5 @@ void document_file_reset_views(struct document_file* base);
 
 void document_file_reference_cache(struct document_file* base, struct file_cache* cache);
 void document_file_dereference_cache(struct document_file* base, struct file_cache* cache);
-
+int document_file_modified_cache(struct document_file* base);
 #endif /* #ifndef TIPPSE_DOCUMENTFILE_H */

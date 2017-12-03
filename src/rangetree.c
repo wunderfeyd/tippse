@@ -882,8 +882,6 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
     range_tree_update_calc(root);
   }
 
-  fragment_dereference(buffer, file);
-
   return root;
 }
 
@@ -902,6 +900,7 @@ struct range_tree_node* range_tree_insert_split(struct range_tree_node* root, fi
 
       struct fragment* buffer = fragment_create_memory(copy, pos-old);
       root = range_tree_insert(root, offset, buffer, 0, buffer->length, inserter, NULL);
+      fragment_dereference(buffer, NULL);
 
       offset += pos-old;
       old = pos;
@@ -1035,7 +1034,6 @@ struct range_tree_node* range_tree_copy(struct range_tree_node* root, file_offse
 struct range_tree_node* range_tree_paste(struct range_tree_node* root, struct range_tree_node* copy, file_offset_t offset, struct document_file* file) {
   copy = range_tree_first(copy);
   while (copy) {
-    fragment_reference(copy->buffer, file);
     root = range_tree_insert(root, offset, copy->buffer, copy->offset, copy->length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, file);
     offset += copy->length;
     copy = range_tree_next(copy);

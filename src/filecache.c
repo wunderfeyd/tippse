@@ -12,6 +12,10 @@ struct file_cache* file_cache_create(const char* filename) {
   base->allocated = FILE_CACHE_NODES;
   base->first = NULL;
   base->last = NULL;
+
+  struct stat info;
+  fstat(base->fd, &info);
+  base->modification_time = info.st_mtime;
   return base;
 }
 
@@ -130,4 +134,11 @@ uint8_t* file_cache_use_node(struct file_cache* base, struct file_cache_node** r
   }
 
   return &node->buffer[0];
+}
+
+// The file was modified while it was open?
+int file_cache_modified(struct file_cache* base) {
+  struct stat info;
+  stat(base->filename, &info);
+  return (base->modification_time!=info.st_mtime)?1:0;
 }
