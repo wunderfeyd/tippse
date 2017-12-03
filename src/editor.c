@@ -106,7 +106,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->tick_undo = -1;
   base->tick_incremental = -1;
 
-  base->documents = list_create();
+  base->documents = list_create(sizeof(struct document_file*));
 
   base->tabs_doc = document_file_create(0, 1);
   document_file_name(base->tabs_doc, "Open");
@@ -139,13 +139,13 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   splitter_assign_document_file(base->panel, base->search_doc);
 
   base->splitters = splitter_create(TIPPSE_SPLITTER_VERT|TIPPSE_SPLITTER_FIXED0, 5, base->panel, base->document, "");
-  list_insert(base->documents, NULL, base->document_doc);
-  list_insert(base->documents, NULL, base->tabs_doc);
-  list_insert(base->documents, NULL, base->search_doc);
-  list_insert(base->documents, NULL, base->replace_doc);
-  list_insert(base->documents, NULL, base->goto_doc);
-  list_insert(base->documents, NULL, base->browser_doc);
-  list_insert(base->documents, NULL, base->compiler_doc);
+  list_insert(base->documents, NULL, &base->document_doc);
+  list_insert(base->documents, NULL, &base->tabs_doc);
+  list_insert(base->documents, NULL, &base->search_doc);
+  list_insert(base->documents, NULL, &base->replace_doc);
+  list_insert(base->documents, NULL, &base->goto_doc);
+  list_insert(base->documents, NULL, &base->browser_doc);
+  list_insert(base->documents, NULL, &base->compiler_doc);
 
   for (int n = argc-1; n>=1; n--) {
     if (n==1) {
@@ -154,7 +154,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
     } else {
       struct document_file* document_add = document_file_create(1, 1);
       document_file_load(document_add, argv[n]);
-      list_insert(base->documents, NULL, document_add);
+      list_insert(base->documents, NULL, &document_add);
     }
   }
 
@@ -171,7 +171,7 @@ void editor_destroy(struct editor* base) {
   splitter_destroy(base->splitters);
 
   while (base->documents->first) {
-    document_file_destroy((struct document_file*)base->documents->first->object);
+    document_file_destroy(*(struct document_file**)list_object(base->documents->first));
     list_remove(base->documents, base->documents->first);
   }
 
@@ -185,7 +185,7 @@ void editor_draw(struct editor* base) {
   base->tabs_doc->buffer = range_tree_delete(base->tabs_doc->buffer, 0, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, TIPPSE_INSERTER_AUTO, base->tabs_doc);
   struct list_node* doc = base->documents->first;
   while (doc) {
-    struct document_file* file = (struct document_file*)doc->object;
+    struct document_file* file = *(struct document_file**)list_object(doc);
     if (file->save) {
       if (base->tabs_doc->buffer) {
         base->tabs_doc->buffer = range_tree_insert_split(base->tabs_doc->buffer, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, (uint8_t*)"\n", 1, TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
@@ -228,7 +228,7 @@ void editor_draw(struct editor* base) {
   int running = 0;
   struct list_node* docs = base->documents->first;
   while (docs && !running) {
-    running |= (((struct document_file*)docs->object)->pipefd[0]!=-1)?1:0;
+    running |= ((*(struct document_file**)list_object(docs))->pipefd[0]!=-1)?1:0;
     docs = docs->next;
   }
 
@@ -253,7 +253,7 @@ void editor_tick(struct editor* base) {
     base->tick_undo = tick+500000;
     struct list_node* doc = base->documents->first;
     while (doc) {
-      struct document_file* file = (struct document_file*)doc->object;
+      struct document_file* file = *(struct document_file**)list_object(doc);
       document_undo_chain(file, file->undos);
       doc = doc->next;
     }
@@ -456,7 +456,7 @@ void editor_open_selection(struct editor* base, struct splitter* node, struct sp
   if (node->view->selection_low!=node->view->selection_high) {
     struct list_node* views = destination->file->views->first;
     while (views) {
-      struct document_view* view = (struct document_view*)views->object;
+      struct document_view* view = *(struct document_view**)list_object(views);
       if (view==destination->view) {
         list_remove(destination->file->views, views);
         break;
@@ -494,7 +494,7 @@ void editor_open_document(struct editor* base, const char* name, struct splitter
   struct document_file* new_document_doc = NULL;
   struct list_node* docs = base->documents->first;
   while (docs) {
-    struct document_file* docs_document_doc = (struct document_file*)docs->object;
+    struct document_file* docs_document_doc = *(struct document_file**)list_object(docs);
     if (strcmp(docs_document_doc->filename, relative)==0 && (!node || docs_document_doc!=node->file)) {
       new_document_doc = docs_document_doc;
       list_remove(base->documents, docs);
@@ -520,7 +520,7 @@ void editor_open_document(struct editor* base, const char* name, struct splitter
   }
 
   if (new_document_doc) {
-    list_insert(base->documents, NULL, new_document_doc);
+    list_insert(base->documents, NULL, &new_document_doc);
     if (destination) {
       splitter_assign_document_file(destination, new_document_doc);
     }
@@ -544,7 +544,7 @@ void editor_save_document(struct editor* base, struct document_file* file) {
 void editor_save_documents(struct editor* base) {
   struct list_node* docs = base->documents->first;
   while (docs) {
-    editor_save_document(base, (struct document_file*)docs->object);
+    editor_save_document(base, *(struct document_file**)list_object(docs));
     docs = docs->next;
   }
 }
@@ -559,11 +559,12 @@ void editor_close_document(struct editor* base, struct document_file* file) {
   struct list_node* remove = NULL;
   struct document_file* assign = NULL;
   while (docs && (!remove || !assign)) {
-    if ((struct document_file*)docs->object==file) {
+    struct document_file* doc = *(struct document_file**)list_object(docs);
+    if (doc==file) {
       remove = docs;
     } else {
-      if (((struct document_file*)docs->object)->save) {
-        assign = (struct document_file*)docs->object;
+      if (doc->save) {
+        assign = doc;
       }
     }
 
@@ -574,10 +575,10 @@ void editor_close_document(struct editor* base, struct document_file* file) {
     if (!assign) {
       assign = document_file_create(1, 1);
       document_file_name(assign, "Untitled");
-      list_insert(base->documents, NULL, assign);
+      list_insert(base->documents, NULL, &assign);
     }
 
-    struct document_file* replace = (struct document_file*)remove->object;
+    struct document_file* replace = *(struct document_file**)list_object(remove);
     splitter_exchange_document_file(base->splitters, replace, assign);
     document_file_destroy(replace);
     list_remove(base->documents, remove);

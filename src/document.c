@@ -228,14 +228,15 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
 void document_directory(struct document_file* file) {
   DIR* directory = opendir(file->filename);
   if (directory) {
-    struct list* files = list_create();
+    struct list* files = list_create(sizeof(char*));
     while (1) {
       struct dirent* entry = readdir(directory);
       if (!entry) {
         break;
       }
 
-      list_insert(files, NULL, strdup(&entry->d_name[0]));
+      char* name = strdup(&entry->d_name[0]);
+      list_insert(files, NULL, &name);
     }
 
     closedir(directory);
@@ -244,7 +245,7 @@ void document_directory(struct document_file* file) {
     char** sort2 = malloc(sizeof(char*)*files->count);
     struct list_node* name = files->first;
     for (size_t n = 0; n<files->count && name; n++) {
-      sort1[n] = (char*)name->object;
+      sort1[n] = *(char**)list_object(name);
       name = name->next;
     }
 

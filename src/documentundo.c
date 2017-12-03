@@ -8,15 +8,13 @@ void document_undo_add(struct document_file* file, struct document_view* view, f
     return;
   }
 
-  struct document_undo* undo = (struct document_undo*)malloc(sizeof(struct document_undo));
+  struct document_undo* undo = (struct document_undo*)list_object(list_insert_empty(file->undos, NULL));
   undo->offset = offset;
   undo->length = length;
   undo->type = type;
   undo->buffer = range_tree_copy(file->buffer, offset, length);
   undo->cursor_delete = offset;
   undo->cursor_insert = offset+length;
-
-  list_insert(file->undos, NULL, undo);
 }
 
 // Check if document modified
@@ -44,13 +42,11 @@ void document_undo_chain(struct document_file* file, struct list* list) {
     return;
   }
 
-  struct document_undo* prev = (struct document_undo*)node->object;
+  struct document_undo* prev = (struct document_undo*)list_object(node);
   if (prev->type!=TIPPSE_UNDO_TYPE_CHAIN) {
-    struct document_undo* undo = (struct document_undo*)malloc(sizeof(struct document_undo));
+    struct document_undo* undo = (struct document_undo*)list_object(list_insert_empty(list, NULL));
     undo->type = TIPPSE_UNDO_TYPE_CHAIN;
     undo->buffer = NULL;
-
-    list_insert(list, NULL, undo);
   }
 }
 
@@ -62,12 +58,11 @@ void document_undo_empty(struct document_file* file, struct list* list) {
       break;
     }
 
-    struct document_undo* undo = (struct document_undo*)node->object;
+    struct document_undo* undo = (struct document_undo*)list_object(node);
     if (undo->buffer) {
       range_tree_destroy(undo->buffer, file);
     }
 
-    free(undo);
     list_remove(list, node);
   }
 
@@ -89,7 +84,7 @@ int document_undo_execute(struct document_file* file, struct document_view* view
   }
 
   file_offset_t offset = 0;
-  struct document_undo* undo = (struct document_undo*)node->object;
+  struct document_undo* undo = (struct document_undo*)list_object(node);
   if (undo->type==TIPPSE_UNDO_TYPE_INSERT) {
     file->buffer = range_tree_delete(file->buffer, undo->offset, undo->length, 0, file);
     offset = undo->cursor_delete;
@@ -120,4 +115,3 @@ int document_undo_execute(struct document_file* file, struct document_view* view
 
   return chain;
 }
-

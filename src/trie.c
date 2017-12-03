@@ -4,7 +4,7 @@
 
 struct trie* trie_create(void) {
   struct trie* base = malloc(sizeof(struct trie));
-  base->buckets = list_create();
+  base->buckets = list_create(sizeof(struct trie_node)*TRIE_NODES_PER_BUCKET);
   trie_clear(base);
   return base;
 }
@@ -17,8 +17,6 @@ void trie_destroy(struct trie* base) {
 
 void trie_clear(struct trie* base) {
   while (base->buckets->first) {
-    struct trie_node* bucket = (struct trie_node*)base->buckets->first->object;
-    free(bucket);
     list_remove(base->buckets, base->buckets->first);
   }
 
@@ -29,11 +27,10 @@ void trie_clear(struct trie* base) {
 struct trie_node* trie_create_node(struct trie* base) {
   if (base->fill==TRIE_NODES_PER_BUCKET) {
     base->fill = 0;
-    struct trie_node* bucket = (struct trie_node*)malloc(sizeof(struct trie_node)*TRIE_NODES_PER_BUCKET);
-    list_insert(base->buckets, NULL, bucket);
+    list_object(list_insert_empty(base->buckets, NULL));
   }
 
-  struct trie_node* node = &((struct trie_node*)base->buckets->first->object)[base->fill];
+  struct trie_node* node = &((struct trie_node*)list_object(base->buckets->first))[base->fill];
   node->parent = NULL;
   node->type = 0;
   for (int side = 0; side<16; side++) {

@@ -28,12 +28,12 @@ struct document_file* document_file_create(int save, int config) {
   struct document_file* base = (struct document_file*)malloc(sizeof(struct document_file));
   base->buffer = NULL;
   base->bookmarks = NULL;
-  base->caches = list_create();
+  base->caches = list_create(sizeof(struct document_file_cache));
   base->binary = 0;
-  base->undos = list_create();
-  base->redos = list_create();
+  base->undos = list_create(sizeof(struct document_undo));
+  base->redos = list_create(sizeof(struct document_undo));
   base->filename = strdup("");
-  base->views = list_create();
+  base->views = list_create(sizeof(struct document_view*));
   base->save = save;
   base->line_select = 0;
   base->encoding = encoding_utf8_create();
@@ -433,7 +433,7 @@ void document_file_expand(file_offset_t* pos, file_offset_t offset, file_offset_
 void document_file_expand_all(struct document_file* base, file_offset_t offset, file_offset_t length) {
   struct list_node* views = base->views->first;
   while (views) {
-    struct document_view* view = (struct document_view*)views->object;
+    struct document_view* view = *(struct document_view**)list_object(views);
     view->selection = range_tree_expand(view->selection, offset, length);
     base->bookmarks = range_tree_expand(base->bookmarks, offset, length);
     document_file_expand(&view->selection_end, offset, length);
@@ -495,7 +495,7 @@ void document_file_reduce(file_offset_t* pos, file_offset_t offset, file_offset_
 void document_file_reduce_all(struct document_file* base, file_offset_t offset, file_offset_t length) {
   struct list_node* views = base->views->first;
   while (views) {
-    struct document_view* view = (struct document_view*)views->object;
+    struct document_view* view = *(struct document_view**)list_object(views);
     view->selection = range_tree_reduce(view->selection, offset, length);
     base->bookmarks = range_tree_reduce(base->bookmarks, offset, length);
     document_file_reduce(&view->selection_end, offset, length);
@@ -559,7 +559,7 @@ void document_file_manualchange(struct document_file* base) {
 
   struct list_node* views = base->views->first;
   while (views) {
-    struct document_view* view = (struct document_view*)views->object;
+    struct document_view* view = *(struct document_view**)list_object(views);
     document_view_filechange(view, base);
 
     views = views->next;
@@ -571,7 +571,7 @@ void document_file_reset_views(struct document_file* base) {
   document_view_reset(base->view, base);
   struct list_node* views = base->views->first;
   while (views) {
-    struct document_view* view = (struct document_view*)views->object;
+    struct document_view* view = *(struct document_view**)list_object(views);
     document_view_reset(view, base);
 
     views = views->next;

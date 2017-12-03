@@ -133,7 +133,7 @@ int tippse_check_inputs(struct editor* editor, fd_set* set_read, fd_set* set_wri
 void tippse_append_inputs(struct editor* editor, fd_set* set_read, fd_set* set_write, int* nfds) {
   struct list_node* docs = editor->documents->first;
   while (docs) {
-    struct document_file* file = (struct document_file*)docs->object;
+    struct document_file* file = *(struct document_file**)list_object(docs);
     if (file->pipefd[0]!=-1) {
       FD_SET(file->pipefd[0], set_read);
       if (file->pipefd[0]>*nfds) {
@@ -149,7 +149,7 @@ int tippse_check_inputs(struct editor* editor, fd_set* set_read, fd_set* set_wri
   int input = 0;
   struct list_node* docs = editor->documents->first;
   while (docs) {
-    struct document_file* file = (struct document_file*)docs->object;
+    struct document_file* file = *(struct document_file**)list_object(docs);
     if (file->pipefd[0]!=-1) {
       if (FD_ISSET(file->pipefd[0], set_read)) {
         input = 1;

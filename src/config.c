@@ -386,24 +386,21 @@ const char* config_default =
 ;
 
 // Create configuration entry assigned value
-struct config_value* config_value_create(codepoint_t* value_codepoints, size_t value_length) {
-  struct config_value* base = malloc(sizeof(struct config_value));
+void config_value_create(struct config_value* base, codepoint_t* value_codepoints, size_t value_length) {
   base->cached = 0;
   base->codepoints = malloc(sizeof(codepoint_t)*value_length);
   memcpy(base->codepoints, value_codepoints, sizeof(codepoint_t)*value_length);
-  return base;
 }
 
 void config_value_destroy(struct config_value* base) {
   free(base->codepoints);
-  free(base);
 }
 
 // Create configuration
 struct config* config_create(void) {
   struct config* base = malloc(sizeof(struct config));
   base->keywords = trie_create();
-  base->values = list_create();
+  base->values = list_create(sizeof(struct config_value));
   return base;
 }
 
@@ -419,7 +416,7 @@ void config_destroy(struct config* base) {
 void config_clear(struct config* base) {
   trie_clear(base->keywords);
   while (base->values->first) {
-    config_value_destroy((struct config_value*)base->values->first->object);
+    config_value_destroy((struct config_value*)list_object(base->values->first));
     list_remove(base->values, base->values->first);
   }
 }
@@ -571,15 +568,15 @@ void config_update(struct config* base, codepoint_t* keyword_codepoints, size_t 
     return;
   }
 
-  struct config_value* value = config_value_create(value_codepoints, value_length);
-  struct list_node* node = list_insert(base->values, NULL, value);
+  struct list_node* node = list_insert_empty(base->values, NULL);
+  config_value_create((struct config_value*)list_object(node), value_codepoints, value_length);
 
   struct trie_node* parent = NULL;
   while (keyword_length-->0) {
     parent = trie_append_codepoint(base->keywords, parent, *keyword_codepoints, 0);
     if (keyword_length==0) {
       if (parent->type!=0) { // TODO: 0 != NULL
-        config_value_destroy((struct config_value*)((struct list_node*)parent->type)->object);
+        config_value_destroy((struct config_value*)list_object((struct list_node*)parent->type));
         list_remove(base->values, (struct list_node*)parent->type);
       }
 
@@ -631,7 +628,7 @@ struct trie_node* config_find_ascii(struct config* base, const char* keyword) {
 // Get value at found position
 codepoint_t* config_value(struct trie_node* parent) {
   if (parent && parent->type!=0) {
-    return ((struct config_value*)((struct list_node*)parent->type)->object)->codepoints;
+    return ((struct config_value*)list_object((struct list_node*)parent->type))->codepoints;
   }
 
   return NULL;
@@ -694,7 +691,7 @@ int64_t config_convert_int64(struct trie_node* parent) {
 // Convert value to integer and cache keywords
 int64_t config_convert_int64_cache(struct trie_node* parent, struct config_cache* cache) {
   if (parent && parent->type!=0) {
-    struct config_value* value = (struct config_value*)((struct list_node*)parent->type)->object;
+    struct config_value* value = (struct config_value*)list_object((struct list_node*)parent->type);
     if (value->cached) {
       return value->value;
     }

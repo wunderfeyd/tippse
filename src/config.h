@@ -29,7 +29,7 @@ struct config_cache {
 #include "encoding.h"
 #include "documentfile.h"
 
-struct config_value* config_value_create(codepoint_t* value_codepoints, size_t value_length);
+void config_value_create(struct config_value* base, codepoint_t* value_codepoints, size_t value_length);
 void config_value_destroy(struct config_value* base);
 
 struct config* config_create(void);
