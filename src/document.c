@@ -250,7 +250,7 @@ void document_directory(struct document_file* file) {
 
     char** sort = merge_sort(sort1, sort2, files->count);
 
-    file->buffer = range_tree_delete(file->buffer, 0, file->buffer?file->buffer->length:0, TIPPSE_INSERTER_AUTO);
+    file->buffer = range_tree_delete(file->buffer, 0, file->buffer?file->buffer->length:0, TIPPSE_INSERTER_AUTO, file);
 
     for (size_t n = 0; n<files->count; n++) {
       if (file->buffer) {

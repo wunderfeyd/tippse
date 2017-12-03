@@ -50,6 +50,12 @@ struct document_file_type {
   struct file_type* (*constructor)(struct config* config); // file type
 };
 
+struct document_file_cache {
+  int index;                            // index number
+  int count;                            // count of used fragments
+  struct file_cache* cache;             // reference to cache
+};
+
 struct document_file {
   struct range_tree_node* buffer;       // access to document buffer, root page
   struct range_tree_node* bookmarks;    // access to bookmarks
@@ -72,6 +78,8 @@ struct document_file {
   struct document_view* view;           // last used view
   struct list* views;                   // available views
 
+  struct list* caches;                  // attached caches
+
   int pipefd[2];                        // Pipe to child process
   pid_t pid;                            // Child process id
 };
@@ -82,6 +90,7 @@ struct document_file {
 #include "documentundo.h"
 #include "documentview.h"
 #include "config.h"
+#include "filecache.h"
 #include "filetype.h"
 #include "filetype/c.h"
 #include "filetype/cpp.h"
@@ -125,5 +134,8 @@ void document_file_delete(struct document_file* base, file_offset_t offset, file
 int document_file_delete_selection(struct document_file* base, struct document_view* view);
 void document_file_manualchange(struct document_file* base);
 void document_file_reset_views(struct document_file* base);
+
+void document_file_reference_cache(struct document_file* base, struct file_cache* cache);
+void document_file_dereference_cache(struct document_file* base, struct file_cache* cache);
 
 #endif /* #ifndef TIPPSE_DOCUMENTFILE_H */

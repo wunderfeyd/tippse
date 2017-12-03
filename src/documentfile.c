@@ -28,6 +28,7 @@ struct document_file* document_file_create(int save, int config) {
   struct document_file* base = (struct document_file*)malloc(sizeof(struct document_file));
   base->buffer = NULL;
   base->bookmarks = NULL;
+  base->caches = list_create();
   base->binary = 0;
   base->undos = list_create();
   base->redos = list_create();
@@ -53,12 +54,12 @@ struct document_file* document_file_create(int save, int config) {
 // Clear file operations
 void document_file_clear(struct document_file* base) {
   if (base->buffer) {
-    range_tree_destroy(base->buffer);
+    range_tree_destroy(base->buffer, base);
     base->buffer = NULL;
   }
 
   if (base->bookmarks) {
-    range_tree_destroy(base->bookmarks);
+    range_tree_destroy(base->bookmarks, NULL);
     base->bookmarks = NULL;
   }
 
@@ -76,6 +77,7 @@ void document_file_destroy(struct document_file* base) {
   list_destroy(base->undos);
   list_destroy(base->redos);
   list_destroy(base->views);
+  list_destroy(base->caches);
   free(base->filename);
   (*base->type->destroy)(base->type);
   (*base->encoding->destroy)(base->encoding);
@@ -127,7 +129,7 @@ void document_file_encoding(struct document_file* base, struct encoding* encodin
 
 // Execute system command and push output into file contents
 void document_file_pipe(struct document_file* base, const char* command) {
-  range_tree_destroy(base->buffer);
+  range_tree_destroy(base->buffer, base);
   base->buffer = NULL;
   document_undo_empty(base, base->undos);
   document_undo_empty(base, base->redos);
@@ -172,7 +174,7 @@ void document_file_fill_pipe(struct document_file* base, uint8_t* buffer, size_t
     uint8_t* copy = (uint8_t*)malloc(length);
     memcpy(copy, buffer, length);
     file_offset_t offset = base->buffer?base->buffer->length:0;
-    base->buffer = range_tree_insert(base->buffer, offset, fragment_create_memory(copy, length), 0, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
+    base->buffer = range_tree_insert(base->buffer, offset, fragment_create_memory(copy, length), 0, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, base);
 
     document_file_expand_all(base, offset, length);
   }
@@ -214,15 +216,15 @@ void document_file_load(struct document_file* base, const char* filename) {
           block = TREE_BLOCK_LENGTH_MAX;
         }
 
-        buffer = fragment_create_file(cache, offset, (size_t)block);
+        buffer = fragment_create_file(cache, offset, (size_t)block, base);
       }
 
       if (block==0) {
-        fragment_dereference(buffer);
+        fragment_dereference(buffer, base);
         break;
       }
 
-      base->buffer = range_tree_insert(base->buffer, offset, buffer, 0, buffer->length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
+      base->buffer = range_tree_insert(base->buffer, offset, buffer, 0, buffer->length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, base);
       offset += block;
     }
 
@@ -245,7 +247,7 @@ void document_file_load_memory(struct document_file* base, const uint8_t* buffer
     size_t max = (length>TREE_BLOCK_LENGTH_MAX)?TREE_BLOCK_LENGTH_MAX:length;
     uint8_t* copy = (uint8_t*)malloc(max);
     memcpy(copy, buffer, max);
-    base->buffer = range_tree_insert(base->buffer, offset, fragment_create_memory(copy, max), 0, max, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
+    base->buffer = range_tree_insert(base->buffer, offset, fragment_create_memory(copy, max), 0, max, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, base);
     offset += max;
     length -= max;
     buffer += max;
@@ -472,7 +474,7 @@ void document_file_insert_buffer(struct document_file* base, file_offset_t offse
     return;
   }
 
-  base->buffer = range_tree_paste(base->buffer, buffer, offset);
+  base->buffer = range_tree_paste(base->buffer, buffer, offset, base);
   document_undo_add(base, NULL, offset, length, TIPPSE_UNDO_TYPE_INSERT);
   document_file_expand_all(base, offset, length);
   document_undo_empty(base, base->redos);
@@ -515,7 +517,7 @@ void document_file_delete(struct document_file* base, file_offset_t offset, file
   document_undo_add(base, NULL, offset, length, TIPPSE_UNDO_TYPE_DELETE);
 
   file_offset_t old_length = base->buffer?base->buffer->length:0;
-  base->buffer = range_tree_delete(base->buffer, offset, length, 0);
+  base->buffer = range_tree_delete(base->buffer, offset, length, 0, base);
   length = old_length-(base->buffer?base->buffer->length:0);
 
   document_file_reduce_all(base, offset, length);
@@ -600,4 +602,10 @@ void document_file_reload_config(struct document_file* base) {
   base->defaults.wrapping = (int)config_convert_int64(config_find_ascii(base->config, "/wrapping"));
   base->defaults.invisibles = (int)config_convert_int64(config_find_ascii(base->config, "/invisibles"));
   base->defaults.continuous = (int)config_convert_int64(config_find_ascii(base->config, "/continuous"));
+}
+
+void document_file_reference_cache(struct document_file* base, struct file_cache* cache) {
+}
+
+void document_file_dereference_cache(struct document_file* base, struct file_cache* cache) {
 }

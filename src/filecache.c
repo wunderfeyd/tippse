@@ -6,6 +6,7 @@
 struct file_cache* file_cache_create(const char* filename) {
   struct file_cache* base = malloc(sizeof(struct file_cache));
   base->filename = strdup(filename);
+  base->fd = open(base->filename, O_RDONLY);
   base->count = 1;
   base->left = FILE_CACHE_NODES;
   base->allocated = FILE_CACHE_NODES;
@@ -28,6 +29,7 @@ void file_cache_dereference(struct file_cache* base) {
       free(base->nodes[count]);
     }
 
+    close(base->fd);
     free(base->filename);
     free(base);
   }
@@ -96,7 +98,7 @@ void file_cache_unlink_node(struct file_cache* base, struct file_cache_node* nod
   }
 }
 
-// Mark node as used and transfar file content
+// Mark node as used and transfer file content
 uint8_t* file_cache_use_node(struct file_cache* base, struct file_cache_node** reference, file_offset_t offset, size_t length) {
   struct file_cache_node* node = *reference;
   if (node) {
@@ -121,11 +123,9 @@ uint8_t* file_cache_use_node(struct file_cache* base, struct file_cache_node** r
     node->offset = offset;
     node->length = length;
 
-    int f = open(base->filename, O_RDONLY);
-    if (f!=-1) {
-      lseek(f, (off_t)node->offset, SEEK_SET);
-      read(f, &node->buffer[0], node->length);
-      close(f);
+    if (base->fd!=-1) {
+      lseek(base->fd, (off_t)node->offset, SEEK_SET);
+      read(base->fd, &node->buffer[0], node->length);
     }
   }
 

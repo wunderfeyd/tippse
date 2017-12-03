@@ -3,48 +3,59 @@
 #include "fragment.h"
 
 struct fragment* fragment_create_memory(uint8_t* buffer, size_t length) {
-  struct fragment* node = malloc(sizeof(struct fragment));
-  node->type = FRAGMENT_MEMORY;
-  node->count = 1;
-  node->buffer = buffer;
-  node->length = length;
-  return node;
+  struct fragment* base = malloc(sizeof(struct fragment));
+  base->type = FRAGMENT_MEMORY;
+  base->count = 0;
+  base->buffer = buffer;
+  base->length = length;
+
+  fragment_reference(base, NULL);
+  return base;
 }
 
-struct fragment* fragment_create_file(struct file_cache* cache, file_offset_t offset, size_t length) {
-  struct fragment* node = malloc(sizeof(struct fragment));
-  node->type = FRAGMENT_FILE;
-  node->count = 1;
-  node->cache = cache;
-  node->cache_node = NULL;
-  node->offset = offset;
-  node->length = length;
+struct fragment* fragment_create_file(struct file_cache* cache, file_offset_t offset, size_t length, struct document_file* file) {
+  struct fragment* base = malloc(sizeof(struct fragment));
+  base->type = FRAGMENT_FILE;
+  base->count = 0;
+  base->cache = cache;
+  base->cache_node = NULL;
+  base->offset = offset;
+  base->length = length;
 
-  file_cache_reference(node->cache);
+  fragment_reference(base, NULL);
+  file_cache_reference(base->cache);
 
-  return node;
+  return base;
 }
 
-void fragment_cache(struct fragment* node) {
-  if (node->type==FRAGMENT_FILE) {
-    node->buffer = file_cache_use_node(node->cache, &node->cache_node, node->offset, node->length);
+void fragment_cache(struct fragment* base) {
+  if (base->type==FRAGMENT_FILE) {
+    base->buffer = file_cache_use_node(base->cache, &base->cache_node, base->offset, base->length);
   }
 }
 
-void fragment_reference(struct fragment* node) {
-  node->count++;
+void fragment_reference(struct fragment* base, struct document_file* file) {
+  if (base->type==FRAGMENT_FILE && file) {
+    document_file_reference_cache(file, base->cache);
+  }
+
+  base->count++;
 }
 
-void fragment_dereference(struct fragment* node) {
-  node->count--;
+void fragment_dereference(struct fragment* base, struct document_file* file) {
+  if (base->type==FRAGMENT_FILE && file) {
+    document_file_dereference_cache(file, base->cache);
+  }
 
-  if (node->count==0) {
-    if (node->type==FRAGMENT_MEMORY) {
-      free(node->buffer);
+  base->count--;
+
+  if (base->count==0) {
+    if (base->type==FRAGMENT_MEMORY) {
+      free(base->buffer);
     } else {
-      file_cache_dereference(node->cache);
+      file_cache_dereference(base->cache);
     }
 
-    free(node);
+    free(base);
   }
 }

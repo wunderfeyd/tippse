@@ -182,7 +182,7 @@ void editor_destroy(struct editor* base) {
 
 // Refresh editor components
 void editor_draw(struct editor* base) {
-  base->tabs_doc->buffer = range_tree_delete(base->tabs_doc->buffer, 0, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, TIPPSE_INSERTER_AUTO);
+  base->tabs_doc->buffer = range_tree_delete(base->tabs_doc->buffer, 0, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, TIPPSE_INSERTER_AUTO, base->tabs_doc);
   struct list_node* doc = base->documents->first;
   while (doc) {
     struct document_file* file = (struct document_file*)doc->object;

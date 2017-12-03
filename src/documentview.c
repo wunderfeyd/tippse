@@ -12,7 +12,7 @@ struct document_view* document_view_create(void) {
 // Destroy view
 void document_view_destroy(struct document_view* base) {
   if (base->selection) {
-    range_tree_destroy(base->selection);
+    range_tree_destroy(base->selection, NULL);
   }
 
   free(base);
@@ -40,7 +40,7 @@ void document_view_reset(struct document_view* base, struct document_file* file)
 // Clone view
 void document_view_clone(struct document_view* dst, struct document_view* src, struct document_file* file) {
   if (dst->selection) {
-    range_tree_destroy(dst->selection);
+    range_tree_destroy(dst->selection, NULL);
   }
 
   *dst = *src;

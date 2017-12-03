@@ -29,6 +29,7 @@ struct file_cache_node {
 
 struct file_cache {
   char* filename;                           // name of file
+  int fd;                                   // file descriptor
   int count;                                // reference counter
 
   struct file_cache_node* nodes[FILE_CACHE_NODES]; // nodes pool

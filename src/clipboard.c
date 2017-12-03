@@ -15,7 +15,7 @@ void clipboard_set(struct range_tree_node* data, int binary) {
 #elif _WIN32
   clipboard_windows_set(data, binary);
 #endif
-  if (clipboard) range_tree_destroy(clipboard);
+  if (clipboard) range_tree_destroy(clipboard, NULL);
   clipboard = data;
 }
 
@@ -61,7 +61,7 @@ struct range_tree_node* clipboard_get(void) {
   data = clipboard_windows_get();
 #endif
   if (data) {
-    if (clipboard) range_tree_destroy(clipboard);
+    if (clipboard) range_tree_destroy(clipboard, NULL);
     clipboard = data;
   }
 
@@ -84,7 +84,7 @@ struct range_tree_node* clipboard_command_get(const char* command) {
           file_offset_t offset = data?data->length:0;
           for (file_offset_t pos = 0; pos<length/3; pos++) *(buffer+pos) = document_hex_value_from_string((const char*)buffer+pos*3, 3);
           struct fragment* fragment = fragment_create_memory(buffer, length/3);
-          data = range_tree_insert(data, offset, fragment, 0, length/3, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
+          data = range_tree_insert(data, offset, fragment, 0, length/3, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, NULL);
         } else {
           free(buffer);
         }
@@ -92,7 +92,7 @@ struct range_tree_node* clipboard_command_get(const char* command) {
     } else {
       if (length) {
         struct fragment* fragment = fragment_create_memory(buffer, length);
-        data = range_tree_insert(data, 0, fragment, 0, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
+        data = range_tree_insert(data, 0, fragment, 0, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, NULL);
       } else {
         free(buffer);
       }
@@ -102,7 +102,7 @@ struct range_tree_node* clipboard_command_get(const char* command) {
         if (length) {
           file_offset_t offset = data?data->length:0;
           struct fragment* fragment = fragment_create_memory(buffer, length);
-          data = range_tree_insert(data, offset, fragment, 0, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER);
+          data = range_tree_insert(data, offset, fragment, 0, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, NULL);
         } else {
           free(buffer);
         }
