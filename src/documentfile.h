@@ -107,14 +107,14 @@ struct document_file {
 #include "encoding/ascii.h"
 
 struct document_file* document_file_create(int save, int config);
-void document_file_clear(struct document_file* base);
+void document_file_clear(struct document_file* base, int all);
 void document_file_destroy(struct document_file* base);
 void document_file_name(struct document_file* base, const char* filename);
 void document_file_encoding(struct document_file* base, struct encoding* encoding);
 void document_file_pipe(struct document_file* base, const char* command);
 void document_file_fill_pipe(struct document_file* base, uint8_t* buffer, size_t length);
 void document_file_close_pipe(struct document_file* base);
-void document_file_load(struct document_file* base, const char* filename);
+void document_file_load(struct document_file* base, const char* filename, int reload);
 void document_file_load_memory(struct document_file* base, const uint8_t* buffer, size_t length);
 int document_file_save_plain(struct document_file* base, const char* filename);
 void document_file_save(struct document_file* base, const char* filename);
@@ -132,7 +132,7 @@ void document_file_reduce_all(struct document_file* base, file_offset_t offset, 
 void document_file_reduce(file_offset_t* pos, file_offset_t offset, file_offset_t length);
 void document_file_delete(struct document_file* base, file_offset_t offset, file_offset_t length);
 int document_file_delete_selection(struct document_file* base, struct document_view* view);
-void document_file_manualchange(struct document_file* base);
+void document_file_change_views(struct document_file* base);
 void document_file_reset_views(struct document_file* base);
 
 void document_file_reference_cache(struct document_file* base, struct file_cache* cache);

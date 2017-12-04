@@ -92,6 +92,7 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"replaceprevious", TIPPSE_CMD_REPLACE_PREV},
   {"replaceall", TIPPSE_CMD_REPLACE_ALL},
   {"goto", TIPPSE_CMD_GOTO},
+  {"reload", TIPPSE_CMD_RELOAD},
   {NULL, 0}
 };
 
@@ -149,11 +150,11 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
 
   for (int n = argc-1; n>=1; n--) {
     if (n==1) {
-      document_file_load(base->document_doc, argv[n]);
+      document_file_load(base->document_doc, argv[n], 0);
       splitter_assign_document_file(base->document, base->document_doc);
     } else {
       struct document_file* document_add = document_file_create(1, 1);
-      document_file_load(document_add, argv[n]);
+      document_file_load(document_add, argv[n], 0);
       list_insert(base->documents, NULL, &document_add);
     }
   }
@@ -161,7 +162,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   editor_focus(base, base->document, 0);
 
   document_directory(base->browser_doc);
-  document_file_manualchange(base->browser_doc);
+  document_file_change_views(base->browser_doc);
 
   return base;
 }
@@ -197,7 +198,7 @@ void editor_draw(struct editor* base) {
     doc = doc->next;
   }
 
-  document_file_manualchange(base->tabs_doc);
+  document_file_change_views(base->tabs_doc);
 
   if (base->focus==base->panel) {
     if (base->panel->document!=base->panel->document_hex) {
@@ -374,6 +375,8 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
     if (base->focus==base->document) {
       editor_focus(base, document, 0);
     }
+  } else if (command==TIPPSE_CMD_RELOAD) {
+    editor_reload_document(base, base->document->file);
   } else if (command==TIPPSE_CMD_SAVE) {
     editor_save_document(base, base->document->file);
   } else if (command==TIPPSE_CMD_SAVEALL) {
@@ -517,13 +520,13 @@ void editor_open_document(struct editor* base, const char* name, struct splitter
       if (destination) {
         document_file_name(destination->file, relative);
         document_directory(base->browser_doc);
-        document_file_manualchange(base->browser_doc);
+        document_file_change_views(base->browser_doc);
         document_view_reset(destination->view, base->browser_doc);
         destination->view->line_select = 1;
       }
     } else {
       new_document_doc = document_file_create(1, 1);
-      document_file_load(new_document_doc, relative);
+      document_file_load(new_document_doc, relative, 0);
     }
   }
 
@@ -540,9 +543,14 @@ void editor_open_document(struct editor* base, const char* name, struct splitter
   free(corrected);
 }
 
+// Reload single document
+void editor_reload_document(struct editor* base, struct document_file* file) {
+  document_file_load(file, file->filename, 1);
+}
+
 // Save single modified document
 void editor_save_document(struct editor* base, struct document_file* file) {
-  if (document_undo_modified(file) && file->save) {
+  if ((document_undo_modified(file) || document_file_modified_cache(file)) && file->save) {
     document_file_save(file, file->filename);
     document_file_detect_properties(file);
   }

@@ -53,7 +53,7 @@ struct document_file* document_file_create(int save, int config) {
 }
 
 // Clear file operations
-void document_file_clear(struct document_file* base) {
+void document_file_clear(struct document_file* base, int all) {
   if (base->cache) {
     document_file_dereference_cache(base, base->cache);
     file_cache_dereference(base->cache);
@@ -65,19 +65,21 @@ void document_file_clear(struct document_file* base) {
     base->buffer = NULL;
   }
 
-  if (base->bookmarks) {
-    range_tree_destroy(base->bookmarks, NULL);
-    base->bookmarks = NULL;
-  }
+  if (all) {
+    if (base->bookmarks) {
+      range_tree_destroy(base->bookmarks, NULL);
+      base->bookmarks = NULL;
+    }
 
-  if (base->config) {
-    config_clear(base->config);
+    if (base->config) {
+      config_clear(base->config);
+    }
   }
 }
 
 // Destroy file operations
 void document_file_destroy(struct document_file* base) {
-  document_file_clear(base);
+  document_file_clear(base, 1);
   document_file_close_pipe(base);
   document_undo_empty(base, base->undos);
   document_undo_empty(base, base->redos);
@@ -202,8 +204,8 @@ void document_file_close_pipe(struct document_file* base) {
 }
 
 // Load file from file system, up to a certain threshold
-void document_file_load(struct document_file* base, const char* filename) {
-  document_file_clear(base);
+void document_file_load(struct document_file* base, const char* filename, int reload) {
+  document_file_clear(base, !reload);
   int f = open(filename, O_RDONLY);
   if (f!=-1) {
     base->cache = file_cache_create(filename);
@@ -245,13 +247,17 @@ void document_file_load(struct document_file* base, const char* filename) {
   document_undo_mark_save_point(base);
   document_file_name(base, filename);
   document_file_detect_properties(base);
-  base->bookmarks = range_tree_static(base->bookmarks, base->buffer?base->buffer->length:0, 0);
-  document_file_reset_views(base);
+  base->bookmarks = range_tree_resize(base->bookmarks, base->buffer?base->buffer->length:0, 0);
+  if (!reload) {
+    document_file_reset_views(base);
+  } else {
+    document_file_change_views(base);
+  }
 }
 
 // Load file from memory
 void document_file_load_memory(struct document_file* base, const uint8_t* buffer, size_t length) {
-  document_file_clear(base);
+  document_file_clear(base, 1);
   file_offset_t offset = 0;
   while (length>0) {
     size_t max = (length>TREE_BLOCK_LENGTH_MAX)?TREE_BLOCK_LENGTH_MAX:length;
@@ -299,7 +305,7 @@ void document_file_save(struct document_file* base, const char* filename) {
     char* tmpname = combine_string(filename, ".save.tmp");
     if (document_file_save_plain(base, tmpname)) {
       if (rename(tmpname, filename)==0) {
-        document_file_load(base, filename);
+        document_file_load(base, filename, 1);
       }
     }
 
@@ -571,8 +577,8 @@ int document_file_delete_selection(struct document_file* base, struct document_v
 }
 
 // Change document data structure if not real file
-void document_file_manualchange(struct document_file* base) {
-  base->bookmarks = range_tree_static(base->bookmarks, base->buffer?base->buffer->length:0, 0);
+void document_file_change_views(struct document_file* base) {
+  base->bookmarks = range_tree_resize(base->bookmarks, base->buffer?base->buffer->length:0, 0);
 
   document_view_filechange(base->view, base);
 

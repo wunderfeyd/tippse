@@ -87,6 +87,7 @@ const char* config_default =
       "shift+f6:replaceprevious,"
       "f7:replaceall,"
       "ctrl+g:goto,"
+      "ctrl+r:reload,"
     "},"
     "filetypes:{"
       "C:{"
@@ -425,7 +426,7 @@ void config_clear(struct config* base) {
 void config_load(struct config* base, const char* filename) {
   struct document_file* file = document_file_create(0, 0);
   if (filename) {
-    document_file_load(file, filename);
+    document_file_load(file, filename, 0);
   } else {
     document_file_load_memory(file, (const uint8_t*)config_default, strlen(config_default));
   }

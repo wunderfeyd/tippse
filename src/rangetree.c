@@ -1085,6 +1085,20 @@ struct range_tree_node* range_tree_static(struct range_tree_node* root, file_off
   return root;
 }
 
+// Resize tree to match length
+struct range_tree_node* range_tree_resize(struct range_tree_node* root, file_offset_t length, int inserter) {
+  if (!root || root->length==0) {
+    root = range_tree_static(root, length, inserter);
+  } else if (root->length>length) {
+    root = range_tree_reduce(root, length, root->length-length);
+  } else if (root->length<length) {
+    file_offset_t last = root->length;
+    root = range_tree_expand(root, last, length-last);
+    root = range_tree_mark(root, last, length-last, inserter);
+  }
+  return root;
+}
+
 // Stretch node at offset by given length
 struct range_tree_node* range_tree_expand(struct range_tree_node* root, file_offset_t offset, file_offset_t length) {
   file_offset_t split = 0;

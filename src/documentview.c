@@ -54,5 +54,5 @@ void document_view_filechange(struct document_view* base, struct document_file* 
   base->show_invisibles = file->defaults.invisibles;
   base->continuous = file->defaults.continuous;
   base->line_select = file->line_select;
-  base->selection = range_tree_static(base->selection, file->buffer?file->buffer->length:0, 0);
+  base->selection = range_tree_resize(base->selection, file->buffer?file->buffer->length:0, 0);
 }
