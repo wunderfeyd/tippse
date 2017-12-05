@@ -253,3 +253,29 @@ uint64_t decode_based_unsigned(struct encoding_cache* cache, int base) {
 
   return output;
 }
+
+// String contains filter string (simple search)
+int contains_filter(const char* text, const char* filter) {
+  if (!filter) {
+    return 1;
+  }
+
+  while (1) {
+    const char* check1 = text;
+    const char* check2 = filter;
+    while (*check1!=0 && *check1==*check2) {
+      check1++;
+      check2++;
+    }
+
+    if (*check2==0) {
+      return 1;
+    }
+
+    if (*check1==0) {
+      return 0;
+    }
+
+    text++;
+  }
+}

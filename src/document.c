@@ -225,7 +225,7 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
 
 
 // Read directory into document, sort by file name
-void document_directory(struct document_file* file) {
+void document_directory(struct document_file* file, const char* filter) {
   DIR* directory = opendir(file->filename);
   if (directory) {
     struct list* files = list_create(sizeof(char*));
@@ -235,8 +235,10 @@ void document_directory(struct document_file* file) {
         break;
       }
 
-      char* name = strdup(&entry->d_name[0]);
-      list_insert(files, NULL, &name);
+      if (contains_filter(&entry->d_name[0], filter)) {
+        char* name = strdup(&entry->d_name[0]);
+        list_insert(files, NULL, &name);
+      }
     }
 
     closedir(directory);

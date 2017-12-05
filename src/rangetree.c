@@ -1044,7 +1044,7 @@ struct range_tree_node* range_tree_paste(struct range_tree_node* root, struct ra
 
 // Copy specific range from tree into a buffer
 uint8_t* range_tree_raw(struct range_tree_node* root, file_offset_t start, file_offset_t end) {
-  if (!root) {
+  if (!root || end<=start) {
     return (uint8_t*)strdup("");
   }
 

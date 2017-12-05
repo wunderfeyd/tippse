@@ -126,6 +126,7 @@ struct editor {
   struct document_file* goto_doc;     // document: line/offset for position jump
   struct document_file* document_doc; // document: inital empty document
   struct document_file* compiler_doc; // document: compiler output
+  struct document_file* filter_doc;   // document: panel filter
 
   struct splitter* splitters;         // Tree of splitters
   struct splitter* panel;             // Extra panel for toolbox user input
@@ -165,4 +166,6 @@ void editor_save_document(struct editor* base, struct document_file* file);
 void editor_save_documents(struct editor* base);
 void editor_close_document(struct editor* base, struct document_file* file);
 void editor_panel_assign(struct editor* base, struct document_file* file);
+void editor_view_browser(struct editor* base, struct splitter* destination, const char* filename, const char* filter);
+void editor_view_tabs(struct editor* base, struct splitter* destination, const char* filter);
 #endif /* #ifndef TIPPSE_EDITOR_H */

@@ -35,6 +35,6 @@ struct document {
 
 int document_compare(struct range_tree_node* left, file_offset_t displacement_left, struct range_tree_node* right_root, file_offset_t length);
 int document_search(struct splitter* splitter, struct range_tree_node* search_text, struct range_tree_node* replace_text, int forward, int all, int replace);
-void document_directory(struct document_file* file);
+void document_directory(struct document_file* file, const char* filter);
 
 #endif /* #ifndef TIPPSE_DOCUMENT_H */
