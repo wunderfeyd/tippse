@@ -88,6 +88,7 @@ const char* config_default =
       "f7:replaceall,"
       "ctrl+g:goto,"
       "ctrl+r:reload,"
+      "ctrl+p:commands,"
     "},"
     "filetypes:{"
       "C:{"
