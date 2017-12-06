@@ -72,7 +72,6 @@ const char* config_default =
       "ctrl+o:open,"
       "f4:split,"
       "shift+f4:unsplit,"
-      "ctrl+p:invisibles,"
       "ctrl+b:browser,"
       "ctrl+u:switch,"
       "f2:bookmark,"

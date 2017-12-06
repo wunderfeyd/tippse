@@ -142,6 +142,7 @@ struct editor {
   int64_t tick_undo;        // Tick count for next undo chaining
   int64_t tick_incremental; // Tick count for next incremental document processing
 
+  char* command_map[TIPPSE_CMD_MAX];
   int pipefd[2];                      // Process stdin/stdout pipes
 };
 
@@ -163,7 +164,7 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
 void editor_focus(struct editor* base, struct splitter* node, int disable);
 void editor_split(struct editor* base, struct splitter* node);
 struct splitter* editor_unsplit(struct editor* base, struct splitter* node);
-void editor_open_selection(struct editor* base, struct splitter* node, struct splitter* destination);
+int editor_open_selection(struct editor* base, struct splitter* node, struct splitter* destination);
 void editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination);
 void editor_reload_document(struct editor* base, struct document_file* file);
 void editor_save_document(struct editor* base, struct document_file* file);
@@ -174,4 +175,8 @@ void editor_view_browser(struct editor* base, const char* filename, const char* 
 void editor_view_tabs(struct editor* base, const char* filter);
 void editor_view_commands(struct editor* base, const char* filter);
 int editor_update_panel_height(struct editor* base, struct splitter* panel, int max);
+
+void editor_command_map_create(struct editor* base);
+void editor_command_map_destroy(struct editor* base);
+void editor_command_map_read(struct editor* base, struct document_file* file);
 #endif /* #ifndef TIPPSE_EDITOR_H */

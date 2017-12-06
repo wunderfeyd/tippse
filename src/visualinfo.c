@@ -4,24 +4,24 @@
 
 // color entry names
 struct config_cache visual_color_codes[VISUAL_FLAG_COLOR_MAX+1] = {
-  {"background", VISUAL_FLAG_COLOR_BACKGROUND},
-  {"text", VISUAL_FLAG_COLOR_TEXT},
-  {"selection", VISUAL_FLAG_COLOR_SELECTION},
-  {"readonly", VISUAL_FLAG_COLOR_READONLY},
-  {"status", VISUAL_FLAG_COLOR_STATUS},
-  {"frame", VISUAL_FLAG_COLOR_FRAME},
-  {"string", VISUAL_FLAG_COLOR_STRING},
-  {"type", VISUAL_FLAG_COLOR_TYPE},
-  {"keyword", VISUAL_FLAG_COLOR_KEYWORD},
-  {"preprocessor", VISUAL_FLAG_COLOR_PREPROCESSOR},
-  {"linecomment", VISUAL_FLAG_COLOR_LINECOMMENT},
-  {"blockcomment", VISUAL_FLAG_COLOR_BLOCKCOMMENT},
-  {"plus", VISUAL_FLAG_COLOR_PLUS},
-  {"minus", VISUAL_FLAG_COLOR_MINUS},
-  {"bracket", VISUAL_FLAG_COLOR_BRACKET},
-  {"linenumber", VISUAL_FLAG_COLOR_LINENUMBER},
-  {"bracketerror", VISUAL_FLAG_COLOR_BRACKETERROR},
-  {NULL, 0}
+  {"background", VISUAL_FLAG_COLOR_BACKGROUND, NULL},
+  {"text", VISUAL_FLAG_COLOR_TEXT, NULL},
+  {"selection", VISUAL_FLAG_COLOR_SELECTION, NULL},
+  {"readonly", VISUAL_FLAG_COLOR_READONLY, NULL},
+  {"status", VISUAL_FLAG_COLOR_STATUS, NULL},
+  {"frame", VISUAL_FLAG_COLOR_FRAME, NULL},
+  {"string", VISUAL_FLAG_COLOR_STRING, NULL},
+  {"type", VISUAL_FLAG_COLOR_TYPE, NULL},
+  {"keyword", VISUAL_FLAG_COLOR_KEYWORD, NULL},
+  {"preprocessor", VISUAL_FLAG_COLOR_PREPROCESSOR, NULL},
+  {"linecomment", VISUAL_FLAG_COLOR_LINECOMMENT, NULL},
+  {"blockcomment", VISUAL_FLAG_COLOR_BLOCKCOMMENT, NULL},
+  {"plus", VISUAL_FLAG_COLOR_PLUS, NULL},
+  {"minus", VISUAL_FLAG_COLOR_MINUS, NULL},
+  {"bracket", VISUAL_FLAG_COLOR_BRACKET, NULL},
+  {"linenumber", VISUAL_FLAG_COLOR_LINENUMBER, NULL},
+  {"bracketerror", VISUAL_FLAG_COLOR_BRACKETERROR, NULL},
+  {NULL, 0, NULL}
 };
 
 // Reset structure to known state

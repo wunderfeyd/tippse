@@ -36,65 +36,65 @@ const char* editor_key_names[TIPPSE_KEY_MAX] = {
 };
 
 struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
-  {"", TIPPSE_CMD_CHARACTER},
-  {"quit", TIPPSE_CMD_QUIT},
-  {"up", TIPPSE_CMD_UP},
-  {"down", TIPPSE_CMD_DOWN},
-  {"right", TIPPSE_CMD_RIGHT},
-  {"left", TIPPSE_CMD_LEFT},
-  {"pageup", TIPPSE_CMD_PAGEUP},
-  {"pagedown", TIPPSE_CMD_PAGEDOWN},
-  {"first", TIPPSE_CMD_FIRST},
-  {"last", TIPPSE_CMD_LAST},
-  {"home", TIPPSE_CMD_HOME},
-  {"end", TIPPSE_CMD_END},
-  {"backspace", TIPPSE_CMD_BACKSPACE},
-  {"delete", TIPPSE_CMD_DELETE},
-  {"insert", TIPPSE_CMD_INSERT},
-  {"search", TIPPSE_CMD_SEARCH},
-  {"searchnext", TIPPSE_CMD_SEARCH_NEXT},
-  {"undo", TIPPSE_CMD_UNDO},
-  {"redo", TIPPSE_CMD_REDO},
-  {"cut", TIPPSE_CMD_CUT},
-  {"copy", TIPPSE_CMD_COPY},
-  {"paste", TIPPSE_CMD_PASTE},
-  {"tab", TIPPSE_CMD_TAB},
-  {"untab", TIPPSE_CMD_UNTAB},
-  {"save", TIPPSE_CMD_SAVE},
-  {"mouse", TIPPSE_CMD_MOUSE},
-  {"searchprevious", TIPPSE_CMD_SEARCH_PREV},
-  {"open", TIPPSE_CMD_OPEN},
-  {"split", TIPPSE_CMD_SPLIT},
-  {"invisibles", TIPPSE_CMD_SHOW_INVISIBLES},
-  {"browser", TIPPSE_CMD_BROWSER},
-  {"switch", TIPPSE_CMD_VIEW_SWITCH},
-  {"bookmark", TIPPSE_CMD_BOOKMARK},
-  {"wordwrap", TIPPSE_CMD_WORDWRAP},
-  {"documents", TIPPSE_CMD_DOCUMENTSELECTION},
-  {"return", TIPPSE_CMD_RETURN},
-  {"selectall", TIPPSE_CMD_SELECT_ALL},
-  {"selectup", TIPPSE_CMD_SELECT_UP},
-  {"selectdown", TIPPSE_CMD_SELECT_DOWN},
-  {"selectright", TIPPSE_CMD_SELECT_RIGHT},
-  {"selectleft", TIPPSE_CMD_SELECT_LEFT},
-  {"selectpageup", TIPPSE_CMD_SELECT_PAGEUP},
-  {"selectpagedown", TIPPSE_CMD_SELECT_PAGEDOWN},
-  {"selectfirst", TIPPSE_CMD_SELECT_FIRST},
-  {"selectlast", TIPPSE_CMD_SELECT_LAST},
-  {"selecthome", TIPPSE_CMD_SELECT_HOME},
-  {"selectend", TIPPSE_CMD_SELECT_END},
-  {"close", TIPPSE_CMD_CLOSE},
-  {"saveall", TIPPSE_CMD_SAVEALL},
-  {"unsplit", TIPPSE_CMD_UNSPLIT},
-  {"compile", TIPPSE_CMD_COMPILE},
-  {"replace", TIPPSE_CMD_REPLACE},
-  {"replacenext", TIPPSE_CMD_REPLACE_NEXT},
-  {"replaceprevious", TIPPSE_CMD_REPLACE_PREV},
-  {"replaceall", TIPPSE_CMD_REPLACE_ALL},
-  {"goto", TIPPSE_CMD_GOTO},
-  {"reload", TIPPSE_CMD_RELOAD},
-  {"commands", TIPPSE_CMD_COMMANDS},
-  {NULL, 0}
+  {"", TIPPSE_CMD_CHARACTER, ""},
+  {"quit", TIPPSE_CMD_QUIT, "Exit application"},
+  {"up", TIPPSE_CMD_UP, "Move cursor up"},
+  {"down", TIPPSE_CMD_DOWN, "Move cursor down"},
+  {"right", TIPPSE_CMD_RIGHT, "Move cursor right"},
+  {"left", TIPPSE_CMD_LEFT, "Move cursor left"},
+  {"pageup", TIPPSE_CMD_PAGEUP, "Move cursor one page up"},
+  {"pagedown", TIPPSE_CMD_PAGEDOWN, "Move cursor one page down"},
+  {"first", TIPPSE_CMD_FIRST, "Move cursor to first position of line (toggle on identation)"},
+  {"last", TIPPSE_CMD_LAST, "Move cursor to last position of line"},
+  {"home", TIPPSE_CMD_HOME, "Move cursor to first position of file"},
+  {"end", TIPPSE_CMD_END, "Move cursor to last position of file"},
+  {"backspace", TIPPSE_CMD_BACKSPACE, "Remove character in front of the cursor"},
+  {"delete", TIPPSE_CMD_DELETE, "Remove character at cursor position"},
+  {"insert", TIPPSE_CMD_INSERT, "Unused"},
+  {"search", TIPPSE_CMD_SEARCH, "Open search panel"},
+  {"searchnext", TIPPSE_CMD_SEARCH_NEXT, "Find next occurrence of text to search"},
+  {"undo", TIPPSE_CMD_UNDO, "Undo last operation"},
+  {"redo", TIPPSE_CMD_REDO, "Repeat previous undone operation"},
+  {"cut", TIPPSE_CMD_CUT, "Copy to clipboard and delete selection"},
+  {"copy", TIPPSE_CMD_COPY, "Copy to clipboard selection and keep selection alive"},
+  {"paste", TIPPSE_CMD_PASTE, "Paste from clipboard"},
+  {"tab", TIPPSE_CMD_TAB, "Raise indentation"},
+  {"untab", TIPPSE_CMD_UNTAB, "Lower indentation"},
+  {"save", TIPPSE_CMD_SAVE, "Save active document"},
+  {"mouse", TIPPSE_CMD_MOUSE, "Unused"},
+  {"searchprevious", TIPPSE_CMD_SEARCH_PREV, "Find previous occurrence of text to search"},
+  {"open", TIPPSE_CMD_OPEN, "Open selected file"},
+  {"split", TIPPSE_CMD_SPLIT, "Split into two views"},
+  {"invisibles", TIPPSE_CMD_SHOW_INVISIBLES, "Toggle invisible character display"},
+  {"browser", TIPPSE_CMD_BROWSER, "Open file browser panel"},
+  {"switch", TIPPSE_CMD_VIEW_SWITCH, "Switch view between text editor and hex editor"},
+  {"bookmark", TIPPSE_CMD_BOOKMARK, "Toggle line bookmark"},
+  {"wordwrap", TIPPSE_CMD_WORDWRAP, "Toggle word wrapping"},
+  {"documents", TIPPSE_CMD_DOCUMENTSELECTION, "Open open document panel"},
+  {"return", TIPPSE_CMD_RETURN, "Insert line break"},
+  {"selectall", TIPPSE_CMD_SELECT_ALL, "Select whole document"},
+  {"selectup", TIPPSE_CMD_SELECT_UP, "Extend selection upwards"},
+  {"selectdown", TIPPSE_CMD_SELECT_DOWN, "Extend selection downwards"},
+  {"selectright", TIPPSE_CMD_SELECT_RIGHT, "Extend selection to the right"},
+  {"selectleft", TIPPSE_CMD_SELECT_LEFT, "Extend selection to the left"},
+  {"selectpageup", TIPPSE_CMD_SELECT_PAGEUP, "Extend selection a page up"},
+  {"selectpagedown", TIPPSE_CMD_SELECT_PAGEDOWN, "Extend selection a page down"},
+  {"selectfirst", TIPPSE_CMD_SELECT_FIRST, "Extend selection to first position on line"},
+  {"selectlast", TIPPSE_CMD_SELECT_LAST, "Extend selection to last position on line"},
+  {"selecthome", TIPPSE_CMD_SELECT_HOME, "Extend selection to first position of file"},
+  {"selectend", TIPPSE_CMD_SELECT_END, "Extend selection to last position of file"},
+  {"close", TIPPSE_CMD_CLOSE, "Close active document"},
+  {"saveall", TIPPSE_CMD_SAVEALL, "Save all modified documents"},
+  {"unsplit", TIPPSE_CMD_UNSPLIT, "Remove active view"},
+  {"compile", TIPPSE_CMD_COMPILE, "Show compiler output or start compilation if already shown"},
+  {"replace", TIPPSE_CMD_REPLACE, "Open replace panel"},
+  {"replacenext", TIPPSE_CMD_REPLACE_NEXT, "Replace selection and find next occurrence of text to search"},
+  {"replaceprevious", TIPPSE_CMD_REPLACE_PREV, "Replace selection and find previous occurrence of text to search"},
+  {"replaceall", TIPPSE_CMD_REPLACE_ALL, "Replace all occurrences"},
+  {"goto", TIPPSE_CMD_GOTO, "Open line number input panel"},
+  {"reload", TIPPSE_CMD_RELOAD, "Reload active document"},
+  {"commands", TIPPSE_CMD_COMMANDS, "Show all commands"},
+  {NULL, 0, ""}
 };
 
 // Create editor
@@ -107,6 +107,8 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->tick = tick_count();
   base->tick_undo = -1;
   base->tick_incremental = -1;
+
+  editor_command_map_create(base);
 
   base->documents = list_create(sizeof(struct document_file*));
 
@@ -161,6 +163,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   list_insert(base->documents, NULL, &base->browser_doc);
   list_insert(base->documents, NULL, &base->commands_doc);
   list_insert(base->documents, NULL, &base->compiler_doc);
+  list_insert(base->documents, NULL, &base->filter_doc);
 
   for (int n = argc-1; n>=1; n--) {
     if (n==1) {
@@ -188,6 +191,7 @@ void editor_destroy(struct editor* base) {
   }
 
   list_destroy(base->documents);
+  editor_command_map_destroy(base);
 
   free(base);
 }
@@ -208,7 +212,10 @@ int editor_update_panel_height(struct editor* base, struct splitter* panel, int 
 void editor_draw(struct editor* base) {
   if (base->focus==base->panel || base->focus==base->filter) {
     int filter_height = (base->focus==base->filter)?(editor_update_panel_height(base, base->filter, (base->screen->height/4)+1)):0;
-    int panel_height = editor_update_panel_height(base, base->panel, (base->screen->height/2)+1-filter_height);
+    int panel_height = (base->screen->height/2)+1-filter_height-(filter_height>0?1:0);
+    if (base->panel->file!=base->browser_doc && base->panel->file!=base->tabs_doc && base->panel->file!=base->commands_doc) {
+      panel_height = editor_update_panel_height(base, base->panel, (base->screen->height/2)+1-filter_height);;
+    }
 
     base->toolbox->split = filter_height;
     base->splitters->split = filter_height+panel_height+(filter_height>0?1:0);
@@ -368,9 +375,8 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
     }
 
     editor_focus(base, base->document, 1);
-  } else if (command==TIPPSE_CMD_OPEN || (command==TIPPSE_CMD_RETURN && base->panel->view->line_select)) {
-    editor_open_selection(base, (base->focus->file==base->filter_doc)?base->panel:base->focus, base->document);
-    document_file_clear(base->filter_doc, 0);
+  } else if (command==TIPPSE_CMD_OPEN) {
+    editor_open_selection(base, base->focus, base->document);
   } else if (command==TIPPSE_CMD_SPLIT) {
     editor_split(base, base->document);
   } else if (command==TIPPSE_CMD_UNSPLIT) {
@@ -393,29 +399,32 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
   } else {
     if (base->focus->file==base->tabs_doc || base->focus->file==base->browser_doc || base->focus->file==base->commands_doc || base->focus->file==base->filter_doc) {
       file_offset_t before = base->filter->file->buffer?base->filter->file->buffer->length:0;
-      if (command==TIPPSE_CMD_UP || command==TIPPSE_CMD_DOWN || command==TIPPSE_CMD_PAGEDOWN || command==TIPPSE_CMD_PAGEUP || command==TIPPSE_CMD_HOME || command==TIPPSE_CMD_END) {
+      if (command==TIPPSE_CMD_UP || command==TIPPSE_CMD_DOWN || command==TIPPSE_CMD_PAGEDOWN || command==TIPPSE_CMD_PAGEUP || command==TIPPSE_CMD_HOME || command==TIPPSE_CMD_END || command==TIPPSE_CMD_RETURN) {
         (*base->panel->document->keypress)(base->panel->document, base->panel, command, key, cp, button, button_old, x-base->document->x, y-base->focus->y);
       } else {
         (*base->filter->document->keypress)(base->filter->document, base->filter, command, key, cp, button, button_old, x-base->filter->x, y-base->panel->y);
       }
 
-      file_offset_t now = base->filter->file->buffer?base->filter->file->buffer->length:0;
-      if (before!=now) {
-        char* filter = (char*)range_tree_raw(base->filter->file->buffer, 0, now);
-        if (base->panel->file==base->browser_doc) {
-          editor_view_browser(base, NULL, filter);
-        } else if (base->panel->file==base->tabs_doc) {
-          editor_view_tabs(base, filter);
-        } else if (base->panel->file==base->commands_doc) {
-          editor_view_commands(base, filter);
-        }
-        free(filter);
+      int selected = 0;
+      if (command==TIPPSE_CMD_RETURN) {
+        selected = editor_open_selection(base, base->panel, base->document);
       }
 
-      if (base->filter_doc->buffer && base->filter_doc->buffer->length>0) {
-        editor_focus(base, base->filter, 1);
-      } else {
-        editor_focus(base, base->panel, 1);
+      if (!selected) {
+        file_offset_t now = base->filter->file->buffer?base->filter->file->buffer->length:0;
+        if (before!=now) {
+          char* filter = (char*)range_tree_raw(base->filter->file->buffer, 0, now);
+          if (base->panel->file==base->browser_doc) {
+            editor_view_browser(base, NULL, filter);
+          } else if (base->panel->file==base->tabs_doc) {
+            editor_view_tabs(base, filter);
+          } else if (base->panel->file==base->commands_doc) {
+            editor_view_commands(base, filter);
+          }
+          free(filter);
+        }
+
+        editor_focus(base, now?base->filter:base->panel, 1);
       }
     } else {
       (*base->focus->document->keypress)(base->focus->document, base->focus, command, key, cp, button, button_old, x-base->focus->x, y-base->focus->y);
@@ -494,28 +503,28 @@ struct splitter* editor_unsplit(struct editor* base, struct splitter* node) {
 }
 
 // Use selection from specified view to open a new document
-void editor_open_selection(struct editor* base, struct splitter* node, struct splitter* destination) {
+int editor_open_selection(struct editor* base, struct splitter* node, struct splitter* destination) {
+  int done = 0;
+
   if (node->view->selection_low!=node->view->selection_high) {
-    struct list_node* views = destination->file->views->first;
-    while (views) {
-      struct document_view* view = *(struct document_view**)list_object(views);
-      if (view==destination->view) {
-        list_remove(destination->file->views, views);
-        break;
-      }
-
-      views = views->next;
-    }
-
     char* name = (char*)range_tree_raw(node->file->buffer, node->view->selection_low, node->view->selection_high);
     if (*name) {
       editor_focus(base, destination, 1);
+      done = 1;
       if (base->panel->file!=base->commands_doc) {
         editor_open_document(base, name, node, destination);
       } else {
         for (size_t n = 0; editor_commands[n].text; n++) {
-          if (strcmp(name, editor_commands[n].text)==0) {
+          const char* compare1 = name;
+          const char* compare2 = editor_commands[n].text;
+          while (*compare1!=0 && *compare1!=' ' && *compare1==*compare2) {
+            compare1++;
+            compare2++;
+          }
+
+          if (*compare1==' ') {
             editor_intercept(base, (int)n, 0, 0, 0, 0, 0, 0);
+            break;
           }
         }
       }
@@ -523,6 +532,8 @@ void editor_open_selection(struct editor* base, struct splitter* node, struct sp
 
     free(name);
   }
+
+  return done;
 }
 
 // Open file into destination splitter
@@ -645,9 +656,7 @@ void editor_close_document(struct editor* base, struct document_file* file) {
 void editor_panel_assign(struct editor* base, struct document_file* file) {
   if (base->focus==base->document || base->panel->file!=file) {
     splitter_assign_document_file(base->panel, file);
-    if (base->panel->file!=base->filter_doc) {
-      editor_focus(base, base->panel, 1);
-    }
+    editor_focus(base, base->panel, 1);
   } else {
     editor_focus(base, base->document, 1);
   }
@@ -706,19 +715,23 @@ void editor_view_tabs(struct editor* base, const char* filter) {
 // Update and change to commands view
 void editor_view_commands(struct editor* base, const char* filter) {
   if (!filter) {
+    editor_command_map_read(base, base->document->file);
     document_file_clear(base->filter_doc, 0);
   }
 
   editor_panel_assign(base, base->commands_doc);
 
   base->commands_doc->buffer = range_tree_delete(base->commands_doc->buffer, 0, base->commands_doc->buffer?base->commands_doc->buffer->length:0, TIPPSE_INSERTER_AUTO, base->commands_doc);
-  for (size_t n = 0; editor_commands[n].text; n++) {
-    if (contains_filter(editor_commands[n].text, filter)) {
+  for (size_t n = 1; editor_commands[n].text; n++) {
+    char output[4096];
+    // TODO: Encoding may destroy equal width ... build string in a different way
+    sprintf(&output[0], "%-16s | %-16s | %s", editor_commands[n].text, base->command_map[n]?base->command_map[n]:"<none>", editor_commands[n].description);
+    if (contains_filter(&output[0], filter)) {
       if (base->commands_doc->buffer) {
         base->commands_doc->buffer = range_tree_insert_split(base->commands_doc->buffer, base->commands_doc->buffer?base->commands_doc->buffer->length:0, (uint8_t*)"\n", 1, TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
       }
 
-      base->commands_doc->buffer = range_tree_insert_split(base->commands_doc->buffer, base->commands_doc->buffer?base->commands_doc->buffer->length:0, (uint8_t*)editor_commands[n].text, strlen(editor_commands[n].text), TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+      base->commands_doc->buffer = range_tree_insert_split(base->commands_doc->buffer, base->commands_doc->buffer?base->commands_doc->buffer->length:0, (uint8_t*)&output[0], strlen(&output[0]), TIPPSE_INSERTER_ESCAPE|TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
     }
   }
 
@@ -727,4 +740,59 @@ void editor_view_commands(struct editor* base, const char* filter) {
   base->panel->view->line_select = 1;
 
   (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, 0, 0, 0, 0, 0, 0);
+}
+
+void editor_command_map_create(struct editor* base) {
+  for (size_t n = 0; n<TIPPSE_CMD_MAX; n++) {
+    base->command_map[n] = NULL;
+  }
+}
+
+void editor_command_map_destroy(struct editor* base) {
+  for (size_t n = 0; n<TIPPSE_CMD_MAX; n++) {
+    free(base->command_map[n]);
+  }
+}
+
+void editor_command_map_read(struct editor* base, struct document_file* file) {
+  editor_command_map_destroy(base);
+  editor_command_map_create(base);
+  struct trie_node* key_base = config_find_ascii(file->config, "/keys/");
+  struct trie_node* parents[1024];
+  codepoint_t chars[1024];
+  size_t pos = 0;
+  parents[pos] = key_base;
+  chars[pos] = 0;
+  while (1) {
+    codepoint_t cp = 0;
+    struct trie_node* parent = trie_find_codepoint_min(file->config->keywords, parents[pos], chars[pos], &cp);
+    if (!parent) {
+      if (pos==0) {
+        break;
+      }
+
+      pos--;
+    } else {
+      chars[pos] = cp;
+      pos++;
+
+      if (parent->type!=0) {
+        char encoded[4096];
+        char* build = &encoded[0];
+        for (size_t copy = 0; copy<pos; copy++) {
+          build += (*base->commands_doc->encoding->encode)(NULL, chars[copy], (uint8_t*)build, SIZE_T_MAX);
+        }
+        *build = 0;
+        int command = (int)config_convert_int64_cache(parent, &editor_commands[0]);
+        if (command>=0 && command<TIPPSE_CMD_MAX) {
+          if (!base->command_map[command]) {
+            base->command_map[command] = strdup(&encoded[0]);
+          }
+        }
+      }
+
+      parents[pos] = parent;
+      chars[pos] = 0;
+    }
+  }
 }

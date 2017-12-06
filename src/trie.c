@@ -87,3 +87,39 @@ struct trie_node* trie_find_codepoint(struct trie* base, struct trie_node* paren
 
   return parent;
 }
+
+// Find next codepoint (higher than the one before)
+struct trie_node* trie_find_codepoint_min(struct trie* base, struct trie_node* parent, codepoint_t cp, codepoint_t* out) {
+  if (!parent) {
+    parent = base->root;
+    if (!parent) {
+      return NULL;
+    }
+  }
+
+  return trie_find_codepoint_recursive(base, parent, cp, out, 0, TRIE_CODEPOINT_BIT-4);
+}
+
+// Find next codepoint (higher than the one before)
+struct trie_node* trie_find_codepoint_recursive(struct trie* base, struct trie_node* parent, codepoint_t cp, codepoint_t* out, codepoint_t build, int bit) {
+
+  struct trie_node* node = NULL;
+  for (int set = 0; set<16; set++) {
+    if (parent->side[set]) {
+      codepoint_t new = build|((codepoint_t)set<<bit);
+      if (new+(1<<bit)-1>cp) {
+        if (bit==0) {
+          *out = new;
+          return parent->side[set];
+        } else {
+          node = trie_find_codepoint_recursive(base, parent->side[set], cp, out, new, bit-4);
+          if (node) {
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  return node;
+}

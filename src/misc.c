@@ -263,7 +263,7 @@ int contains_filter(const char* text, const char* filter) {
   while (1) {
     const char* check1 = text;
     const char* check2 = filter;
-    while (*check1!=0 && *check1==*check2) {
+    while (*check1!=0 && tolower(*check1)==tolower(*check2)) {
       check1++;
       check2++;
     }

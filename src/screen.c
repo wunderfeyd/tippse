@@ -31,25 +31,25 @@ const char* screen_ansi_restore =
 
 // color names from https://jonasjacek.github.io/colors
 struct config_cache screen_color_codes[] = {
-  {"background", -2},
-  {"foreground", -1},
-  {"black", 0},
-  {"maroon", 1},
-  {"green", 2},
-  {"olive", 3},
-  {"navy", 4},
-  {"purple", 5},
-  {"teal", 6},
-  {"silver", 7},
-  {"grey", 8},
-  {"red", 9},
-  {"lime", 10},
-  {"yellow", 11},
-  {"blue", 12},
-  {"fuchsia", 13},
-  {"aqua", 14},
-  {"white", 15},
-  {NULL, 0}
+  {"background", -2, NULL},
+  {"foreground", -1, NULL},
+  {"black", 0, NULL},
+  {"maroon", 1, NULL},
+  {"green", 2, NULL},
+  {"olive", 3, NULL},
+  {"navy", 4, NULL},
+  {"purple", 5, NULL},
+  {"teal", 6, NULL},
+  {"silver", 7, NULL},
+  {"grey", 8, NULL},
+  {"red", 9, NULL},
+  {"lime", 10, NULL},
+  {"yellow", 11, NULL},
+  {"blue", 12, NULL},
+  {"fuchsia", 13, NULL},
+  {"aqua", 14, NULL},
+  {"white", 15, NULL},
+  {NULL, 0, NULL}
 };
 
 // Create screen

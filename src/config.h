@@ -21,6 +21,7 @@ struct config {
 struct config_cache {
   const char* text;         // key
   int64_t value;            // value
+  const char* description;  // description
 };
 
 #include "list.h"

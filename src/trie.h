@@ -34,5 +34,7 @@ void trie_clear(struct trie* base);
 struct trie_node* trie_create_node(struct trie* base);
 struct trie_node* trie_append_codepoint(struct trie* base, struct trie_node* parent, codepoint_t cp, intptr_t type);
 struct trie_node* trie_find_codepoint(struct trie* base, struct trie_node* parent, codepoint_t cp);
+struct trie_node* trie_find_codepoint_min(struct trie* base, struct trie_node* parent, codepoint_t cp, codepoint_t* out);
+struct trie_node* trie_find_codepoint_recursive(struct trie* base, struct trie_node* parent, codepoint_t cp, codepoint_t* out, codepoint_t build, int bit);
 
 #endif  /* #ifndef TIPPSE_TRIE_H */
