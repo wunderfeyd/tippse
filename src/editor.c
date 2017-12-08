@@ -742,18 +742,21 @@ void editor_view_commands(struct editor* base, const char* filter) {
   (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, 0, 0, 0, 0, 0, 0);
 }
 
+// Setup command map array
 void editor_command_map_create(struct editor* base) {
   for (size_t n = 0; n<TIPPSE_CMD_MAX; n++) {
     base->command_map[n] = NULL;
   }
 }
 
+// Free strings of command map
 void editor_command_map_destroy(struct editor* base) {
   for (size_t n = 0; n<TIPPSE_CMD_MAX; n++) {
     free(base->command_map[n]);
   }
 }
 
+// Build command map
 void editor_command_map_read(struct editor* base, struct document_file* file) {
   editor_command_map_destroy(base);
   editor_command_map_create(base);

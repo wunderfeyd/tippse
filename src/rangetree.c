@@ -1106,6 +1106,8 @@ struct range_tree_node* range_tree_expand(struct range_tree_node* root, file_off
   if (node) {
     node->length += length;
     root = range_tree_update(node);
+  } else {
+    root = range_tree_resize(root, length, 0);
   }
 
   return root;

@@ -1535,9 +1535,11 @@ void document_text_toggle_bookmark(struct document* base, struct splitter* split
   document_text_cursor_position(splitter, &in_line_column, &out, 1, 1);
   file_offset_t end = out.offset;
 
-  int marked = range_tree_marked(file->bookmarks, start, end-start, TIPPSE_INSERTER_MARK);
-  file->bookmarks = range_tree_mark(file->bookmarks, start, end-start, marked?0:TIPPSE_INSERTER_MARK);
-  // range_tree_print(file->bookmarks, 0, 0);
+  if (file->bookmarks) {
+    int marked = range_tree_marked(file->bookmarks, start, end-start, TIPPSE_INSERTER_MARK);
+    file->bookmarks = range_tree_mark(file->bookmarks, start, end-start, marked?0:TIPPSE_INSERTER_MARK);
+    // range_tree_print(file->bookmarks, 0, 0);
+  }
 }
 
 // Lower indentation for selected range (if possible)

@@ -100,16 +100,28 @@ void splitter_cursor(struct splitter* base, struct screen* screen, int x, int y)
 void splitter_scrollbar(const struct splitter* base, struct screen* screen) {
   struct document_view* view = base->view;
 
-  if (view->show_scrollbar) {
+  if (view->show_scrollbar && base->client_height>0) {
     position_t start = view->scroll_y;
     position_t end = view->scroll_y+base->client_height;
-    position_t length = view->scroll_y_max;
+    position_t length = view->scroll_y_max+1;
+    if (end>length) {
+      end = length;
+    }
 
-    int pos_start = (int)((start*base->client_height)/(length+1));
-    int pos_end = (int)((end*base->client_height)/(length+1));
+    int size = (int)(((end-start)*(base->client_height-((base->client_height>=length)?0:1)))/length);
+    if (size<1) {
+      size = 1;
+    }
+
+    int pos_start = (int)((start*(base->client_height-1-size))/(length-(end-start)))+1;
+    if (start==0) {
+     pos_start = 0;
+    }
+
+    int pos_end = pos_start+size;
     codepoint_t cp = 0x20;
     for (int y = 0; y<base->client_height; y++) {
-      if (y>=pos_start && y<=pos_end) {
+      if (y>=pos_start && y<pos_end) {
         splitter_drawchar(base, screen, base->client_width-1, y, &cp, 1, 17, 231);
       } else {
         splitter_drawchar(base, screen, base->client_width-1, y, &cp, 1, 17, 102);
