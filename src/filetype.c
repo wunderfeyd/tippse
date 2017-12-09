@@ -53,7 +53,7 @@ int file_type_keyword_config(struct file_type* base, struct encoding_cache* cach
       break;
     }
 
-    if (parent->type!=0) {
+    if (parent->end) {
       codepoint_t cp = encoding_cache_find_codepoint(cache, pos);
       if ((cp<'a' || cp>'z') && (cp<'A' || cp>'Z') && (cp<'0' || cp>'9') && cp!='_') {
         last = parent;

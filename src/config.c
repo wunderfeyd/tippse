@@ -400,7 +400,7 @@ void config_value_destroy(struct config_value* base) {
 // Create configuration
 struct config* config_create(void) {
   struct config* base = malloc(sizeof(struct config));
-  base->keywords = trie_create();
+  base->keywords = trie_create(sizeof(struct list_node*));
   base->values = list_create(sizeof(struct config_value));
   return base;
 }
@@ -576,12 +576,13 @@ void config_update(struct config* base, codepoint_t* keyword_codepoints, size_t 
   while (keyword_length-->0) {
     parent = trie_append_codepoint(base->keywords, parent, *keyword_codepoints, 0);
     if (keyword_length==0) {
-      if (parent->type!=0) { // TODO: 0 != NULL
-        config_value_destroy((struct config_value*)list_object((struct list_node*)parent->type));
-        list_remove(base->values, (struct list_node*)parent->type);
+      if (parent->end) {
+        config_value_destroy((struct config_value*)list_object(*(struct list_node**)trie_object(parent)));
+        list_remove(base->values, *(struct list_node**)trie_object(parent));
       }
 
-      parent->type = (intptr_t)node;
+      parent->end = 1;
+      *(struct list_node**)trie_object(parent) = node;
     }
 
     keyword_codepoints++;
@@ -628,8 +629,8 @@ struct trie_node* config_find_ascii(struct config* base, const char* keyword) {
 
 // Get value at found position
 codepoint_t* config_value(struct trie_node* parent) {
-  if (parent && parent->type!=0) {
-    return ((struct config_value*)list_object((struct list_node*)parent->type))->codepoints;
+  if (parent && parent->end) {
+    return ((struct config_value*)list_object(*(struct list_node**)trie_object(parent)))->codepoints;
   }
 
   return NULL;
@@ -691,8 +692,8 @@ int64_t config_convert_int64(struct trie_node* parent) {
 
 // Convert value to integer and cache keywords
 int64_t config_convert_int64_cache(struct trie_node* parent, struct config_cache* cache) {
-  if (parent && parent->type!=0) {
-    struct config_value* value = (struct config_value*)list_object((struct list_node*)parent->type);
+  if (parent && parent->end) {
+    struct config_value* value = (struct config_value*)list_object(*(struct list_node**)trie_object(parent));
     if (value->cached) {
       return value->value;
     }

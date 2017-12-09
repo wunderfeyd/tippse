@@ -779,7 +779,7 @@ void editor_command_map_read(struct editor* base, struct document_file* file) {
       chars[pos] = cp;
       pos++;
 
-      if (parent->type!=0) {
+      if (parent->end) {
         char encoded[4096];
         char* build = &encoded[0];
         for (size_t copy = 0; copy<pos; copy++) {

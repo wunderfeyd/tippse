@@ -2,9 +2,10 @@
 
 #include "trie.h"
 
-struct trie* trie_create(void) {
+struct trie* trie_create(size_t node_size) {
   struct trie* base = malloc(sizeof(struct trie));
-  base->buckets = list_create(sizeof(struct trie_node)*TRIE_NODES_PER_BUCKET);
+  base->node_size = node_size;
+  base->buckets = list_create((sizeof(struct trie_node)+node_size)*TRIE_NODES_PER_BUCKET);
   trie_clear(base);
   return base;
 }
@@ -30,9 +31,9 @@ struct trie_node* trie_create_node(struct trie* base) {
     list_object(list_insert_empty(base->buckets, NULL));
   }
 
-  struct trie_node* node = &((struct trie_node*)list_object(base->buckets->first))[base->fill];
+  struct trie_node* node = (struct trie_node*)(((uint8_t*)list_object(base->buckets->first))+(sizeof(struct trie_node)+base->node_size)*base->fill);
   node->parent = NULL;
-  node->type = 0;
+  node->end = 0;
   for (int side = 0; side<16; side++) {
     node->side[side] = NULL;
   }
@@ -41,7 +42,7 @@ struct trie_node* trie_create_node(struct trie* base) {
   return node;
 }
 
-struct trie_node* trie_append_codepoint(struct trie* base, struct trie_node* parent, codepoint_t cp, intptr_t type) {
+struct trie_node* trie_append_codepoint(struct trie* base, struct trie_node* parent, codepoint_t cp, int end) {
   if (!parent) {
     parent = base->root;
     if (!parent) {
@@ -59,7 +60,7 @@ struct trie_node* trie_append_codepoint(struct trie* base, struct trie_node* par
       node->parent = parent;
     }
 
-    node->type = (bit==0 && type!=0)?type:node->type;
+    node->end = (bit==0 && end!=0)?end:node->end;
 
     parent = node;
   }
