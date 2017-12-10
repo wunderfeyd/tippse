@@ -24,6 +24,7 @@ struct document_view {
   position_t scroll_y_old;              // scroll Y offset, last renedering
   position_t scroll_y_max;              // maximum scroll Y offset
   position_t address_width;             // width of address column, used for line number too
+  int bracket_indentation;              // the next closing bracket could modify identation
   int show_scrollbar;                   // show scrollbar?
   int show_invisibles;                  // show invisibles?
   int wrapping;                         // show word wrapping?

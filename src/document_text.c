@@ -1060,6 +1060,10 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   in_x_y.x = view->cursor_x;
   in_x_y.y = view->cursor_y;
 
+  if (command!=TIPPSE_CMD_CHARACTER) {
+    view->bracket_indentation = 0;
+  }
+
   if (command==TIPPSE_CMD_UP || command==TIPPSE_CMD_SELECT_UP) {
     in_x_y.y--;
     view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
@@ -1097,17 +1101,17 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_BACKSPACE) {
-    if (!document_file_delete_selection(splitter->file, splitter->view)) {
+    if (!document_file_delete_selection(file, view)) {
       in_x_y.x--;
       file_offset_t start = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
-      document_file_delete(splitter->file, start, view->offset-start);
+      document_file_delete(file, start, view->offset-start);
     }
     seek = 1;
   } else if (command==TIPPSE_CMD_DELETE) {
-    if (!document_file_delete_selection(splitter->file, splitter->view)) {
+    if (!document_file_delete_selection(file, view)) {
       in_x_y.x++;
       file_offset_t end = document_text_cursor_position(splitter, &in_x_y, &out, 1, 0);
-      document_file_delete(splitter->file, view->offset, end-view->offset);
+      document_file_delete(file, view->offset, end-view->offset);
     }
     seek = 1;
   } else if (command==TIPPSE_CMD_FIRST || command==TIPPSE_CMD_SELECT_FIRST) {
@@ -1215,7 +1219,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
         utf8[0] = '\t';
       }
 
-      document_file_insert(splitter->file, view->offset, &utf8[0], size);
+      document_file_insert(file, view->offset, &utf8[0], size);
     } else {
       document_text_raise_indentation(base, splitter, view->selection_low, view->selection_high-1, 1);
     }
@@ -1239,7 +1243,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     if (view->selection_low!=FILE_OFFSET_T_MAX) {
       clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low), file->binary);
       if (command==TIPPSE_CMD_CUT) {
-        document_file_delete_selection(splitter->file, splitter->view);
+        document_file_delete_selection(file, view);
       } else {
         selection_keep = 1;
       }
@@ -1248,11 +1252,11 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     seek = 1;
   } else if (command==TIPPSE_CMD_PASTE) {
     document_undo_chain(file, file->undos);
-    document_file_delete_selection(splitter->file, splitter->view);
+    document_file_delete_selection(file, view);
 
     struct range_tree_node* buffer = clipboard_get();
     if (buffer) {
-      document_file_insert_buffer(splitter->file, view->offset, buffer);
+      document_file_insert_buffer(file, view->offset, buffer);
     }
 
     document_undo_chain(file, file->undos);
@@ -1264,10 +1268,6 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->wrapping ^= 1;
     (*base->reset)(base, splitter);
   } else if (command==TIPPSE_CMD_RETURN) {
-    if (out.lines==0) {
-      range_tree_find_bracket_lowest(out.buffer, out.min_line, out.buffer?out.buffer:range_tree_last(file->buffer));
-    }
-
     struct document_text_position out_indentation_copy;
     if (out.column!=0) {
       in_line_column.line = out.line;
@@ -1277,14 +1277,14 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       out_indentation_copy = out;
     }
 
-    document_file_delete_selection(splitter->file, splitter->view);
+    document_file_delete_selection(file, view);
 
     if (file->newline==TIPPSE_NEWLINE_CRLF) {
-      document_file_insert(splitter->file, view->offset, (uint8_t*)"\r\n", 2);
+      document_file_insert(file, view->offset, (uint8_t*)"\r\n", 2);
     } else if (file->newline==TIPPSE_NEWLINE_CR) {
-      document_file_insert(splitter->file, view->offset, (uint8_t*)"\r", 1);
+      document_file_insert(file, view->offset, (uint8_t*)"\r", 1);
     } else {
-      document_file_insert(splitter->file, view->offset, (uint8_t*)"\n", 1);
+      document_file_insert(file, view->offset, (uint8_t*)"\n", 1);
     }
 
     // --- Begin test auto indentation ... opening bracket
@@ -1297,7 +1297,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     while (buffer && offset!=out.offset) {
       if (displacement>=buffer->length || !buffer->buffer) {
         if (displacement!=displacement_start) {
-          document_file_insert(splitter->file, view->offset, buffer->buffer->buffer+buffer->offset+displacement_start, displacement-displacement_start);
+          document_file_insert(file, view->offset, buffer->buffer->buffer+buffer->offset+displacement_start, displacement-displacement_start);
         }
 
         // Brrr... reresearch next node since it could have been fused by the last insert
@@ -1316,7 +1316,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
 
     if (buffer && displacement!=displacement_start) {
-      document_file_insert(splitter->file, view->offset, buffer->buffer->buffer+buffer->offset+displacement_start, displacement-displacement_start);
+      document_file_insert(file, view->offset, buffer->buffer->buffer+buffer->offset+displacement_start, displacement-displacement_start);
     }
 
     int diff = 0;
@@ -1334,14 +1334,16 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     if (diff>0) {
       document_text_raise_indentation(base, splitter, view->offset, view->offset, 0);
     }
+
+    view->bracket_indentation = 1;
     // --- End test auto indentation ... opening bracket
 
     seek = 1;
   } else if (command==TIPPSE_CMD_CHARACTER) {
-    document_file_delete_selection(splitter->file, splitter->view);
+    document_file_delete_selection(file, view);
     uint8_t coded[8];
-    size_t size = splitter->file->encoding->encode(splitter->file->encoding, cp, &coded[0], 8);
-    document_file_insert(splitter->file, view->offset, &coded[0], size);
+    size_t size = file->encoding->encode(file->encoding, cp, &coded[0], 8);
+    document_file_insert(file, view->offset, &coded[0], size);
 
     // --- Begin test auto indentation ... closing bracket
     struct document_text_position out_bracket;
@@ -1349,9 +1351,11 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     in_line_column.column = out.column;
     document_text_cursor_position(splitter, &in_line_column, &out_bracket, 0, 1);
 
-    if ((out_bracket.bracket_match&VISUAL_BRACKET_CLOSE) && out_bracket.indented) {
+    if ((out_bracket.bracket_match&VISUAL_BRACKET_CLOSE) && out_bracket.indented && splitter->view->bracket_indentation) {
       document_text_lower_indentation(base, splitter, view->offset, view->offset);
     }
+
+    view->bracket_indentation = 0;
     // --- End test auto indentation ... closing bracket
 
     seek = 1;

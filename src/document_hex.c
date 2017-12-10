@@ -225,18 +225,18 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
       clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low), 1);
       if (command==TIPPSE_CMD_CUT) {
         document_undo_chain(file, file->undos);
-        document_file_delete_selection(splitter->file, splitter->view);
+        document_file_delete_selection(file, view);
       } else {
         selection_keep = 1;
       }
     }
   } else if (command==TIPPSE_CMD_PASTE) {
     document_undo_chain(file, file->undos);
-    document_file_delete_selection(splitter->file, splitter->view);
+    document_file_delete_selection(file, view);
 
     struct range_tree_node* buffer = clipboard_get();
     if (buffer) {
-      document_file_insert_buffer(splitter->file, view->offset, buffer);
+      document_file_insert_buffer(file, view->offset, buffer);
     }
 
     document_undo_chain(file, file->undos);
