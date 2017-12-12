@@ -1268,6 +1268,10 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->wrapping ^= 1;
     (*base->reset)(base, splitter);
   } else if (command==TIPPSE_CMD_RETURN) {
+    if (out.lines==0 && range_tree_first(file->buffer)!=out.buffer) {
+      range_tree_find_bracket_lowest(out.buffer, out.min_line, out.buffer?out.buffer:range_tree_last(file->buffer));
+    }
+
     struct document_text_position out_indentation_copy;
     if (out.column!=0) {
       in_line_column.line = out.line;

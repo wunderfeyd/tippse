@@ -125,7 +125,6 @@ struct editor {
   struct document_file* search_doc;   // document: current search text
   struct document_file* replace_doc;  // document: current replace text
   struct document_file* goto_doc;     // document: line/offset for position jump
-  struct document_file* document_doc; // document: inital empty document
   struct document_file* compiler_doc; // document: compiler output
   struct document_file* filter_doc;   // document: panel filter
   struct document_file* commands_doc; // document: list of known commands
@@ -175,6 +174,7 @@ void editor_view_browser(struct editor* base, const char* filename, const char* 
 void editor_view_tabs(struct editor* base, const char* filter);
 void editor_view_commands(struct editor* base, const char* filter);
 int editor_update_panel_height(struct editor* base, struct splitter* panel, int max);
+struct document_file* editor_empty_document(struct editor* base);
 
 void editor_command_map_create(struct editor* base);
 void editor_command_map_destroy(struct editor* base);

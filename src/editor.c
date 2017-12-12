@@ -127,11 +127,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->commands_doc->defaults.wrapping = 0;
   base->commands_doc->line_select = 1;
 
-  base->document_doc = document_file_create(1, 1);
-  document_file_name(base->document_doc, "Untitled");
   base->document = splitter_create(0, 0, NULL, NULL,  "");
-  splitter_assign_document_file(base->document, base->document_doc);
-  document_view_reset(base->document->view, base->document_doc);
 
   base->search_doc = document_file_create(0, 1);
   document_file_name(base->search_doc, "Search");
@@ -155,7 +151,6 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
 
   base->toolbox = splitter_create(TIPPSE_SPLITTER_VERT|TIPPSE_SPLITTER_FIXED0, 5, base->filter, base->panel, "");
   base->splitters = splitter_create(TIPPSE_SPLITTER_VERT|TIPPSE_SPLITTER_FIXED0, 5, base->toolbox, base->document, "");
-  list_insert(base->documents, NULL, &base->document_doc);
   list_insert(base->documents, NULL, &base->tabs_doc);
   list_insert(base->documents, NULL, &base->search_doc);
   list_insert(base->documents, NULL, &base->replace_doc);
@@ -166,14 +161,13 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   list_insert(base->documents, NULL, &base->filter_doc);
 
   for (int n = argc-1; n>=1; n--) {
-    if (n==1) {
-      document_file_load(base->document_doc, argv[n], 0);
-      splitter_assign_document_file(base->document, base->document_doc);
-    } else {
-      struct document_file* document_add = document_file_create(1, 1);
-      document_file_load(document_add, argv[n], 0);
-      list_insert(base->documents, NULL, &document_add);
-    }
+    editor_open_document(base, argv[n], NULL, base->document);
+  }
+
+  if (!base->document->file) {
+    struct document_file* empty = editor_empty_document(base);
+    splitter_assign_document_file(base->document, empty);
+    document_view_reset(base->document->view, empty);
   }
 
   editor_focus(base, base->document, 0);
@@ -640,9 +634,7 @@ void editor_close_document(struct editor* base, struct document_file* file) {
 
   if (remove) {
     if (!assign) {
-      assign = document_file_create(1, 1);
-      document_file_name(assign, "Untitled");
-      list_insert(base->documents, NULL, &assign);
+      assign = editor_empty_document(base);
     }
 
     struct document_file* replace = *(struct document_file**)list_object(remove);
@@ -650,6 +642,14 @@ void editor_close_document(struct editor* base, struct document_file* file) {
     document_file_destroy(replace);
     list_remove(base->documents, remove);
   }
+}
+
+// Create empty document
+struct document_file* editor_empty_document(struct editor* base) {
+  struct document_file* file = document_file_create(1, 1);
+  document_file_name(file, "Untitled");
+  list_insert(base->documents, NULL, &file);
+  return file;
 }
 
 // Assign new document to panel
