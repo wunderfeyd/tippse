@@ -184,7 +184,7 @@ void document_file_fill_pipe(struct document_file* base, uint8_t* buffer, size_t
     memcpy(copy, buffer, length);
     file_offset_t offset = base->buffer?base->buffer->length:0;
     struct fragment* fragment = fragment_create_memory(copy, length);
-    base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, base);
+    base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, length, 0, base);
     fragment_dereference(fragment, base);
 
     document_file_expand_all(base, offset, length);
@@ -236,7 +236,7 @@ void document_file_load(struct document_file* base, const char* filename, int re
         break;
       }
 
-      base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, fragment->length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, base);
+      base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, fragment->length, 0, base);
       fragment_dereference(fragment, base);
       offset += block;
     }
@@ -264,7 +264,7 @@ void document_file_load_memory(struct document_file* base, const uint8_t* buffer
     uint8_t* copy = (uint8_t*)malloc(max);
     memcpy(copy, buffer, max);
     struct fragment* fragment = fragment_create_memory(copy, max);
-    base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, max, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, base);
+    base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, max, 0, base);
     fragment_dereference(fragment, base);
     offset += max;
     length -= max;
@@ -477,7 +477,7 @@ void document_file_insert(struct document_file* base, file_offset_t offset, cons
   }
 
   file_offset_t old_length = base->buffer?base->buffer->length:0;
-  base->buffer = range_tree_insert_split(base->buffer, offset, text, length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, NULL);
+  base->buffer = range_tree_insert_split(base->buffer, offset, text, length, 0, NULL);
   length = (base->buffer?base->buffer->length:0)-old_length;
   if (length<=0) {
     return;
@@ -626,7 +626,6 @@ void document_file_reload_config(struct document_file* base) {
 
   base->defaults.wrapping = (int)config_convert_int64(config_find_ascii(base->config, "/wrapping"));
   base->defaults.invisibles = (int)config_convert_int64(config_find_ascii(base->config, "/invisibles"));
-  base->defaults.continuous = (int)config_convert_int64(config_find_ascii(base->config, "/continuous"));
 }
 
 // Link a cache to the current document and count how often it is referenced

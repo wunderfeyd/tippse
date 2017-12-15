@@ -253,14 +253,14 @@ void document_directory(struct document_file* file, const char* filter) {
 
     char** sort = merge_sort(sort1, sort2, files->count);
 
-    file->buffer = range_tree_delete(file->buffer, 0, file->buffer?file->buffer->length:0, TIPPSE_INSERTER_AUTO, file);
+    file->buffer = range_tree_delete(file->buffer, 0, file->buffer?file->buffer->length:0, 0, file);
 
     for (size_t n = 0; n<files->count; n++) {
       if (file->buffer) {
-        file->buffer = range_tree_insert_split(file->buffer, file->buffer?file->buffer->length:0, (uint8_t*)"\n", 1, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+        file->buffer = range_tree_insert_split(file->buffer, file->buffer?file->buffer->length:0, (uint8_t*)"\n", 1, 0, NULL);
       }
 
-      file->buffer = range_tree_insert_split(file->buffer, file->buffer?file->buffer->length:0, (uint8_t*)sort[n], strlen(sort[n]), TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER|TIPPSE_INSERTER_AUTO, NULL);
+      file->buffer = range_tree_insert_split(file->buffer, file->buffer?file->buffer->length:0, (uint8_t*)sort[n], strlen(sort[n]), 0, NULL);
       free(sort[n]);
     }
 

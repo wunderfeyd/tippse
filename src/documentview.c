@@ -52,7 +52,6 @@ void document_view_clone(struct document_view* dst, struct document_view* src, s
 void document_view_filechange(struct document_view* base, struct document_file* file) {
   base->wrapping = file->defaults.wrapping;
   base->show_invisibles = file->defaults.invisibles;
-  base->continuous = file->defaults.continuous;
   base->line_select = file->line_select;
   base->bracket_indentation = 0;
   base->selection = range_tree_resize(base->selection, file->buffer?file->buffer->length:0, 0);

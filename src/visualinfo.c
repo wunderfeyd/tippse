@@ -7,7 +7,6 @@ struct config_cache visual_color_codes[VISUAL_FLAG_COLOR_MAX+1] = {
   {"background", VISUAL_FLAG_COLOR_BACKGROUND, NULL},
   {"text", VISUAL_FLAG_COLOR_TEXT, NULL},
   {"selection", VISUAL_FLAG_COLOR_SELECTION, NULL},
-  {"readonly", VISUAL_FLAG_COLOR_READONLY, NULL},
   {"status", VISUAL_FLAG_COLOR_STATUS, NULL},
   {"frame", VISUAL_FLAG_COLOR_FRAME, NULL},
   {"string", VISUAL_FLAG_COLOR_STRING, NULL},

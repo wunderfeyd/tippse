@@ -739,7 +739,7 @@ struct range_tree_node* range_tree_fuse(struct range_tree_node* root, struct ran
       range_tree_update(next);
       first->inserter &= ~TIPPSE_INSERTER_LEAF;
       root = range_tree_update(first);
-    } else if (first->length+next->length<TREE_BLOCK_LENGTH_MIN && !(first->inserter&TIPPSE_INSERTER_READONLY) && !(next->inserter&TIPPSE_INSERTER_READONLY)) {
+    } else if (first->length+next->length<TREE_BLOCK_LENGTH_MIN) {
       if (first->length+next->length<TREE_BLOCK_LENGTH_MAX) {
         // TODO: Think about to allow merging fragments from different locations in future
         if (first->buffer && first->buffer->type==FRAGMENT_MEMORY && next->buffer && next->buffer->type==FRAGMENT_MEMORY) {
@@ -786,14 +786,12 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
       split = node->length;
     }
 
-    struct range_tree_node* prev = range_tree_prev(node);
-
     struct range_tree_node* before = NULL;
     struct range_tree_node* after = NULL;
 
     build1 = range_tree_create(NULL, NULL, NULL, buffer, buffer_offset, buffer_length, inserter|TIPPSE_INSERTER_LEAF, file);
 
-    if (split==node->length && ((node->inserter&TIPPSE_INSERTER_AFTER) || (inserter&TIPPSE_INSERTER_AUTO))) {
+    if (split==node->length) {
       build0 = range_tree_create(node->parent, node, build1, NULL, 0, 0, 0, NULL);
       build1->parent = build0;
       node->parent = build0;
@@ -814,7 +812,7 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
       root = range_tree_update(build0);
       before = range_tree_prev(build1);
       after = range_tree_next(node);
-    } else if (split==0 && ((node->inserter&TIPPSE_INSERTER_BEFORE) || (inserter&TIPPSE_INSERTER_AUTO) || (prev && (node->inserter&TIPPSE_INSERTER_AFTER)))) {
+    } else if (split==0) {
       build0 = range_tree_create(node->parent, build1, node, NULL, 0, 0, 0, NULL);
       build1->parent = build0;
       node->parent = build0;
@@ -835,7 +833,7 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
       root = range_tree_update(build0);
       before = range_tree_prev(build1);
       after = range_tree_next(node);
-    } else if (!(node->inserter&TIPPSE_INSERTER_READONLY) || (inserter&TIPPSE_INSERTER_AUTO)) {
+    } else {
       build2 = range_tree_create(NULL, NULL, NULL, node->buffer, node->offset, split, node->inserter|TIPPSE_INSERTER_LEAF, file);
       build0 = range_tree_create(NULL, build2, build1, NULL, 0, 0, 0, NULL);
       build3 = range_tree_create(node->parent, build0, node, NULL, 0, 0, 0, NULL);
@@ -870,9 +868,6 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
 
       before = range_tree_prev(build2);
       after = range_tree_next(node);
-    } else {
-      before = node;
-      after = node;
     }
 
     root = range_tree_fuse(root, before, after, file);
@@ -890,7 +885,7 @@ struct range_tree_node* range_tree_insert_split(struct range_tree_node* root, fi
   file_offset_t pos = 0;
   file_offset_t old = 0;
   while (1) {
-    if (pos==length || pos-old>TREE_BLOCK_LENGTH_MAX || ((inserter&TIPPSE_INSERTER_ESCAPE) && text[pos]=='\x7f')) {
+    if (pos==length || pos-old>TREE_BLOCK_LENGTH_MAX) {
       uint8_t* copy = (uint8_t*)malloc(pos-old);
       memcpy(copy, text+old, pos-old);
       if (inserts) {
@@ -904,10 +899,6 @@ struct range_tree_node* range_tree_insert_split(struct range_tree_node* root, fi
 
       offset += pos-old;
       old = pos;
-
-      if (pos<length && (inserter&TIPPSE_INSERTER_ESCAPE) && text[pos]=='\x7f') {
-        old++;
-      }
     }
 
     if (pos==length) {
@@ -939,35 +930,31 @@ struct range_tree_node* range_tree_delete(struct range_tree_node* root, file_off
 
     file_offset_t node_length = node->length-split;
     file_offset_t sub = node_length>length?length:node_length;
-    if (!(node->inserter&TIPPSE_INSERTER_READONLY) || (inserter&TIPPSE_INSERTER_AUTO)) {
-      if (split>0 && length+split<node->length) {
-        struct range_tree_node* build1 = range_tree_create(NULL, NULL, NULL, node->buffer, split+length+node->offset, node->length-split-length, node->inserter|TIPPSE_INSERTER_LEAF, file);
-        struct range_tree_node* build0 = range_tree_create(node->parent, node, build1, NULL, 0, 0, 0, NULL);
-        build1->parent = build0;
-        node->parent = build0;
-        node->length = split;
+    if (split>0 && length+split<node->length) {
+      struct range_tree_node* build1 = range_tree_create(NULL, NULL, NULL, node->buffer, split+length+node->offset, node->length-split-length, node->inserter|TIPPSE_INSERTER_LEAF, file);
+      struct range_tree_node* build0 = range_tree_create(node->parent, node, build1, NULL, 0, 0, 0, NULL);
+      build1->parent = build0;
+      node->parent = build0;
+      node->length = split;
 
-        build1->next = node->next;
-        if (node->next) {
-          node->next->prev = build1;
-        }
-
-        node->next = build1;
-        build1->prev = node;
-
-        range_tree_exchange(build0->parent, node, build0);
-        range_tree_shrink(node);
-        range_tree_shrink(build1);
-        range_tree_update(build1);
-        root = range_tree_update(node);
-      } else {
-        node->length -= sub;
-        if (split==0) {
-          node->offset += sub;
-        }
+      build1->next = node->next;
+      if (node->next) {
+        node->next->prev = build1;
       }
+
+      node->next = build1;
+      build1->prev = node;
+
+      range_tree_exchange(build0->parent, node, build0);
+      range_tree_shrink(node);
+      range_tree_shrink(build1);
+      range_tree_update(build1);
+      root = range_tree_update(node);
     } else {
-      offset += sub;
+      node->length -= sub;
+      if (split==0) {
+        node->offset += sub;
+      }
     }
 
     length -= sub;
@@ -1034,7 +1021,7 @@ struct range_tree_node* range_tree_copy(struct range_tree_node* root, file_offse
 struct range_tree_node* range_tree_paste(struct range_tree_node* root, struct range_tree_node* copy, file_offset_t offset, struct document_file* file) {
   copy = range_tree_first(copy);
   while (copy) {
-    root = range_tree_insert(root, offset, copy->buffer, copy->offset, copy->length, TIPPSE_INSERTER_BEFORE|TIPPSE_INSERTER_AFTER, file);
+    root = range_tree_insert(root, offset, copy->buffer, copy->offset, copy->length, 0, file);
     offset += copy->length;
     copy = range_tree_next(copy);
   }

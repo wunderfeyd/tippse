@@ -38,7 +38,6 @@ struct document_file_defaults {
 
   int invisibles;                       // show invisibles?
   int wrapping;                         // show line wrapping?
-  int continuous;                       // ignore line wrapping?
 
   int tabstop;                          // type of tabstop
   int tabstop_width;                    // number of spaces per tab

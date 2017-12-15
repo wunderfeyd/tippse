@@ -28,7 +28,6 @@ struct document_view {
   int show_scrollbar;                   // show scrollbar?
   int show_invisibles;                  // show invisibles?
   int wrapping;                         // show word wrapping?
-  int continuous;                       // ignore line break?
   int line_select;                      // show whole line selected?
 };
 
