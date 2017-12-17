@@ -13,6 +13,11 @@ int debug_draw = 0;
 struct screen* debug_screen = NULL;
 struct splitter* debug_splitter = NULL;
 
+extern struct trie* unicode_transform_lower;
+extern struct trie* unicode_transform_upper;
+extern struct trie* unicode_transform_nfd_nfc;
+extern struct trie* unicode_transform_nfc_nfd;
+
 // Create document
 struct document* document_text_create(void) {
   struct document_text* document = (struct document_text*)malloc(sizeof(struct document_text));
@@ -603,7 +608,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       }
     }
 
-    if ((boundary || !page_dirty || in->clip) && stop) {
+    if (stop && (boundary || !page_dirty || in->clip)) {
       break;
     }
 
@@ -1191,6 +1196,30 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       view->cursor_y = out.y;
       view->show_scrollbar = 1;
     }
+  } else if (command==TIPPSE_CMD_UPPER) {
+    if (view->selection_low!=FILE_OFFSET_T_MAX) {
+      document_text_transform(base, unicode_transform_upper, file, view->selection_low, view->selection_high);
+    } else {
+      document_text_transform(base, unicode_transform_upper, file, 0, file->buffer?file->buffer->length:0);
+    }
+  } else if (command==TIPPSE_CMD_LOWER) {
+    if (view->selection_low!=FILE_OFFSET_T_MAX) {
+      document_text_transform(base, unicode_transform_lower, file, view->selection_low, view->selection_high);
+    } else {
+      document_text_transform(base, unicode_transform_lower, file, 0, file->buffer?file->buffer->length:0);
+    }
+  } else if (command==TIPPSE_CMD_NFC_NFD) {
+    if (view->selection_low!=FILE_OFFSET_T_MAX) {
+      document_text_transform(base, unicode_transform_nfc_nfd, file, view->selection_low, view->selection_high);
+    } else {
+      document_text_transform(base, unicode_transform_nfc_nfd, file, 0, file->buffer?file->buffer->length:0);
+    }
+  } else if (command==TIPPSE_CMD_NFD_NFC) {
+    if (view->selection_low!=FILE_OFFSET_T_MAX) {
+      document_text_transform(base, unicode_transform_nfd_nfc, file, view->selection_low, view->selection_high);
+    } else {
+      document_text_transform(base, unicode_transform_nfd_nfc, file, 0, file->buffer?file->buffer->length:0);
+    }
   } else if (command==TIPPSE_CMD_TAB) {
     document_undo_chain(file, file->undos);
     if (view->selection_low==FILE_OFFSET_T_MAX) {
@@ -1737,4 +1766,46 @@ void document_text_goto(struct document* base, struct splitter* splitter, positi
   view->cursor_x = out.x;
   view->cursor_y = out.y;
   view->show_scrollbar = 1;
+}
+
+// Transform text
+void document_text_transform(struct document* base, struct trie* transformation, struct document_file* file, file_offset_t from, file_offset_t to) {
+  int seek = 1;
+  size_t offset = 0;
+  struct encoding_stream stream;
+  struct encoding_cache cache;
+  while (from<to) {
+    if (seek) {
+      seek = 0;
+      offset = 0;
+      file_offset_t displacement;
+      struct range_tree_node* buffer = range_tree_find_offset(file->buffer, from, &displacement);
+      if (!buffer) {
+        return;
+      }
+
+      encoding_stream_from_page(&stream, buffer, displacement);
+      encoding_cache_clear(&cache, file->encoding, &stream);
+    }
+
+    size_t advance = 0;
+    size_t length = 0;
+    struct unicode_transform_node* transform = unicode_transform(transformation, &cache, offset, &advance, &length);
+    if (!transform) {
+      from += encoding_cache_find_length(&cache, offset);
+      offset++;
+    } else {
+      document_file_delete(file, from, length);
+      document_file_reduce(&to, from, length);
+      uint8_t coded[1024];
+      size_t size = 0;
+      for (size_t n = 0; n<transform->length; n++) {
+        size += file->encoding->encode(file->encoding, transform->cp[n], &coded[size], 8);
+      }
+
+      document_file_insert(file, from, &coded[0], size);
+      document_file_expand(&to, from, size);
+      seek = 1;
+    }
+  }
 }

@@ -94,6 +94,10 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"goto", TIPPSE_CMD_GOTO, "Open line number input panel"},
   {"reload", TIPPSE_CMD_RELOAD, "Reload active document"},
   {"commands", TIPPSE_CMD_COMMANDS, "Show all commands"},
+  {"upper", TIPPSE_CMD_UPPER, "Convert to uppercase (document/selection)"},
+  {"lower", TIPPSE_CMD_LOWER, "Convert to lowercase (document/selection)"},
+  {"nfdnfc", TIPPSE_CMD_NFD_NFC, "Convert from nfd to nfc (document/selection)"},
+  {"nfcnfd", TIPPSE_CMD_NFC_NFD, "Convert from nfc to nfd (document/selection)"},
   {NULL, 0, ""}
 };
 

@@ -78,7 +78,7 @@ void write_rle(const char* to, const char* name, uint8_t* output, size_t output_
   if (file) {
     fprintf(file, "uint16_t unicode_%s_rle[] = {", name);
     int run = 0;
-    size_t runs;
+    size_t runs = 0;
     uint8_t old = output[0];
     size_t n = 0;
     while (n<=output_size) {
@@ -186,11 +186,119 @@ void convert_range_param3(const char* from, const char* to, const char* name, co
   free(output);
 }
 
+// Simplified utf8 encoding
+size_t utf8_encode(int cp, uint8_t* text) {
+  if (cp<0x80) {
+    *text++ = (uint8_t)cp;
+    return 1;
+  } else if (cp<0x800) {
+    *text++ = 0xc0+(uint8_t)(cp>>6);
+    *text++ = 0x80+(uint8_t)(cp&0x3f);
+    return 2;
+  } else if (cp<0x10000) {
+    *text++ = 0xe0+(uint8_t)(cp>>12);
+    *text++ = 0x80+(uint8_t)((cp>>6)&0x3f);
+    *text++ = 0x80+(uint8_t)(cp&0x3f);
+    return 3;
+  } else if (cp<0x101000) {
+    *text++ = 0xf0+(uint8_t)(cp>>18);
+    *text++ = 0x80+(uint8_t)((cp>>12)&0x3f);
+    *text++ = 0x80+(uint8_t)((cp>>6)&0x3f);
+    *text++ = 0x80+(uint8_t)(cp&0x3f);
+    return 4;
+  }
+
+  return 0;
+}
+
+// Create translation table (many to many codepoints)
+void convert_transform(const char* from, const char* to, const char* name, const char* cmp0, const char* cmp1, size_t compare, size_t left, size_t right) {
+  size_t size;
+  uint8_t* buffer = read_file(from, &size);
+  if (!buffer) {
+    return;
+  }
+
+  size_t output_size = UNICODE_MAX_CODEPOINT*16*4;
+  uint8_t* output = (uint8_t*)malloc(output_size);
+  uint8_t* write = output;
+
+  size_t offset = 0;
+  while (offset<size) {
+    char* param[8];
+    for (size_t n = 0; n<8; n++) {
+      param[n] = read_param(buffer, size, &offset);
+    }
+
+    if (!compare || (cmp0 && strcmp(param[compare], cmp0)==0) || (cmp1 && strcmp(param[compare], cmp1)==0)) {
+      int from[8];
+      int froms = sscanf(param[left], "%x %x %x %x %x %x %x %x", &from[0], &from[1], &from[2], &from[3], &from[4], &from[5], &from[6], &from[7]);
+      int to[8];
+      int tos = sscanf(param[right], "%x %x %x %x %x %x %x %x", &to[0], &to[1], &to[2], &to[3], &to[4], &to[5], &to[6], &to[7]);
+      if (froms>0 && tos>0) {
+        int add = 0;
+        if (froms!=tos) {
+          add = 1;
+        } else {
+          for (size_t n = 0; n<froms; n++) {
+            if (from[n]!=to[n]) {
+              add = 1;
+            }
+          }
+        }
+        if (add) {
+          if (froms==8 || tos==8) {
+            printf("umm very long %s - %s\r\n", param[left], param[right]);
+          }
+          *write++ = (uint8_t)(froms<<4|tos<<0);
+          for (size_t n = 0; n<froms; n++) {
+            write += utf8_encode(from[n], write);
+          }
+          for (size_t n = 0; n<tos; n++) {
+            write += utf8_encode(to[n], write);
+          }
+        }
+      }
+    }
+
+    for (size_t n = 0; n<8; n++) {
+      free(param[n]);
+    }
+    next_line(buffer, size, &offset);
+  }
+
+  free(buffer);
+
+  FILE* file = fopen(to, "w");
+  if (file) {
+    fprintf(file, "uint8_t unicode_%s[] = {", name);
+    int runs = 0;
+    uint8_t* copy = output;
+    printf("%d\r\n", (int)(write-output));
+    while (copy!=write) {
+      if ((runs&31)==0) {
+        fprintf(file, "\r\n ");
+      }
+      runs++;
+      fprintf(file, " 0x%02x,", *copy);
+      copy++;
+    }
+    fprintf(file, " 0};\r\n");
+    fclose(file);
+  } else {
+    printf("Can't create file '%s'\r\n", to);
+  }
+
+  free(output);
+}
+
 int main(int argc, const char** argv) {
   convert_widths("download/EastAsianWidth.txt", "output/unicode_widths.h");
   convert_range_param3("download/UnicodeData.txt", "output/unicode_invisibles.h", "invisibles", "Cc", "Cf");
   convert_range_param3("download/UnicodeData.txt", "output/unicode_nonspacing_marks.h", "nonspacing_marks", "Mn", "Me");
   convert_range_param3("download/UnicodeData.txt", "output/unicode_spacing_marks.h", "spacing_marks", "Mc", NULL);
+  convert_transform("download/CaseFolding.txt", "output/unicode_case_folding.h", "case_folding", "C", "F", 1, 0, 2);
+  convert_transform("download/NormalizationTest.txt", "output/unicode_normalization.h", "normalization", NULL, NULL, 0, 1, 2);
   return 0;
 }
 
