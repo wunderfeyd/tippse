@@ -211,7 +211,7 @@ size_t utf8_encode(int cp, uint8_t* text) {
   return 0;
 }
 
-// Create translation table (many to many codepoints)
+// Create translation table (many to many codepoints) (see unicode_decode_transform for more details)
 void convert_transform(const char* from, const char* to, const char* name, const char* cmp0, const char* cmp1, size_t compare, size_t left, size_t right) {
   size_t size;
   uint8_t* buffer = read_file(from, &size);
@@ -223,6 +223,20 @@ void convert_transform(const char* from, const char* to, const char* name, const
   uint8_t* output = (uint8_t*)malloc(output_size);
   uint8_t* write = output;
 
+  int from_before[8];
+  int to_before[8];
+  for (size_t n = 0; n<8; n++) {
+    from_before[n] = 0;
+    to_before[n] = 0;
+  }
+
+  size_t copy[16];
+  size_t copies = 0;
+  for (size_t n = 0; n<16; n++) {
+    copy[n] = ~0;
+  }
+
+  int copied = 0;
   size_t offset = 0;
   while (offset<size) {
     char* param[8];
@@ -250,12 +264,60 @@ void convert_transform(const char* from, const char* to, const char* name, const
           if (froms==8 || tos==8) {
             printf("umm very long %s - %s\r\n", param[left], param[right]);
           }
-          *write++ = (uint8_t)(froms<<4|tos<<0);
+          uint8_t* start = write;
+          *write++ = (uint8_t)(froms<<3|tos<<0);
           for (size_t n = 0; n<froms; n++) {
-            write += utf8_encode(from[n], write);
+            int diff = from[n]-from_before[n]+0x10;
+            if (diff<=0x1f && diff>=0) {
+              write += utf8_encode(diff, write);
+            } else {
+              write += utf8_encode(from[n], write);
+            }
+            from_before[n] = from[n];
           }
           for (size_t n = 0; n<tos; n++) {
-            write += utf8_encode(to[n], write);
+            int diff = to[n]-to_before[n]+0x10;
+            if (diff<=0x1f && diff>=0) {
+              write += utf8_encode(diff, write);
+            } else {
+              write += utf8_encode(to[n], write);
+            }
+            to_before[n] = to[n];
+          }
+
+          size_t l = write-start;
+          size_t c;
+          for (c = 0; c<16; c++) {
+            if (copy[c]==~0) {
+              continue;
+            }
+
+            size_t m;
+            for (m = 0; m<l; m++) {
+              if (output[copy[c]+m]!=start[m]) {
+                break;
+              }
+            }
+
+            if (m==l) {
+              uint8_t run = 0;
+              write = start;
+              if (copied && ((*(start-1))&0xf)==c && ((*(start-1))>>4)!=15) {
+                run = (((*(start-1))>>4)&0x7)+1;
+                write = start-1;
+              }
+
+              *write++ = 0x80|c|(run<<4);
+
+              copied = 1;
+              break;
+            }
+          }
+          if (c==16) {
+            copy[copies] = start-output;
+            copies++;
+            copies&=15;
+            copied = 0;
           }
         }
       }
@@ -301,4 +363,3 @@ int main(int argc, const char** argv) {
   convert_transform("download/NormalizationTest.txt", "output/unicode_normalization.h", "normalization", NULL, NULL, 0, 1, 2);
   return 0;
 }
-

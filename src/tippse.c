@@ -338,5 +338,7 @@ int main(int argc, const char** argv) {
   screen_destroy(screen);
   free(base_path);
 
+  unicode_free();
+
   return 0;
 }

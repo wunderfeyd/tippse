@@ -17,6 +17,7 @@ struct unicode_transform_node {
 };
 
 void unicode_init(void);
+void unicode_free(void);
 void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie** reverse);
 void unicode_decode_transform_append(struct trie* forward, size_t froms, codepoint_t* from, size_t tos, codepoint_t* to);
 void unicode_decode_rle(unsigned int* table, uint16_t* rle);

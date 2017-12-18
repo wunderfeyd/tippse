@@ -130,13 +130,14 @@ char* correct_path(const char* path) {
     } else if (combined!=real && *real=='/' && path[0]=='.' && path[1]=='.' && (path[2]=='/' || path[2]==0)) {
       path+=(path[2]==0)?2:3;
     } else {
+      int level = (path[0]=='.' && path[1]=='.' && path[2]=='/')?0:1;
       while (*path && *path!='/') {
         *combined++ = *path++;
       }
 
       if (*path=='/') {
         *combined++ = '/';
-        directories++;
+        directories+=level;
         path++;
       }
     }

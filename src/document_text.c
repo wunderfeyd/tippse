@@ -1774,6 +1774,10 @@ void document_text_transform(struct document* base, struct trie* transformation,
   size_t offset = 0;
   struct encoding_stream stream;
   struct encoding_cache cache;
+
+  uint8_t recoded[1024];
+  size_t recode = 0;
+  file_offset_t recode_from = 0;
   while (from<to) {
     if (seek) {
       seek = 0;
@@ -1791,21 +1795,38 @@ void document_text_transform(struct document* base, struct trie* transformation,
     size_t advance = 0;
     size_t length = 0;
     struct unicode_transform_node* transform = unicode_transform(transformation, &cache, offset, &advance, &length);
+    if (recode>512 || (!transform && recode>256)) {
+      document_file_delete(file, recode_from, from-recode_from);
+      document_file_reduce(&to, recode_from, from-recode_from);
+      document_file_insert(file, recode_from, &recoded[0], recode);
+      document_file_expand(&to, recode_from, recode);
+      recode = 0;
+      seek = 1;
+    }
+
     if (!transform) {
+      if (recode>0) {
+        // TODO: this might change the original encoded characters due to decode and reencode (just copy the old things if possible)
+        recode += file->encoding->encode(file->encoding, encoding_cache_find_codepoint(&cache, offset), &recoded[recode], 8);
+      }
+
       from += encoding_cache_find_length(&cache, offset);
       offset++;
     } else {
-      document_file_delete(file, from, length);
-      document_file_reduce(&to, from, length);
-      uint8_t coded[1024];
-      size_t size = 0;
-      for (size_t n = 0; n<transform->length; n++) {
-        size += file->encoding->encode(file->encoding, transform->cp[n], &coded[size], 8);
+      if (recode==0) {
+        recode_from = from;
       }
+      from += length;
+      offset += advance;
 
-      document_file_insert(file, from, &coded[0], size);
-      document_file_expand(&to, from, size);
-      seek = 1;
+      for (size_t n = 0; n<transform->length; n++) {
+        recode += file->encoding->encode(file->encoding, transform->cp[n], &recoded[recode], 8);
+      }
     }
+  }
+
+  if (recode>0) {
+    document_file_delete(file, recode_from, from-recode_from);
+    document_file_insert(file, recode_from, &recoded[0], recode);
   }
 }

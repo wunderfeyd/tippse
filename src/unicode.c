@@ -19,7 +19,6 @@ struct trie* unicode_transform_nfc_nfd;
 
 // Initialise static tables
 void unicode_init(void) {
-  // Expand encoded tables
   unicode_decode_rle(&unicode_nonspacing_marks[0], &unicode_nonspacing_marks_rle[0]);
   unicode_decode_rle(&unicode_spacing_marks[0], &unicode_spacing_marks_rle[0]);
   unicode_decode_rle(&unicode_invisibles[0], &unicode_invisibles_rle[0]);
@@ -28,38 +27,101 @@ void unicode_init(void) {
   unicode_decode_transform(&unicode_normalization[0], &unicode_transform_nfc_nfd, &unicode_transform_nfd_nfc);
 }
 
-// Initialise static table from utf8 encoded transform commands
+// Free resources
+void unicode_free(void) {
+  trie_destroy(unicode_transform_lower);
+  trie_destroy(unicode_transform_upper);
+  trie_destroy(unicode_transform_nfd_nfc);
+  trie_destroy(unicode_transform_nfc_nfd);
+}
+
+// Initialize static table from utf8 encoded transform commands
+// Encoding scheme...
+// Head byte
+//  (1rrrcccc exact match r = runs c = copy position)
+//  (00fffttt difference f = number of input code points t = number of output code points)
+//  An exact match repeats one of the previous differences (16 slots)
+// Difference stream
+//  input code points x utf8 encoded code point
+//  output code points x utf8 encoded code point
+//  if code point is below 0x20 then its difference to the previous code point at this location is encoded with offset 0x10
+// The result is good but not perfect (there seem to be some repetitions in the whole base data set)
 void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie** reverse) {
   *forward = trie_create(sizeof(struct unicode_transform_node));
   *reverse = trie_create(sizeof(struct unicode_transform_node));
   struct encoding_stream stream;
   encoding_stream_from_plain(&stream, data, SIZE_T_MAX);
+
+  codepoint_t from_before[8];
+  codepoint_t to_before[8];
+  for (size_t n = 0; n<8; n++) {
+    from_before[n] = 0;
+    to_before[n] = 0;
+  }
+
+  size_t froms;
+  codepoint_t from[8];
+  size_t tos;
+  codepoint_t to[8];
+  struct encoding_stream copy[16];
+  size_t copies = 0;
+  struct encoding_stream duplicate;
+
   while (1) {
     uint8_t head = encoding_stream_peek(&stream, 0);
     if (head==0) {
       break;
     }
 
-    size_t froms = (head>>4)&0xf;
-    size_t tos = (head>>0)&0xf;
-    encoding_stream_forward(&stream, 1);
-
-    codepoint_t from[16];
-    for (size_t n = 0; n<froms; n++) {
-      size_t used = 0;
-      from[n] = encoding_utf8_decode(NULL, &stream, &used);
-      encoding_stream_forward(&stream, used);
+    int exact = (head>>7)&0x1;
+    int runs = 0;
+    if (exact) {
+      duplicate = copy[head&0xf];
+      runs = (head>>4)&0x7;
+      encoding_stream_forward(&stream, 1);
+    } else {
+      copy[copies] = stream;
+      copies++;
+      copies &= 15;
+      duplicate = stream;
     }
 
-    codepoint_t to[16];
-    for (size_t n = 0; n<tos; n++) {
-      size_t used = 0;
-      to[n] = encoding_utf8_decode(NULL, &stream, &used);
-      encoding_stream_forward(&stream, used);
-    }
+    while (runs>=0) {
+      struct encoding_stream ref = duplicate;
+      head = encoding_stream_peek(&ref, 0);
+      froms = (head>>3)&0x7;
+      tos = (head>>0)&0x7;
+      encoding_stream_forward(&ref, 1);
 
-    unicode_decode_transform_append(*forward, froms, &from[0], tos, &to[0]);
-    unicode_decode_transform_append(*reverse, tos, &to[0], froms, &from[0]);
+      for (size_t n = 0; n<froms; n++) {
+        size_t used = 0;
+        from[n] = encoding_utf8_decode(NULL, &ref, &used);
+        if (from[n]<0x20) {
+          from[n] += from_before[n]-0x10;
+        }
+        from_before[n] = from[n];
+        encoding_stream_forward(&ref, used);
+      }
+
+      for (size_t n = 0; n<tos; n++) {
+        size_t used = 0;
+        to[n] = encoding_utf8_decode(NULL, &ref, &used);
+        if (to[n]<0x20) {
+          to[n] += to_before[n]-0x10;
+        }
+        to_before[n] = to[n];
+        encoding_stream_forward(&ref, used);
+      }
+
+      unicode_decode_transform_append(*forward, froms, &from[0], tos, &to[0]);
+      unicode_decode_transform_append(*reverse, tos, &to[0], froms, &from[0]);
+
+      if (!exact && !runs) {
+        stream = ref;
+      }
+
+      runs--;
+    }
   }
 }
 
