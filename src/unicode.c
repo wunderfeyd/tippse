@@ -39,12 +39,12 @@ void unicode_free(void) {
 // Encoding scheme...
 // Head byte
 //  (1rrrcccc exact match r = runs c = copy position)
-//  (00fffttt difference f = number of input code points t = number of output code points)
+//  (00fffttt delta f = number of input code points t = number of output code points)
 //  An exact match repeats one of the previous differences (16 slots)
-// Difference stream
+// Delta stream
 //  input code points x utf8 encoded code point
 //  output code points x utf8 encoded code point
-//  if code point is below 0x20 then its difference to the previous code point at this location is encoded with offset 0x10
+//  if code point is below 0x20 then its delta to the previous code point at this location is encoded with offset 0x10
 // The result is good but not perfect (there seem to be some repetitions in the whole base data set)
 void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie** reverse) {
   *forward = trie_create(sizeof(struct unicode_transform_node));

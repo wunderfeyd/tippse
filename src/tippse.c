@@ -16,6 +16,7 @@
 #include "encoding/utf8.h"
 #include "unicode.h"
 #include "editor.h"
+#include "search.h"
 
 struct tippse_ansi_key {
   const char* text; // text in input stream
@@ -27,6 +28,7 @@ struct tippse_ansi_key {
 // ? = single byte
 // m = modifier param
 struct tippse_ansi_key ansi_keys[] = {
+  {"\x00", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '^'},
   {"\x01", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'a'},
   {"\x02", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'b'},
   {"\x03", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'c'},
@@ -175,6 +177,8 @@ int main(int argc, const char** argv) {
 
   unicode_init();
 
+  // search_test();
+
   struct screen* screen = screen_create();
   struct editor* editor = editor_create(base_path, screen, argc, argv);
 
@@ -243,14 +247,14 @@ int main(int argc, const char** argv) {
             continue;
           } else if (ansi_keys[pos].text[c]=='?') {
             continue;
-          } else if (ansi_keys[pos].text[c]==0 || input_buffer[c+check]!=ansi_keys[pos].text[c]) {
+          } else if ((ansi_keys[pos].text[c]==0 && c>0) || input_buffer[c+check]!=ansi_keys[pos].text[c]) {
             break;
           }
         }
 
-        if (c==input_pos-check || ansi_keys[pos].text[c]==0) {
+        if (c==input_pos-check || (ansi_keys[pos].text[c]==0 && c>0)) {
           keep = 1;
-          if (ansi_keys[pos].text[c]==0) {
+          if (ansi_keys[pos].text[c]==0 && c>0) {
             int key = ansi_keys[pos].key;
             if (modifier&1) {
               key |= TIPPSE_KEY_MOD_SHIFT;

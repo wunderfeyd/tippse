@@ -72,6 +72,10 @@ inline void encoding_stream_forward(struct encoding_stream* stream, size_t lengt
   }
 }
 
+inline int encoding_stream_end(struct encoding_stream* stream) {
+  return (stream->cache_length==0)?1:0;
+}
+
 void encoding_cache_clear(struct encoding_cache* cache, struct encoding* encoding, struct encoding_stream* stream);
 // Skip code points and rebase absolute offset
 inline void encoding_cache_advance(struct encoding_cache* cache, size_t advance) {
