@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "types.h"
+#include "misc.h"
 #include "list.h"
 #include "encoding.h"
 
@@ -44,12 +45,14 @@ struct search_node* search_node_create(int type);
 struct search* search_create_plain(int ignore_case, int reverse, struct encoding_stream needle, struct encoding* needle_encoding, struct encoding* output_encoding);
 struct search* search_create_regex(int ignore_case, int reverse, struct encoding_stream needle, struct encoding* needle_encoding, struct encoding* output_encoding);
 void search_destroy(struct search* base);
+size_t search_append_unicode(struct search_node* last, int ignore_case, struct encoding_cache* cache, size_t offset, struct encoding* output_encoding);
 void search_append_next_char(struct search_node* last, uint8_t* buffer, size_t size);
 void search_debug_tree(struct search* base, struct search_node* node, size_t depth, int length, int stop);
 int search_find(struct search* base, struct encoding_stream* text);
 int search_find_recursive(struct search* base, struct search_node* node, struct encoding_stream* text);
 
 void search_optimize(struct search* base);
+void search_optimize_mark_end(struct search_node* node);
 int search_optimize_reduce_branch(struct search_node* node);
 int search_optimize_combine_branch(struct search_node* node);
 int search_optimize_flatten_branch(struct search_node* node);

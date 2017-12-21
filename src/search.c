@@ -41,36 +41,7 @@ struct search* search_create_plain(int ignore_case, int reverse, struct encoding
 
     last = next;
 
-    size_t advance = 1;
-    uint8_t coded[1024];
-    if (ignore_case) {
-      size_t advance = 0;
-      size_t length = 0;
-      struct unicode_transform_node* transform = unicode_transform(unicode_transform_upper, &cache, offset, &advance, &length);
-      if (!transform)
-        transform = unicode_transform(unicode_transform_lower, &cache, offset, &advance, &length);
-
-      if (transform) {
-        size_t size = 0;
-        for (size_t n = 0; n<transform->length; n++) {
-          size += output_encoding->encode(output_encoding, transform->cp[n], &coded[size], 8);
-        }
-        if (size>0) {
-          search_append_next_char(last, &coded[0], size);
-        }
-      } else {
-        advance = 1;
-      }
-    }
-
-    size_t size = 0;
-    for (size_t n = 0; n<advance; n++) {
-      size += output_encoding->encode(output_encoding, encoding_cache_find_codepoint(&cache, offset+n), &coded[size], 8);
-    }
-    if (size>0) {
-      search_append_next_char(last, &coded[0], size);
-    }
-    offset+=advance;
+    offset += search_append_unicode(last, ignore_case, &cache, offset, output_encoding);
   }
 
   search_optimize(base);
@@ -78,7 +49,145 @@ struct search* search_create_plain(int ignore_case, int reverse, struct encoding
 }
 
 struct search* search_create_regex(int ignore_case, int reverse, struct encoding_stream needle, struct encoding* needle_encoding, struct encoding* output_encoding) {
-  return NULL;
+  struct search* base = malloc(sizeof(struct search));
+  base->reverse = reverse;
+
+  base->root = search_node_create(SEARCH_NODE_TYPE_BRANCH);
+  base->root->min = 1;
+  base->root->max = 1;
+
+  struct search_node* group[16];
+  size_t group_depth = 1;
+  group[0] = base->root;
+
+  struct encoding_cache cache;
+  encoding_cache_clear(&cache, needle_encoding, &needle);
+
+  struct search_node* last = search_node_create(SEARCH_NODE_TYPE_BRANCH);
+  last->min = 1;
+  last->max = 1;
+  list_insert(group[group_depth-1]->sub, NULL, &last);
+
+  size_t offset = 0;
+  int escape = 0;
+  while (1) {
+    codepoint_t cp = encoding_cache_find_codepoint(&cache, offset);
+    if (cp==0) {
+      break;
+    }
+
+    if (!escape) {
+      if (cp=='\\') {
+        escape = 1;
+        offset++;
+        continue;
+      }
+
+      if (cp=='{') {
+        offset++;
+        size_t min = (size_t)decode_based_unsigned_offset(&cache, 10, &offset);
+        last->min = min;
+        last->max = min;
+        if (encoding_cache_find_codepoint(&cache, offset)==',') {
+          offset++;
+          size_t max = (size_t)decode_based_unsigned_offset(&cache, 10, &offset);
+          offset++;
+          last->max = (max==0)?SIZE_T_MAX:max;
+        } else {
+          offset++;
+          if (min==0) {
+            last->min = 1;
+            last->max = 1;
+          }
+        }
+        continue;
+      }
+
+      if (cp=='|') {
+        struct search_node* next = search_node_create(SEARCH_NODE_TYPE_BRANCH);
+        next->min = 1;
+        next->max = 1;
+        list_insert(group[group_depth-1]->sub, NULL, &next);
+        last = next;
+        offset++;
+        continue;
+      }
+
+      if (cp=='(') {
+        if (group_depth<16) {
+          struct search_node* next = search_node_create(SEARCH_NODE_TYPE_BRANCH);
+          next->min = 1;
+          next->max = 1;
+          last->next = next;
+          last = next;
+          group[group_depth] = last;
+          group_depth++;
+        }
+
+        struct search_node* next = search_node_create(SEARCH_NODE_TYPE_BRANCH);
+        next->min = 1;
+        next->max = 1;
+        list_insert(group[group_depth-1]->sub, NULL, &next);
+        last = next;
+        offset++;
+        continue;
+      }
+
+      if (cp==')') {
+        if (group_depth>1) {
+          group_depth--;
+          last = group[group_depth];
+        }
+        offset++;
+        continue;
+      }
+    }
+
+    struct search_node* next = search_node_create(SEARCH_NODE_TYPE_BRANCH);
+    next->min = 1;
+    next->max = 1;
+    last->next = next;
+    last = next;
+
+    offset += search_append_unicode(last, ignore_case, &cache, offset, output_encoding);
+    escape = 0;
+  }
+
+  search_optimize(base);
+  return base;
+}
+
+size_t search_append_unicode(struct search_node* last, int ignore_case, struct encoding_cache* cache, size_t offset, struct encoding* output_encoding) {
+  size_t advance = 1;
+  uint8_t coded[1024];
+  if (ignore_case) {
+    size_t advance = 0;
+    size_t length = 0;
+    struct unicode_transform_node* transform = unicode_transform(unicode_transform_upper, cache, offset, &advance, &length);
+    if (!transform)
+      transform = unicode_transform(unicode_transform_lower, cache, offset, &advance, &length);
+
+    if (transform) {
+      size_t size = 0;
+      for (size_t n = 0; n<transform->length; n++) {
+        size += output_encoding->encode(output_encoding, transform->cp[n], &coded[size], 8);
+      }
+      if (size>0) {
+        search_append_next_char(last, &coded[0], size);
+      }
+    } else {
+      advance = 1;
+    }
+  }
+
+  size_t size = 0;
+  for (size_t n = 0; n<advance; n++) {
+    size += output_encoding->encode(output_encoding, encoding_cache_find_codepoint(cache, offset+n), &coded[size], 8);
+  }
+  if (size>0) {
+    search_append_next_char(last, &coded[0], size);
+  }
+  return advance;
 }
 
 void search_append_next_char(struct search_node* last, uint8_t* buffer, size_t size) {
@@ -197,6 +306,12 @@ void search_debug_tree(struct search* base, struct search_node* node, size_t dep
     }
   }
 
+  if (node->min!=1 || node->max!=1) {
+    char out[1024];
+    length += sprintf(&out[0], "{%d,%d}", (int)node->min, (int)node->max);
+    printf("%s", &out[0]);
+  }
+
   if (node->next) {
     printf(" - ");
     length+=3;
@@ -228,11 +343,12 @@ void search_optimize(struct search* base) {
 
 int search_optimize_reduce_branch(struct search_node* node) {
   int again = 0;
-  if (node->sub->count==1 && node->min==1 && node->max==1) {
+  if (node->sub->count==1) {
     struct search_node* check = *((struct search_node**)list_object(node->sub->first));
     int flat = 1;
     struct search_node* crawl = check;
     struct search_node* last = check;
+    size_t count = 0;
     while (crawl) {
       if (crawl->sub->count!=0) {
         flat = 0;
@@ -240,20 +356,28 @@ int search_optimize_reduce_branch(struct search_node* node) {
       }
       last = crawl;
       crawl = crawl->next;
+      count++;
     }
 
-    if (flat) {
+    if (flat && ((node->min==1 && node->max==1) || (count==1 && ((last->min==last->max) || (node->min==node->max))))) {
       last->next = node->next;
-      again = 1;
-      if (node->type&SEARCH_NODE_TYPE_BRANCH) {
-        int type = node->type;
-        *node = *check;
-        node->type |= type&~SEARCH_NODE_TYPE_BRANCH;
-      } else {
-        list_remove(node->sub, node->sub->first);
-        node->next = check;
+      if (count==1) {
+        last->min *= node->min;
+        last->max *= node->max;
       }
+      int type = node->type;
+      *node = *check;
+      node->type |= type&~SEARCH_NODE_TYPE_BRANCH;
+      again = 1;
+    } else if (!node->next && (node->min==1 && node->max==1)) {
+      *node = *check;
+      again = 1;
     }
+  }
+
+  if (node->sub->count==0 && (node->type&SEARCH_NODE_TYPE_BRANCH) && node->next) {
+    // TODO: clean up node
+    *node = *(node->next);
   }
 
   if (node->next) {
@@ -272,25 +396,63 @@ int search_optimize_reduce_branch(struct search_node* node) {
 
 int search_optimize_combine_branch(struct search_node* node) {
   int again = 0;
+
   struct list_node* subs1 = node->sub->first;
   while (subs1) {
     struct search_node* check1 = *((struct search_node**)list_object(subs1));
     struct list_node* subs2 = subs1->next;
     while (subs2) {
       struct search_node* check2 = *((struct search_node**)list_object(subs2));
-      if (check1->type==check2->type && check1->min==check2->min && check1->max==1 && check2->max==1) {
-        if (check1->next==check2->next && check1->sub->count==0 && check2->sub->count==0) {
-          struct list_node* copy = check2->sub->first;
-          while (copy) {
-            list_insert(check1->sub, NULL, list_object(copy));
-            copy = copy->next;
-          }
+      if (check1->type==check2->type && check1->min==check2->min && check1->max==1 && check2->max==1 && (check1->type&SEARCH_NODE_TYPE_SET)) {
+        if (check1->next==NULL && check2->next==NULL) { // Merge only if both paths are equal (or if there are single nodes)
           for (size_t n = 0; n<SEARCH_NODE_SET_SIZE; n++) {
             check1->set[n] |= check2->set[n];
           }
           list_remove(node->sub, subs2);
           again = 1;
           break;
+        }
+
+        size_t n;
+        for (n = 0; n<SEARCH_NODE_SET_SIZE; n++) {
+          if (check1->set[n]!=check2->set[n]) {
+            break;
+          }
+        }
+        if (n==SEARCH_NODE_SET_SIZE) { // Merge if both nodes are equal
+          int next1 = (check1->next && (!(check1->next->type&SEARCH_NODE_TYPE_BRANCH) || (check1->next->sub->count!=0)))?1:0;
+          int next2 = (check2->next && (!(check2->next->type&SEARCH_NODE_TYPE_BRANCH) || (check2->next->sub->count!=0)))?1:0;
+          if ((next1 && next2) || (!next1 && !next2)) {
+            if (!check1->next || !(check1->next->type&SEARCH_NODE_TYPE_BRANCH) || check1->next->min!=1 || check1->next->max!=1) {
+              struct search_node* branch = search_node_create(SEARCH_NODE_TYPE_BRANCH);
+              branch->min = 1;
+              branch->max = 1;
+              branch->next = NULL;
+              if (check1->next) {
+                list_insert(branch->sub, NULL, &check1->next);
+              }
+              check1->next = branch;
+            }
+
+            if (check2->next) {
+              if ((check2->next->type&SEARCH_NODE_TYPE_BRANCH) && check2->next->min==1 && check2->next->max==1) {
+                struct list_node* subs = check2->next->sub->first;
+                while (subs) {
+                  list_insert(check1->next->sub, NULL, list_object(subs));
+                  subs = subs->next;
+                }
+
+                if (check2->next->next) {
+                  list_insert(check1->next->sub, NULL, &check2->next->next);
+                }
+              } else {
+                list_insert(check1->next->sub, NULL, &check2->next);
+              }
+            }
+            list_remove(node->sub, subs2);
+            again = 1;
+            break;
+          }
         }
       }
       subs2 = subs2->next;
@@ -478,16 +640,18 @@ int search_find_recursive(struct search* base, struct search_node* node, struct 
 
 void search_test(void) {
   //const char* needle_text = "Hallo äÖÜ ß Test Ú ń ǹ";
-  const char* needle_text = "haLlO";
+  //const char* needle_text = "haLlO";
+  //const char* needle_text = "(hallo|hall)O (schnappi|schnapp|schlappi)";
+  const char* needle_text = "(schnappi|schnapp|schlappi){2}";
   struct encoding_stream needle_stream;
   encoding_stream_from_plain(&needle_stream, (uint8_t*)needle_text, strlen(needle_text));
   struct encoding* needle_encoding = encoding_utf8_create();
   struct encoding* output_encoding = encoding_utf8_create();
-  struct search* search = search_create_plain(1, 0, needle_stream, needle_encoding, output_encoding);
+  struct search* search = search_create_regex(1, 0, needle_stream, needle_encoding, output_encoding);
   search_debug_tree(search, search->root, 0, 0, 0);
 
   struct encoding_stream text;
-  const char* text_text = "Dies ist ein Tesst, HaLLo!";
+  const char* text_text = "Dies ist ein l Tesst, HaLLo SchlappiSchlappi!";
   encoding_stream_from_plain(&text, (uint8_t*)text_text, strlen(text_text));
   int found = search_find(search, &text);
   printf("%d\r\n", found);

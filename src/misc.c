@@ -219,9 +219,9 @@ int64_t tick_count(void) {
 }
 
 // Convert human readable number into internal reprensentation
-uint64_t decode_based_unsigned(struct encoding_cache* cache, int base) {
+uint64_t decode_based_unsigned_offset(struct encoding_cache* cache, int base, size_t* offset) {
   uint64_t output = 0;
-  size_t advanced = 0;
+  size_t advanced = *offset;
   while (1) {
     codepoint_t codepoints[8];
     size_t advance = 1;
@@ -251,8 +251,14 @@ uint64_t decode_based_unsigned(struct encoding_cache* cache, int base) {
     output += (uint64_t)value;
     advanced += advance;
   }
+  *offset = advanced;
 
   return output;
+}
+
+uint64_t decode_based_unsigned(struct encoding_cache* cache, int base) {
+  size_t offset = 0;
+  return decode_based_unsigned_offset(cache, base, &offset);
 }
 
 // String contains filter string (simple search)
