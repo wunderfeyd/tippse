@@ -11,6 +11,9 @@ struct search_node* search_node_create(int type) {
   base->type = type;
   base->plain = NULL;
   base->sub = list_create(sizeof(struct search_node*));
+  base->stack = NULL;
+  base->next = NULL;
+  base->forward = NULL;
   return base;
 }
 
@@ -18,6 +21,8 @@ struct search* search_create_plain(int ignore_case, int reverse, struct encoding
   struct search* base = malloc(sizeof(struct search));
   base->reverse = reverse;
   base->root = NULL;
+  base->stack_size = 1024;
+  base->stack = NULL;
 
   struct encoding_cache cache;
   encoding_cache_clear(&cache, needle_encoding, &needle);
@@ -51,6 +56,8 @@ struct search* search_create_plain(int ignore_case, int reverse, struct encoding
 struct search* search_create_regex(int ignore_case, int reverse, struct encoding_stream needle, struct encoding* needle_encoding, struct encoding* output_encoding) {
   struct search* base = malloc(sizeof(struct search));
   base->reverse = reverse;
+  base->stack_size = 1024;
+  base->stack = NULL;
 
   base->root = search_node_create(SEARCH_NODE_TYPE_BRANCH);
   base->root->min = 1;
@@ -100,6 +107,9 @@ struct search* search_create_regex(int ignore_case, int reverse, struct encoding
             last->max = 1;
           }
         }
+        if (last->min!=last->max) {
+          last->type |= SEARCH_NODE_TYPE_GREEDY;
+        }
         continue;
       }
 
@@ -138,6 +148,25 @@ struct search* search_create_regex(int ignore_case, int reverse, struct encoding
           group_depth--;
           last = group[group_depth];
         }
+        offset++;
+        continue;
+      }
+
+      if (cp=='?') {
+        if (last->min==1 && last->max==1) {
+          last->min = 0;
+          last->type |= SEARCH_NODE_TYPE_GREEDY;
+        } else {
+          last->type &= ~SEARCH_NODE_TYPE_GREEDY;
+        }
+        offset++;
+        continue;
+      }
+
+      if (cp=='*') {
+        last->min = 0;
+        last->max = SIZE_T_MAX;
+        last->type |= SEARCH_NODE_TYPE_GREEDY;
         offset++;
         continue;
       }
@@ -339,6 +368,7 @@ void search_optimize(struct search* base) {
     again |= search_optimize_reduce_branch(base->root);
   } while(again);
   search_optimize_plain(base->root);
+  search_optimize_next_list(base->root, NULL);
 }
 
 int search_optimize_reduce_branch(struct search_node* node) {
@@ -524,14 +554,29 @@ void search_optimize_plain(struct search_node* node) {
   }
 }
 
+void search_optimize_next_list(struct search_node* node, struct search_node* prev) {
+  if (node->next) {
+    node->forward = node->next;
+    search_optimize_next_list(node->next, prev);
+  } else {
+    node->forward = prev;
+  }
+
+  struct list_node* subs = node->sub->first;
+  while (subs) {
+    struct search_node* check = *((struct search_node**)list_object(subs));
+    search_optimize_next_list(check, node);
+    subs = subs->next;
+  }
+}
+
 int search_find(struct search* base, struct encoding_stream* text) {
   if (!base->root) {
     return 0;
   }
 
   while (!encoding_stream_end(text)) {
-    struct encoding_stream copy = *text;
-    if (search_find_recursive(base, base->root, &copy)) {
+    if (search_find_loop(base, base->root, text)) {
       base->hit_start = *text;
       return 1;
     }
@@ -542,107 +587,131 @@ int search_find(struct search* base, struct encoding_stream* text) {
   return 0;
 }
 
-int search_find_recursive_subs(struct search* base, struct search_node* node, struct encoding_stream* text, size_t depth) {
-  struct encoding_stream copy = *text;
-  if (depth>=node->min) {
-    if (search_find_recursive(base, node->next, text)) {
-      if (!(node->type&SEARCH_NODE_TYPE_GREEDY)) {
-        return 1;
-      }
-    } else {
-      return 0;
-    }
+int search_find_loop(struct search* base, struct search_node* node, struct encoding_stream* text) {
+  if (!base->stack) {
+    base->stack = (struct search_stack*)malloc(sizeof(struct search_stack*)*base->stack_size);
   }
 
-  if (depth>=node->max) {
-    return 0;
-  }
-
-  struct list_node* subs = node->sub->first;
-  while (subs) {
-    struct search_node* check = *((struct search_node**)list_object(subs));
-    *text = copy;
-    if (search_find_recursive(base, check, text)) {
-      if (search_find_recursive_subs(base, node, text, depth+1)) {
-        return 1;
-      }
-    }
-
-    subs = subs->next;
-  }
-
-  if (depth>node->min) {
-    *text = copy;
-    return 1;
-  }
-
-  return 0;
-}
-
-int search_find_recursive(struct search* base, struct search_node* node, struct encoding_stream* text) {
-  if (!node) {
-    // TODO: save groups
-    base->hit_end = *text;
-    return 1;
-  }
-
-  if (node->type&SEARCH_NODE_TYPE_SET) {
-    if (node->plain) {
-      for (size_t n = 0; n<node->size; n++) {
-        if (encoding_stream_end(text) || node->plain[n]!=encoding_stream_peek(text, 0)) {
-          return 0;
+  struct encoding_stream stream = *text;
+  struct search_stack* load = base->stack;
+  load->node = NULL;
+  int enter = 1;
+  int hit = 0;
+  int hits = 0;
+  while (1) {
+    if (node->type&SEARCH_NODE_TYPE_SET) {
+      if (node->plain) {
+        enter = 1;
+        for (size_t n = 0; n<node->size; n++) {
+          if (encoding_stream_end(&stream) || node->plain[n]!=encoding_stream_peek(&stream, 0)) {
+            enter = 0;
+            break;
+          }
+          encoding_stream_forward(&stream, 1);
         }
-        encoding_stream_forward(text, 1);
-      }
-      return search_find_recursive(base, node->next, text);
-    } else {
-      size_t n;
-      for (n = 0; n<node->min; n++) {
-        uint8_t c = encoding_stream_peek(text, 0);
-        if (encoding_stream_end(text) ||  !((node->set[c/SEARCH_NODE_SET_BUCKET]>>(c%SEARCH_NODE_SET_BUCKET))&1)) {
-          return 0;
-        }
-        encoding_stream_forward(text, 1);
-      }
-
-      if (!(node->type&SEARCH_NODE_TYPE_GREEDY)) {
-        return search_find_recursive(base, node->next, text);
       } else {
-        struct encoding_stream hit;
-        while (1) {
-          struct encoding_stream copy = *text;
-          int found = search_find_recursive(base, node->next, &copy);
-          if (!found || n>=node->max) {
-            break;
+        if (enter) {
+          for (size_t n = 0; n<node->min; n++) {
+            uint8_t c = encoding_stream_peek(&stream, 0);
+            if (encoding_stream_end(&stream) || !((node->set[c/SEARCH_NODE_SET_BUCKET]>>(c%SEARCH_NODE_SET_BUCKET))&1)) {
+              enter = 0;
+              break;
+            }
+            encoding_stream_forward(&stream, 1);
           }
 
-          hit = copy;
-          n++;
-
-          uint8_t c = encoding_stream_peek(text, 0);
-          if (encoding_stream_end(text) ||  !((node->set[c/SEARCH_NODE_SET_BUCKET]>>(c%SEARCH_NODE_SET_BUCKET))&1)) {
-            break;
+          if (enter && node->min<node->max) {
+            load++;
+            load->node = node;
+            load->previous = node->stack;
+            load->loop = node->min;
+            load->hits = hits;
+            node->stack = load;
+            load->stream = stream;
           }
-          encoding_stream_forward(text, 1);
-        }
+        } else {
+          struct search_stack* index = node->stack;
+          index->loop++;
+          enter = (index->loop<=node->max && ((node->type&SEARCH_NODE_TYPE_GREEDY) || load->hits==hits))?1:0;
+          if (index->loop<node->max) {
+            uint8_t c = encoding_stream_peek(&load->stream, 0);
+            if (encoding_stream_end(&load->stream) || !((node->set[c/SEARCH_NODE_SET_BUCKET]>>(c%SEARCH_NODE_SET_BUCKET))&1)) {
+              enter = 0;
+            }
+            encoding_stream_forward(&load->stream, 1);
+          }
 
-        if (n>node->min) {
-          *text = hit;
-          return 1;
+          if (!enter) {
+            node->stack = load->previous;
+            load--;
+          } else {
+            stream = load->stream;
+          }
         }
-        return 0;
+      }
+    } else {
+      if (enter) {
+        load++;
+        load->node = node;
+        load->previous = node->stack;
+        load->loop = (enter==2)?node->stack->loop+1:0;
+        load->sub = node->sub->first;
+        load->stream = stream;
+        load->hits = hits;
+        node->stack = load;
+        enter = 1;
+      } else {
+        stream = load->stream;
+      }
+
+      struct search_stack* index = node->stack;
+      if (index->loop<node->max) {
+        if ((enter==0 || index->loop<node->min) && index->sub) {
+          if ((node->type&SEARCH_NODE_TYPE_GREEDY) || index->loop<node->min || load->sub!=node->sub->first || load->hits==hits) {
+            enter = 1;
+            struct search_node* next = *((struct search_node**)list_object(index->sub));
+            index->sub = index->sub->next;
+            node = next;
+            continue;
+          }
+        }
+      }
+      if (!enter) {
+        node->stack = load->previous;
+        load--;
       }
     }
-  } else {
-    return search_find_recursive_subs(base, node, text, 0);
+
+    if (enter) {
+      if (!node->next) {
+        enter = 2;
+      }
+      node = node->forward;
+      if (node) {
+        continue;
+      }
+
+      // TODO: save groups
+      base->hit_end = stream;
+      hit = 1;
+      hits++;
+      enter = 0;
+    }
+
+    node = load->node;
+    if (!node) {
+      break;
+    }
   }
+
+  return hit;
 }
 
 void search_test(void) {
   //const char* needle_text = "Hallo äÖÜ ß Test Ú ń ǹ";
-  //const char* needle_text = "haLlO";
-  //const char* needle_text = "(hallo|hall)O (schnappi|schnapp|schlappi)";
-  const char* needle_text = "(schnappi|schnapp|schlappi){2}";
+  //const char* needle_text = "(haLlO|(Teßt){1,2}?)";
+  const char* needle_text = "(hallo|hall)O (sch)*(schnappi|schnapp|schlappi)";
+  //const char* needle_text = "(schnappi|schnapp|schlappi){2}";
   struct encoding_stream needle_stream;
   encoding_stream_from_plain(&needle_stream, (uint8_t*)needle_text, strlen(needle_text));
   struct encoding* needle_encoding = encoding_utf8_create();
@@ -651,7 +720,7 @@ void search_test(void) {
   search_debug_tree(search, search->root, 0, 0, 0);
 
   struct encoding_stream text;
-  const char* text_text = "Dies ist ein l Tesst, HaLLo SchlappiSchlappi!";
+  const char* text_text = "Dies ist ein l TesstTeßt, HaLLo schschschSchlappiSchlappi!";
   encoding_stream_from_plain(&text, (uint8_t*)text_text, strlen(text_text));
   int found = search_find(search, &text);
   printf("%d\r\n", found);
