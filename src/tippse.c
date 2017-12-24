@@ -177,7 +177,12 @@ int main(int argc, const char** argv) {
 
   unicode_init();
 
-  // search_test();
+  if (0) {
+    search_test();
+    unicode_free();
+    free(base_path);
+    exit(0);
+  }
 
   struct screen* screen = screen_create();
   struct editor* editor = editor_create(base_path, screen, argc, argv);
@@ -340,9 +345,8 @@ int main(int argc, const char** argv) {
 
   editor_destroy(editor);
   screen_destroy(screen);
-  free(base_path);
-
   unicode_free();
+  free(base_path);
 
   return 0;
 }

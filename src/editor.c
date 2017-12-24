@@ -382,6 +382,7 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
     if (base->focus==base->document) {
       editor_focus(base, document, 0);
     }
+    base->document = document;
   } else if (command==TIPPSE_CMD_RELOAD) {
     editor_reload_document(base, base->document->file);
   } else if (command==TIPPSE_CMD_SAVE) {

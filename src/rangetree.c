@@ -747,19 +747,23 @@ struct range_tree_node* range_tree_fuse(struct range_tree_node* root, struct ran
           memcpy(copy, first->buffer->buffer+first->offset, first->length);
           memcpy(copy+first->length, next->buffer->buffer+next->offset, next->length);
           struct fragment* buffer = fragment_create_memory(copy, first->length+next->length);
-          fragment_dereference(next->buffer, file);
-          next->buffer = buffer;
-          next->length = buffer->length;
-          next->offset = 0;
-
-          range_tree_shrink(next);
-          range_tree_update(next);
-
           fragment_dereference(first->buffer, file);
-          first->buffer = NULL;
-          first->inserter &= ~TIPPSE_INSERTER_LEAF;
+          first->buffer = buffer;
+          first->length = buffer->length;
+          first->offset = 0;
+
           range_tree_shrink(first);
-          root = range_tree_update(first);
+          range_tree_update(first);
+
+          if (next==last) {
+            last = first;
+          }
+          fragment_dereference(next->buffer, file);
+          next->buffer = NULL;
+          next->inserter &= ~TIPPSE_INSERTER_LEAF;
+          range_tree_shrink(next);
+          root = range_tree_update(next);
+          continue;
         }
       }
     }

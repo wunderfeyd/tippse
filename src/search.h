@@ -11,6 +11,10 @@
 #define SEARCH_NODE_TYPE_SET 1
 #define SEARCH_NODE_TYPE_BRANCH 2
 #define SEARCH_NODE_TYPE_GREEDY 4
+#define SEARCH_NODE_TYPE_POSSESSIVE 8
+#define SEARCH_NODE_TYPE_MATCHING_TYPE 16
+#define SEARCH_NODE_TYPE_GROUP_START 32
+#define SEARCH_NODE_TYPE_GROUP_END 64
 
 #define SEARCH_NODE_SET_BUCKET (sizeof(uint32_t)*8)
 #define SEARCH_NODE_SET_SIZE (256/SEARCH_NODE_SET_BUCKET)
@@ -29,11 +33,17 @@ struct search_node {
   struct search_node* next; // list of next node on hit
   struct search_node* forward; // list of next node on hit
   struct list* sub;       // list of sub nodes
+  struct list* group_start; // list of groups entered by the node
+  struct list* group_end; // list of groups exited by the node
+  struct encoding_stream start; // start of group content during scan
+  struct encoding_stream end;   // end of group content during scan
 };
 
 struct search_group {
-  struct encoding_stream start; // start of group content
-  struct encoding_stream end;   // end of group content
+  struct search_node* node_start; // start group node
+  struct search_node* node_end; // end group node
+  struct encoding_stream start; // start of group content best hit
+  struct encoding_stream end;   // end of group content best hit
 };
 
 struct search_stack {
@@ -47,7 +57,8 @@ struct search_stack {
 
 struct search {
   struct search_node* root;         // root node of search tree
-  struct list* groups;              // active groups
+  size_t groups;                    // active groups
+  struct search_group* group_hits;  // group hits
   int reverse;                      // search up?
   struct encoding_stream hit_start; // found match start location
   struct encoding_stream hit_end;   // found match end location
@@ -57,6 +68,10 @@ struct search {
 };
 
 struct search_node* search_node_create(int type);
+void search_node_destroy(struct search_node* base);
+void search_node_empty(struct search_node* base);
+void search_node_move(struct search_node* base, struct search_node* copy);
+void search_node_destroy_recursive(struct search_node* node);
 
 struct search* search_create_plain(int ignore_case, int reverse, struct encoding_stream needle, struct encoding* needle_encoding, struct encoding* output_encoding);
 struct search* search_create_regex(int ignore_case, int reverse, struct encoding_stream needle, struct encoding* needle_encoding, struct encoding* output_encoding);
@@ -73,7 +88,7 @@ int search_optimize_reduce_branch(struct search_node* node);
 int search_optimize_combine_branch(struct search_node* node);
 int search_optimize_flatten_branch(struct search_node* node);
 void search_optimize_plain(struct search_node* node);
-void search_optimize_next_list(struct search_node* node, struct search_node* prev);
+void search_prepare(struct search* base, struct search_node* node, struct search_node* prev);
 
 void search_test(void);
 #endif /* #ifndef TIPPSE_SEARCH_H */

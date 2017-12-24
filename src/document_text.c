@@ -1736,7 +1736,7 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
           break;
         }
 
-        in.offset = range_tree_offset(node)+node->length-1-node->visuals.rewind;
+        in.offset = range_tree_offset(node)+node->length-1;
       }
     }
   }
