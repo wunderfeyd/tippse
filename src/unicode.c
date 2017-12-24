@@ -7,6 +7,9 @@
 #include "unicode_spacing_marks.h"
 #include "unicode_case_folding.h"
 #include "unicode_normalization.h"
+#include "unicode_letters.h"
+#include "unicode_whitespace.h"
+#include "unicode_digits.h"
 
 unsigned int unicode_nonspacing_marks[UNICODE_BITFIELD_MAX];
 unsigned int unicode_spacing_marks[UNICODE_BITFIELD_MAX];

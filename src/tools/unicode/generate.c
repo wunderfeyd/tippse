@@ -359,6 +359,9 @@ int main(int argc, const char** argv) {
   convert_range_param3("download/UnicodeData.txt", "output/unicode_invisibles.h", "invisibles", "Cc", "Cf");
   convert_range_param3("download/UnicodeData.txt", "output/unicode_nonspacing_marks.h", "nonspacing_marks", "Mn", "Me");
   convert_range_param3("download/UnicodeData.txt", "output/unicode_spacing_marks.h", "spacing_marks", "Mc", NULL);
+  convert_range_param3("download/UnicodeData.txt", "output/unicode_digits.h", "digits", "Nd", NULL);
+  convert_range_param3("download/UnicodeData.txt", "output/unicode_whitespace.h", "whitespace", "Zs", NULL);
+  convert_range_param3("download/UnicodeData.txt", "output/unicode_letters.h", "letters", "Ll", "Lu");
   convert_transform("download/CaseFolding.txt", "output/unicode_case_folding.h", "case_folding", "C", "F", 1, 0, 2);
   convert_transform("download/NormalizationTest.txt", "output/unicode_normalization.h", "normalization", NULL, NULL, 0, 1, 2);
   return 0;
