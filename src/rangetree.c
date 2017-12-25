@@ -1183,7 +1183,7 @@ int range_tree_marked(struct range_tree_node* node, file_offset_t offset, file_o
   }
 
   if ((node->inserter&TIPPSE_INSERTER_LEAF) || (offset==0 && node->length==length)) {
-    return (node->inserter&inserter)?1:0;
+    return ((node->inserter&inserter)==inserter)?1:0;
   }
 
   int marked = 0;

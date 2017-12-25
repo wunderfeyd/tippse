@@ -4,18 +4,25 @@
 
 struct list* list_create(size_t node_size) {
   struct list* base = malloc(sizeof(struct list));
+  list_create_inplace(base, node_size);
+  return base;
+}
+
+void list_create_inplace(struct list* base, size_t node_size) {
   base->first = NULL;
   base->last = NULL;
   base->count = 0;
   base->node_size = node_size;
-  return base;
 }
 
-void list_destroy(struct list* base) {
+void list_destroy_inplace(struct list* base) {
   if (base->count!=0) {
     printf("list not empty\r\n");
   }
+}
 
+void list_destroy(struct list* base) {
+  list_destroy_inplace(base);
   free(base);
 }
 

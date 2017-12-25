@@ -12,15 +12,16 @@ extern uint16_t unicode_digits_rle[];
 
 struct search_node* search_node_create(int type) {
   struct search_node* base = malloc(sizeof(struct search_node));
-  memset(base, 0, sizeof(struct search_node));
   base->type = type;
+  base->size = 0;
   base->plain = NULL;
-  base->sub = list_create(sizeof(struct search_node*));
-  base->group_start = list_create(sizeof(size_t));
-  base->group_end = list_create(sizeof(size_t));
+  list_create_inplace(&base->sub, sizeof(struct search_node*));
+  list_create_inplace(&base->group_start, sizeof(size_t));
+  list_create_inplace(&base->group_end, sizeof(size_t));
   base->stack = NULL;
   base->next = NULL;
   base->forward = NULL;
+  base->set = NULL;
   return base;
 }
 
@@ -30,22 +31,23 @@ void search_node_destroy(struct search_node* base) {
 }
 
 void search_node_empty(struct search_node* base) {
-  while (base->sub->first) {
-    list_remove(base->sub, base->sub->first);
+  while (base->sub.first) {
+    list_remove(&base->sub, base->sub.first);
   }
-  list_destroy(base->sub);
+  list_destroy_inplace(&base->sub);
 
-  while (base->group_start->first) {
-    list_remove(base->group_start, base->group_start->first);
+  while (base->group_start.first) {
+    list_remove(&base->group_start, base->group_start.first);
   }
-  list_destroy(base->group_start);
+  list_destroy_inplace(&base->group_start);
 
-  while (base->group_end->first) {
-    list_remove(base->group_end, base->group_end->first);
+  while (base->group_end.first) {
+    list_remove(&base->group_end, base->group_end.first);
   }
-  list_destroy(base->group_end);
+  list_destroy_inplace(&base->group_end);
 
   free(base->plain);
+  range_tree_destroy(base->set, NULL);
 }
 
 void search_node_move(struct search_node* base, struct search_node* copy) {
@@ -66,9 +68,9 @@ void search_node_destroy_recursive(struct search_node* node) {
   while (node) {
     struct search_node* next = node->next;
 
-    while (node->sub->first) {
-      search_node_destroy_recursive(*(struct search_node**)list_object(node->sub->first));
-      list_remove(node->sub, node->sub->first);
+    while (node->sub.first) {
+      search_node_destroy_recursive(*(struct search_node**)list_object(node->sub.first));
+      list_remove(&node->sub, node->sub.first);
     }
 
     search_node_destroy(node);
@@ -80,7 +82,7 @@ void search_node_destroy_recursive(struct search_node* node) {
 int search_node_count(struct search_node* node) {
   int count = 0;
   while (node) {
-    struct list_node* subs = node->sub->first;
+    struct list_node* subs = node->sub.first;
     while (subs) {
       count += search_node_count(*((struct search_node**)list_object(subs)));
       subs = subs->next;
@@ -93,30 +95,32 @@ int search_node_count(struct search_node* node) {
   return count;
 }
 
+void search_node_set_build(struct search_node* node) {
+  if (!node->set) {
+    node->set = range_tree_static(node->set, SEARCH_NODE_SET_CODES, 0);
+  }
+}
+
 void search_node_set(struct search_node* node, size_t index) {
-  node->set[index/SEARCH_NODE_SET_BUCKET] |= ((uint32_t)1)<<(index%SEARCH_NODE_SET_BUCKET);
+  search_node_set_build(node);
+  node->set = range_tree_mark(node->set, index, 1, TIPPSE_INSERTER_MARK);
 }
 
 void search_node_set_decode_rle(struct search_node* node, int invert, uint16_t* rle) {
-  codepoint_t codepoint = 0;
+  file_offset_t codepoint = 0;
   while (1) {
-    int codes = (int)*rle++;
+    file_offset_t codes = (file_offset_t)*rle++;
     if (codes==0) {
       break;
     }
 
-    int set = (codes&1)^invert;
+    int set = (int)(codes&1)^invert;
     codes >>= 1;
     if (set) {
-      while (codes-->0) {
-        if (codepoint<SEARCH_NODE_SET_CODES) {
-          search_node_set(node, (size_t)codepoint);
-        }
-        codepoint++;
-      }
-    } else {
-      codepoint += codes;
+      search_node_set_build(node);
+      node->set = range_tree_mark(node->set, codepoint, codes, TIPPSE_INSERTER_MARK);
     }
+    codepoint += codes;
   }
 }
 
@@ -130,6 +134,7 @@ void search_destroy(struct search* base) {
 }
 
 struct search* search_create_plain(int ignore_case, int reverse, struct encoding_stream needle, struct encoding* needle_encoding, struct encoding* output_encoding) {
+  //int64_t tick = tick_count();
   struct search* base = malloc(sizeof(struct search));
   base->reverse = reverse;
   base->groups = 0;
@@ -164,7 +169,12 @@ struct search* search_create_plain(int ignore_case, int reverse, struct encoding
     offset += search_append_unicode(last, ignore_case, &cache, offset, output_encoding);
   }
 
-  search_optimize(base, output_encoding);
+  //int64_t tick2 = tick_count();
+  if (base->root) {
+    search_optimize(base, output_encoding);
+  }
+  //int64_t tick3 = tick_count();
+  //printf("\r\n%d %d %d\r\n", (int)(tick2-tick), (int)(tick3-tick2), (int)sizeof(struct search_node));
   return base;
 }
 
@@ -191,7 +201,7 @@ struct search* search_create_regex(int ignore_case, int reverse, struct encoding
   struct search_node* last = search_node_create(SEARCH_NODE_TYPE_BRANCH);
   last->min = 1;
   last->max = 1;
-  list_insert(group[group_depth-1]->sub, NULL, &last);
+  list_insert(&group[group_depth-1]->sub, NULL, &last);
 
   size_t offset = 0;
   int escape = 0;
@@ -236,7 +246,7 @@ struct search* search_create_regex(int ignore_case, int reverse, struct encoding
         struct search_node* next = search_node_create(SEARCH_NODE_TYPE_BRANCH);
         next->min = 1;
         next->max = 1;
-        list_insert(group[group_depth-1]->sub, NULL, &next);
+        list_insert(&group[group_depth-1]->sub, NULL, &next);
         last = next;
         offset++;
         continue;
@@ -251,15 +261,15 @@ struct search* search_create_regex(int ignore_case, int reverse, struct encoding
           last = next;
           group[group_depth] = last;
           group_depth++;
-          list_insert(last->group_start, NULL, &base->groups);
-          list_insert(last->group_end, NULL, &base->groups);
+          list_insert(&last->group_start, NULL, &base->groups);
+          list_insert(&last->group_end, NULL, &base->groups);
           base->groups++;
         }
 
         struct search_node* next = search_node_create(SEARCH_NODE_TYPE_BRANCH);
         next->min = 1;
         next->max = 1;
-        list_insert(group[group_depth-1]->sub, NULL, &next);
+        list_insert(&group[group_depth-1]->sub, NULL, &next);
         last = next;
         offset++;
         continue;
@@ -310,9 +320,8 @@ struct search* search_create_regex(int ignore_case, int reverse, struct encoding
         struct search_node* next = search_node_create(SEARCH_NODE_TYPE_SET);
         next->min = 1;
         next->max = 1;
-        for (size_t n = 0; n<SEARCH_NODE_SET_SIZE; n++) {
-          next->set[n] = ~(uint32_t)0;
-        }
+        search_node_set_build(next);
+        next->set = range_tree_mark(next->set, 0, SEARCH_NODE_SET_CODES, TIPPSE_INSERTER_MARK);
         last->next = next;
         last = next;
         offset++;
@@ -371,7 +380,9 @@ struct search* search_create_regex(int ignore_case, int reverse, struct encoding
     }
   }
 
-  search_optimize(base, output_encoding);
+  if (base->root) {
+    search_optimize(base, output_encoding);
+  }
   return base;
 }
 
@@ -385,17 +396,31 @@ size_t search_append_unicode(struct search_node* last, int ignore_case, struct e
       transform = unicode_transform(unicode_transform_lower, cache, offset, &advance, &length);
 
     if (transform) {
-      search_append_next_codepoint(last, &transform->cp[0], transform->length);
+      if (transform->length==1 && advance==1) {
+        last->type &= ~SEARCH_NODE_TYPE_BRANCH;
+        last->type |= SEARCH_NODE_TYPE_SET;
+        search_node_set(last, (size_t)transform->cp[0]);
+        search_node_set(last, (size_t)encoding_cache_find_codepoint(cache, offset));
+        return advance;
+      } else {
+        search_append_next_codepoint(last, &transform->cp[0], transform->length);
+      }
     } else {
       advance = 1;
     }
   }
 
-  codepoint_t cp[8];
-  for (size_t n = 0; n<advance; n++) {
-    cp[n] = encoding_cache_find_codepoint(cache, offset+n);
+  if (advance==1) {
+    last->type &= ~SEARCH_NODE_TYPE_BRANCH;
+    last->type |= SEARCH_NODE_TYPE_SET;
+    search_node_set(last, (size_t)encoding_cache_find_codepoint(cache, offset));
+  } else {
+    codepoint_t cp[8];
+    for (size_t n = 0; n<advance; n++) {
+      cp[n] = encoding_cache_find_codepoint(cache, offset+n);
+    }
+    search_append_next_codepoint(last, &cp[0], advance);
   }
-  search_append_next_codepoint(last, &cp[0], advance);
   return advance;
 }
 
@@ -416,7 +441,7 @@ struct search_node* search_append_next_index(struct search_node* last, size_t in
   check->min = 1;
   check->max = 1;
   search_node_set(check, index);
-  list_insert(last->sub, NULL, &check);
+  list_insert(&last->sub, NULL, &check);
   return check;
 }
 
@@ -497,18 +522,26 @@ void search_debug_tree(struct search* base, struct search_node* node, size_t dep
     if (node->size==0) {
       printf("[");
       int count = 0;
-      for (size_t n = 0; n<SEARCH_NODE_SET_CODES && count<8; n++) {
-        if (((node->set[n/SEARCH_NODE_SET_BUCKET]>>(n%SEARCH_NODE_SET_BUCKET))&1)==1) {
-          count++;
-          if (n<0x20 || n>0x7f) {
-            printf("\\%02x", (int)n);
-            length+=3;
-          } else {
-            printf("%c", (int)n);
-            length++;
+      struct range_tree_node* range = range_tree_first(node->set);
+      size_t codepoint = 0;
+      while (range && count<8) {
+        if (range->inserter&TIPPSE_INSERTER_MARK) {
+          for (size_t n = 0; n<range->length && count<8; n++) {
+            count++;
+            size_t c = n+codepoint;
+            if (c<0x20 || c>0x7f) {
+              printf("\\%02x", (int)c);
+              length+=3;
+            } else {
+              printf("%c", (int)c);
+              length++;
+            }
           }
         }
+        codepoint += range->length;
+        range = range_tree_next(range);
       }
+
       if (count==8) {
         printf("..");
         length+=2;
@@ -543,12 +576,12 @@ void search_debug_tree(struct search* base, struct search_node* node, size_t dep
   if (node->next) {
     printf(" ");
     length+=1;
-    search_debug_tree(base, node->next, depth+1, length, node->sub->first?0:1);
+    search_debug_tree(base, node->next, depth+1, length, node->sub.first?0:1);
   } else {
     printf("\r\n");
   }
 
-  struct list_node* subs = node->sub->first;
+  struct list_node* subs = node->sub.first;
   while (subs) {
     struct search_node* check = *((struct search_node**)list_object(subs));
     search_debug_indent(depth);
@@ -563,7 +596,7 @@ void search_optimize(struct search* base, struct encoding* encoding) {
   do {
     if (SEARCH_DEBUG) {
       printf("loop codepoints.. %d\r\n", search_node_count(base->root));
-      //search_debug_tree(base, base->root, 0, 0, 0);
+      search_debug_tree(base, base->root, 0, 0, 0);
     }
     again = search_optimize_combine_branch(base->root);
     again |= search_optimize_reduce_branch(base->root);
@@ -572,7 +605,7 @@ void search_optimize(struct search* base, struct encoding* encoding) {
   do {
     if (SEARCH_DEBUG) {
       printf("loop native.. %d\r\n", search_node_count(base->root));
-      //search_debug_tree(base, base->root, 0, 0, 0);
+      search_debug_tree(base, base->root, 0, 0, 0);
     }
     again = search_optimize_combine_branch(base->root);
     again |= search_optimize_reduce_branch(base->root);
@@ -583,8 +616,8 @@ void search_optimize(struct search* base, struct encoding* encoding) {
 
 int search_optimize_reduce_branch(struct search_node* node) {
   int again = 0;
-  if (node->sub->count==1) {
-    struct search_node* check = *((struct search_node**)list_object(node->sub->first));
+  if (node->sub.count==1) {
+    struct search_node* check = *((struct search_node**)list_object(node->sub.first));
     struct search_node* crawl = check;
     struct search_node* last = check;
     size_t count = 0;
@@ -600,15 +633,15 @@ int search_optimize_reduce_branch(struct search_node* node) {
         last->min *= node->min;
         last->max *= node->max;
       }
-      search_node_group_copy(check->group_start, node->group_start);
-      search_node_group_copy(last->group_end, node->group_end);
+      search_node_group_copy(&check->group_start, &node->group_start);
+      search_node_group_copy(&last->group_end, &node->group_end);
       check->type |= node->type&~(SEARCH_NODE_TYPE_BRANCH);
       search_node_move(node, check);
       again = 1;
     }
   }
 
-  if (node->sub->count==0 && (node->type&SEARCH_NODE_TYPE_BRANCH) && node->next) {
+  if (node->sub.count==0 && (node->type&SEARCH_NODE_TYPE_BRANCH) && node->next) {
     search_node_move(node, node->next);
   }
 
@@ -616,7 +649,7 @@ int search_optimize_reduce_branch(struct search_node* node) {
     again |= search_optimize_reduce_branch(node->next);
   }
 
-  struct list_node* subs = node->sub->first;
+  struct list_node* subs = node->sub.first;
   while (subs) {
     struct search_node* check = *((struct search_node**)list_object(subs));
     again |= search_optimize_reduce_branch(check);
@@ -628,7 +661,7 @@ int search_optimize_reduce_branch(struct search_node* node) {
 
 int search_optimize_combine_branch(struct search_node* node) {
   int again = 0;
-  struct list_node* subs1 = node->sub->first;
+  struct list_node* subs1 = node->sub.first;
   while (subs1) {
     struct search_node* check1 = *((struct search_node**)list_object(subs1));
     struct list_node* subs2 = subs1->next;
@@ -636,26 +669,37 @@ int search_optimize_combine_branch(struct search_node* node) {
       struct search_node* check2 = *((struct search_node**)list_object(subs2));
       if (check1->type==check2->type && check1->min==check2->min && check1->max==1 && check2->max==1 && (check1->type&SEARCH_NODE_TYPE_SET)) {
         if (check1->next==NULL && check2->next==NULL) { // Merge only if both paths are equal (or if there are single nodes)
-          for (size_t n = 0; n<SEARCH_NODE_SET_SIZE; n++) {
-            check1->set[n] |= check2->set[n];
+          struct range_tree_node* range = range_tree_first(check2->set);
+          size_t codepoint = 0;
+          while (range) {
+            if (range->inserter&TIPPSE_INSERTER_MARK) {
+              search_node_set_build(check1);
+              check1->set = range_tree_mark(check1->set, codepoint, range->length, TIPPSE_INSERTER_MARK);
+            }
+            codepoint += range->length;
+            range = range_tree_next(range);
           }
-          search_node_group_copy(check1->group_start, check2->group_start);
-          search_node_group_copy(check1->group_end, check2->group_end);
+          search_node_group_copy(&check1->group_start, &check2->group_start);
+          search_node_group_copy(&check1->group_end, &check2->group_end);
           search_node_destroy_recursive(check2);
-          list_remove(node->sub, subs2);
+          list_remove(&node->sub, subs2);
           again = 1;
           break;
         }
 
-        size_t n;
-        for (n = 0; n<SEARCH_NODE_SET_SIZE; n++) {
-          if (check1->set[n]!=check2->set[n]) {
+        struct range_tree_node* range1 = range_tree_first(check1->set);
+        struct range_tree_node* range2 = range_tree_first(check2->set);
+        while (range1 && range2) {
+          if (range1->inserter!=range2->inserter || range1->length!=range2->length) {
             break;
           }
+          range1 = range_tree_next(range1);
+          range2 = range_tree_next(range2);
         }
-        if (n==SEARCH_NODE_SET_SIZE) { // Merge if both nodes are equal
-          int next1 = (check1->next && (!(check1->next->type&SEARCH_NODE_TYPE_BRANCH) || (check1->next->sub->count!=0)))?1:0;
-          int next2 = (check2->next && (!(check2->next->type&SEARCH_NODE_TYPE_BRANCH) || (check2->next->sub->count!=0)))?1:0;
+
+        if (!range1 && !range2) { // Merge if both nodes are equal
+          int next1 = (check1->next && (!(check1->next->type&SEARCH_NODE_TYPE_BRANCH) || (check1->next->sub.count!=0)))?1:0;
+          int next2 = (check2->next && (!(check2->next->type&SEARCH_NODE_TYPE_BRANCH) || (check2->next->sub.count!=0)))?1:0;
           if ((next1 && next2) || (!next1 && !next2)) {
             if (!check1->next || !(check1->next->type&SEARCH_NODE_TYPE_BRANCH) || check1->next->min!=1 || check1->next->max!=1) {
               struct search_node* branch = search_node_create(SEARCH_NODE_TYPE_BRANCH);
@@ -663,33 +707,33 @@ int search_optimize_combine_branch(struct search_node* node) {
               branch->max = 1;
               branch->next = NULL;
               if (check1->next) {
-                list_insert(branch->sub, NULL, &check1->next);
+                list_insert(&branch->sub, NULL, &check1->next);
               }
               check1->next = branch;
             }
 
             if (check2->next) {
               if ((check2->next->type&SEARCH_NODE_TYPE_BRANCH) && check2->next->min==1 && check2->next->max==1) {
-                struct list_node* subs = check2->next->sub->first;
+                struct list_node* subs = check2->next->sub.first;
                 while (subs) {
-                  list_insert(check1->next->sub, NULL, list_object(subs));
+                  list_insert(&check1->next->sub, NULL, list_object(subs));
                   subs = subs->next;
                 }
 
                 if (check2->next->next) {
-                  list_insert(check1->next->sub, NULL, &check2->next->next);
-                  search_node_group_copy(check1->next->group_start, check2->next->group_start);
-                  search_node_group_copy(check1->next->group_end, check2->next->group_end);
+                  list_insert(&check1->next->sub, NULL, &check2->next->next);
+                  search_node_group_copy(&check1->next->group_start, &check2->next->group_start);
+                  search_node_group_copy(&check1->next->group_end, &check2->next->group_end);
                   search_node_destroy(check2->next);
                 }
               } else {
-                list_insert(check1->next->sub, NULL, &check2->next);
+                list_insert(&check1->next->sub, NULL, &check2->next);
               }
-              search_node_group_copy(check1->next->group_start, check2->group_start);
-              search_node_group_copy(check1->next->group_end, check2->group_end);
+              search_node_group_copy(&check1->next->group_start, &check2->group_start);
+              search_node_group_copy(&check1->next->group_end, &check2->group_end);
               search_node_destroy(check2);
             }
-            list_remove(node->sub, subs2);
+            list_remove(&node->sub, subs2);
             again = 1;
             break;
           }
@@ -704,7 +748,7 @@ int search_optimize_combine_branch(struct search_node* node) {
     again |= search_optimize_combine_branch(node->next);
   }
 
-  struct list_node* subs = node->sub->first;
+  struct list_node* subs = node->sub.first;
   while (subs) {
     struct search_node* check = *((struct search_node**)list_object(subs));
     again |= search_optimize_combine_branch(check);
@@ -719,61 +763,64 @@ void search_optimize_native(struct encoding* encoding, struct search_node* node)
     search_optimize_native(encoding, node->next);
   }
 
-  struct list_node* subs = node->sub->first;
+  struct list_node* subs = node->sub.first;
   while (subs) {
     struct search_node* check = *((struct search_node**)list_object(subs));
     search_optimize_native(encoding, check);
     subs = subs->next;
   }
 
-  if ((node->type&SEARCH_NODE_TYPE_SET) && !(node->type&SEARCH_NODE_TYPE_BYTE)) {
-    int count = 0;
-    for (size_t n = 0; n<SEARCH_NODE_SET_SIZE && count<SEARCH_NODE_TYPE_NATIVE_COUNT; n++) {
-      if (node->set[n]!=0) {
-        for (size_t m = 0; m<SEARCH_NODE_SET_BUCKET && count<SEARCH_NODE_TYPE_NATIVE_COUNT; m++) {
-          if (((node->set[n]>>m)&1)) {
-            count++;
-          }
-        }
-      }
+  size_t count = 0;
+  struct range_tree_node* range = range_tree_first(node->set);
+  while (range && count<=SEARCH_NODE_TYPE_NATIVE_COUNT) {
+    if (range->inserter&TIPPSE_INSERTER_MARK) {
+      count += range->length;
     }
+    range = range_tree_next(range);
+  }
 
-    if (count<SEARCH_NODE_TYPE_NATIVE_COUNT) {
-      node->type &= ~SEARCH_NODE_TYPE_SET;
-      node->type |= SEARCH_NODE_TYPE_BRANCH;
+  if ((node->type&SEARCH_NODE_TYPE_SET) && !(node->type&SEARCH_NODE_TYPE_BYTE) && count<=SEARCH_NODE_TYPE_NATIVE_COUNT) {
+    node->type &= ~SEARCH_NODE_TYPE_SET;
+    node->type |= SEARCH_NODE_TYPE_BRANCH;
 
-      for (size_t n = 0; n<SEARCH_NODE_SET_SIZE; n++) {
-        if (node->set[n]!=0) {
-          for (size_t m = 0; m<SEARCH_NODE_SET_BUCKET; m++) {
-            if (((node->set[n]>>m)&1)) {
-              uint8_t coded[1024];
-              size_t size = encoding->encode(encoding, (codepoint_t)(n*SEARCH_NODE_SET_BUCKET+m), &coded[0], 8);
-              if (size>0) {
-                search_append_next_byte(node, &coded[0], size);
-              }
-            }
+    size_t codepoint = 0;
+    struct range_tree_node* range = range_tree_first(node->set);
+    while (range) {
+      if (range->inserter&TIPPSE_INSERTER_MARK) {
+        for (size_t n = 0; n<range->length; n++) {
+          uint8_t coded[1024];
+          size_t size = encoding->encode(encoding, (codepoint_t)(codepoint+n), &coded[0], 8);
+          if (size>0) {
+            search_append_next_byte(node, &coded[0], size);
           }
         }
       }
+      codepoint += range->length;
+      range = range_tree_next(range);
     }
   }
 }
 
 void search_optimize_plain(struct search_node* node) {
-  if ((node->type&SEARCH_NODE_TYPE_BYTE) && node->size==0 && node->sub->count==0 && node->min==node->max && node->max<16 && node->min>0) {
-    size_t set = 256;
-    for (size_t n = 0; n<256; n++) {
-      if (((node->set[n/SEARCH_NODE_SET_BUCKET]>>(n%SEARCH_NODE_SET_BUCKET))&1)) {
-        if (set==256) {
-          set = n;
-        } else {
-          set = 256;
+  if ((node->type&SEARCH_NODE_TYPE_BYTE) && node->size==0 && node->sub.count==0 && node->min==node->max && node->max<16) {
+    size_t codepoint = 0;
+    size_t set = SIZE_T_MAX;
+    struct range_tree_node* range = range_tree_first(node->set);
+    while (range) {
+      if (range->inserter&TIPPSE_INSERTER_MARK) {
+        if (range->length!=1) {
           break;
         }
+        if (set!=SIZE_T_MAX) {
+          set = SIZE_T_MAX;
+          break;
+        }
+        set = codepoint;
       }
+      codepoint += range->length;
+      range = range_tree_next(range);
     }
-
-    if (set<256) {
+    if (set!=SIZE_T_MAX) {
       node->size = node->max;
       node->plain = malloc(sizeof(uint8_t)*node->size);
       node->min = 1;
@@ -788,7 +835,7 @@ void search_optimize_plain(struct search_node* node) {
     search_optimize_plain(node->next);
   }
 
-  struct list_node* subs = node->sub->first;
+  struct list_node* subs = node->sub.first;
   while (subs) {
     struct search_node* check = *((struct search_node**)list_object(subs));
     search_optimize_plain(check);
@@ -808,17 +855,32 @@ void search_optimize_plain(struct search_node* node) {
 }
 
 void search_prepare(struct search* base, struct search_node* node, struct search_node* prev) {
-  if (node->group_start->first) {
+  if (node->type&SEARCH_NODE_TYPE_BYTE) {
+    memset(&node->bitset, 0, sizeof(node->bitset));
+    size_t codepoint = 0;
+    struct range_tree_node* range = range_tree_first(node->set);
+    while (range) {
+      if (range->inserter&TIPPSE_INSERTER_MARK) {
+        for (size_t n = codepoint; n<codepoint+range->length; n++) {
+          node->bitset[n/SEARCH_NODE_SET_BUCKET] |= ((uint32_t)1)<<n%SEARCH_NODE_SET_BUCKET;
+        }
+      }
+      codepoint += range->length;
+      range = range_tree_next(range);
+    }
+  }
+
+  if (node->group_start.first) {
     node->type |= SEARCH_NODE_TYPE_GROUP_START;
-    struct list_node* groups = node->group_start->first;
+    struct list_node* groups = node->group_start.first;
     while (groups) {
       base->group_hits[*(size_t*)list_object(groups)].node_start = node;
       groups = groups->next;
     }
   }
-  if (node->group_end->first) {
+  if (node->group_end.first) {
     node->type |= SEARCH_NODE_TYPE_GROUP_END;
-    struct list_node* groups = node->group_end->first;
+    struct list_node* groups = node->group_end.first;
     while (groups) {
       base->group_hits[*(size_t*)list_object(groups)].node_end = node;
       groups = groups->next;
@@ -832,7 +894,7 @@ void search_prepare(struct search* base, struct search_node* node, struct search
     node->forward = prev;
   }
 
-  struct list_node* subs = node->sub->first;
+  struct list_node* subs = node->sub.first;
   while (subs) {
     struct search_node* check = *((struct search_node**)list_object(subs));
     search_prepare(base, check, node);
@@ -883,108 +945,86 @@ int search_find_loop(struct search* base, struct search_node* node, struct encod
           encoding_stream_forward(&stream, 1);
         }
       } else {
-        if ((node->type&SEARCH_NODE_TYPE_BYTE)) {
-          if (enter) {
-            if (!(node->type&SEARCH_NODE_TYPE_POSSESSIVE)) {
+        if (enter) {
+          if (!(node->type&SEARCH_NODE_TYPE_POSSESSIVE)) {
+            if ((node->type&SEARCH_NODE_TYPE_BYTE)) {
               for (size_t n = 0; n<node->min; n++) {
                 uint8_t c = encoding_stream_peek(&stream, 0);
-                if (encoding_stream_end(&stream) || !((node->set[c/SEARCH_NODE_SET_BUCKET]>>(c%SEARCH_NODE_SET_BUCKET))&1)) {
+                if (encoding_stream_end(&stream) || !((node->bitset[c/SEARCH_NODE_SET_BUCKET]>>(c%SEARCH_NODE_SET_BUCKET))&1)) {
                   enter = 0;
                   break;
                 }
                 encoding_stream_forward(&stream, 1);
               }
-
-              if (enter && node->min<node->max) {
-                load++;
-                load->node = node;
-                load->previous = node->stack;
-                load->loop = node->min;
-                load->hits = hits;
-                node->stack = load;
-                load->stream = stream;
-              }
             } else {
+              for (size_t n = 0; n<node->min; n++) {
+                size_t length;
+                codepoint_t c = base->encoding->decode(base->encoding, &stream, &length);
+                if (encoding_stream_end(&stream) || length==0 || c==-1 || !range_tree_marked(node->set, (file_offset_t)c, 1, TIPPSE_INSERTER_MARK)) {
+                  enter = 0;
+                  break;
+                }
+                encoding_stream_forward(&stream, length);
+              }
+            }
+
+            if (enter && node->min<node->max) {
+              load++;
+              load->node = node;
+              load->previous = node->stack;
+              load->loop = node->min;
+              load->hits = hits;
+              node->stack = load;
+              load->stream = stream;
+            }
+          } else {
+            if ((node->type&SEARCH_NODE_TYPE_BYTE)) {
               for (size_t n = 0; n<node->max; n++) {
                 uint8_t c = encoding_stream_peek(&stream, 0);
-                if (encoding_stream_end(&stream) || !((node->set[c/SEARCH_NODE_SET_BUCKET]>>(c%SEARCH_NODE_SET_BUCKET))&1)) {
+                if (encoding_stream_end(&stream) || !((node->bitset[c/SEARCH_NODE_SET_BUCKET]>>(c%SEARCH_NODE_SET_BUCKET))&1)) {
                   enter = (n>=node->min)?1:0;
                   break;
                 }
                 encoding_stream_forward(&stream, 1);
               }
-            }
-          } else {
-            struct search_stack* index = node->stack;
-            index->loop++;
-            enter = (index->loop<=node->max && ((node->type&SEARCH_NODE_TYPE_GREEDY) || load->hits==hits))?1:0;
-            if (index->loop<node->max) {
-              uint8_t c = encoding_stream_peek(&load->stream, 0);
-              if (encoding_stream_end(&load->stream) || !((node->set[c/SEARCH_NODE_SET_BUCKET]>>(c%SEARCH_NODE_SET_BUCKET))&1)) {
-                enter = 0;
-              }
-              encoding_stream_forward(&load->stream, 1);
-            }
-
-            if (!enter) {
-              node->stack = load->previous;
-              load--;
             } else {
-              stream = load->stream;
+              for (size_t n = 0; n<node->max; n++) {
+                size_t length;
+                codepoint_t c = base->encoding->decode(base->encoding, &stream, &length);
+                if (encoding_stream_end(&stream) || length==0 || c==-1 || !range_tree_marked(node->set, (file_offset_t)c, 1, TIPPSE_INSERTER_MARK)) {
+                  enter = (n>=node->min)?1:0;
+                  break;
+                }
+                encoding_stream_forward(&stream, length);
+              }
             }
           }
         } else {
-          if (enter) {
-            if (!(node->type&SEARCH_NODE_TYPE_POSSESSIVE)) {
-              for (size_t n = 0; n<node->min; n++) {
-                size_t length;
-                codepoint_t c = base->encoding->decode(base->encoding, &stream, &length);
-                if (encoding_stream_end(&stream) || length==0 || c==-1 || !((node->set[((size_t)c)/SEARCH_NODE_SET_BUCKET]>>(((size_t)c)%SEARCH_NODE_SET_BUCKET))&1)) {
-                  enter = 0;
-                  break;
-                }
-                encoding_stream_forward(&stream, length);
+          struct search_stack* index = node->stack;
+          index->loop++;
+          enter = (index->loop<=node->max && ((node->type&SEARCH_NODE_TYPE_GREEDY) || load->hits==hits))?1:0;
+          if (index->loop<node->max) {
+            if ((node->type&SEARCH_NODE_TYPE_BYTE)) {
+              uint8_t c = encoding_stream_peek(&load->stream, 0);
+              if (encoding_stream_end(&load->stream) || !((node->bitset[c/SEARCH_NODE_SET_BUCKET]>>(c%SEARCH_NODE_SET_BUCKET))&1)) {
+                enter = 0;
               }
-
-              if (enter && node->min<node->max) {
-                load++;
-                load->node = node;
-                load->previous = node->stack;
-                load->loop = node->min;
-                load->hits = hits;
-                node->stack = load;
-                load->stream = stream;
-              }
+              encoding_stream_forward(&load->stream, 1);
             } else {
-              for (size_t n = 0; n<node->max; n++) {
-                size_t length;
-                codepoint_t c = base->encoding->decode(base->encoding, &stream, &length);
-                if (encoding_stream_end(&stream) || length==0 || c==-1 || !((node->set[((size_t)c)/SEARCH_NODE_SET_BUCKET]>>(((size_t)c)%SEARCH_NODE_SET_BUCKET))&1)) {
-                  enter = (n>=node->min)?1:0;
-                  break;
-                }
-                encoding_stream_forward(&stream, length);
-              }
-            }
-          } else {
-            struct search_stack* index = node->stack;
-            index->loop++;
-            enter = (index->loop<=node->max && ((node->type&SEARCH_NODE_TYPE_GREEDY) || load->hits==hits))?1:0;
-            if (index->loop<node->max) {
               size_t length;
               codepoint_t c = base->encoding->decode(base->encoding, &load->stream, &length);
-              if (encoding_stream_end(&load->stream) || length==0 || c==-1 || !((node->set[((size_t)c)/SEARCH_NODE_SET_BUCKET]>>(((size_t)c)%SEARCH_NODE_SET_BUCKET))&1)) {
+              if (encoding_stream_end(&load->stream) || length==0 || c==-1 || !range_tree_marked(node->set, (file_offset_t)c, 1, TIPPSE_INSERTER_MARK)) {
                 enter = 0;
               }
               encoding_stream_forward(&load->stream, length);
             }
+          }
 
-            if (!enter) {
-              node->stack = load->previous;
-              load--;
-            } else {
-              stream = load->stream;
-            }
+          if (!enter) {
+            node->stack = load->previous;
+            load--;
+          } else {
+            stream = load->stream;
           }
         }
       }
@@ -994,7 +1034,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct encod
         load->node = node;
         load->previous = node->stack;
         load->loop = (enter==2)?node->stack->loop+1:0;
-        load->sub = node->sub->first;
+        load->sub = node->sub.first;
         load->stream = stream;
         load->hits = hits;
         node->stack = load;
@@ -1007,7 +1047,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct encod
       if (index->loop<node->max) {
         if (enter==0 || index->loop<node->min || (node->type&SEARCH_NODE_TYPE_POSSESSIVE)) {
           if (index->sub) {
-            if ((node->type&(SEARCH_NODE_TYPE_GREEDY|SEARCH_NODE_TYPE_POSSESSIVE)) || index->loop<node->min || load->sub!=node->sub->first || load->hits==hits) {
+            if ((node->type&(SEARCH_NODE_TYPE_GREEDY|SEARCH_NODE_TYPE_POSSESSIVE)) || index->loop<node->min || load->sub!=node->sub.first || load->hits==hits) {
               enter = 1;
               struct search_node* next = *((struct search_node**)list_object(index->sub));
               index->sub = index->sub->next;
@@ -1065,15 +1105,17 @@ void search_test(void) {
   //const char* needle_text = "(haLlO|(Teßt){1,2}?)";
   const char* needle_text = "(\\S+)\\s(sch)*(schnappi|schnapp|schlappi).*?pp";
   //const char* needle_text = "(schnappi|schnapp|schlappi){2}";
-  struct encoding_stream needle_stream;
+  //const char* needle_text = "make_";
+  //const char* needle_text = "schnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappi";
+    struct encoding_stream needle_stream;
   encoding_stream_from_plain(&needle_stream, (uint8_t*)needle_text, strlen(needle_text));
   struct encoding* needle_encoding = encoding_utf8_create();
   struct encoding* output_encoding = encoding_utf8_create();
   struct search* search = search_create_regex(1, 0, needle_stream, needle_encoding, output_encoding);
-  search_debug_tree(search, search->root, 0, 0, 0);
+  //search_debug_tree(search, search->root, 0, 0, 0);
 
   struct encoding_stream text;
-  const char* text_text = "Dies ist ein l TesstTeßt, HaLLo schschschSchlappiSchlappi ppi!";
+  const char* text_text = "Dies ist ein l TesstTeßt, HaLLo schschschSchlappiSchlappi ppi! make_debug.sh";
   encoding_stream_from_plain(&text, (uint8_t*)text_text, strlen(text_text));
   int found = search_find(search, &text);
   printf("%d\r\n", found);
@@ -1092,6 +1134,12 @@ void search_test(void) {
     }
   }
   search_destroy(search);
+
+  /*for (size_t n = 0; n<100; n++) {
+    struct search* search = search_create_plain(1, 0, needle_stream, needle_encoding, output_encoding);
+    search_destroy(search);
+  }*/
+
   needle_encoding->destroy(needle_encoding);
   output_encoding->destroy(output_encoding);
 }

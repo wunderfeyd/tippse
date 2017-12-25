@@ -7,6 +7,7 @@
 #include "misc.h"
 #include "list.h"
 #include "encoding.h"
+#include "rangetree.h"
 
 #define SEARCH_NODE_TYPE_SET 1
 #define SEARCH_NODE_TYPE_BRANCH 2
@@ -19,7 +20,6 @@
 
 #define SEARCH_NODE_SET_CODES 0x110000
 #define SEARCH_NODE_SET_BUCKET (sizeof(uint32_t)*8)
-#define SEARCH_NODE_SET_SIZE (SEARCH_NODE_SET_CODES/SEARCH_NODE_SET_BUCKET)
 #define SEARCH_NODE_TYPE_NATIVE_COUNT 8
 
 struct search_stack;
@@ -27,19 +27,19 @@ struct search_stack;
 struct search_node {
   int type;               // type of node
   struct search_stack* stack; // pointer to current stack
-  int group;              // regex group id (if closing)
   size_t min;             // min repeat count
   size_t max;             // max repeat count
   size_t size;            // size of plain string
   uint8_t* plain;         // plain string
-  uint32_t set[SEARCH_NODE_SET_SIZE]; // hits
   struct search_node* next; // list of next node on hit
   struct search_node* forward; // list of next node on hit
-  struct list* sub;       // list of sub nodes
-  struct list* group_start; // list of groups entered by the node
-  struct list* group_end; // list of groups exited by the node
+  struct list sub;       // list of sub nodes
+  struct list group_start; // list of groups entered by the node
+  struct list group_end; // list of groups exited by the node
   struct encoding_stream start; // start of group content during scan
   struct encoding_stream end;   // end of group content during scan
+  struct range_tree_node* set; // matching codepoints/bytes
+  uint32_t bitset[256/SEARCH_NODE_SET_BUCKET+1]; // simple bit table for byte matching
 };
 
 struct search_group {
@@ -76,6 +76,7 @@ void search_node_empty(struct search_node* base);
 void search_node_move(struct search_node* base, struct search_node* copy);
 void search_node_destroy_recursive(struct search_node* node);
 int search_node_count(struct search_node* node);
+void search_node_set_build(struct search_node* node);
 void search_node_set(struct search_node* node, size_t index);
 void search_node_set_decode_rle(struct search_node* node, int invert, uint16_t* rle);
 
