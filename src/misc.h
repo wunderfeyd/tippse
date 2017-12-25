@@ -33,6 +33,4 @@ int64_t tick_count(void);
 uint64_t decode_based_unsigned_offset(struct encoding_cache* cache, int base, size_t* offset);
 uint64_t decode_based_unsigned(struct encoding_cache* cache, int base);
 
-int contains_filter(const char* text, const char* filter);
-
 #endif /* #ifndef TIPPSE_MISC_H */

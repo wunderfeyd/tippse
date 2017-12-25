@@ -225,9 +225,11 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
 
 
 // Read directory into document, sort by file name
-void document_directory(struct document_file* file, const char* filter) {
+void document_directory(struct document_file* file, struct encoding_stream* filter_stream, struct encoding* filter_encoding) {
   DIR* directory = opendir(file->filename);
   if (directory) {
+    struct search* search = filter_stream?search_create_plain(1, 0, *filter_stream, filter_encoding, file->encoding):NULL;
+
     struct list* files = list_create(sizeof(char*));
     while (1) {
       struct dirent* entry = readdir(directory);
@@ -235,13 +237,19 @@ void document_directory(struct document_file* file, const char* filter) {
         break;
       }
 
-      if (contains_filter(&entry->d_name[0], filter)) {
+      struct encoding_stream text_stream;
+      encoding_stream_from_plain(&text_stream, (uint8_t*)&entry->d_name[0], strlen(&entry->d_name[0]));
+      if (!search || search_find(search, &text_stream)) {
         char* name = strdup(&entry->d_name[0]);
         list_insert(files, NULL, &name);
       }
     }
 
     closedir(directory);
+
+    if (search) {
+      search_destroy(search);
+    }
 
     char** sort1 = malloc(sizeof(char*)*files->count);
     char** sort2 = malloc(sizeof(char*)*files->count);

@@ -308,11 +308,11 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
   }
 
   if (command==TIPPSE_CMD_DOCUMENTSELECTION) {
-    editor_view_tabs(base, NULL);
+    editor_view_tabs(base, NULL, NULL);
   } else if (command==TIPPSE_CMD_BROWSER) {
-    editor_view_browser(base, NULL, NULL);
+    editor_view_browser(base, NULL, NULL, NULL);
   } else if (command==TIPPSE_CMD_COMMANDS) {
-    editor_view_commands(base, NULL);
+    editor_view_commands(base, NULL, NULL);
   }
 
   if (command==TIPPSE_CMD_QUIT) {
@@ -410,17 +410,21 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
       }
 
       if (!selected) {
-        file_offset_t now = base->filter->file->buffer?base->filter->file->buffer->length:0;
+        file_offset_t now = base->filter_doc->buffer?base->filter_doc->buffer->length:0;
         if (before!=now) {
-          char* filter = (char*)range_tree_raw(base->filter->file->buffer, 0, now);
-          if (base->panel->file==base->browser_doc) {
-            editor_view_browser(base, NULL, filter);
-          } else if (base->panel->file==base->tabs_doc) {
-            editor_view_tabs(base, filter);
-          } else if (base->panel->file==base->commands_doc) {
-            editor_view_commands(base, filter);
+          struct encoding_stream* filter_stream = NULL;
+          struct encoding_stream stream;
+          if (base->filter_doc->buffer) {
+            encoding_stream_from_page(&stream, range_tree_first(base->filter_doc->buffer), 0);
+            filter_stream = &stream;
           }
-          free(filter);
+          if (base->panel->file==base->browser_doc) {
+            editor_view_browser(base, NULL, filter_stream, base->filter_doc->encoding);
+          } else if (base->panel->file==base->tabs_doc) {
+            editor_view_tabs(base, filter_stream, base->filter_doc->encoding);
+          } else if (base->panel->file==base->commands_doc) {
+            editor_view_commands(base, filter_stream, base->filter_doc->encoding);
+          }
         }
 
         editor_focus(base, now?base->filter:base->panel, 1);
@@ -568,7 +572,7 @@ void editor_open_document(struct editor* base, const char* name, struct splitter
   if (!new_document_doc) {
     if (is_directory(relative)) {
       if (destination) {
-        editor_view_browser(base, relative, NULL);
+        editor_view_browser(base, relative, NULL, NULL);
       }
     } else {
       new_document_doc = document_file_create(1, 1);
@@ -668,8 +672,8 @@ void editor_panel_assign(struct editor* base, struct document_file* file) {
 }
 
 // Update and change to browser view
-void editor_view_browser(struct editor* base, const char* filename, const char* filter) {
-  if (!filter) {
+void editor_view_browser(struct editor* base, const char* filename, struct encoding_stream* filter_stream, struct encoding* filter_encoding) {
+  if (!filter_stream) {
     document_file_clear(base->filter_doc, 0);
   }
 
@@ -679,7 +683,7 @@ void editor_view_browser(struct editor* base, const char* filename, const char* 
     document_file_name(base->panel->file, filename);
   }
 
-  document_directory(base->browser_doc, filter);
+  document_directory(base->browser_doc, filter_stream, filter_encoding);
   document_file_change_views(base->browser_doc);
   document_view_reset(base->panel->view, base->browser_doc);
   base->panel->view->line_select = 1;
@@ -688,18 +692,22 @@ void editor_view_browser(struct editor* base, const char* filename, const char* 
 }
 
 // Update and change to document view
-void editor_view_tabs(struct editor* base, const char* filter) {
-  if (!filter) {
+void editor_view_tabs(struct editor* base, struct encoding_stream* filter_stream, struct encoding* filter_encoding) {
+  if (!filter_stream) {
     document_file_clear(base->filter_doc, 0);
   }
 
   editor_panel_assign(base, base->tabs_doc);
 
+  struct search* search = filter_stream?search_create_plain(1, 0, *filter_stream, filter_encoding, base->tabs_doc->encoding):NULL;
+
   base->tabs_doc->buffer = range_tree_delete(base->tabs_doc->buffer, 0, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, 0, base->tabs_doc);
   struct list_node* doc = base->documents->first;
   while (doc) {
     struct document_file* file = *(struct document_file**)list_object(doc);
-    if (file->save && contains_filter(file->filename, filter)) {
+    struct encoding_stream text_stream;
+    encoding_stream_from_plain(&text_stream, (uint8_t*)file->filename, strlen(file->filename));
+    if (file->save && (!search || search_find(search, &text_stream))) {
       if (base->tabs_doc->buffer) {
         base->tabs_doc->buffer = range_tree_insert_split(base->tabs_doc->buffer, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, (uint8_t*)"\n", 1, 0, NULL);
       }
@@ -710,6 +718,10 @@ void editor_view_tabs(struct editor* base, const char* filter) {
     doc = doc->next;
   }
 
+  if (search) {
+    search_destroy(search);
+  }
+
   document_file_change_views(base->tabs_doc);
   document_view_reset(base->panel->view, base->tabs_doc);
   base->panel->view->line_select = 1;
@@ -718,26 +730,35 @@ void editor_view_tabs(struct editor* base, const char* filter) {
 }
 
 // Update and change to commands view
-void editor_view_commands(struct editor* base, const char* filter) {
-  if (!filter) {
+void editor_view_commands(struct editor* base, struct encoding_stream* filter_stream, struct encoding* filter_encoding) {
+  if (!filter_stream) {
     editor_command_map_read(base, base->document->file);
     document_file_clear(base->filter_doc, 0);
   }
 
   editor_panel_assign(base, base->commands_doc);
 
+  struct search* search = filter_stream?search_create_plain(1, 0, *filter_stream, filter_encoding, base->tabs_doc->encoding):NULL;
+
   base->commands_doc->buffer = range_tree_delete(base->commands_doc->buffer, 0, base->commands_doc->buffer?base->commands_doc->buffer->length:0, 0, base->commands_doc);
   for (size_t n = 1; editor_commands[n].text; n++) {
     char output[4096];
     // TODO: Encoding may destroy equal width ... build string in a different way
     sprintf(&output[0], "%-16s | %-16s | %s", editor_commands[n].text, base->command_map[n]?base->command_map[n]:"<none>", editor_commands[n].description);
-    if (contains_filter(&output[0], filter)) {
+
+    struct encoding_stream text_stream;
+    encoding_stream_from_plain(&text_stream, (uint8_t*)&output[0], strlen(&output[0]));
+    if (!search || search_find(search, &text_stream)) {
       if (base->commands_doc->buffer) {
         base->commands_doc->buffer = range_tree_insert_split(base->commands_doc->buffer, base->commands_doc->buffer?base->commands_doc->buffer->length:0, (uint8_t*)"\n", 1, 0, NULL);
       }
 
       base->commands_doc->buffer = range_tree_insert_split(base->commands_doc->buffer, base->commands_doc->buffer?base->commands_doc->buffer->length:0, (uint8_t*)&output[0], strlen(&output[0]), 0, NULL);
     }
+  }
+
+  if (search) {
+    search_destroy(search);
   }
 
   document_file_change_views(base->commands_doc);

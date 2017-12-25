@@ -8,6 +8,8 @@ extern uint16_t unicode_letters_rle[];
 extern uint16_t unicode_whitespace_rle[];
 extern uint16_t unicode_digits_rle[];
 
+#define SEARCH_DEBUG 0
+
 struct search_node* search_node_create(int type) {
   struct search_node* base = malloc(sizeof(struct search_node));
   memset(base, 0, sizeof(struct search_node));
@@ -559,15 +561,19 @@ void search_debug_tree(struct search* base, struct search_node* node, size_t dep
 void search_optimize(struct search* base, struct encoding* encoding) {
   int again;
   do {
-    printf("loop codepoints.. %d\r\n", search_node_count(base->root));
-    //search_debug_tree(base, base->root, 0, 0, 0);
+    if (SEARCH_DEBUG) {
+      printf("loop codepoints.. %d\r\n", search_node_count(base->root));
+      //search_debug_tree(base, base->root, 0, 0, 0);
+    }
     again = search_optimize_combine_branch(base->root);
     again |= search_optimize_reduce_branch(base->root);
   } while(again);
   search_optimize_native(encoding, base->root);
   do {
-    printf("loop native.. %d\r\n", search_node_count(base->root));
-    //search_debug_tree(base, base->root, 0, 0, 0);
+    if (SEARCH_DEBUG) {
+      printf("loop native.. %d\r\n", search_node_count(base->root));
+      //search_debug_tree(base, base->root, 0, 0, 0);
+    }
     again = search_optimize_combine_branch(base->root);
     again |= search_optimize_reduce_branch(base->root);
   } while(again);
