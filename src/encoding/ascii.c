@@ -47,7 +47,7 @@ codepoint_t encoding_ascii_visual(struct encoding* base, codepoint_t cp) {
 }
 
 codepoint_t encoding_ascii_decode(struct encoding* base, struct encoding_stream* stream, size_t* used) {
-  uint8_t c = encoding_stream_peek(stream, 0);
+  uint8_t c = encoding_stream_read_forward(stream);
   *used = 1;
   return (codepoint_t)c;
 }
@@ -74,7 +74,6 @@ size_t encoding_ascii_strlen(struct encoding* base, struct encoding_stream* stre
       break;
     }
 
-    encoding_stream_forward(stream, next);
     length++;
   }
 

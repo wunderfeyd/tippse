@@ -71,7 +71,7 @@ void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie*
   struct encoding_stream duplicate;
 
   while (1) {
-    uint8_t head = encoding_stream_peek(&stream, 0);
+    uint8_t head = encoding_stream_read_forward(&stream);
     if (head==0) {
       break;
     }
@@ -81,8 +81,8 @@ void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie*
     if (exact) {
       duplicate = copy[head&0xf];
       runs = (head>>4)&0x7;
-      encoding_stream_forward(&stream, 1);
     } else {
+      encoding_stream_reverse(&stream, 1);
       copy[copies] = stream;
       copies++;
       copies &= 15;
@@ -91,10 +91,9 @@ void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie*
 
     while (runs>=0) {
       struct encoding_stream ref = duplicate;
-      head = encoding_stream_peek(&ref, 0);
+      head = encoding_stream_read_forward(&ref);
       froms = (head>>3)&0x7;
       tos = (head>>0)&0x7;
-      encoding_stream_forward(&ref, 1);
 
       for (size_t n = 0; n<froms; n++) {
         size_t used = 0;
@@ -103,7 +102,6 @@ void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie*
           from[n] += from_before[n]-0x10;
         }
         from_before[n] = from[n];
-        encoding_stream_forward(&ref, used);
       }
 
       for (size_t n = 0; n<tos; n++) {
@@ -113,7 +111,6 @@ void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie*
           to[n] += to_before[n]-0x10;
         }
         to_before[n] = to[n];
-        encoding_stream_forward(&ref, used);
       }
 
       unicode_decode_transform_append(*forward, froms, &from[0], tos, &to[0]);

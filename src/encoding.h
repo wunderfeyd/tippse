@@ -53,27 +53,52 @@ struct encoding {
 
 void encoding_stream_from_plain(struct encoding_stream* stream, const uint8_t* plain, size_t size);
 void encoding_stream_from_page(struct encoding_stream* stream, struct range_tree_node* buffer, file_offset_t displacement);
-uint8_t encoding_stream_peek_oob(struct encoding_stream* stream, size_t offset);
-inline uint8_t encoding_stream_peek(struct encoding_stream* stream, size_t offset) {
-  if (offset<stream->cache_length) {
-    return *(stream->plain+offset);
+
+uint8_t encoding_stream_read_forward_oob(struct encoding_stream* stream);
+inline uint8_t encoding_stream_read_forward(struct encoding_stream* stream) {
+  if (stream->displacement<stream->cache_length) {
+    return *(stream->plain+stream->displacement++);
   } else {
-    return encoding_stream_peek_oob(stream, offset);
+    return encoding_stream_read_forward_oob(stream);
+  }
+}
+
+uint8_t encoding_stream_read_reverse_oob(struct encoding_stream* stream);
+inline uint8_t encoding_stream_read_reverse(struct encoding_stream* stream) {
+  if (stream->displacement>0) {
+    return *(stream->plain+(--stream->displacement));
+  } else {
+    return encoding_stream_read_reverse_oob(stream);
   }
 }
 
 void encoding_stream_forward_oob(struct encoding_stream* stream, size_t length);
 inline void encoding_stream_forward(struct encoding_stream* stream, size_t length) {
-  stream->plain += length;
-  if (length<stream->cache_length) {
-    stream->cache_length -= length;
+  if (stream->displacement+length<=stream->cache_length) {
+    stream->displacement += length;
   } else {
     encoding_stream_forward_oob(stream, length);
   }
 }
 
+void encoding_stream_reverse_oob(struct encoding_stream* stream, size_t length);
+inline void encoding_stream_reverse(struct encoding_stream* stream, size_t length) {
+  if (stream->displacement>=length) {
+    stream->displacement -= length;
+  } else {
+    encoding_stream_reverse_oob(stream, length);
+  }
+}
+
+struct range_tree_node* encoding_stream_end_oob(struct encoding_stream* stream);
+struct range_tree_node* encoding_stream_start_oob(struct encoding_stream* stream);
+
 inline int encoding_stream_end(struct encoding_stream* stream) {
-  return (stream->cache_length==0)?1:0;
+  return (stream->displacement>=stream->cache_length && (stream->type==ENCODING_STREAM_PLAIN || !stream->buffer || !encoding_stream_end_oob(stream)))?1:0;
+}
+
+inline int encoding_stream_start(struct encoding_stream* stream) {
+  return (stream->displacement>=stream->cache_length && (stream->type==ENCODING_STREAM_PLAIN || !stream->buffer || !encoding_stream_start_oob(stream)))?1:0;
 }
 
 void encoding_cache_clear(struct encoding_cache* cache, struct encoding* encoding, struct encoding_stream* stream);

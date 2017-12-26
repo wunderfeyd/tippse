@@ -45,7 +45,7 @@ codepoint_t encoding_native_decode(struct encoding* base, struct encoding_stream
   } u;
 
   for (size_t n = 0; n<sizeof(codepoint_t); n++) {
-    u.c[n] = encoding_stream_peek(stream, n);
+    u.c[n] = encoding_stream_read_forward(stream);
   }
 
   *used = sizeof(codepoint_t);
@@ -74,7 +74,6 @@ size_t encoding_native_strlen(struct encoding* base, struct encoding_stream* str
       break;
     }
 
-    encoding_stream_forward(stream, next);
     length++;
   }
 

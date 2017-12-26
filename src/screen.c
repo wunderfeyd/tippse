@@ -297,7 +297,6 @@ void screen_drawtext(const struct screen* base, int x, int y, int clip_x, int cl
 
     x++;
     length--;
-    encoding_stream_forward(&stream, used);
   }
 }
 

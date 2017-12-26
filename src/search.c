@@ -1039,16 +1039,35 @@ int search_find(struct search* base, struct encoding_stream* text) {
     return 0;
   }
 
-  while (!encoding_stream_end(text)) {
-    if (search_find_loop(base, base->root, text)) {
-      base->hit_start = *text;
-      return 1;
-    }
+  if (!base->reverse) {
+    while (!encoding_stream_end(text)) {
+      if (search_find_loop(base, base->root, text)) {
+        base->hit_start = *text;
+        return 1;
+      }
 
-    encoding_stream_forward(text, 1);
+      encoding_stream_forward(text, 1);
+    }
+  } else {
+    while (!encoding_stream_start(text)) {
+      if (search_find_loop(base, base->root, text)) {
+        base->hit_start = *text;
+        return 1;
+      }
+
+      encoding_stream_reverse(text, 1);
+    }
   }
 
   return 0;
+}
+
+inline int search_node_bitset_check(struct search_node* node, uint8_t index) {
+  return ((node->bitset[index/SEARCH_NODE_SET_BUCKET]>>(index%SEARCH_NODE_SET_BUCKET))&1);
+}
+
+inline int search_node_set_check(struct search_node* node, codepoint_t index) {
+  return index>=0 && range_tree_marked(node->set, (file_offset_t)index, 1, TIPPSE_INSERTER_MARK);
 }
 
 int search_find_loop(struct search* base, struct search_node* node, struct encoding_stream* text) {
@@ -1070,33 +1089,28 @@ int search_find_loop(struct search* base, struct search_node* node, struct encod
       if (node->plain) {
         enter = 1;
         for (size_t n = 0; n<node->size; n++) {
-          if (encoding_stream_end(&stream) || node->plain[n]!=encoding_stream_peek(&stream, 0)) {
+          if (encoding_stream_end(&stream) || node->plain[n]!=encoding_stream_read_forward(&stream)) {
             enter = 0;
             break;
           }
-          encoding_stream_forward(&stream, 1);
         }
       } else {
         if (enter) {
           if (!(node->type&SEARCH_NODE_TYPE_POSSESSIVE)) {
             if ((node->type&SEARCH_NODE_TYPE_BYTE)) {
               for (size_t n = 0; n<node->min; n++) {
-                uint8_t c = encoding_stream_peek(&stream, 0);
-                if (encoding_stream_end(&stream) || !((node->bitset[c/SEARCH_NODE_SET_BUCKET]>>(c%SEARCH_NODE_SET_BUCKET))&1)) {
+                if (encoding_stream_end(&stream) || !search_node_bitset_check(node, encoding_stream_read_forward(&stream))) {
                   enter = 0;
                   break;
                 }
-                encoding_stream_forward(&stream, 1);
               }
             } else {
               for (size_t n = 0; n<node->min; n++) {
                 size_t length;
-                codepoint_t c = base->encoding->decode(base->encoding, &stream, &length);
-                if (encoding_stream_end(&stream) || length==0 || c==-1 || !range_tree_marked(node->set, (file_offset_t)c, 1, TIPPSE_INSERTER_MARK)) {
+                if (encoding_stream_end(&stream) || !search_node_set_check(node, base->encoding->decode(base->encoding, &stream, &length))) {
                   enter = 0;
                   break;
                 }
-                encoding_stream_forward(&stream, length);
               }
             }
 
@@ -1112,22 +1126,20 @@ int search_find_loop(struct search* base, struct search_node* node, struct encod
           } else {
             if ((node->type&SEARCH_NODE_TYPE_BYTE)) {
               for (size_t n = 0; n<node->max; n++) {
-                uint8_t c = encoding_stream_peek(&stream, 0);
-                if (encoding_stream_end(&stream) || !((node->bitset[c/SEARCH_NODE_SET_BUCKET]>>(c%SEARCH_NODE_SET_BUCKET))&1)) {
+                if (encoding_stream_end(&stream) || !search_node_bitset_check(node, encoding_stream_read_forward(&stream))) {
+                  encoding_stream_reverse(&stream, 1);
                   enter = (n>=node->min)?1:0;
                   break;
                 }
-                encoding_stream_forward(&stream, 1);
               }
             } else {
               for (size_t n = 0; n<node->max; n++) {
-                size_t length;
-                codepoint_t c = base->encoding->decode(base->encoding, &stream, &length);
-                if (encoding_stream_end(&stream) || length==0 || c==-1 || !range_tree_marked(node->set, (file_offset_t)c, 1, TIPPSE_INSERTER_MARK)) {
+                size_t length = 0;
+                if (encoding_stream_end(&stream) || !search_node_set_check(node, base->encoding->decode(base->encoding, &stream, &length))) {
+                  encoding_stream_reverse(&stream, length);
                   enter = (n>=node->min)?1:0;
                   break;
                 }
-                encoding_stream_forward(&stream, length);
               }
             }
           }
@@ -1137,18 +1149,14 @@ int search_find_loop(struct search* base, struct search_node* node, struct encod
           enter = (index->loop<=node->max && ((node->type&SEARCH_NODE_TYPE_GREEDY) || load->hits==hits))?1:0;
           if (index->loop<node->max) {
             if ((node->type&SEARCH_NODE_TYPE_BYTE)) {
-              uint8_t c = encoding_stream_peek(&load->stream, 0);
-              if (encoding_stream_end(&load->stream) || !((node->bitset[c/SEARCH_NODE_SET_BUCKET]>>(c%SEARCH_NODE_SET_BUCKET))&1)) {
+              if (encoding_stream_end(&stream) || !search_node_bitset_check(node, encoding_stream_read_forward(&stream))) {
                 enter = 0;
               }
-              encoding_stream_forward(&load->stream, 1);
             } else {
               size_t length;
-              codepoint_t c = base->encoding->decode(base->encoding, &load->stream, &length);
-              if (encoding_stream_end(&load->stream) || length==0 || c==-1 || !range_tree_marked(node->set, (file_offset_t)c, 1, TIPPSE_INSERTER_MARK)) {
+              if (encoding_stream_end(&stream) || !search_node_set_check(node, base->encoding->decode(base->encoding, &stream, &length))) {
                 enter = 0;
               }
-              encoding_stream_forward(&load->stream, length);
             }
           }
 

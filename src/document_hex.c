@@ -105,8 +105,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
         chars[x].length = 1;
       }
 
-      data[x] = encoding_stream_peek(&byte_stream, 0);
-      encoding_stream_forward(&byte_stream, 1);
+      data[x] = encoding_stream_read_forward(&byte_stream);
     }
 
     document_hex_render(base, screen, splitter, offset, y, data, data_size, chars);

@@ -70,7 +70,7 @@ codepoint_t encoding_cp850_visual(struct encoding* base, codepoint_t cp) {
 }
 
 codepoint_t encoding_cp850_decode(struct encoding* base, struct encoding_stream* stream, size_t* used) {
-  uint8_t c = encoding_stream_peek(stream, 0);
+  uint8_t c = encoding_stream_read_forward(stream);
   *used = 1;
   if (c>=0x20) {
     return (codepoint_t)translate_cp850_unicode[c];
@@ -108,7 +108,6 @@ size_t encoding_cp850_strlen(struct encoding* base, struct encoding_stream* stre
       break;
     }
 
-    encoding_stream_forward(stream, next);
     length++;
   }
 

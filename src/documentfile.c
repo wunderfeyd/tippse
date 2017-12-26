@@ -342,8 +342,7 @@ void document_file_detect_properties(struct document_file* base) {
 
   int zeros = 0;
   while (offset<TIPPSE_DOCUMENT_MEMORY_LOADMAX && offset<base->buffer->length) {
-    uint8_t byte = encoding_stream_peek(&stream, 0);
-    encoding_stream_forward(&stream, 1);
+    uint8_t byte = encoding_stream_read_forward(&stream);
     if (byte==0x00) {
       zeros++;
     }
@@ -373,7 +372,6 @@ void document_file_detect_properties(struct document_file* base) {
   while (offset<TIPPSE_DOCUMENT_MEMORY_LOADMAX && offset<base->buffer->length) {
     size_t length = 1;
     codepoint_t cp = (*base->encoding->decode)(base->encoding, &stream, &length);
-    encoding_stream_forward(&stream, length);
 
     if (last==0 && cp==0) {
       break;

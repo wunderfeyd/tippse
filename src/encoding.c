@@ -15,64 +15,106 @@ void encoding_stream_from_page(struct encoding_stream* stream, struct range_tree
   stream->type = ENCODING_STREAM_PAGED;
   stream->buffer = buffer;
   stream->displacement = displacement;
-  stream->cache_length = buffer?(buffer->length-displacement):0;
+  stream->cache_length = buffer?buffer->length:0;
   if (buffer) {
     fragment_cache(buffer->buffer);
   }
 
-  stream->plain = buffer?(buffer->buffer->buffer+buffer->offset+displacement):NULL;
+  stream->plain = buffer?(buffer->buffer->buffer+buffer->offset):NULL;
 }
 
-// Return streaming data that cannot peeked directly
-uint8_t encoding_stream_peek_oob(struct encoding_stream* stream, size_t offset) {
+// Return streaming data that cannot read directly (forward)
+uint8_t encoding_stream_read_forward_oob(struct encoding_stream* stream) {
   if (stream->type==ENCODING_STREAM_PLAIN) {
+    stream->displacement++;
     return 0;
   }
 
-  file_offset_t displacement = offset-stream->cache_length;
-  struct range_tree_node* buffer = stream->buffer;
-  while (buffer) {
-    buffer = range_tree_next(buffer);
-    if (!buffer) {
-      return 0;
-    }
+  encoding_stream_forward_oob(stream, 0);
 
-    if (displacement>=buffer->length) {
-      displacement -= buffer->length;
-      continue;
-    }
+  if (stream->displacement<stream->cache_length) {
+    return *(stream->plain+stream->displacement++);
+  } else {
+    stream->displacement++;
+    return 0;
+  }
+}
 
-    fragment_cache(buffer->buffer);
-    return *(buffer->buffer->buffer+buffer->offset+displacement);
+// Return streaming data that cannot read directly (reverse)
+uint8_t encoding_stream_read_reverse_oob(struct encoding_stream* stream) {
+  if (stream->type==ENCODING_STREAM_PLAIN) {
+    stream->displacement--;
+    return 0;
   }
 
-  return 0;
+  encoding_stream_forward_oob(stream, 0);
+
+  if (stream->displacement<stream->cache_length) {
+    return *(stream->plain+(--stream->displacement));
+  } else {
+    stream->displacement--;
+    return 0;
+  }
 }
 
 // Forward to next leaf in tree if direct forward failed
 void encoding_stream_forward_oob(struct encoding_stream* stream, size_t length) {
+  stream->displacement += length;
+
   if (stream->type==ENCODING_STREAM_PLAIN) {
-    stream->cache_length = 0;
-  } else {
-    stream->displacement = length-stream->cache_length;
-    stream->cache_length = 0;
-    while (stream->buffer) {
-      stream->buffer = range_tree_next(stream->buffer);
-      if (!stream->buffer) {
-        break;
-      }
+    return;
+  }
 
-      if (stream->displacement>=stream->buffer->length) {
-        stream->displacement -= stream->buffer->length;
-        continue;
-      }
+  while (stream->buffer) {
+    struct range_tree_node* buffer = range_tree_next(stream->buffer);
+    if (!buffer) {
+      return;
+    }
 
-      stream->cache_length = stream->buffer->length-stream->displacement;
+    stream->displacement -= stream->buffer->length;
+    stream->buffer = buffer;
+    stream->cache_length = stream->buffer->length;
+    if (stream->displacement<stream->buffer->length) {
       fragment_cache(stream->buffer->buffer);
-      stream->plain = stream->buffer->buffer->buffer+stream->buffer->offset+stream->displacement;
+      stream->plain = stream->buffer->buffer->buffer+stream->buffer->offset;
       break;
     }
   }
+}
+
+// Back to previous leaf in tree if direct reverse failed
+void encoding_stream_reverse_oob(struct encoding_stream* stream, size_t length) {
+  stream->displacement -= length;
+
+  if (stream->type==ENCODING_STREAM_PLAIN) {
+    return;
+  }
+
+  while (stream->buffer) {
+    struct range_tree_node* buffer = range_tree_prev(stream->buffer);
+    if (!buffer) {
+      return;
+    }
+
+    stream->displacement += stream->buffer->length;
+    stream->buffer = buffer;
+    stream->cache_length = stream->buffer->length;
+    if (stream->displacement<stream->buffer->length) {
+      fragment_cache(stream->buffer->buffer);
+      stream->plain = stream->buffer->buffer->buffer+stream->buffer->offset;
+      break;
+    }
+  }
+}
+
+// Helper for range tree end check (TODO: clean include files to allow inline usage of range_tree_next)
+struct range_tree_node* encoding_stream_end_oob(struct encoding_stream* stream) {
+  return range_tree_next(stream->buffer);
+}
+
+// Helper for range tree start check (TODO: clean include files to allow inline usage of range_tree_prev)
+struct range_tree_node* encoding_stream_start_oob(struct encoding_stream* stream) {
+  return range_tree_prev(stream->buffer);
 }
 
 // Reset code point cache
@@ -88,9 +130,6 @@ void encoding_cache_buffer(struct encoding_cache* cache, size_t offset) {
   while (cache->end-cache->start<=offset) {
     size_t pos = cache->end%ENCODING_CACHE_SIZE;
     cache->codepoints[pos] = (*cache->encoding->decode)(cache->encoding, cache->stream, &cache->lengths[pos]);
-
-    encoding_stream_forward(cache->stream, cache->lengths[pos]);
-
     cache->end++;
   }
 }

@@ -445,7 +445,6 @@ void config_load(struct config* base, const char* filename) {
     while (1) {
       size_t length;
       codepoint_t cp = (*file->encoding->decode)(file->encoding, &stream, &length);
-      encoding_stream_forward(&stream, length);
 
       if (cp==0) {
         break;
