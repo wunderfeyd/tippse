@@ -1204,3 +1204,16 @@ int range_tree_marked(struct range_tree_node* node, file_offset_t offset, file_o
 
   return marked;
 }
+
+// Invert given flag on whole tree
+struct range_tree_node* range_tree_invert_mark(struct range_tree_node* node, int inserter) {
+  if (node->inserter&TIPPSE_INSERTER_LEAF) {
+    node->inserter ^= inserter;
+    return node;
+  }
+
+  range_tree_invert_mark(node->side[0], inserter);
+  range_tree_invert_mark(node->side[1], inserter);
+  range_tree_update_calc(node);
+  return node;
+}

@@ -151,7 +151,7 @@ struct search* search_create_plain(int ignore_case, int reverse, struct encoding
   size_t offset = 0;
   while (1) {
     codepoint_t cp = encoding_cache_find_codepoint(&cache, offset);
-    if (cp==0) {
+    if (cp<=0) {
       break;
     }
 
@@ -166,7 +166,7 @@ struct search* search_create_plain(int ignore_case, int reverse, struct encoding
 
     last = next;
 
-    offset += search_append_unicode(last, ignore_case, &cache, offset, output_encoding);
+    offset += search_append_unicode(last, ignore_case, &cache, offset, last, 0);
   }
 
   //int64_t tick2 = tick_count();
@@ -207,7 +207,7 @@ struct search* search_create_regex(int ignore_case, int reverse, struct encoding
   int escape = 0;
   while (1) {
     codepoint_t cp = encoding_cache_find_codepoint(&cache, offset);
-    if (cp==0) {
+    if (cp<=0) {
       break;
     }
 
@@ -327,35 +327,21 @@ struct search* search_create_regex(int ignore_case, int reverse, struct encoding
         offset++;
         continue;
       }
-    } else {
-      escape = 0;
-      if (cp=='r' || cp=='n' || cp=='t' || cp=='b' || cp=='0' || cp=='d' || cp=='D' || cp=='w' || cp=='W' || cp=='s' || cp=='S') {
-        struct search_node* next = search_node_create(SEARCH_NODE_TYPE_SET);
+
+      if (cp=='[') {
+        struct search_node* next = search_node_create(SEARCH_NODE_TYPE_BRANCH);
         next->min = 1;
         next->max = 1;
-        if (cp=='r') {
-          search_node_set(next, (size_t)'\r');
-        } else if (cp=='n') {
-          search_node_set(next, (size_t)'\n');
-        } else if (cp=='t') {
-          search_node_set(next, (size_t)'\t');
-        } else if (cp=='b') {
-          search_node_set(next, (size_t)'\b');
-        } else if (cp=='0') {
-          search_node_set(next, (size_t)0);
-        } else if (cp=='d') {
-          search_node_set_decode_rle(next, 0, &unicode_digits_rle[0]);
-        } else if (cp=='D') {
-          search_node_set_decode_rle(next, 1, &unicode_digits_rle[0]);
-        } else if (cp=='w') {
-          search_node_set_decode_rle(next, 0, &unicode_letters_rle[0]);
-        } else if (cp=='W') {
-          search_node_set_decode_rle(next, 1, &unicode_letters_rle[0]);
-        } else if (cp=='s') {
-          search_node_set_decode_rle(next, 0, &unicode_whitespace_rle[0]);
-        } else if (cp=='S') {
-          search_node_set_decode_rle(next, 1, &unicode_whitespace_rle[0]);
-        }
+        last->next = next;
+        last = next;
+        offset++;
+        offset += search_append_set(last, ignore_case, &cache, offset);
+        continue;
+      }
+    } else {
+      escape = 0;
+      struct search_node* next = search_append_class(last, cp, 1);
+      if (next) {
         last->next = next;
         last = next;
         offset++;
@@ -369,7 +355,7 @@ struct search* search_create_regex(int ignore_case, int reverse, struct encoding
     last->next = next;
     last = next;
 
-    offset += search_append_unicode(last, ignore_case, &cache, offset, output_encoding);
+    offset += search_append_unicode(last, ignore_case, &cache, offset, last, 0);
   }
 
   if (base->groups>0) {
@@ -386,7 +372,140 @@ struct search* search_create_regex(int ignore_case, int reverse, struct encoding
   return base;
 }
 
-size_t search_append_unicode(struct search_node* last, int ignore_case, struct encoding_cache* cache, size_t offset, struct encoding* output_encoding) {
+struct search_node* search_append_class(struct search_node* last, codepoint_t cp, int create) {
+  if (cp=='r' || cp=='n' || cp=='t' || cp=='b' || cp=='0' || cp=='d' || cp=='D' || cp=='w' || cp=='W' || cp=='s' || cp=='S') {
+    struct search_node* next;
+    if (create) {
+      next = search_node_create(SEARCH_NODE_TYPE_SET);
+      next->min = 1;
+      next->max = 1;
+    } else {
+      next = last;
+    }
+
+    if (cp=='r') {
+      search_node_set(next, (size_t)'\r');
+    } else if (cp=='n') {
+      search_node_set(next, (size_t)'\n');
+    } else if (cp=='t') {
+      search_node_set(next, (size_t)'\t');
+    } else if (cp=='b') {
+      search_node_set(next, (size_t)'\b');
+    } else if (cp=='0') {
+      search_node_set(next, (size_t)0);
+    } else if (cp=='d') {
+      search_node_set_decode_rle(next, 0, &unicode_digits_rle[0]);
+    } else if (cp=='D') {
+      search_node_set_decode_rle(next, 1, &unicode_digits_rle[0]);
+    } else if (cp=='w') {
+      search_node_set_decode_rle(next, 0, &unicode_letters_rle[0]);
+    } else if (cp=='W') {
+      search_node_set_decode_rle(next, 1, &unicode_letters_rle[0]);
+    } else if (cp=='s') {
+      search_node_set_decode_rle(next, 0, &unicode_whitespace_rle[0]);
+    } else if (cp=='S') {
+      search_node_set_decode_rle(next, 1, &unicode_whitespace_rle[0]);
+    }
+    return next;
+  }
+
+  return NULL;
+}
+
+size_t search_append_set(struct search_node* last, int ignore_case, struct encoding_cache* cache, size_t offset) {
+  struct search_node* check = search_node_create(SEARCH_NODE_TYPE_SET);
+  check->min = 1;
+  check->max = 1;
+  list_insert(&last->sub, NULL, &check);
+
+  codepoint_t from = 0;
+  int escape = 0;
+  int invert = 0;
+  size_t advance = 0;
+  while (1) {
+    codepoint_t cp = encoding_cache_find_codepoint(cache, offset+advance);
+    if (cp<=0) {
+      break;
+    }
+
+    if (!escape) {
+      if (cp=='\\') {
+        escape = 1;
+        advance++;
+        continue;
+      }
+
+      if (cp==']') {
+        advance++;
+        break;
+      }
+
+      if (cp=='^' && advance==0) {
+        invert = 1;
+      }
+    } else {
+      from = 0;
+      escape = 0;
+
+      if (search_append_class(check, cp, 0)) {
+        advance++;
+        continue;
+      }
+    }
+
+    if (encoding_cache_find_codepoint(cache, offset+advance+1)=='-' && from<=0) {
+      from = encoding_cache_find_codepoint(cache, offset+advance);
+      advance += 2;
+    } else {
+      if (from>0) {
+        codepoint_t to = encoding_cache_find_codepoint(cache, offset+advance);
+        advance++;
+        while (from<=to) {
+          search_node_set(check, (size_t)from);
+          from++;
+        }
+      } else {
+        advance += search_append_unicode(last, ignore_case, cache, offset+advance, check, 0);
+      }
+    }
+  }
+
+  if (invert) {
+    check->set = range_tree_invert_mark(check->set, TIPPSE_INSERTER_MARK);
+  }
+
+  if (ignore_case) {
+    // TODO: Ummm... very hacky ... we transform from pure codepoints ... what about multi codepoint transformations?
+    // TODO: only check codepoints that are actually transform instead of bruteforce all codepoints (speed improvement)
+    struct range_tree_node* source = check->set;
+    check->set = range_tree_copy(check->set, 0, check->set->length);
+    struct encoding* native_encoding = encoding_native_create();
+    struct range_tree_node* range = range_tree_first(source);
+    size_t codepoint = 0;
+    while (range) {
+      if (range->inserter&TIPPSE_INSERTER_MARK) {
+        for (size_t n = codepoint; n<codepoint+range->length; n++) {
+          codepoint_t from = (codepoint_t)n;
+          struct encoding_stream native_stream;
+          encoding_stream_from_plain(&native_stream, (uint8_t*)&from, sizeof(codepoint_t));
+
+          struct encoding_cache native_cache;
+          encoding_cache_clear(&native_cache, native_encoding, &native_stream);
+
+          search_append_unicode(last, ignore_case, &native_cache, 0, check, 2);
+        }
+      }
+      codepoint += range->length;
+      range = range_tree_next(range);
+    }
+    native_encoding->destroy(native_encoding);
+    range_tree_destroy(source, NULL);
+  }
+
+  return advance;
+}
+
+size_t search_append_unicode(struct search_node* last, int ignore_case, struct encoding_cache* cache, size_t offset, struct search_node* shorten, size_t min) {
   size_t advance = 1;
   if (ignore_case) {
     advance = 0;
@@ -396,12 +515,10 @@ size_t search_append_unicode(struct search_node* last, int ignore_case, struct e
       transform = unicode_transform(unicode_transform_lower, cache, offset, &advance, &length);
 
     if (transform) {
-      if (transform->length==1 && advance==1) {
-        last->type &= ~SEARCH_NODE_TYPE_BRANCH;
-        last->type |= SEARCH_NODE_TYPE_SET;
-        search_node_set(last, (size_t)transform->cp[0]);
-        search_node_set(last, (size_t)encoding_cache_find_codepoint(cache, offset));
-        return advance;
+      if (transform->length==1 && shorten && (shorten!=last || advance==1)) {
+        shorten->type &= ~SEARCH_NODE_TYPE_BRANCH;
+        shorten->type |= SEARCH_NODE_TYPE_SET;
+        search_node_set(shorten, (size_t)transform->cp[0]);
       } else {
         search_append_next_codepoint(last, &transform->cp[0], transform->length);
       }
@@ -410,16 +527,18 @@ size_t search_append_unicode(struct search_node* last, int ignore_case, struct e
     }
   }
 
-  if (advance==1) {
-    last->type &= ~SEARCH_NODE_TYPE_BRANCH;
-    last->type |= SEARCH_NODE_TYPE_SET;
-    search_node_set(last, (size_t)encoding_cache_find_codepoint(cache, offset));
-  } else {
-    codepoint_t cp[8];
-    for (size_t n = 0; n<advance; n++) {
-      cp[n] = encoding_cache_find_codepoint(cache, offset+n);
+  if (advance>=min) {
+    if (advance==1 && shorten) {
+      shorten->type &= ~SEARCH_NODE_TYPE_BRANCH;
+      shorten->type |= SEARCH_NODE_TYPE_SET;
+      search_node_set(shorten, (size_t)encoding_cache_find_codepoint(cache, offset));
+    } else {
+      codepoint_t cp[8];
+      for (size_t n = 0; n<advance; n++) {
+        cp[n] = encoding_cache_find_codepoint(cache, offset+n);
+      }
+      search_append_next_codepoint(last, &cp[0], advance);
     }
-    search_append_next_codepoint(last, &cp[0], advance);
   }
   return advance;
 }
@@ -530,10 +649,15 @@ void search_debug_tree(struct search* base, struct search_node* node, size_t dep
             count++;
             size_t c = n+codepoint;
             if (c<0x20 || c>0x7f) {
-              printf("\\%02x", (int)c);
-              length+=3;
+              if (node->type&SEARCH_NODE_TYPE_BYTE) {
+                printf("\\%02x", c);
+                length+=3;
+              } else {
+                printf("\\%06x", c);
+                length+=7;
+              }
             } else {
-              printf("%c", (int)c);
+              printf("%c", c);
               length++;
             }
           }
@@ -555,8 +679,13 @@ void search_debug_tree(struct search* base, struct search_node* node, size_t dep
       for (size_t n = 0; n<node->size; n++) {
         uint8_t c = node->plain[n];
         if (c<0x20 || c>0x7f) {
-          printf("\\%02x", c);
-          length+=3;
+          if (node->type&SEARCH_NODE_TYPE_BYTE) {
+            printf("\\%02x", c);
+            length+=3;
+          } else {
+            printf("\\%06x", c);
+            length+=7;
+          }
         } else {
           printf("%c", c);
           length++;
@@ -635,7 +764,7 @@ int search_optimize_reduce_branch(struct search_node* node) {
       }
       search_node_group_copy(&check->group_start, &node->group_start);
       search_node_group_copy(&last->group_end, &node->group_end);
-      check->type |= node->type&~(SEARCH_NODE_TYPE_BRANCH);
+      check->type |= node->type&~SEARCH_NODE_TYPE_BRANCH;
       search_node_move(node, check);
       again = 1;
     }
@@ -722,17 +851,17 @@ int search_optimize_combine_branch(struct search_node* node) {
 
                 if (check2->next->next) {
                   list_insert(&check1->next->sub, NULL, &check2->next->next);
-                  search_node_group_copy(&check1->next->group_start, &check2->next->group_start);
-                  search_node_group_copy(&check1->next->group_end, &check2->next->group_end);
-                  search_node_destroy(check2->next);
                 }
+                search_node_group_copy(&check1->next->group_start, &check2->next->group_start);
+                search_node_group_copy(&check1->next->group_end, &check2->next->group_end);
+                search_node_destroy(check2->next);
               } else {
                 list_insert(&check1->next->sub, NULL, &check2->next);
               }
-              search_node_group_copy(&check1->next->group_start, &check2->group_start);
-              search_node_group_copy(&check1->next->group_end, &check2->group_end);
-              search_node_destroy(check2);
             }
+            search_node_group_copy(&check1->next->group_start, &check2->group_start);
+            search_node_group_copy(&check1->next->group_end, &check2->group_end);
+            search_node_destroy(check2);
             list_remove(&node->sub, subs2);
             again = 1;
             break;
@@ -809,6 +938,7 @@ void search_optimize_plain(struct search_node* node) {
     while (range) {
       if (range->inserter&TIPPSE_INSERTER_MARK) {
         if (range->length!=1) {
+          set = SIZE_T_MAX;
           break;
         }
         if (set!=SIZE_T_MAX) {
@@ -850,7 +980,9 @@ void search_optimize_plain(struct search_node* node) {
     free(node->plain);
     node->plain = plain;
     node->size = size;
+    struct search_node* remove = node->next;
     node->next = node->next->next;
+    search_node_destroy(remove);
   }
 }
 
@@ -1103,7 +1235,8 @@ int search_find_loop(struct search* base, struct search_node* node, struct encod
 void search_test(void) {
   //const char* needle_text = "Hallo äÖÜ ß Test Ú ń ǹ";
   //const char* needle_text = "(haLlO|(Teßt){1,2}?)";
-  const char* needle_text = "(\\S+)\\s(sch)*(schnappi|schnapp|schlappi).*?pp";
+  const char* needle_text = "(\\S+)\\s(sch)*(schnappi|schnapp|schlappi).*?[A-C][^\\d]{2}";
+  //const char* needle_text = "a|ab|abc";
   //const char* needle_text = "(schnappi|schnapp|schlappi){2}";
   //const char* needle_text = "make_";
   //const char* needle_text = "schnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappi";
@@ -1112,10 +1245,10 @@ void search_test(void) {
   struct encoding* needle_encoding = encoding_utf8_create();
   struct encoding* output_encoding = encoding_utf8_create();
   struct search* search = search_create_regex(1, 0, needle_stream, needle_encoding, output_encoding);
-  //search_debug_tree(search, search->root, 0, 0, 0);
+  search_debug_tree(search, search->root, 0, 0, 0);
 
   struct encoding_stream text;
-  const char* text_text = "Dies ist ein l TesstTeßt, HaLLo schschschSchlappiSchlappi ppi! make_debug.sh";
+  const char* text_text = "Dies ist ein l TesstTeßt, HaLLo schschschSchlappiSchlappi ppi! 999 make_debug.sh abc";
   encoding_stream_from_plain(&text, (uint8_t*)text_text, strlen(text_text));
   int found = search_find(search, &text);
   printf("%d\r\n", found);

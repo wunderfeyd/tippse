@@ -7,6 +7,7 @@
 #include "misc.h"
 #include "list.h"
 #include "encoding.h"
+#include "encoding/native.h"
 #include "rangetree.h"
 
 #define SEARCH_NODE_TYPE_SET 1
@@ -83,7 +84,9 @@ void search_node_set_decode_rle(struct search_node* node, int invert, uint16_t* 
 struct search* search_create_plain(int ignore_case, int reverse, struct encoding_stream needle, struct encoding* needle_encoding, struct encoding* output_encoding);
 struct search* search_create_regex(int ignore_case, int reverse, struct encoding_stream needle, struct encoding* needle_encoding, struct encoding* output_encoding);
 void search_destroy(struct search* base);
-size_t search_append_unicode(struct search_node* last, int ignore_case, struct encoding_cache* cache, size_t offset, struct encoding* output_encoding);
+struct search_node* search_append_class(struct search_node* last, codepoint_t cp, int create);
+size_t search_append_set(struct search_node* last, int ignore_case, struct encoding_cache* cache, size_t offset);
+size_t search_append_unicode(struct search_node* last, int ignore_case, struct encoding_cache* cache, size_t offset, struct search_node* shorten, size_t min);
 struct search_node* search_append_next_index(struct search_node* last, size_t index, int type);
 void search_append_next_codepoint(struct search_node* last, codepoint_t* buffer, size_t size);
 void search_append_next_byte(struct search_node* last, uint8_t* buffer, size_t size);
