@@ -140,7 +140,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->document = splitter_create(0, 0, NULL, NULL,  "");
 
   base->search_doc = document_file_create(0, 1);
-  document_file_name(base->search_doc, "Search");
+  editor_update_search_title(base);
 
   base->replace_doc = document_file_create(0, 1);
   document_file_name(base->replace_doc, "Replace");
@@ -403,12 +403,16 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
     }
   } else if (command==TIPPSE_CMD_SEARCH_MODE_TEXT) {
     base->search_regex = 0;
+    editor_update_search_title(base);
   } else if (command==TIPPSE_CMD_SEARCH_MODE_REGEX) {
     base->search_regex = 1;
+    editor_update_search_title(base);
   } else if (command==TIPPSE_CMD_SEARCH_CASE_SENSITIVE) {
     base->search_ignore_case = 0;
+    editor_update_search_title(base);
   } else if (command==TIPPSE_CMD_SEARCH_CASE_IGNORE) {
     base->search_ignore_case = 1;
+    editor_update_search_title(base);
   } else {
     if (base->focus->file==base->tabs_doc || base->focus->file==base->browser_doc || base->focus->file==base->commands_doc || base->focus->file==base->filter_doc) {
       file_offset_t before = base->filter->file->buffer?base->filter->file->buffer->length:0;
@@ -838,4 +842,11 @@ void editor_command_map_read(struct editor* base, struct document_file* file) {
       chars[pos] = 0;
     }
   }
+}
+
+// Update the title of the search document accordingly to the current search flags
+void editor_update_search_title(struct editor* base) {
+  char title[1024];
+  sprintf(&title[0], "Search [%s %s]", base->search_regex?"RegEx":"Text", base->search_ignore_case?"Ignore":"Sensitive");
+  document_file_name(base->search_doc, &title[0]);
 }

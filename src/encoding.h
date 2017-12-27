@@ -98,7 +98,7 @@ inline int encoding_stream_end(struct encoding_stream* stream) {
 }
 
 inline int encoding_stream_start(struct encoding_stream* stream) {
-  return (stream->displacement>=stream->cache_length && (stream->type==ENCODING_STREAM_PLAIN || !stream->buffer || !encoding_stream_start_oob(stream)))?1:0;
+  return (stream->displacement>stream->cache_length && (stream->type==ENCODING_STREAM_PLAIN || !stream->buffer || !encoding_stream_start_oob(stream)))?1:0;
 }
 
 void encoding_cache_clear(struct encoding_cache* cache, struct encoding* encoding, struct encoding_stream* stream);

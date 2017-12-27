@@ -186,6 +186,7 @@ void editor_view_tabs(struct editor* base, struct encoding_stream* filter_stream
 void editor_view_commands(struct editor* base, struct encoding_stream* filter_stream, struct encoding* filter_encoding);
 int editor_update_panel_height(struct editor* base, struct splitter* panel, int max);
 struct document_file* editor_empty_document(struct editor* base);
+void editor_update_search_title(struct editor* base);
 
 void editor_command_map_create(struct editor* base);
 void editor_command_map_destroy(struct editor* base);

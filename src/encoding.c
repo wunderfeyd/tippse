@@ -47,12 +47,11 @@ uint8_t encoding_stream_read_reverse_oob(struct encoding_stream* stream) {
     return 0;
   }
 
-  encoding_stream_reverse_oob(stream, 0);
+  encoding_stream_reverse_oob(stream, 1);
 
   if (stream->displacement<stream->cache_length) {
-    return *(stream->plain+(--stream->displacement));
+    return *(stream->plain+stream->displacement);
   } else {
-    stream->displacement--;
     return 0;
   }
 }
@@ -96,8 +95,8 @@ void encoding_stream_reverse_oob(struct encoding_stream* stream, size_t length) 
       return;
     }
 
-    stream->displacement += stream->buffer->length;
     stream->buffer = buffer;
+    stream->displacement += stream->buffer->length;
     stream->cache_length = stream->buffer->length;
     if (stream->displacement<stream->buffer->length) {
       fragment_cache(stream->buffer->buffer);

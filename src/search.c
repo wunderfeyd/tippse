@@ -741,6 +741,7 @@ void search_optimize(struct search* base, struct encoding* encoding) {
   } while(again);
   search_optimize_plain(base->root);
   search_prepare(base, base->root, NULL);
+  search_prepare_hash(base, base->root);
 }
 
 int search_optimize_reduce_branch(struct search_node* node) {
@@ -1034,6 +1035,86 @@ void search_prepare(struct search* base, struct search_node* node, struct search
   }
 }
 
+inline void search_prepare_hash_next(uint32_t* generator) {
+  *generator = ((*generator)*(*generator)+(*generator))&65535;
+}
+
+void search_prepare_hash(struct search* base, struct search_node* node) {
+  uint32_t generator = 65521;
+  for (size_t n = 0; n<256; n++) {
+    base->hashes[n] = 0;
+  }
+
+  base->hash_length = 0;
+  base->hash = 0;
+  while (node) {
+    if (!(node->type&SEARCH_NODE_TYPE_SET) || !(node->type&SEARCH_NODE_TYPE_BYTE) ||  node->min!=node->max) {
+      break;
+    }
+
+    if (node->plain) {
+      for (size_t n = 0; n<node->size; n++) {
+        uint8_t codepoint = node->plain[n];
+        if (base->hashes[codepoint]==0) {
+          search_prepare_hash_next(&generator);
+          base->hashes[codepoint] = generator;
+        }
+        base->hash += base->hashes[codepoint];
+      }
+      base->hash_length += node->size;
+    } else {
+      uint32_t hash = 0;
+      int duplicate = 0;
+      size_t codepoint = 0;
+      struct range_tree_node* range = range_tree_first(node->set);
+      while (range && !duplicate) {
+        if (range->inserter&TIPPSE_INSERTER_MARK) {
+          for (size_t n = codepoint; n<codepoint+range->length; n++) {
+            if (base->hashes[n]!=0 && hash!=base->hashes[n]) {
+              if (hash==0) {
+                hash = base->hashes[n];
+              } else {
+                duplicate = 1;
+                break;
+              }
+            }
+          }
+        }
+        codepoint += range->length;
+        range = range_tree_next(range);
+      }
+
+      if (duplicate) {
+        break;
+      }
+
+      if (hash==0) {
+        search_prepare_hash_next(&generator);
+        hash = generator;
+      }
+
+      codepoint = 0;
+      range = range_tree_first(node->set);
+      while (range) {
+        if (range->inserter&TIPPSE_INSERTER_MARK) {
+          for (size_t n = codepoint; n<codepoint+range->length; n++) {
+            base->hashes[n] = hash;
+          }
+        }
+        codepoint += range->length;
+        range = range_tree_next(range);
+      }
+      base->hash += hash*node->min;
+      base->hash_length += node->min;
+    }
+
+    node = node->next;
+  }
+
+  //printf("%08x - %d\r\n", (int)base->hash, (int)base->hash_length);
+  base->hashed = (base->hash_length>2)?1:0;
+}
+
 int search_find(struct search* base, struct encoding_stream* text, file_offset_t* left) {
   if (!base->root) {
     return 0;
@@ -1041,27 +1122,71 @@ int search_find(struct search* base, struct encoding_stream* text, file_offset_t
 
   file_offset_t count = left?*left:FILE_OFFSET_T_MAX;
 
-  if (!base->reverse) {
-    while (!encoding_stream_end(text) && count>0) {
-      count--;
-      if (search_find_loop(base, base->root, text)) {
-        base->hit_start = *text;
-        encoding_stream_forward(text, 1);
-        return 1;
+  if (base->hashed) {
+    if (!base->reverse) {
+      struct encoding_stream head = *text;
+      uint32_t hash = 0;
+      for (size_t n = 0; n<base->hash_length; n++) {
+        hash += base->hashes[encoding_stream_read_forward(&head)];
       }
 
-      encoding_stream_forward(text, 1);
+      while (!encoding_stream_end(text) && count>0) {
+        count--;
+        if (hash==base->hash) {
+          if (search_find_loop(base, base->root, text)) {
+            base->hit_start = *text;
+            encoding_stream_forward(text, 1);
+            return 1;
+          }
+        }
+
+        hash -= base->hashes[encoding_stream_read_forward(text)];
+        hash += base->hashes[encoding_stream_read_forward(&head)];
+      }
+    } else {
+      struct encoding_stream head = *text;
+      uint32_t hash = 0;
+      for (size_t n = 0; n<base->hash_length; n++) {
+        hash += base->hashes[encoding_stream_read_reverse(text)];
+      }
+
+      while (!encoding_stream_start(text) && count>0) {
+        count--;
+        if (hash==base->hash) {
+          if (search_find_loop(base, base->root, text)) {
+            base->hit_start = *text;
+            encoding_stream_reverse(text, 1);
+            return 1;
+          }
+        }
+
+        hash -= base->hashes[encoding_stream_read_reverse(&head)];
+        hash += base->hashes[encoding_stream_read_reverse(text)];
+      }
     }
   } else {
-    while (!encoding_stream_start(text) && count>0) {
-      count--;
-      if (search_find_loop(base, base->root, text)) {
-        base->hit_start = *text;
-        encoding_stream_reverse(text, 1);
-        return 1;
-      }
+    if (!base->reverse) {
+      while (!encoding_stream_end(text) && count>0) {
+        count--;
+        if (search_find_loop(base, base->root, text)) {
+          base->hit_start = *text;
+          encoding_stream_forward(text, 1);
+          return 1;
+        }
 
-      encoding_stream_reverse(text, 1);
+        encoding_stream_forward(text, 1);
+      }
+    } else {
+      while (!encoding_stream_start(text) && count>0) {
+        count--;
+        if (search_find_loop(base, base->root, text)) {
+          base->hit_start = *text;
+          encoding_stream_reverse(text, 1);
+          return 1;
+        }
+
+        encoding_stream_reverse(text, 1);
+      }
     }
   }
 
@@ -1251,9 +1376,10 @@ int search_find_loop(struct search* base, struct search_node* node, struct encod
 }
 
 void search_test(void) {
+  const char* needle_text = "Recently, Standard Japanese has ";
   //const char* needle_text = "Hallo äÖÜ ß Test Ú ń ǹ";
   //const char* needle_text = "(haLlO|(Teßt){1,2}?)";
-  const char* needle_text = "(\\S+)\\s(sch)*(schnappi|schnapp|schlappi).*?[A-C][^\\d]{2}";
+  //const char* needle_text = "(\\S+)\\s(sch)*(schnappi|schnapp|schlappi).*?[A-C][^\\d]{2}";
   //const char* needle_text = "a|ab|abc";
   //const char* needle_text = "(schnappi|schnapp|schlappi){2}";
   //const char* needle_text = "make_";
@@ -1272,13 +1398,13 @@ void search_test(void) {
   printf("%d\r\n", found);
   if (found) {
     printf("\"");
-    for (const uint8_t* plain = search->hit_start.plain; plain!=search->hit_end.plain; plain++) {
+    for (const uint8_t* plain = search->hit_start.plain+search->hit_start.displacement; plain!=search->hit_end.plain+search->hit_end.displacement; plain++) {
       printf("%c", *plain);
     }
     printf("\"\r\n");
     for (size_t n = 0; n<search->groups; n++) {
       printf("%d: \"", n);
-      for (const uint8_t* plain = search->group_hits[n].start.plain; plain!=search->group_hits[n].end.plain; plain++) {
+      for (const uint8_t* plain = search->group_hits[n].start.plain+search->group_hits[n].start.displacement; plain!=search->group_hits[n].end.plain+search->group_hits[n].end.displacement; plain++) {
         printf("%c", *plain);
       }
       printf("\"\r\n");
@@ -1290,6 +1416,35 @@ void search_test(void) {
     struct search* search = search_create_plain(1, 0, needle_stream, needle_encoding, output_encoding);
     search_destroy(search);
   }*/
+
+  int f = open("enwik8", O_RDONLY);
+  if (f!=-1) {
+    size_t length = 100*1000*1000;
+    uint8_t* buffer = (uint8_t*)malloc(length);
+    read(f, buffer, length);
+    close(f);
+
+    printf("hash search...\r\n");
+    struct encoding_stream buffered;
+    struct search* search = search_create_plain(1, 0, needle_stream, needle_encoding, output_encoding);
+    search_debug_tree(search, search->root, 0, 0, 0);
+    int64_t tick = tick_count();
+    for (size_t n = 0; n<100; n++) {
+      encoding_stream_from_plain(&buffered, buffer, length);
+      int found = search_find(search, &buffered, NULL);
+      printf("%d %d us %d\r\n", (int)n, (int)((tick_count()-tick)/(n+1)), found);
+      if (found) {
+        printf("\"");
+        for (const uint8_t* plain = search->hit_start.plain+search->hit_start.displacement; plain!=search->hit_end.plain+search->hit_end.displacement; plain++) {
+          printf("%c", *plain);
+        }
+        printf("\"\r\n");
+      }
+      fflush(stdout);
+    }
+    search_destroy(search);
+    free(buffer);
+  }
 
   needle_encoding->destroy(needle_encoding);
   output_encoding->destroy(output_encoding);
