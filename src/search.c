@@ -1034,29 +1034,39 @@ void search_prepare(struct search* base, struct search_node* node, struct search
   }
 }
 
-int search_find(struct search* base, struct encoding_stream* text) {
+int search_find(struct search* base, struct encoding_stream* text, file_offset_t* left) {
   if (!base->root) {
     return 0;
   }
 
+  file_offset_t count = left?*left:FILE_OFFSET_T_MAX;
+
   if (!base->reverse) {
-    while (!encoding_stream_end(text)) {
+    while (!encoding_stream_end(text) && count>0) {
+      count--;
       if (search_find_loop(base, base->root, text)) {
         base->hit_start = *text;
+        encoding_stream_forward(text, 1);
         return 1;
       }
 
       encoding_stream_forward(text, 1);
     }
   } else {
-    while (!encoding_stream_start(text)) {
+    while (!encoding_stream_start(text) && count>0) {
+      count--;
       if (search_find_loop(base, base->root, text)) {
         base->hit_start = *text;
+        encoding_stream_reverse(text, 1);
         return 1;
       }
 
       encoding_stream_reverse(text, 1);
     }
+  }
+
+  if (left) {
+    *left = count;
   }
 
   return 0;
@@ -1149,12 +1159,12 @@ int search_find_loop(struct search* base, struct search_node* node, struct encod
           enter = (index->loop<=node->max && ((node->type&SEARCH_NODE_TYPE_GREEDY) || load->hits==hits))?1:0;
           if (index->loop<node->max) {
             if ((node->type&SEARCH_NODE_TYPE_BYTE)) {
-              if (encoding_stream_end(&stream) || !search_node_bitset_check(node, encoding_stream_read_forward(&stream))) {
+              if (encoding_stream_end(&load->stream) || !search_node_bitset_check(node, encoding_stream_read_forward(&load->stream))) {
                 enter = 0;
               }
             } else {
               size_t length;
-              if (encoding_stream_end(&stream) || !search_node_set_check(node, base->encoding->decode(base->encoding, &stream, &length))) {
+              if (encoding_stream_end(&load->stream) || !search_node_set_check(node, base->encoding->decode(base->encoding, &load->stream, &length))) {
                 enter = 0;
               }
             }
@@ -1258,7 +1268,7 @@ void search_test(void) {
   struct encoding_stream text;
   const char* text_text = "Dies ist ein l TesstTeßt, HaLLo schschschSchlappiSchlappi ppi! 999 make_debug.sh abc";
   encoding_stream_from_plain(&text, (uint8_t*)text_text, strlen(text_text));
-  int found = search_find(search, &text);
+  int found = search_find(search, &text, NULL);
   printf("%d\r\n", found);
   if (found) {
     printf("\"");

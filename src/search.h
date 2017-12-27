@@ -91,7 +91,7 @@ struct search_node* search_append_next_index(struct search_node* last, size_t in
 void search_append_next_codepoint(struct search_node* last, codepoint_t* buffer, size_t size);
 void search_append_next_byte(struct search_node* last, uint8_t* buffer, size_t size);
 void search_debug_tree(struct search* base, struct search_node* node, size_t depth, int length, int stop);
-int search_find(struct search* base, struct encoding_stream* text);
+int search_find(struct search* base, struct encoding_stream* text, file_offset_t* left);
 int search_find_loop(struct search* base, struct search_node* node, struct encoding_stream* text);
 
 void search_optimize(struct search* base, struct encoding* encoding);

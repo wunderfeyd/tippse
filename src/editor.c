@@ -98,6 +98,10 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"lower", TIPPSE_CMD_LOWER, "Convert to lowercase (document/selection)"},
   {"nfdnfc", TIPPSE_CMD_NFD_NFC, "Convert from nfd to nfc (document/selection)"},
   {"nfcnfd", TIPPSE_CMD_NFC_NFD, "Convert from nfc to nfd (document/selection)"},
+  {"searchmodetext", TIPPSE_CMD_SEARCH_MODE_TEXT, "Search with uninterpreted plain text"},
+  {"searchmoderegex", TIPPSE_CMD_SEARCH_MODE_REGEX, "Search with regular expression"},
+  {"searchcasesensistive", TIPPSE_CMD_SEARCH_CASE_SENSITIVE, "Search case senstive"},
+  {"searchcaseignore", TIPPSE_CMD_SEARCH_CASE_IGNORE, "Search while ignoring case"},
   {NULL, 0, ""}
 };
 
@@ -111,6 +115,8 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->tick = tick_count();
   base->tick_undo = -1;
   base->tick_incremental = -1;
+  base->search_regex = 0;
+  base->search_ignore_case = 1;
 
   editor_command_map_create(base);
 
@@ -322,24 +328,24 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
   } else if (command==TIPPSE_CMD_SEARCH_NEXT) {
     editor_focus(base, base->document, 1);
     if (base->search_doc->buffer) {
-      document_search(base->last_document, base->search_doc->buffer, NULL, 1, 0, 0);
+      document_search(base->last_document, base->search_doc->buffer, NULL, 0, base->search_ignore_case, base->search_regex, 0, 0);
     }
   } else if (command==TIPPSE_CMD_SEARCH_PREV) {
     editor_focus(base, base->document, 1);
     if (base->search_doc->buffer) {
-      document_search(base->last_document, base->search_doc->buffer, NULL, 0, 0, 0);
+      document_search(base->last_document, base->search_doc->buffer, NULL, 1, base->search_ignore_case, base->search_regex, 0, 0);
     }
   } else if (command==TIPPSE_CMD_REPLACE) {
     editor_panel_assign(base, base->replace_doc);
   } else if (command==TIPPSE_CMD_REPLACE_NEXT) {
     editor_focus(base, base->document, 1);
-    document_search(base->last_document, base->search_doc->buffer, base->replace_doc->buffer, 1, 0, 1);
+    document_search(base->last_document, base->search_doc->buffer, base->replace_doc->buffer, 0, base->search_ignore_case, base->search_regex, 0, 1);
   } else if (command==TIPPSE_CMD_REPLACE_PREV) {
     editor_focus(base, base->document, 1);
-    document_search(base->last_document, base->search_doc->buffer, base->replace_doc->buffer, 0, 0, 1);
+    document_search(base->last_document, base->search_doc->buffer, base->replace_doc->buffer, 1, base->search_ignore_case, base->search_regex, 0, 1);
   } else if (command==TIPPSE_CMD_REPLACE_ALL) {
     editor_focus(base, base->document, 1);
-    document_search(base->last_document, base->search_doc->buffer, base->replace_doc->buffer, 1, 1, 1);
+    document_search(base->last_document, base->search_doc->buffer, base->replace_doc->buffer, 0, base->search_ignore_case, base->search_regex, 1, 1);
   } else if (command==TIPPSE_CMD_GOTO) {
     editor_panel_assign(base, base->goto_doc);
   } else if (command==TIPPSE_CMD_VIEW_SWITCH) {
@@ -395,6 +401,14 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
     } else {
       splitter_assign_document_file(base->document, base->compiler_doc);
     }
+  } else if (command==TIPPSE_CMD_SEARCH_MODE_TEXT) {
+    base->search_regex = 0;
+  } else if (command==TIPPSE_CMD_SEARCH_MODE_REGEX) {
+    base->search_regex = 1;
+  } else if (command==TIPPSE_CMD_SEARCH_CASE_SENSITIVE) {
+    base->search_ignore_case = 0;
+  } else if (command==TIPPSE_CMD_SEARCH_CASE_IGNORE) {
+    base->search_ignore_case = 1;
   } else {
     if (base->focus->file==base->tabs_doc || base->focus->file==base->browser_doc || base->focus->file==base->commands_doc || base->focus->file==base->filter_doc) {
       file_offset_t before = base->filter->file->buffer?base->filter->file->buffer->length:0;
@@ -707,7 +721,7 @@ void editor_view_tabs(struct editor* base, struct encoding_stream* filter_stream
     struct document_file* file = *(struct document_file**)list_object(doc);
     struct encoding_stream text_stream;
     encoding_stream_from_plain(&text_stream, (uint8_t*)file->filename, strlen(file->filename));
-    if (file->save && (!search || search_find(search, &text_stream))) {
+    if (file->save && (!search || search_find(search, &text_stream, NULL))) {
       if (base->tabs_doc->buffer) {
         base->tabs_doc->buffer = range_tree_insert_split(base->tabs_doc->buffer, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, (uint8_t*)"\n", 1, 0, NULL);
       }
@@ -748,7 +762,7 @@ void editor_view_commands(struct editor* base, struct encoding_stream* filter_st
 
     struct encoding_stream text_stream;
     encoding_stream_from_plain(&text_stream, (uint8_t*)&output[0], strlen(&output[0]));
-    if (!search || search_find(search, &text_stream)) {
+    if (!search || search_find(search, &text_stream, NULL)) {
       if (base->commands_doc->buffer) {
         base->commands_doc->buffer = range_tree_insert_split(base->commands_doc->buffer, base->commands_doc->buffer?base->commands_doc->buffer->length:0, (uint8_t*)"\n", 1, 0, NULL);
       }

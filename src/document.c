@@ -2,68 +2,8 @@
 
 #include "document.h"
 
-// Search in partial document
-int document_compare(struct range_tree_node* left, file_offset_t displacement_left, struct range_tree_node* right_root, file_offset_t length) {
-  struct range_tree_node* right = right_root;
-  size_t displacement_right = 0;
-
-  struct range_tree_node* reload = NULL;
-  int found = 0;
-
-  while (left && right) {
-    if (displacement_left>=left->length || !left->buffer) {
-      if (!reload) {
-        reload = left;
-      }
-
-      left = range_tree_next(left);
-      if (left && left->buffer) {
-        fragment_cache(left->buffer);
-      }
-
-      displacement_left = 0;
-      continue;
-    }
-
-    if (displacement_right>=right->length || !right->buffer) {
-      right = range_tree_next(right);
-      displacement_right = 0;
-      continue;
-    }
-
-    uint8_t* text_left = left->buffer->buffer+left->offset+displacement_left;
-    uint8_t* text_right = right->buffer->buffer+right->offset+displacement_right;
-    file_offset_t max = length;
-    if (left->length-displacement_left<max) {
-      max = left->length-displacement_left;
-    }
-
-    if (right->length-displacement_right<max) {
-      max = right->length-displacement_right;
-    }
-
-    if (strncmp((char*)text_left, (char*)text_right, max)!=0) {
-      break;
-    }
-
-    displacement_left += max;
-    displacement_right += max;
-    length-= max;
-    if (length==0) {
-      found = 1;
-      break;
-    }
-  }
-
-  if (reload && reload->buffer) {
-    fragment_cache(reload->buffer);
-  }
-
-  return found;
-}
-
 // Search in document
-int document_search(struct splitter* splitter, struct range_tree_node* search_text, struct range_tree_node* replace_text, int forward, int all, int replace) {
+int document_search(struct splitter* splitter, struct range_tree_node* search_text, struct range_tree_node* replace_text, int reverse, int ignore_case, int regex, int all, int replace) {
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
@@ -73,135 +13,133 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
     return 0;
   }
 
-  file_offset_t search_length = search_text->length;
-  file_offset_t replace_length = replace_text?replace_text->length:0;
-
-  if (search_length>file->buffer->length) {
-    ((struct document_text*)splitter->document_text)->keep_status = 1;
-    splitter_status(splitter, "Not found!", 1);
-    return 0;
+  struct encoding_stream needle_stream;
+  encoding_stream_from_page(&needle_stream, range_tree_first(search_text), 0);
+  struct search* search;
+  if (regex) {
+    search = search_create_regex(ignore_case, reverse, needle_stream, file->encoding, file->encoding);
+  } else {
+    search = search_create_plain(ignore_case, reverse, needle_stream, file->encoding, file->encoding);
   }
 
-  search_text = range_tree_first(search_text);
-
   file_offset_t offset = view->offset;
-
-  int found = 0;
+  file_offset_t begin = 0;
   file_offset_t replacements = 0;
+
+  int first = 1;
+  int found = 0;
   while (1) {
     found = 0;
-    file_offset_t skip = 0;
-    if (replace) {
-      file_offset_t offset_low = view->selection_low;
-      if (view->selection_low!=FILE_OFFSET_T_MAX) {
-        if (replacements==0) {
-          document_undo_chain(file, file->undos);
-        }
-
-        replacements++;
-
-        document_file_delete_selection(splitter->file, splitter->view);
-        document_file_insert_buffer(splitter->file, view->offset, replace_text);
-
-        offset = (!forward)?offset_low:(offset_low+replace_length);
-        skip = (!forward)?search_length:0;
+    if (replace && view->selection_low!=FILE_OFFSET_T_MAX) {
+      if (replacements==0) {
+        document_undo_chain(file, file->undos);
       }
+
+      replacements++;
+
+      document_file_reduce(&begin, view->selection_low, view->selection_high-view->selection_low);
+      document_file_delete_selection(splitter->file, splitter->view);
+      document_file_expand(&begin, view->offset, replace_text->length);
+      document_file_insert_buffer(splitter->file, view->offset, replace_text);
+
+      file_offset_t start = view->offset;
+      file_offset_t end = start+replace_text->length;
+      view->selection_low = start;
+      view->selection_high = end;
+      view->selection_start = start;
+      view->selection_end = end;
     }
 
-    if (!file->buffer || search_length>file->buffer->length) {
+    if (!file->buffer) {
       break;
     }
 
-    if (forward) {
+    if (!reverse) {
       if (view->selection_low!=FILE_OFFSET_T_MAX) {
         offset = view->selection_high;
       }
     } else {
       if (view->selection_low!=FILE_OFFSET_T_MAX) {
         offset = view->selection_low;
-        skip = search_length;
+        if (offset==0) {
+          offset = file->buffer->length-1;
+        } else {
+          offset--;
+        }
       }
     }
 
-    if (offset<skip) {
-      offset = file->buffer->length-skip;
-    } else {
-      offset -= skip;
+    if (offset>=file->buffer->length) {
+      offset = file->buffer->length-1;
     }
 
-    file_offset_t pos = offset;
-    file_offset_t displacement;
-    struct range_tree_node* buffer = range_tree_find_offset(file->buffer, offset, &displacement);
-    fragment_cache(buffer->buffer);
+    if (first) {
+      begin = offset;
+    }
 
-    int wrap = 0;
-    if (forward) {
-      while (pos<offset || !wrap) {
-        if (displacement>=buffer->length || !buffer->buffer) {
-          buffer = range_tree_next(buffer);
-          if (!buffer) {
-            buffer = range_tree_first(file->buffer);
-            pos = 0;
-            wrap = 1;
-          }
+    while (1) {
+      file_offset_t displacement;
+      struct range_tree_node* buffer = range_tree_find_offset(file->buffer, offset, &displacement);
+      struct encoding_stream text_stream;
+      encoding_stream_from_page(&text_stream, buffer, displacement);
 
-          if (buffer && buffer->buffer) {
-            fragment_cache(buffer->buffer);
-          }
-
-          displacement = 0;
-          continue;
+      file_offset_t left;
+      if (!reverse) {
+        if (offset<begin) {
+          left = begin-offset;
+        } else {
+          left = file->buffer->length;
         }
+      } else {
+        if (offset>begin) {
+          left = offset-begin;
+        } else {
+          left = file->buffer->length;
+        }
+      }
 
-        if (document_compare(buffer, displacement, search_text, search_length)) {
+      while (1) {
+        int hit = search_find(search, &text_stream, &left);
+        if (!hit) {
+          break;
+        }
+        file_offset_t start = range_tree_offset(search->hit_start.buffer)+search->hit_start.displacement;
+        file_offset_t end = range_tree_offset(search->hit_end.buffer)+search->hit_end.displacement;
+        if ((!reverse && start>=offset) || (reverse && end<=offset)) {
+          view->offset = start;
+          view->selection_low = start;
+          view->selection_high = end;
+          view->selection_start = start;
+          view->selection_end = end;
           found = 1;
           break;
         }
-
-        displacement++;
-        pos++;
       }
-    } else {
-      while (pos>offset || !wrap) {
-        if (displacement==FILE_OFFSET_T_MAX || !buffer->buffer) {
-          buffer = range_tree_prev(buffer);
-          if (!buffer) {
-            buffer = range_tree_last(file->buffer);
-            pos = file->buffer->length-1;
-            wrap = 1;
-          }
 
-          if (buffer && buffer->buffer) {
-            fragment_cache(buffer->buffer);
-          }
+      if (found) {
+        break;
+      }
 
-          displacement = buffer->length-1;
-          continue;
-        }
-
-        if (document_compare(buffer, displacement, search_text, search_length)) {
-          found = 1;
+      if (!reverse) {
+        if (offset==0) {
           break;
         }
-
-        displacement--;
-        pos--;
+        offset = 0;
+      } else {
+        if (offset==file->buffer->length-1) {
+          break;
+        }
+        offset = file->buffer->length-1;
       }
     }
 
-    if (!found) {
-      break;
-    }
-
-    view->offset = pos;
-    view->selection_low = pos;
-    view->selection_high = pos+search_length;
-    view->selection_start = pos;
-    view->selection_end = pos+search_length;
-    if (!all) {
+    first = 0;
+    if (!found || !all) {
       break;
     }
   }
+
+  search_destroy(search);
 
   if (replacements>0) {
     document_undo_chain(file, file->undos);
@@ -239,7 +177,7 @@ void document_directory(struct document_file* file, struct encoding_stream* filt
 
       struct encoding_stream text_stream;
       encoding_stream_from_plain(&text_stream, (uint8_t*)&entry->d_name[0], strlen(&entry->d_name[0]));
-      if (!search || search_find(search, &text_stream)) {
+      if (!search || search_find(search, &text_stream, NULL)) {
         char* name = strdup(&entry->d_name[0]);
         list_insert(files, NULL, &name);
       }

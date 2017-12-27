@@ -109,7 +109,11 @@ struct splitter;
 #define TIPPSE_CMD_LOWER 59
 #define TIPPSE_CMD_NFD_NFC 60
 #define TIPPSE_CMD_NFC_NFD 61
-#define TIPPSE_CMD_MAX 62
+#define TIPPSE_CMD_SEARCH_MODE_TEXT 62
+#define TIPPSE_CMD_SEARCH_MODE_REGEX 63
+#define TIPPSE_CMD_SEARCH_CASE_SENSITIVE 64
+#define TIPPSE_CMD_SEARCH_CASE_IGNORE 65
+#define TIPPSE_CMD_MAX 66
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -141,6 +145,8 @@ struct editor {
   struct splitter* document;          // Current selected document
   struct splitter* last_document;     // Last selected user document
 
+  int search_regex;         // Search for regluar expression?
+  int search_ignore_case;   // Ignore case during search?
   int64_t tick;             // Start tick
   int64_t tick_undo;        // Tick count for next undo chaining
   int64_t tick_incremental; // Tick count for next incremental document processing
