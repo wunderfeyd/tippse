@@ -54,6 +54,9 @@ struct encoding {
 void encoding_stream_from_plain(struct encoding_stream* stream, const uint8_t* plain, size_t size);
 void encoding_stream_from_page(struct encoding_stream* stream, struct range_tree_node* buffer, file_offset_t displacement);
 
+size_t encoding_stream_offset_plain(struct encoding_stream* stream);
+file_offset_t encoding_stream_offset_page(struct encoding_stream* stream);
+
 uint8_t encoding_stream_read_forward_oob(struct encoding_stream* stream);
 inline uint8_t encoding_stream_read_forward(struct encoding_stream* stream) {
   if (stream->displacement<stream->cache_length) {

@@ -647,20 +647,6 @@ file_offset_t range_tree_offset(struct range_tree_node* node) {
   return offset;
 }
 
-// Return length between end of start node and beginning of end node
-file_offset_t range_tree_distance_offset(struct range_tree_node* root, struct range_tree_node* start, struct range_tree_node* end) {
-  start = range_tree_next(start);
-  if (!start) {
-    return 0;
-  }
-
-  if (!end) {
-    return root->length-range_tree_offset(start);
-  } else {
-    return range_tree_offset(end)-range_tree_offset(start);
-  }
-}
-
 // Search node by offset and return difference to its base offset
 struct range_tree_node* range_tree_find_offset(struct range_tree_node* node, file_offset_t offset, file_offset_t* diff) {
   while (node && !(node->inserter&TIPPSE_INSERTER_LEAF)) {
@@ -884,37 +870,21 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
   return root;
 }
 
-// Helper for textual insertions
-struct range_tree_node* range_tree_insert_split(struct range_tree_node* root, file_offset_t offset, const uint8_t* text, size_t length, int inserter, struct range_tree_node** inserts) {
-  file_offset_t pos = 0;
-  file_offset_t old = 0;
-  while (1) {
-    if (pos==length || pos-old>TREE_BLOCK_LENGTH_MAX) {
-      uint8_t* copy = (uint8_t*)malloc(pos-old);
-      memcpy(copy, text+old, pos-old);
-      if (inserts) {
-        *inserts = range_tree_last(root);
-        inserts++;
-      }
-
-      struct fragment* buffer = fragment_create_memory(copy, pos-old);
-      root = range_tree_insert(root, offset, buffer, 0, buffer->length, inserter, NULL);
-      fragment_dereference(buffer, NULL);
-
-      offset += pos-old;
-      old = pos;
+// Split input buffer into nodes with maximum allowed length
+struct range_tree_node* range_tree_insert_split(struct range_tree_node* root, file_offset_t offset, const uint8_t* text, size_t length, int inserter) {
+  for (size_t pos = 0; pos<length; pos+=TREE_BLOCK_LENGTH_MAX) {
+    size_t size = length-pos;
+    if (size>TREE_BLOCK_LENGTH_MAX) {
+      size = TREE_BLOCK_LENGTH_MAX;
     }
 
-    if (pos==length) {
-      break;
-    }
+    uint8_t* copy = (uint8_t*)malloc(size);
+    memcpy(copy, text+pos, size);
+    struct fragment* buffer = fragment_create_memory(copy, size);
+    root = range_tree_insert(root, offset, buffer, 0, buffer->length, inserter, NULL);
+    fragment_dereference(buffer, NULL);
 
-    pos++;
-  }
-
-  if (inserts) {
-    *inserts = range_tree_last(root);
-    inserts++;
+    offset += TREE_BLOCK_LENGTH_MAX;
   }
 
   return root;

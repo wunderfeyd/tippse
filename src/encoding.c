@@ -23,6 +23,16 @@ void encoding_stream_from_page(struct encoding_stream* stream, struct range_tree
   stream->plain = buffer?(buffer->buffer->buffer+buffer->offset):NULL;
 }
 
+// Return stream offset
+size_t encoding_stream_offset_plain(struct encoding_stream* stream) {
+  return stream->displacement;
+}
+
+// Return stream offset
+file_offset_t encoding_stream_offset_page(struct encoding_stream* stream) {
+  return range_tree_offset(stream->buffer)+stream->displacement;
+}
+
 // Return streaming data that cannot read directly (forward)
 uint8_t encoding_stream_read_forward_oob(struct encoding_stream* stream) {
   if (stream->type==ENCODING_STREAM_PLAIN) {

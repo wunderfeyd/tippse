@@ -140,10 +140,8 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->document = splitter_create(0, 0, NULL, NULL,  "");
 
   base->search_doc = document_file_create(0, 1);
-  editor_update_search_title(base);
-
   base->replace_doc = document_file_create(0, 1);
-  document_file_name(base->replace_doc, "Replace");
+  editor_update_search_title(base);
 
   base->goto_doc = document_file_create(0, 1);
   document_file_name(base->goto_doc, "Goto");
@@ -727,10 +725,10 @@ void editor_view_tabs(struct editor* base, struct encoding_stream* filter_stream
     encoding_stream_from_plain(&text_stream, (uint8_t*)file->filename, strlen(file->filename));
     if (file->save && (!search || search_find(search, &text_stream, NULL))) {
       if (base->tabs_doc->buffer) {
-        base->tabs_doc->buffer = range_tree_insert_split(base->tabs_doc->buffer, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, (uint8_t*)"\n", 1, 0, NULL);
+        base->tabs_doc->buffer = range_tree_insert_split(base->tabs_doc->buffer, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, (uint8_t*)"\n", 1, 0);
       }
 
-      base->tabs_doc->buffer = range_tree_insert_split(base->tabs_doc->buffer, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, (uint8_t*)file->filename, strlen(file->filename), 0, NULL);
+      base->tabs_doc->buffer = range_tree_insert_split(base->tabs_doc->buffer, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, (uint8_t*)file->filename, strlen(file->filename), 0);
     }
 
     doc = doc->next;
@@ -768,10 +766,10 @@ void editor_view_commands(struct editor* base, struct encoding_stream* filter_st
     encoding_stream_from_plain(&text_stream, (uint8_t*)&output[0], strlen(&output[0]));
     if (!search || search_find(search, &text_stream, NULL)) {
       if (base->commands_doc->buffer) {
-        base->commands_doc->buffer = range_tree_insert_split(base->commands_doc->buffer, base->commands_doc->buffer?base->commands_doc->buffer->length:0, (uint8_t*)"\n", 1, 0, NULL);
+        base->commands_doc->buffer = range_tree_insert_split(base->commands_doc->buffer, base->commands_doc->buffer?base->commands_doc->buffer->length:0, (uint8_t*)"\n", 1, 0);
       }
 
-      base->commands_doc->buffer = range_tree_insert_split(base->commands_doc->buffer, base->commands_doc->buffer?base->commands_doc->buffer->length:0, (uint8_t*)&output[0], strlen(&output[0]), 0, NULL);
+      base->commands_doc->buffer = range_tree_insert_split(base->commands_doc->buffer, base->commands_doc->buffer?base->commands_doc->buffer->length:0, (uint8_t*)&output[0], strlen(&output[0]), 0);
     }
   }
 
@@ -849,4 +847,7 @@ void editor_update_search_title(struct editor* base) {
   char title[1024];
   sprintf(&title[0], "Search [%s %s]", base->search_regex?"RegEx":"Text", base->search_ignore_case?"Ignore":"Sensitive");
   document_file_name(base->search_doc, &title[0]);
+
+  sprintf(&title[0], "Replace [%s]", base->search_regex?"RegEx":"Text");
+  document_file_name(base->replace_doc, &title[0]);
 }

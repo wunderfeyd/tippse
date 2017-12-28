@@ -475,7 +475,7 @@ void document_file_insert(struct document_file* base, file_offset_t offset, cons
   }
 
   file_offset_t old_length = base->buffer?base->buffer->length:0;
-  base->buffer = range_tree_insert_split(base->buffer, offset, text, length, 0, NULL);
+  base->buffer = range_tree_insert_split(base->buffer, offset, text, length, 0);
   length = (base->buffer?base->buffer->length:0)-old_length;
   if (length<=0) {
     return;

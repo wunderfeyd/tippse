@@ -10,6 +10,7 @@ extern uint16_t unicode_digits_rle[];
 
 #define SEARCH_DEBUG 0
 
+// Build node for search tree
 struct search_node* search_node_create(int type) {
   struct search_node* base = malloc(sizeof(struct search_node));
   base->type = type;
@@ -25,11 +26,13 @@ struct search_node* search_node_create(int type) {
   return base;
 }
 
+// Remove node
 void search_node_destroy(struct search_node* base) {
   search_node_empty(base);
   free(base);
 }
 
+// Free all node contents
 void search_node_empty(struct search_node* base) {
   while (base->sub.first) {
     list_remove(&base->sub, base->sub.first);
@@ -50,12 +53,14 @@ void search_node_empty(struct search_node* base) {
   range_tree_destroy(base->set, NULL);
 }
 
+// Move node contents to another and free the source node
 void search_node_move(struct search_node* base, struct search_node* copy) {
   search_node_empty(base);
   *base = *copy;
   free(copy);
 }
 
+// Append group descriptors from another node
 void search_node_group_copy(struct list* to, struct list* from) {
   struct list_node* it = from->first;
   while (it) {
@@ -64,6 +69,7 @@ void search_node_group_copy(struct list* to, struct list* from) {
   }
 }
 
+// Remove all nodes from the selected node onwards
 void search_node_destroy_recursive(struct search_node* node) {
   while (node) {
     struct search_node* next = node->next;
@@ -79,6 +85,7 @@ void search_node_destroy_recursive(struct search_node* node) {
   }
 }
 
+// Return count of sub nodes
 int search_node_count(struct search_node* node) {
   int count = 0;
   while (node) {
@@ -95,17 +102,20 @@ int search_node_count(struct search_node* node) {
   return count;
 }
 
+// A huge set is needed, create it if necessary (via range_tree)
 void search_node_set_build(struct search_node* node) {
   if (!node->set) {
     node->set = range_tree_static(node->set, SEARCH_NODE_SET_CODES, 0);
   }
 }
 
+// Append an index to the huge set
 void search_node_set(struct search_node* node, size_t index) {
   search_node_set_build(node);
   node->set = range_tree_mark(node->set, index, 1, TIPPSE_INSERTER_MARK);
 }
 
+// Decode a huge set from choosen rle stream (usally to create character classes) and invert if needed
 void search_node_set_decode_rle(struct search_node* node, int invert, uint16_t* rle) {
   file_offset_t codepoint = 0;
   while (1) {
@@ -124,8 +134,7 @@ void search_node_set_decode_rle(struct search_node* node, int invert, uint16_t* 
   }
 }
 
-
-
+// Destroy the search object
 void search_destroy(struct search* base) {
   search_node_destroy_recursive(base->root);
   free(base->group_hits);
@@ -133,6 +142,7 @@ void search_destroy(struct search* base) {
   free(base);
 }
 
+// Create search object from plain text and encoding
 struct search* search_create_plain(int ignore_case, int reverse, struct encoding_stream needle, struct encoding* needle_encoding, struct encoding* output_encoding) {
   //int64_t tick = tick_count();
   struct search* base = malloc(sizeof(struct search));
@@ -178,6 +188,7 @@ struct search* search_create_plain(int ignore_case, int reverse, struct encoding
   return base;
 }
 
+// Create search object from regular expression string
 struct search* search_create_regex(int ignore_case, int reverse, struct encoding_stream needle, struct encoding* needle_encoding, struct encoding* output_encoding) {
   struct search* base = malloc(sizeof(struct search));
   base->reverse = reverse;
@@ -372,6 +383,81 @@ struct search* search_create_regex(int ignore_case, int reverse, struct encoding
   return base;
 }
 
+// Build replacement
+struct range_tree_node* search_replacement(struct search* base, struct range_tree_node* replacement_root, struct encoding* replacement_encoding, struct range_tree_node* document_root) {
+  if (!replacement_root) {
+    return replacement_root;
+  }
+
+  struct range_tree_node* output = NULL;
+
+  struct encoding_stream replacement_stream;
+  encoding_stream_from_page(&replacement_stream, range_tree_first(replacement_root), 0);
+
+  struct encoding_cache cache;
+  encoding_cache_clear(&cache, replacement_encoding, &replacement_stream);
+
+  uint8_t coded[TREE_BLOCK_LENGTH_MAX+1024];
+  size_t size = 0;
+
+  size_t offset = 0;
+  int escape = 0;
+  while (1) {
+    codepoint_t cp = encoding_cache_find_codepoint(&cache, offset);
+    if (size>TREE_BLOCK_LENGTH_MAX-8 || cp<=0) {
+      output = range_tree_insert_split(output, output?output->length:0, &coded[0], size, 0);
+      size = 0;
+    }
+
+    if (cp<=0) {
+      break;
+    }
+
+    if (!escape) {
+      if (cp=='\\') {
+        escape = 1;
+        offset++;
+        continue;
+      }
+    } else {
+      escape = 0;
+      if (cp=='r') {
+        cp = '\r';
+      } else if (cp=='n') {
+        cp = '\n';
+      } else if (cp=='t') {
+        cp = '\t';
+      } else if (cp=='b') {
+        cp = '\b';
+      } else if (cp=='0') {
+        cp = '\0';
+      } else if (cp>='1' && cp<='9') {
+        output = range_tree_insert_split(output, output?output->length:0, &coded[0], size, 0);
+        size = 0;
+        size_t group = (size_t)(cp-'1');
+        if (group<base->groups) {
+          file_offset_t start = encoding_stream_offset_page(&base->group_hits[group].start);
+          file_offset_t end = encoding_stream_offset_page(&base->group_hits[group].end);
+          if (start<end) {
+            // TODO: this looks inefficient (copy->paste->delete ... use direct copy)
+            struct range_tree_node* copy = range_tree_copy(document_root, start, end-start);
+            output = range_tree_paste(output, copy, output?output->length:0, NULL);
+            range_tree_destroy(copy, NULL);
+          }
+        }
+        offset++;
+        continue;
+      }
+    }
+
+    size += base->encoding->encode(base->encoding, cp, &coded[size], 8);
+    offset++;
+  }
+
+  return output;
+}
+
+// Append/assign a character class to the current selected node
 struct search_node* search_append_class(struct search_node* last, codepoint_t cp, int create) {
   if (cp=='r' || cp=='n' || cp=='t' || cp=='b' || cp=='0' || cp=='d' || cp=='D' || cp=='w' || cp=='W' || cp=='s' || cp=='S') {
     struct search_node* next;
@@ -412,6 +498,7 @@ struct search_node* search_append_class(struct search_node* last, codepoint_t cp
   return NULL;
 }
 
+// Interpret regular expression user character classes for exmaple [^abc]
 size_t search_append_set(struct search_node* last, int ignore_case, struct encoding_cache* cache, size_t offset) {
   struct search_node* check = search_node_create(SEARCH_NODE_TYPE_SET);
   check->min = 1;
@@ -505,6 +592,7 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
   return advance;
 }
 
+// Try to append unicode character to the current set of the node, if a transformation into multiple characters has to be made add a branch
 size_t search_append_unicode(struct search_node* last, int ignore_case, struct encoding_cache* cache, size_t offset, struct search_node* shorten, size_t min) {
   size_t advance = 1;
   if (ignore_case) {
@@ -543,6 +631,7 @@ size_t search_append_unicode(struct search_node* last, int ignore_case, struct e
   return advance;
 }
 
+// Helper for adding multi character strings. Append set nodes as needed to the current node and eventually create a branch.
 struct search_node* search_append_next_index(struct search_node* last, size_t index, int type) {
   if (!(last->type&SEARCH_NODE_TYPE_BRANCH)) {
     if (!last->next || !(last->next->type&SEARCH_NODE_TYPE_BRANCH)) {
@@ -564,6 +653,7 @@ struct search_node* search_append_next_index(struct search_node* last, size_t in
   return check;
 }
 
+// Append a multi character string from codepoint array
 void search_append_next_codepoint(struct search_node* last, codepoint_t* buffer, size_t size) {
   while (size>0) {
     last = search_append_next_index(last, (size_t)*buffer, SEARCH_NODE_TYPE_SET);
@@ -572,6 +662,7 @@ void search_append_next_codepoint(struct search_node* last, codepoint_t* buffer,
   }
 }
 
+// Append a multi character string from byte array
 void search_append_next_byte(struct search_node* last, uint8_t* buffer, size_t size) {
   while (size>0) {
     last = search_append_next_index(last, (size_t)*buffer, SEARCH_NODE_TYPE_SET|SEARCH_NODE_TYPE_BYTE);
@@ -580,6 +671,7 @@ void search_append_next_byte(struct search_node* last, uint8_t* buffer, size_t s
   }
 }
 
+// Build debug output (TODO: get rid of the static helper arrays if printing to the debug console soon)
 int search_debug_lengths[128];
 int search_debug_stops[128];
 void search_debug_indent(size_t depth) {
@@ -602,6 +694,11 @@ void search_debug_tree(struct search* base, struct search_node* node, size_t dep
     search_debug_stops[depth-1] = stop;
   }
   length = 0;
+  if (node->group_start.first) {
+    printf("{");
+    length++;
+  }
+
   if (node->type&SEARCH_NODE_TYPE_GROUP_START) {
     printf("(");
     length++;
@@ -634,6 +731,11 @@ void search_debug_tree(struct search* base, struct search_node* node, size_t dep
 
   if (node->type&SEARCH_NODE_TYPE_GROUP_END) {
     printf(")");
+    length++;
+  }
+
+  if (node->group_end.first) {
+    printf("}");
     length++;
   }
 
@@ -720,6 +822,7 @@ void search_debug_tree(struct search* base, struct search_node* node, size_t dep
   }
 }
 
+// After creation of the search the tree is not optimized. Reduce branches, merge nodes or change set sizes. Afterwards prepare the tree for usage from within the search loop.
 void search_optimize(struct search* base, struct encoding* encoding) {
   int again;
   do {
@@ -744,6 +847,7 @@ void search_optimize(struct search* base, struct encoding* encoding) {
   search_prepare_hash(base, base->root);
 }
 
+// Remove empty branches or merge branch nodes into the current segment.
 int search_optimize_reduce_branch(struct search_node* node) {
   int again = 0;
   if (node->sub.count==1) {
@@ -772,6 +876,8 @@ int search_optimize_reduce_branch(struct search_node* node) {
   }
 
   if (node->sub.count==0 && (node->type&SEARCH_NODE_TYPE_BRANCH) && node->next) {
+    search_node_group_copy(&node->next->group_start, &node->group_start);
+    search_node_group_copy(&node->next->group_end, &node->group_end);
     search_node_move(node, node->next);
   }
 
@@ -789,6 +895,7 @@ int search_optimize_reduce_branch(struct search_node* node) {
   return again;
 }
 
+// Merge sub segments of a branch. Eventually merge sets or move branch behind equal segment starts.
 int search_optimize_combine_branch(struct search_node* node) {
   int again = 0;
   struct list_node* subs1 = node->sub.first;
@@ -888,6 +995,7 @@ int search_optimize_combine_branch(struct search_node* node) {
   return again;
 }
 
+// If the set is small try to translate the huge unicode set into a small byte set and encode the unicode code point into its output reprensentation
 void search_optimize_native(struct encoding* encoding, struct search_node* node) {
   if (node->next) {
     search_optimize_native(encoding, node->next);
@@ -931,6 +1039,7 @@ void search_optimize_native(struct encoding* encoding, struct search_node* node)
   }
 }
 
+// Sets with a single byte aren't really useful, convert them to a plain byte string. Stick together multiple plain byte strings if nodes are neighbours.
 void search_optimize_plain(struct search_node* node) {
   if ((node->type&SEARCH_NODE_TYPE_BYTE) && node->size==0 && node->sub.count==0 && node->min==node->max && node->max<16) {
     size_t codepoint = 0;
@@ -987,6 +1096,7 @@ void search_optimize_plain(struct search_node* node) {
   }
 }
 
+// Update small sets, group informations and node followers if the node had a hit (back to the previous branch)
 void search_prepare(struct search* base, struct search_node* node, struct search_node* prev) {
   if (node->type&SEARCH_NODE_TYPE_BYTE) {
     memset(&node->bitset, 0, sizeof(node->bitset));
@@ -1035,10 +1145,13 @@ void search_prepare(struct search* base, struct search_node* node, struct search
   }
 }
 
+// Hash generator helper to create individual numbers
 inline void search_prepare_hash_next(uint32_t* generator) {
   *generator = ((*generator)*(*generator)+(*generator))&65535;
 }
 
+// The search can test the string for possible equality while running over it (which could reduce from O(n*m) to O(2n) ) but only for direct accessible set nodes. Create a sum which could represent the string.
+// TODO: character switches are able to create the same sums, try different method another time
 void search_prepare_hash(struct search* base, struct search_node* node) {
   uint32_t generator = 65521;
   for (size_t n = 0; n<256; n++) {
@@ -1115,9 +1228,15 @@ void search_prepare_hash(struct search* base, struct search_node* node) {
   base->hashed = (base->hash_length>2)?1:0;
 }
 
+// Find next occurence of the compiled pattern until the stream ends or "left" has been count down
 int search_find(struct search* base, struct encoding_stream* text, file_offset_t* left) {
   if (!base->root) {
     return 0;
+  }
+
+  for (size_t n = 0; n<base->groups; n++) {
+    base->group_hits[n].start = *text;
+    base->group_hits[n].end = *text;
   }
 
   file_offset_t count = left?*left:FILE_OFFSET_T_MAX;
@@ -1197,14 +1316,32 @@ int search_find(struct search* base, struct encoding_stream* text, file_offset_t
   return 0;
 }
 
+// Check a single location
+int search_find_check(struct search* base, struct encoding_stream* text) {
+  for (size_t n = 0; n<base->groups; n++) {
+    base->group_hits[n].start = *text;
+    base->group_hits[n].end = *text;
+  }
+
+  if (search_find_loop(base, base->root, text)) {
+    base->hit_start = *text;
+    return 1;
+  }
+
+  return 0;
+}
+
+// Loop helper to find the bit in the byte set accordingly to the index
 inline int search_node_bitset_check(struct search_node* node, uint8_t index) {
   return ((node->bitset[index/SEARCH_NODE_SET_BUCKET]>>(index%SEARCH_NODE_SET_BUCKET))&1);
 }
 
+// Loop helper to find the code point in the code point set accordingly to the index
 inline int search_node_set_check(struct search_node* node, codepoint_t index) {
   return index>=0 && range_tree_marked(node->set, (file_offset_t)index, 1, TIPPSE_INSERTER_MARK);
 }
 
+// The hot loop of the search, matching and branching is done here. Non recursive version, but uses recursive style with a simulated stack. This version has replaced a recursive version to halt and continue the search process (in future)
 int search_find_loop(struct search* base, struct search_node* node, struct encoding_stream* text) {
   if (!base->stack) {
     base->stack = (struct search_stack*)malloc(sizeof(struct search_stack*)*base->stack_size);
@@ -1375,12 +1512,14 @@ int search_find_loop(struct search* base, struct search_node* node, struct encod
   return hit;
 }
 
+// Some small manual unittests (TODO: remove or expand as soon the search is feature complete and optimized)
 void search_test(void) {
-  const char* needle_text = "Recently, Standard Japanese has ";
+  //const char* needle_text = "Recently, Standard Japanese has ";
   //const char* needle_text = "Hallo äÖÜ ß Test Ú ń ǹ";
   //const char* needle_text = "(haLlO|(Teßt){1,2}?)";
   //const char* needle_text = "(\\S+)\\s(sch)*(schnappi|schnapp|schlappi).*?[A-C][^\\d]{2}";
   //const char* needle_text = "a|ab|abc";
+  const char* needle_text = "#(\\S+)";
   //const char* needle_text = "(schnappi|schnapp|schlappi){2}";
   //const char* needle_text = "make_";
   //const char* needle_text = "schnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappi";
@@ -1392,7 +1531,7 @@ void search_test(void) {
   search_debug_tree(search, search->root, 0, 0, 0);
 
   struct encoding_stream text;
-  const char* text_text = "Dies ist ein l TesstTeßt, HaLLo schschschSchlappiSchlappi ppi! 999 make_debug.sh abc";
+  const char* text_text = "Dies ist ein l TesstTeßt, HaLLo schschschSchlappiSchlappi ppi! 999 make_debug.sh abc #include bla";
   encoding_stream_from_plain(&text, (uint8_t*)text_text, strlen(text_text));
   int found = search_find(search, &text, NULL);
   printf("%d\r\n", found);

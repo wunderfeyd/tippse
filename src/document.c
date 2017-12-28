@@ -37,17 +37,32 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
 
       replacements++;
 
-      document_file_reduce(&begin, view->selection_low, view->selection_high-view->selection_low);
-      document_file_delete_selection(splitter->file, splitter->view);
-      document_file_expand(&begin, view->offset, replace_text->length);
-      document_file_insert_buffer(splitter->file, view->offset, replace_text);
+      int hit = 1;
+      if (first) {
+        file_offset_t displacement;
+        struct range_tree_node* buffer = range_tree_find_offset(file->buffer, view->selection_low, &displacement);
+        struct encoding_stream text_stream;
+        encoding_stream_from_page(&text_stream, buffer, displacement);
+        hit = search_find_check(search, &text_stream);
+      }
 
-      file_offset_t start = view->offset;
-      file_offset_t end = start+replace_text->length;
-      view->selection_low = start;
-      view->selection_high = end;
-      view->selection_start = start;
-      view->selection_end = end;
+      if (hit) {
+        struct range_tree_node* replacement = regex?search_replacement(search, replace_text, file->encoding, file->buffer):replace_text;
+        document_file_reduce(&begin, view->selection_low, view->selection_high-view->selection_low);
+        document_file_delete_selection(splitter->file, splitter->view);
+        document_file_expand(&begin, view->offset, replacement->length);
+        document_file_insert_buffer(splitter->file, view->offset, replacement);
+        if (regex) {
+          range_tree_destroy(replacement, NULL);
+        }
+
+        file_offset_t start = view->offset;
+        file_offset_t end = start+replace_text->length;
+        view->selection_low = start;
+        view->selection_high = end;
+        view->selection_start = start;
+        view->selection_end = end;
+      }
     }
 
     if (!file->buffer) {
@@ -103,8 +118,8 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
         if (!hit) {
           break;
         }
-        file_offset_t start = range_tree_offset(search->hit_start.buffer)+search->hit_start.displacement;
-        file_offset_t end = range_tree_offset(search->hit_end.buffer)+search->hit_end.displacement;
+        file_offset_t start = encoding_stream_offset_page(&search->hit_start);
+        file_offset_t end = encoding_stream_offset_page(&search->hit_end);
         if ((!reverse && start>=offset) || (reverse && end<=offset)) {
           view->offset = start;
           view->selection_low = start;
@@ -203,10 +218,10 @@ void document_directory(struct document_file* file, struct encoding_stream* filt
 
     for (size_t n = 0; n<files->count; n++) {
       if (file->buffer) {
-        file->buffer = range_tree_insert_split(file->buffer, file->buffer?file->buffer->length:0, (uint8_t*)"\n", 1, 0, NULL);
+        file->buffer = range_tree_insert_split(file->buffer, file->buffer?file->buffer->length:0, (uint8_t*)"\n", 1, 0);
       }
 
-      file->buffer = range_tree_insert_split(file->buffer, file->buffer?file->buffer->length:0, (uint8_t*)sort[n], strlen(sort[n]), 0, NULL);
+      file->buffer = range_tree_insert_split(file->buffer, file->buffer?file->buffer->length:0, (uint8_t*)sort[n], strlen(sort[n]), 0);
       free(sort[n]);
     }
 

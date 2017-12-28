@@ -88,6 +88,7 @@ void search_node_set_decode_rle(struct search_node* node, int invert, uint16_t* 
 
 struct search* search_create_plain(int ignore_case, int reverse, struct encoding_stream needle, struct encoding* needle_encoding, struct encoding* output_encoding);
 struct search* search_create_regex(int ignore_case, int reverse, struct encoding_stream needle, struct encoding* needle_encoding, struct encoding* output_encoding);
+struct range_tree_node* search_replacement(struct search* base, struct range_tree_node* root, struct encoding* replacement_encoding, struct range_tree_node* document_root);
 void search_destroy(struct search* base);
 struct search_node* search_append_class(struct search_node* last, codepoint_t cp, int create);
 size_t search_append_set(struct search_node* last, int ignore_case, struct encoding_cache* cache, size_t offset);
@@ -97,6 +98,7 @@ void search_append_next_codepoint(struct search_node* last, codepoint_t* buffer,
 void search_append_next_byte(struct search_node* last, uint8_t* buffer, size_t size);
 void search_debug_tree(struct search* base, struct search_node* node, size_t depth, int length, int stop);
 int search_find(struct search* base, struct encoding_stream* text, file_offset_t* left);
+int search_find_check(struct search* base, struct encoding_stream* text);
 int search_find_loop(struct search* base, struct search_node* node, struct encoding_stream* text);
 
 void search_optimize(struct search* base, struct encoding* encoding);
