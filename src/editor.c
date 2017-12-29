@@ -256,8 +256,8 @@ void editor_draw(struct editor* base) {
   }
 
   screen_drawtext(base->screen, (x>0)?x+1:x, 0, 0, 0, base->screen->width, base->screen->height, base->focus->name, (size_t)base->screen->width, foreground, background);
-  struct encoding_stream stream;
-  encoding_stream_from_plain(&stream, (uint8_t*)base->focus->status, SIZE_T_MAX);
+  struct stream stream;
+  stream_from_plain(&stream, (uint8_t*)base->focus->status, SIZE_T_MAX);
   size_t length = encoding_utf8_strlen(NULL, &stream);
   screen_drawtext(base->screen, base->screen->width-(int)length, 0, 0, 0, base->screen->width, base->screen->height, base->focus->status, length, base->focus->status_inverted?background:foreground, base->focus->status_inverted?foreground:background);
 
@@ -355,8 +355,8 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
   } else if (command==TIPPSE_CMD_CLOSE) {
     editor_close_document(base, base->focus->file);
   } else if (command==TIPPSE_CMD_RETURN && base->focus->file==base->goto_doc) {
-    struct encoding_stream stream;
-    encoding_stream_from_page(&stream, base->focus->file->buffer, 0);
+    struct stream stream;
+    stream_from_page(&stream, base->focus->file->buffer, 0);
     struct encoding_cache cache;
     encoding_cache_clear(&cache, base->focus->file->encoding, &stream);
     // TODO: this should be handled by the specialized document classes
@@ -428,10 +428,10 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
       if (!selected) {
         file_offset_t now = base->filter_doc->buffer?base->filter_doc->buffer->length:0;
         if (before!=now) {
-          struct encoding_stream* filter_stream = NULL;
-          struct encoding_stream stream;
+          struct stream* filter_stream = NULL;
+          struct stream stream;
           if (base->filter_doc->buffer) {
-            encoding_stream_from_page(&stream, range_tree_first(base->filter_doc->buffer), 0);
+            stream_from_page(&stream, range_tree_first(base->filter_doc->buffer), 0);
             filter_stream = &stream;
           }
           if (base->panel->file==base->browser_doc) {
@@ -688,7 +688,7 @@ void editor_panel_assign(struct editor* base, struct document_file* file) {
 }
 
 // Update and change to browser view
-void editor_view_browser(struct editor* base, const char* filename, struct encoding_stream* filter_stream, struct encoding* filter_encoding) {
+void editor_view_browser(struct editor* base, const char* filename, struct stream* filter_stream, struct encoding* filter_encoding) {
   if (!filter_stream) {
     document_file_clear(base->filter_doc, 0);
   }
@@ -708,7 +708,7 @@ void editor_view_browser(struct editor* base, const char* filename, struct encod
 }
 
 // Update and change to document view
-void editor_view_tabs(struct editor* base, struct encoding_stream* filter_stream, struct encoding* filter_encoding) {
+void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding) {
   if (!filter_stream) {
     document_file_clear(base->filter_doc, 0);
   }
@@ -721,8 +721,8 @@ void editor_view_tabs(struct editor* base, struct encoding_stream* filter_stream
   struct list_node* doc = base->documents->first;
   while (doc) {
     struct document_file* file = *(struct document_file**)list_object(doc);
-    struct encoding_stream text_stream;
-    encoding_stream_from_plain(&text_stream, (uint8_t*)file->filename, strlen(file->filename));
+    struct stream text_stream;
+    stream_from_plain(&text_stream, (uint8_t*)file->filename, strlen(file->filename));
     if (file->save && (!search || search_find(search, &text_stream, NULL))) {
       if (base->tabs_doc->buffer) {
         base->tabs_doc->buffer = range_tree_insert_split(base->tabs_doc->buffer, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, (uint8_t*)"\n", 1, 0);
@@ -746,7 +746,7 @@ void editor_view_tabs(struct editor* base, struct encoding_stream* filter_stream
 }
 
 // Update and change to commands view
-void editor_view_commands(struct editor* base, struct encoding_stream* filter_stream, struct encoding* filter_encoding) {
+void editor_view_commands(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding) {
   if (!filter_stream) {
     editor_command_map_read(base, base->document->file);
     document_file_clear(base->filter_doc, 0);
@@ -762,8 +762,8 @@ void editor_view_commands(struct editor* base, struct encoding_stream* filter_st
     // TODO: Encoding may destroy equal width ... build string in a different way
     sprintf(&output[0], "%-16s | %-16s | %s", editor_commands[n].text, base->command_map[n]?base->command_map[n]:"<none>", editor_commands[n].description);
 
-    struct encoding_stream text_stream;
-    encoding_stream_from_plain(&text_stream, (uint8_t*)&output[0], strlen(&output[0]));
+    struct stream text_stream;
+    stream_from_plain(&text_stream, (uint8_t*)&output[0], strlen(&output[0]));
     if (!search || search_find(search, &text_stream, NULL)) {
       if (base->commands_doc->buffer) {
         base->commands_doc->buffer = range_tree_insert_split(base->commands_doc->buffer, base->commands_doc->buffer?base->commands_doc->buffer->length:0, (uint8_t*)"\n", 1, 0);

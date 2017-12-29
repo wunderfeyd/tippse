@@ -143,7 +143,7 @@ void search_destroy(struct search* base) {
 }
 
 // Create search object from plain text and encoding
-struct search* search_create_plain(int ignore_case, int reverse, struct encoding_stream needle, struct encoding* needle_encoding, struct encoding* output_encoding) {
+struct search* search_create_plain(int ignore_case, int reverse, struct stream needle, struct encoding* needle_encoding, struct encoding* output_encoding) {
   //int64_t tick = tick_count();
   struct search* base = malloc(sizeof(struct search));
   base->reverse = reverse;
@@ -189,7 +189,7 @@ struct search* search_create_plain(int ignore_case, int reverse, struct encoding
 }
 
 // Create search object from regular expression string
-struct search* search_create_regex(int ignore_case, int reverse, struct encoding_stream needle, struct encoding* needle_encoding, struct encoding* output_encoding) {
+struct search* search_create_regex(int ignore_case, int reverse, struct stream needle, struct encoding* needle_encoding, struct encoding* output_encoding) {
   struct search* base = malloc(sizeof(struct search));
   base->reverse = reverse;
   base->groups = 0;
@@ -391,8 +391,8 @@ struct range_tree_node* search_replacement(struct search* base, struct range_tre
 
   struct range_tree_node* output = NULL;
 
-  struct encoding_stream replacement_stream;
-  encoding_stream_from_page(&replacement_stream, range_tree_first(replacement_root), 0);
+  struct stream replacement_stream;
+  stream_from_page(&replacement_stream, range_tree_first(replacement_root), 0);
 
   struct encoding_cache cache;
   encoding_cache_clear(&cache, replacement_encoding, &replacement_stream);
@@ -436,8 +436,8 @@ struct range_tree_node* search_replacement(struct search* base, struct range_tre
         size = 0;
         size_t group = (size_t)(cp-'1');
         if (group<base->groups) {
-          file_offset_t start = encoding_stream_offset_page(&base->group_hits[group].start);
-          file_offset_t end = encoding_stream_offset_page(&base->group_hits[group].end);
+          file_offset_t start = stream_offset_page(&base->group_hits[group].start);
+          file_offset_t end = stream_offset_page(&base->group_hits[group].end);
           if (start<end) {
             // TODO: this looks inefficient (copy->paste->delete ... use direct copy)
             struct range_tree_node* copy = range_tree_copy(document_root, start, end-start);
@@ -573,8 +573,8 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
       if (range->inserter&TIPPSE_INSERTER_MARK) {
         for (size_t n = codepoint; n<codepoint+range->length; n++) {
           codepoint_t from = (codepoint_t)n;
-          struct encoding_stream native_stream;
-          encoding_stream_from_plain(&native_stream, (uint8_t*)&from, sizeof(codepoint_t));
+          struct stream native_stream;
+          stream_from_plain(&native_stream, (uint8_t*)&from, sizeof(codepoint_t));
 
           struct encoding_cache native_cache;
           encoding_cache_clear(&native_cache, native_encoding, &native_stream);
@@ -1229,7 +1229,7 @@ void search_prepare_hash(struct search* base, struct search_node* node) {
 }
 
 // Find next occurence of the compiled pattern until the stream ends or "left" has been count down
-int search_find(struct search* base, struct encoding_stream* text, file_offset_t* left) {
+int search_find(struct search* base, struct stream* text, file_offset_t* left) {
   if (!base->root) {
     return 0;
   }
@@ -1243,68 +1243,68 @@ int search_find(struct search* base, struct encoding_stream* text, file_offset_t
 
   if (base->hashed) {
     if (!base->reverse) {
-      struct encoding_stream head = *text;
+      struct stream head = *text;
       uint32_t hash = 0;
       for (size_t n = 0; n<base->hash_length; n++) {
-        hash += base->hashes[encoding_stream_read_forward(&head)];
+        hash += base->hashes[stream_read_forward(&head)];
       }
 
-      while (!encoding_stream_end(text) && count>0) {
+      while (!stream_end(text) && count>0) {
         count--;
         if (hash==base->hash) {
           if (search_find_loop(base, base->root, text)) {
             base->hit_start = *text;
-            encoding_stream_forward(text, 1);
+            stream_forward(text, 1);
             return 1;
           }
         }
 
-        hash -= base->hashes[encoding_stream_read_forward(text)];
-        hash += base->hashes[encoding_stream_read_forward(&head)];
+        hash -= base->hashes[stream_read_forward(text)];
+        hash += base->hashes[stream_read_forward(&head)];
       }
     } else {
-      struct encoding_stream head = *text;
+      struct stream head = *text;
       uint32_t hash = 0;
       for (size_t n = 0; n<base->hash_length; n++) {
-        hash += base->hashes[encoding_stream_read_reverse(text)];
+        hash += base->hashes[stream_read_reverse(text)];
       }
 
-      while (!encoding_stream_start(text) && count>0) {
+      while (!stream_start(text) && count>0) {
         count--;
         if (hash==base->hash) {
           if (search_find_loop(base, base->root, text)) {
             base->hit_start = *text;
-            encoding_stream_reverse(text, 1);
+            stream_reverse(text, 1);
             return 1;
           }
         }
 
-        hash -= base->hashes[encoding_stream_read_reverse(&head)];
-        hash += base->hashes[encoding_stream_read_reverse(text)];
+        hash -= base->hashes[stream_read_reverse(&head)];
+        hash += base->hashes[stream_read_reverse(text)];
       }
     }
   } else {
     if (!base->reverse) {
-      while (!encoding_stream_end(text) && count>0) {
+      while (!stream_end(text) && count>0) {
         count--;
         if (search_find_loop(base, base->root, text)) {
           base->hit_start = *text;
-          encoding_stream_forward(text, 1);
+          stream_forward(text, 1);
           return 1;
         }
 
-        encoding_stream_forward(text, 1);
+        stream_forward(text, 1);
       }
     } else {
-      while (!encoding_stream_start(text) && count>0) {
+      while (!stream_start(text) && count>0) {
         count--;
         if (search_find_loop(base, base->root, text)) {
           base->hit_start = *text;
-          encoding_stream_reverse(text, 1);
+          stream_reverse(text, 1);
           return 1;
         }
 
-        encoding_stream_reverse(text, 1);
+        stream_reverse(text, 1);
       }
     }
   }
@@ -1317,7 +1317,7 @@ int search_find(struct search* base, struct encoding_stream* text, file_offset_t
 }
 
 // Check a single location
-int search_find_check(struct search* base, struct encoding_stream* text) {
+int search_find_check(struct search* base, struct stream* text) {
   for (size_t n = 0; n<base->groups; n++) {
     base->group_hits[n].start = *text;
     base->group_hits[n].end = *text;
@@ -1342,12 +1342,12 @@ inline int search_node_set_check(struct search_node* node, codepoint_t index) {
 }
 
 // The hot loop of the search, matching and branching is done here. Non recursive version, but uses recursive style with a simulated stack. This version has replaced a recursive version to halt and continue the search process (in future)
-int search_find_loop(struct search* base, struct search_node* node, struct encoding_stream* text) {
+int search_find_loop(struct search* base, struct search_node* node, struct stream* text) {
   if (!base->stack) {
     base->stack = (struct search_stack*)malloc(sizeof(struct search_stack*)*base->stack_size);
   }
 
-  struct encoding_stream stream = *text;
+  struct stream stream = *text;
   struct search_stack* load = base->stack;
   load->node = NULL;
   int enter = 1;
@@ -1361,7 +1361,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct encod
       if (node->plain) {
         enter = 1;
         for (size_t n = 0; n<node->size; n++) {
-          if (encoding_stream_end(&stream) || node->plain[n]!=encoding_stream_read_forward(&stream)) {
+          if (stream_end(&stream) || node->plain[n]!=stream_read_forward(&stream)) {
             enter = 0;
             break;
           }
@@ -1371,7 +1371,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct encod
           if (!(node->type&SEARCH_NODE_TYPE_POSSESSIVE)) {
             if ((node->type&SEARCH_NODE_TYPE_BYTE)) {
               for (size_t n = 0; n<node->min; n++) {
-                if (encoding_stream_end(&stream) || !search_node_bitset_check(node, encoding_stream_read_forward(&stream))) {
+                if (stream_end(&stream) || !search_node_bitset_check(node, stream_read_forward(&stream))) {
                   enter = 0;
                   break;
                 }
@@ -1379,7 +1379,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct encod
             } else {
               for (size_t n = 0; n<node->min; n++) {
                 size_t length;
-                if (encoding_stream_end(&stream) || !search_node_set_check(node, base->encoding->decode(base->encoding, &stream, &length))) {
+                if (stream_end(&stream) || !search_node_set_check(node, base->encoding->decode(base->encoding, &stream, &length))) {
                   enter = 0;
                   break;
                 }
@@ -1398,8 +1398,8 @@ int search_find_loop(struct search* base, struct search_node* node, struct encod
           } else {
             if ((node->type&SEARCH_NODE_TYPE_BYTE)) {
               for (size_t n = 0; n<node->max; n++) {
-                if (encoding_stream_end(&stream) || !search_node_bitset_check(node, encoding_stream_read_forward(&stream))) {
-                  encoding_stream_reverse(&stream, 1);
+                if (stream_end(&stream) || !search_node_bitset_check(node, stream_read_forward(&stream))) {
+                  stream_reverse(&stream, 1);
                   enter = (n>=node->min)?1:0;
                   break;
                 }
@@ -1407,8 +1407,8 @@ int search_find_loop(struct search* base, struct search_node* node, struct encod
             } else {
               for (size_t n = 0; n<node->max; n++) {
                 size_t length = 0;
-                if (encoding_stream_end(&stream) || !search_node_set_check(node, base->encoding->decode(base->encoding, &stream, &length))) {
-                  encoding_stream_reverse(&stream, length);
+                if (stream_end(&stream) || !search_node_set_check(node, base->encoding->decode(base->encoding, &stream, &length))) {
+                  stream_reverse(&stream, length);
                   enter = (n>=node->min)?1:0;
                   break;
                 }
@@ -1421,12 +1421,12 @@ int search_find_loop(struct search* base, struct search_node* node, struct encod
           enter = (index->loop<=node->max && ((node->type&SEARCH_NODE_TYPE_GREEDY) || load->hits==hits))?1:0;
           if (index->loop<node->max) {
             if ((node->type&SEARCH_NODE_TYPE_BYTE)) {
-              if (encoding_stream_end(&load->stream) || !search_node_bitset_check(node, encoding_stream_read_forward(&load->stream))) {
+              if (stream_end(&load->stream) || !search_node_bitset_check(node, stream_read_forward(&load->stream))) {
                 enter = 0;
               }
             } else {
               size_t length;
-              if (encoding_stream_end(&load->stream) || !search_node_set_check(node, base->encoding->decode(base->encoding, &load->stream, &length))) {
+              if (stream_end(&load->stream) || !search_node_set_check(node, base->encoding->decode(base->encoding, &load->stream, &length))) {
                 enter = 0;
               }
             }
@@ -1524,16 +1524,16 @@ void search_test(void) {
   //const char* needle_text = "(schnappi|schnapp|schlappi){2}";
   //const char* needle_text = "make_";
   //const char* needle_text = "schnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappi";
-    struct encoding_stream needle_stream;
-  encoding_stream_from_plain(&needle_stream, (uint8_t*)needle_text, strlen(needle_text));
+    struct stream needle_stream;
+  stream_from_plain(&needle_stream, (uint8_t*)needle_text, strlen(needle_text));
   struct encoding* needle_encoding = encoding_utf8_create();
   struct encoding* output_encoding = encoding_utf8_create();
   struct search* search = search_create_regex(1, 0, needle_stream, needle_encoding, output_encoding);
   search_debug_tree(search, search->root, 0, 0, 0);
 
-  struct encoding_stream text;
+  struct stream text;
   const char* text_text = "Dies ist ein l TesstTeßt, HaLLo schschschSchlappiSchlappi ppi! 999 make_debug.sh abc #include bla";
-  encoding_stream_from_plain(&text, (uint8_t*)text_text, strlen(text_text));
+  stream_from_plain(&text, (uint8_t*)text_text, strlen(text_text));
   int found = search_find(search, &text, NULL);
   printf("%d\r\n", found);
   if (found) {
@@ -1565,16 +1565,16 @@ void search_test(void) {
     close(f);
 
     printf("hash search...\r\n");
-    struct encoding_stream buffered;
+    struct stream buffered;
     struct search* search = search_create_plain(1, 0, needle_stream, needle_encoding, output_encoding);
     search_debug_tree(search, search->root, 0, 0, 0);
     int64_t tick = tick_count();
     for (size_t n = 0; n<5; n++) {
-      encoding_stream_from_plain(&buffered, buffer, length);
+      stream_from_plain(&buffered, buffer, length);
       int found = search_find(search, &buffered, NULL);
       printf("%d %d us %d\r\n", (int)n, (int)((tick_count()-tick)/(n+1)), found);
       if (found) {
-        printf("%d \"", (int)encoding_stream_offset_plain(&search->hit_start));
+        printf("%d \"", (int)stream_offset_plain(&search->hit_start));
         for (const uint8_t* plain = search->hit_start.plain+search->hit_start.displacement; plain!=search->hit_end.plain+search->hit_end.displacement; plain++) {
           printf("%c", *plain);
         }
@@ -1589,16 +1589,16 @@ void search_test(void) {
   {
     struct file_cache* file = file_cache_create("enwik8");
     printf("hash search...\r\n");
-    struct encoding_stream buffered;
+    struct stream buffered;
     struct search* search = search_create_plain(1, 0, needle_stream, needle_encoding, output_encoding);
     search_debug_tree(search, search->root, 0, 0, 0);
     int64_t tick = tick_count();
     for (size_t n = 0; n<5; n++) {
-      encoding_stream_from_file(&buffered, file, 0);
+      stream_from_file(&buffered, file, 0);
       int found = search_find(search, &buffered, NULL);
       printf("%d %d us %d\r\n", (int)n, (int)((tick_count()-tick)/(n+1)), found);
       if (found) {
-        printf("%d \"", (int)encoding_stream_offset_file(&search->hit_start));
+        printf("%d \"", (int)stream_offset_file(&search->hit_start));
         for (const uint8_t* plain = search->hit_start.plain+search->hit_start.displacement; plain!=search->hit_end.plain+search->hit_end.displacement; plain++) {
           printf("%c", *plain);
         }

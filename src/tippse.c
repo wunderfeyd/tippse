@@ -319,8 +319,8 @@ int main(int argc, const char** argv) {
       }
 
       if (!keep) {
-        struct encoding_stream stream;
-        encoding_stream_from_plain(&stream, (const uint8_t*)&input_buffer[check], (size_t)((const uint8_t*)&input_buffer[input_pos]-(const uint8_t*)&input_buffer[check]));
+        struct stream stream;
+        stream_from_plain(&stream, (const uint8_t*)&input_buffer[check], (size_t)((const uint8_t*)&input_buffer[input_pos]-(const uint8_t*)&input_buffer[check]));
         codepoint_t cp = (*screen->encoding->decode)(NULL, &stream, &used);
         if (cp==-1) {
           used = 0;

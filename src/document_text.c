@@ -247,9 +247,9 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
         render_info->brackets_line[n].max = 0;
       }
 
-      encoding_stream_from_page(&render_info->stream, render_info->buffer, render_info->displacement);
+      stream_from_page(&render_info->stream, render_info->buffer, render_info->displacement);
     } else {
-      encoding_stream_from_page(&render_info->stream, NULL, 0);
+      stream_from_page(&render_info->stream, NULL, 0);
     }
 
     encoding_cache_clear(&render_info->cache, encoding, &render_info->stream);
@@ -1772,7 +1772,7 @@ void document_text_goto(struct document* base, struct splitter* splitter, positi
 void document_text_transform(struct document* base, struct trie* transformation, struct document_file* file, file_offset_t from, file_offset_t to) {
   int seek = 1;
   size_t offset = 0;
-  struct encoding_stream stream;
+  struct stream stream;
   struct encoding_cache cache;
 
   uint8_t recoded[1024];
@@ -1788,7 +1788,7 @@ void document_text_transform(struct document* base, struct trie* transformation,
         return;
       }
 
-      encoding_stream_from_page(&stream, buffer, displacement);
+      stream_from_page(&stream, buffer, displacement);
       encoding_cache_clear(&cache, file->encoding, &stream);
     }
 

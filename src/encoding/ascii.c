@@ -46,8 +46,8 @@ codepoint_t encoding_ascii_visual(struct encoding* base, codepoint_t cp) {
   return cp;
 }
 
-codepoint_t encoding_ascii_decode(struct encoding* base, struct encoding_stream* stream, size_t* used) {
-  uint8_t c = encoding_stream_read_forward(stream);
+codepoint_t encoding_ascii_decode(struct encoding* base, struct stream* stream, size_t* used) {
+  uint8_t c = stream_read_forward(stream);
   *used = 1;
   return (codepoint_t)c;
 }
@@ -57,15 +57,15 @@ size_t encoding_ascii_encode(struct encoding* base, codepoint_t cp, uint8_t* tex
   return 1;
 }
 
-size_t encoding_ascii_next(struct encoding* base, struct encoding_stream* stream) {
+size_t encoding_ascii_next(struct encoding* base, struct stream* stream) {
   return 1;
 }
 
-size_t encoding_ascii_strnlen(struct encoding* base, struct encoding_stream* stream, size_t size) {
+size_t encoding_ascii_strnlen(struct encoding* base, struct stream* stream, size_t size) {
   return size;
 }
 
-size_t encoding_ascii_strlen(struct encoding* base, struct encoding_stream* stream) {
+size_t encoding_ascii_strlen(struct encoding* base, struct stream* stream) {
   size_t length = 0;
   while (1) {
     size_t next;
@@ -80,12 +80,12 @@ size_t encoding_ascii_strlen(struct encoding* base, struct encoding_stream* stre
   return length;
 }
 
-size_t encoding_ascii_seek(struct encoding* base, struct encoding_stream* stream, size_t pos) {
+size_t encoding_ascii_seek(struct encoding* base, struct stream* stream, size_t pos) {
   size_t current = 0;
   while (pos!=0) {
     size_t next = encoding_ascii_next(base, stream);
     current += next;
-    encoding_stream_forward(stream, next);
+    stream_forward(stream, next);
     pos--;
   }
 

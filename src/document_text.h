@@ -42,7 +42,7 @@ struct document_text_render_info {
   int whitespaced;                  // end of line is whitespace only?
   int whitespace_scan;              // whitespace scanned?
   int indented;                     // begin of line is indentation only?
-  struct encoding_stream stream;    // access to byte stream
+  struct stream stream;    // access to byte stream
   struct encoding_cache cache;      // access to Unicode cache
   int depth_new[VISUAL_BRACKET_MAX]; //depth of bracket matching at cursor position
   int depth_old[VISUAL_BRACKET_MAX]; //depth of bracket matching at page start

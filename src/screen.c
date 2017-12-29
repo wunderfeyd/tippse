@@ -280,8 +280,8 @@ void screen_drawtext(const struct screen* base, int x, int y, int clip_x, int cl
     return;
   }
 
-  struct encoding_stream stream;
-  encoding_stream_from_plain(&stream, (uint8_t*)text, length);
+  struct stream stream;
+  stream_from_plain(&stream, (uint8_t*)text, length);
   while (length>0 && x<base->width) {
     size_t used;
     codepoint_t cp = encoding_utf8_decode(NULL, &stream, &used);

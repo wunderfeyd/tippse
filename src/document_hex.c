@@ -65,11 +65,11 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   file_offset_t offset = (file_offset_t)view->scroll_y*16;
   file_offset_t displacement;
   struct range_tree_node* buffer = range_tree_find_offset(file->buffer, offset, &displacement);
-  struct encoding_stream byte_stream;
-  encoding_stream_from_page(&byte_stream, buffer, displacement);
+  struct stream byte_stream;
+  stream_from_page(&byte_stream, buffer, displacement);
 
-  struct encoding_stream text_stream;
-  encoding_stream_from_page(&text_stream, buffer, displacement);
+  struct stream text_stream;
+  stream_from_page(&text_stream, buffer, displacement);
   struct encoding_cache text_cache;
   encoding_cache_clear(&text_cache, file->encoding, &text_stream);
 
@@ -105,7 +105,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
         chars[x].length = 1;
       }
 
-      data[x] = encoding_stream_read_forward(&byte_stream);
+      data[x] = stream_read_forward(&byte_stream);
     }
 
     document_hex_render(base, screen, splitter, offset, y, data, data_size, chars);

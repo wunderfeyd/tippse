@@ -13,8 +13,8 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
     return 0;
   }
 
-  struct encoding_stream needle_stream;
-  encoding_stream_from_page(&needle_stream, range_tree_first(search_text), 0);
+  struct stream needle_stream;
+  stream_from_page(&needle_stream, range_tree_first(search_text), 0);
   struct search* search;
   if (regex) {
     search = search_create_regex(ignore_case, reverse, needle_stream, file->encoding, file->encoding);
@@ -41,8 +41,8 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
       if (first) {
         file_offset_t displacement;
         struct range_tree_node* buffer = range_tree_find_offset(file->buffer, view->selection_low, &displacement);
-        struct encoding_stream text_stream;
-        encoding_stream_from_page(&text_stream, buffer, displacement);
+        struct stream text_stream;
+        stream_from_page(&text_stream, buffer, displacement);
         hit = search_find_check(search, &text_stream);
       }
 
@@ -95,8 +95,8 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
     while (1) {
       file_offset_t displacement;
       struct range_tree_node* buffer = range_tree_find_offset(file->buffer, offset, &displacement);
-      struct encoding_stream text_stream;
-      encoding_stream_from_page(&text_stream, buffer, displacement);
+      struct stream text_stream;
+      stream_from_page(&text_stream, buffer, displacement);
 
       file_offset_t left;
       if (!reverse) {
@@ -118,8 +118,8 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
         if (!hit) {
           break;
         }
-        file_offset_t start = encoding_stream_offset_page(&search->hit_start);
-        file_offset_t end = encoding_stream_offset_page(&search->hit_end);
+        file_offset_t start = stream_offset_page(&search->hit_start);
+        file_offset_t end = stream_offset_page(&search->hit_end);
         if ((!reverse && start>=offset) || (reverse && end<=offset)) {
           view->offset = start;
           view->selection_low = start;
@@ -178,7 +178,7 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
 
 
 // Read directory into document, sort by file name
-void document_directory(struct document_file* file, struct encoding_stream* filter_stream, struct encoding* filter_encoding) {
+void document_directory(struct document_file* file, struct stream* filter_stream, struct encoding* filter_encoding) {
   DIR* directory = opendir(file->filename);
   if (directory) {
     struct search* search = filter_stream?search_create_plain(1, 0, *filter_stream, filter_encoding, file->encoding):NULL;
@@ -190,8 +190,8 @@ void document_directory(struct document_file* file, struct encoding_stream* filt
         break;
       }
 
-      struct encoding_stream text_stream;
-      encoding_stream_from_plain(&text_stream, (uint8_t*)&entry->d_name[0], strlen(&entry->d_name[0]));
+      struct stream text_stream;
+      stream_from_plain(&text_stream, (uint8_t*)&entry->d_name[0], strlen(&entry->d_name[0]));
       if (!search || search_find(search, &text_stream, NULL)) {
         char* name = strdup(&entry->d_name[0]);
         list_insert(files, NULL, &name);

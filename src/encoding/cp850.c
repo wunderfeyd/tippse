@@ -69,8 +69,8 @@ codepoint_t encoding_cp850_visual(struct encoding* base, codepoint_t cp) {
   return (codepoint_t)translate_cp850_unicode[cp];
 }
 
-codepoint_t encoding_cp850_decode(struct encoding* base, struct encoding_stream* stream, size_t* used) {
-  uint8_t c = encoding_stream_read_forward(stream);
+codepoint_t encoding_cp850_decode(struct encoding* base, struct stream* stream, size_t* used) {
+  uint8_t c = stream_read_forward(stream);
   *used = 1;
   if (c>=0x20) {
     return (codepoint_t)translate_cp850_unicode[c];
@@ -91,15 +91,15 @@ size_t encoding_cp850_encode(struct encoding* base, codepoint_t cp, uint8_t* tex
   return 0;
 }
 
-size_t encoding_cp850_next(struct encoding* base, struct encoding_stream* stream) {
+size_t encoding_cp850_next(struct encoding* base, struct stream* stream) {
   return 1;
 }
 
-size_t encoding_cp850_strnlen(struct encoding* base, struct encoding_stream* stream, size_t size) {
+size_t encoding_cp850_strnlen(struct encoding* base, struct stream* stream, size_t size) {
   return size;
 }
 
-size_t encoding_cp850_strlen(struct encoding* base, struct encoding_stream* stream) {
+size_t encoding_cp850_strlen(struct encoding* base, struct stream* stream) {
   size_t length = 0;
   while (1) {
     size_t next;
@@ -114,12 +114,12 @@ size_t encoding_cp850_strlen(struct encoding* base, struct encoding_stream* stre
   return length;
 }
 
-size_t encoding_cp850_seek(struct encoding* base, struct encoding_stream* stream, size_t pos) {
+size_t encoding_cp850_seek(struct encoding* base, struct stream* stream, size_t pos) {
   size_t current = 0;
   while (pos!=0) {
     size_t next = encoding_cp850_next(base, stream);
     current += next;
-    encoding_stream_forward(stream, next);
+    stream_forward(stream, next);
     pos--;
   }
 

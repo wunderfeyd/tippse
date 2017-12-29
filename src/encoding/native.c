@@ -38,14 +38,14 @@ codepoint_t encoding_native_visual(struct encoding* base, codepoint_t cp) {
   return cp;
 }
 
-codepoint_t encoding_native_decode(struct encoding* base, struct encoding_stream* stream, size_t* used) {
+codepoint_t encoding_native_decode(struct encoding* base, struct stream* stream, size_t* used) {
   union {
     codepoint_t cp;
     uint8_t c[sizeof(int)];
   } u;
 
   for (size_t n = 0; n<sizeof(codepoint_t); n++) {
-    u.c[n] = encoding_stream_read_forward(stream);
+    u.c[n] = stream_read_forward(stream);
   }
 
   *used = sizeof(codepoint_t);
@@ -57,15 +57,15 @@ size_t encoding_native_encode(struct encoding* base, codepoint_t cp, uint8_t* te
   return sizeof(codepoint_t);
 }
 
-size_t encoding_native_next(struct encoding* base, struct encoding_stream* stream) {
+size_t encoding_native_next(struct encoding* base, struct stream* stream) {
   return sizeof(codepoint_t);
 }
 
-size_t encoding_native_strnlen(struct encoding* base, struct encoding_stream* stream, size_t size) {
+size_t encoding_native_strnlen(struct encoding* base, struct stream* stream, size_t size) {
   return size;
 }
 
-size_t encoding_native_strlen(struct encoding* base, struct encoding_stream* stream) {
+size_t encoding_native_strlen(struct encoding* base, struct stream* stream) {
   size_t length = 0;
   while (1) {
     size_t next;
@@ -80,12 +80,12 @@ size_t encoding_native_strlen(struct encoding* base, struct encoding_stream* str
   return length;
 }
 
-size_t encoding_native_seek(struct encoding* base, struct encoding_stream* stream, size_t pos) {
+size_t encoding_native_seek(struct encoding* base, struct stream* stream, size_t pos) {
   size_t current = 0;
   while (pos!=0) {
     size_t next = encoding_native_next(base, stream);
     current += next;
-    encoding_stream_forward(stream, next);
+    stream_forward(stream, next);
     pos--;
   }
 

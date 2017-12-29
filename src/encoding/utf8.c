@@ -42,8 +42,8 @@ codepoint_t encoding_utf8_visual(struct encoding* base, codepoint_t cp) {
   return cp;
 }
 
-codepoint_t encoding_utf8_decode(struct encoding* base, struct encoding_stream* stream, size_t* used) {
-  uint8_t c = encoding_stream_read_forward(stream);
+codepoint_t encoding_utf8_decode(struct encoding* base, struct stream* stream, size_t* used) {
+  uint8_t c = stream_read_forward(stream);
   if ((c&0x80)==0) {
     *used = 1;
     return (codepoint_t)c;
@@ -55,9 +55,9 @@ codepoint_t encoding_utf8_decode(struct encoding* base, struct encoding_stream* 
       return -1;
     }
 
-    uint8_t c1 = encoding_stream_read_forward(stream);
+    uint8_t c1 = stream_read_forward(stream);
     if ((c1&0xc0)!=0x80) {
-      encoding_stream_reverse(stream, 1);
+      stream_reverse(stream, 1);
       *used = 1;
       return -1;
     }
@@ -65,28 +65,28 @@ codepoint_t encoding_utf8_decode(struct encoding* base, struct encoding_stream* 
     *used = 2;
     return ((c&0x1f)<<6)|((c1&0x7f)<<0);
   } else if ((c&0xf0)==0xe0) {
-    uint8_t c1 = encoding_stream_read_forward(stream);
+    uint8_t c1 = stream_read_forward(stream);
     if ((c1&0xc0)!=0x80) {
-      encoding_stream_reverse(stream, 1);
+      stream_reverse(stream, 1);
       *used = 1;
       return -1;
     }
 
     if (c==0xe0 && (c1<0xa0 || c1>=0xc0)) {
-      encoding_stream_reverse(stream, 1);
+      stream_reverse(stream, 1);
       *used = 1;
       return -1;
     }
 
     if (c==0xed && (c1<0x80 || c1>=0xa0)) {
-      encoding_stream_reverse(stream, 1);
+      stream_reverse(stream, 1);
       *used = 1;
       return -1;
     }
 
-    uint8_t c2 = encoding_stream_read_forward(stream);
+    uint8_t c2 = stream_read_forward(stream);
     if ((c2&0xc0)!=0x80) {
-      encoding_stream_reverse(stream, 2);
+      stream_reverse(stream, 2);
       *used = 1;
       return -1;
     }
@@ -99,35 +99,35 @@ codepoint_t encoding_utf8_decode(struct encoding* base, struct encoding_stream* 
       return -1;
     }
 
-    uint8_t c1 = encoding_stream_read_forward(stream);
+    uint8_t c1 = stream_read_forward(stream);
     if ((c1&0xc0)!=0x80) {
-      encoding_stream_reverse(stream, 1);
+      stream_reverse(stream, 1);
       *used = 1;
       return -1;
     }
 
     if (c==0xf0 && (c1<0x90 || c1>=0xc0)) {
-      encoding_stream_reverse(stream, 1);
+      stream_reverse(stream, 1);
       *used = 1;
       return -1;
     }
 
     if (c==0xf4 && (c1<0x80 || c1>=0x90)) {
-      encoding_stream_reverse(stream, 1);
+      stream_reverse(stream, 1);
       *used = 1;
       return -1;
     }
 
-    uint8_t c2 = encoding_stream_read_forward(stream);
+    uint8_t c2 = stream_read_forward(stream);
     if ((c2&0xc0)!=0x80) {
-      encoding_stream_reverse(stream, 2);
+      stream_reverse(stream, 2);
       *used = 1;
       return -1;
     }
 
-    uint8_t c3 = encoding_stream_read_forward(stream);
+    uint8_t c3 = stream_read_forward(stream);
     if ((c3&0xc0)!=0x80) {
-      encoding_stream_reverse(stream, 3);
+      stream_reverse(stream, 3);
       *used = 1;
       return -1;
     }
@@ -180,8 +180,8 @@ size_t encoding_utf8_encode(struct encoding* base, codepoint_t cp, uint8_t* text
   return 0;
 }
 
-size_t encoding_utf8_next(struct encoding* base, struct encoding_stream* stream) {
-  uint8_t c = encoding_stream_read_forward(stream);
+size_t encoding_utf8_next(struct encoding* base, struct stream* stream) {
+  uint8_t c = stream_read_forward(stream);
   if ((c&0x80)==0) {
     return 1;
   }
@@ -191,33 +191,33 @@ size_t encoding_utf8_next(struct encoding* base, struct encoding_stream* stream)
       return 1;
     }
 
-    uint8_t c1 = encoding_stream_read_forward(stream);
+    uint8_t c1 = stream_read_forward(stream);
     if ((c1&0xc0)!=0x80) {
-      encoding_stream_reverse(stream, 1);
+      stream_reverse(stream, 1);
       return 1;
     }
 
     return 2;
   } else if ((c&0xf0)==0xe0) {
-    uint8_t c1 = encoding_stream_read_forward(stream);
+    uint8_t c1 = stream_read_forward(stream);
     if ((c1&0xc0)!=0x80) {
-      encoding_stream_reverse(stream, 1);
+      stream_reverse(stream, 1);
       return 1;
     }
 
     if (c==0xe0 && (c1<0xa0 || c1>=0xc0)) {
-      encoding_stream_reverse(stream, 1);
+      stream_reverse(stream, 1);
       return 1;
     }
 
     if (c==0xed && (c1<0x80 || c1>=0xa0)) {
-      encoding_stream_reverse(stream, 1);
+      stream_reverse(stream, 1);
       return 1;
     }
 
-    uint8_t c2 = encoding_stream_read_forward(stream);
+    uint8_t c2 = stream_read_forward(stream);
     if ((c2&0xc0)!=0x80) {
-      encoding_stream_reverse(stream, 2);
+      stream_reverse(stream, 2);
       return 1;
     }
 
@@ -227,30 +227,30 @@ size_t encoding_utf8_next(struct encoding* base, struct encoding_stream* stream)
       return 1;
     }
 
-    uint8_t c1 = encoding_stream_read_forward(stream);
+    uint8_t c1 = stream_read_forward(stream);
     if ((c1&0xc0)!=0x80) {
-      encoding_stream_reverse(stream, 1);
+      stream_reverse(stream, 1);
       return 1;
     }
 
     if (c==0xf0 && (c1<0x90 || c1>=0xc0)) {
-      encoding_stream_reverse(stream, 1);
+      stream_reverse(stream, 1);
       return 1;
     }
     if (c==0xf4 && (c1<0x80 || c1>=0x90)) {
-      encoding_stream_reverse(stream, 1);
+      stream_reverse(stream, 1);
       return 1;
     }
 
-    uint8_t c2 = encoding_stream_read_forward(stream);
+    uint8_t c2 = stream_read_forward(stream);
     if ((c2&0xc0)!=0x80) {
-      encoding_stream_reverse(stream, 2);
+      stream_reverse(stream, 2);
       return 1;
     }
 
-    uint8_t c3 = encoding_stream_read_forward(stream);
+    uint8_t c3 = stream_read_forward(stream);
     if ((c3&0xc0)!=0x80) {
-      encoding_stream_reverse(stream, 3);
+      stream_reverse(stream, 3);
       return 1;
     }
 
@@ -260,7 +260,7 @@ size_t encoding_utf8_next(struct encoding* base, struct encoding_stream* stream)
   return 1;
 }
 
-size_t encoding_utf8_strnlen(struct encoding* base, struct encoding_stream* stream, size_t size) {
+size_t encoding_utf8_strnlen(struct encoding* base, struct stream* stream, size_t size) {
   size_t length = 0;
   while (size!=0) {
     size_t next = encoding_utf8_next(base, stream);
@@ -276,7 +276,7 @@ size_t encoding_utf8_strnlen(struct encoding* base, struct encoding_stream* stre
   return length;
 }
 
-size_t encoding_utf8_strlen(struct encoding* base, struct encoding_stream* stream) {
+size_t encoding_utf8_strlen(struct encoding* base, struct stream* stream) {
   size_t length = 0;
   while (1) {
     size_t next;
@@ -291,7 +291,7 @@ size_t encoding_utf8_strlen(struct encoding* base, struct encoding_stream* strea
   return length;
 }
 
-size_t encoding_utf8_seek(struct encoding* base, struct encoding_stream* stream, size_t pos) {
+size_t encoding_utf8_seek(struct encoding* base, struct stream* stream, size_t pos) {
   size_t current = 0;
   while (pos!=0) {
     size_t next = encoding_utf8_next(base, stream);

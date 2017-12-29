@@ -52,8 +52,8 @@ void unicode_free(void) {
 void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie** reverse) {
   *forward = trie_create(sizeof(struct unicode_transform_node));
   *reverse = trie_create(sizeof(struct unicode_transform_node));
-  struct encoding_stream stream;
-  encoding_stream_from_plain(&stream, data, SIZE_T_MAX);
+  struct stream stream;
+  stream_from_plain(&stream, data, SIZE_T_MAX);
 
   codepoint_t from_before[8];
   codepoint_t to_before[8];
@@ -66,12 +66,12 @@ void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie*
   codepoint_t from[8];
   size_t tos;
   codepoint_t to[8];
-  struct encoding_stream copy[16];
+  struct stream copy[16];
   size_t copies = 0;
-  struct encoding_stream duplicate;
+  struct stream duplicate;
 
   while (1) {
-    uint8_t head = encoding_stream_read_forward(&stream);
+    uint8_t head = stream_read_forward(&stream);
     if (head==0) {
       break;
     }
@@ -82,7 +82,7 @@ void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie*
       duplicate = copy[head&0xf];
       runs = (head>>4)&0x7;
     } else {
-      encoding_stream_reverse(&stream, 1);
+      stream_reverse(&stream, 1);
       copy[copies] = stream;
       copies++;
       copies &= 15;
@@ -90,8 +90,8 @@ void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie*
     }
 
     while (runs>=0) {
-      struct encoding_stream ref = duplicate;
-      head = encoding_stream_read_forward(&ref);
+      struct stream ref = duplicate;
+      head = stream_read_forward(&ref);
       froms = (head>>3)&0x7;
       tos = (head>>0)&0x7;
 
