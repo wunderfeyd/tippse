@@ -39,6 +39,7 @@ struct file_cache {
   size_t left;                              // number of unused nodes
   struct file_cache_node* first;            // first used node
   struct file_cache_node* last;             // last used node
+  struct file_cache_node* ranged[FILE_CACHE_NODES]; // nodes within last offset
 };
 
 struct file_cache* file_cache_create(const char* filename);
@@ -51,4 +52,5 @@ void file_cache_release_node(struct file_cache* base, struct file_cache_node* no
 void file_cache_unlink_node(struct file_cache* base, struct file_cache_node* node);
 void file_cache_link_node(struct file_cache* base, struct file_cache_node* node);
 uint8_t* file_cache_use_node(struct file_cache* base, struct file_cache_node** reference, file_offset_t offset, size_t length);
+uint8_t* file_cache_use_node_ranged(struct file_cache* base, struct file_cache_node** reference, file_offset_t offset, size_t length);
 #endif  /* #ifndef TIPPSE_FILECACHE_H */

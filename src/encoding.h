@@ -9,20 +9,30 @@ struct encoding;
 struct encoding_stream;
 struct encoding_cache;
 struct encoding_cache_codepoint;
+struct file_cache;
+struct file_cache_node;
 
 #define ENCODING_STREAM_PLAIN 0
 #define ENCODING_STREAM_PAGED 1
+#define ENCODING_STREAM_FILE 2
 
 #define ENCODING_CACHE_SIZE 1024
 
 struct encoding_stream {
-  int type;                             // type of stream (plain or paged)
+  int type;                             // type of stream
 
   const uint8_t* plain;                 // address of buffer
-  struct range_tree_node* buffer;       // page in tree, if paged stream
-
   size_t displacement;                  // offset in buffer
   size_t cache_length;                  // length of buffer
+
+  union {
+    struct range_tree_node* buffer;     // page in tree, if paged stream
+    struct {
+      struct file_cache_node* node;   // cached node
+      struct file_cache* cache;         // file cache itself
+      file_offset_t offset;             // current file position
+    } file;
+  };
 };
 
 struct encoding_cache {
@@ -53,9 +63,11 @@ struct encoding {
 
 void encoding_stream_from_plain(struct encoding_stream* stream, const uint8_t* plain, size_t size);
 void encoding_stream_from_page(struct encoding_stream* stream, struct range_tree_node* buffer, file_offset_t displacement);
+void encoding_stream_from_file(struct encoding_stream* stream, struct file_cache* cache, file_offset_t offset);
 
 size_t encoding_stream_offset_plain(struct encoding_stream* stream);
 file_offset_t encoding_stream_offset_page(struct encoding_stream* stream);
+file_offset_t encoding_stream_offset_file(struct encoding_stream* stream);
 
 uint8_t encoding_stream_read_forward_oob(struct encoding_stream* stream);
 inline uint8_t encoding_stream_read_forward(struct encoding_stream* stream) {
@@ -93,15 +105,15 @@ inline void encoding_stream_reverse(struct encoding_stream* stream, size_t lengt
   }
 }
 
-struct range_tree_node* encoding_stream_end_oob(struct encoding_stream* stream);
-struct range_tree_node* encoding_stream_start_oob(struct encoding_stream* stream);
+int encoding_stream_end_oob(struct encoding_stream* stream);
+int encoding_stream_start_oob(struct encoding_stream* stream);
 
 inline int encoding_stream_end(struct encoding_stream* stream) {
-  return (stream->displacement>=stream->cache_length && (stream->type==ENCODING_STREAM_PLAIN || !stream->buffer || !encoding_stream_end_oob(stream)))?1:0;
+  return (stream->displacement>=stream->cache_length && (stream->type==ENCODING_STREAM_PLAIN || encoding_stream_end_oob(stream)))?1:0;
 }
 
 inline int encoding_stream_start(struct encoding_stream* stream) {
-  return (stream->displacement>stream->cache_length && (stream->type==ENCODING_STREAM_PLAIN || !stream->buffer || !encoding_stream_start_oob(stream)))?1:0;
+  return (stream->displacement>stream->cache_length && (stream->type==ENCODING_STREAM_PLAIN || encoding_stream_start_oob(stream)))?1:0;
 }
 
 void encoding_cache_clear(struct encoding_cache* cache, struct encoding* encoding, struct encoding_stream* stream);

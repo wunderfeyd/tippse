@@ -337,11 +337,16 @@ void document_file_detect_properties(struct document_file* base) {
   struct encoding_stream stream;
   encoding_stream_from_page(&stream, range_tree_first(base->buffer), 0);
 
+  document_file_detect_properties_stream(base, &stream);
+}
+
+void document_file_detect_properties_stream(struct document_file* base, struct encoding_stream* document_stream) {
+  struct encoding_stream stream = *document_stream;
   // Binary detection ... TODO: Recheck when UTF-16 as encoding is available
   file_offset_t offset = 0;
 
   int zeros = 0;
-  while (offset<TIPPSE_DOCUMENT_MEMORY_LOADMAX && offset<base->buffer->length) {
+  while (offset<TIPPSE_DOCUMENT_MEMORY_LOADMAX && !encoding_stream_end(&stream)) {
     uint8_t byte = encoding_stream_read_forward(&stream);
     if (byte==0x00) {
       zeros++;
@@ -357,7 +362,7 @@ void document_file_detect_properties(struct document_file* base) {
     base->binary = 0;
   }
 
-  encoding_stream_from_page(&stream, range_tree_first(base->buffer), 0);
+  stream = *document_stream;
   offset = 0;
   int newline_cr = 0;
   int newline_lf = 0;
@@ -369,7 +374,7 @@ void document_file_detect_properties(struct document_file* base) {
   codepoint_t last = 0;
   int start = 1;
   int spaces = 0;
-  while (offset<TIPPSE_DOCUMENT_MEMORY_LOADMAX && offset<base->buffer->length) {
+  while (offset<TIPPSE_DOCUMENT_MEMORY_LOADMAX && !encoding_stream_end(&stream)) {
     size_t length = 1;
     codepoint_t cp = (*base->encoding->decode)(base->encoding, &stream, &length);
 

@@ -119,6 +119,7 @@ int document_file_save_plain(struct document_file* base, const char* filename);
 void document_file_save(struct document_file* base, const char* filename);
 
 void document_file_detect_properties(struct document_file* base);
+void document_file_detect_properties_stream(struct document_file* base, struct encoding_stream* document_stream);
 
 void document_file_reload_config(struct document_file* base);
 

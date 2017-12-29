@@ -1514,12 +1514,13 @@ int search_find_loop(struct search* base, struct search_node* node, struct encod
 
 // Some small manual unittests (TODO: remove or expand as soon the search is feature complete and optimized)
 void search_test(void) {
-  //const char* needle_text = "Recently, Standard Japanese has ";
+  //const char* needle_text = "Recently";
+  const char* needle_text = "Recently, Standard Japanese has ";
   //const char* needle_text = "Hallo äÖÜ ß Test Ú ń ǹ";
   //const char* needle_text = "(haLlO|(Teßt){1,2}?)";
   //const char* needle_text = "(\\S+)\\s(sch)*(schnappi|schnapp|schlappi).*?[A-C][^\\d]{2}";
   //const char* needle_text = "a|ab|abc";
-  const char* needle_text = "#(\\S+)";
+  //const char* needle_text = "#(\\S+)";
   //const char* needle_text = "(schnappi|schnapp|schlappi){2}";
   //const char* needle_text = "make_";
   //const char* needle_text = "schnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappi";
@@ -1568,12 +1569,12 @@ void search_test(void) {
     struct search* search = search_create_plain(1, 0, needle_stream, needle_encoding, output_encoding);
     search_debug_tree(search, search->root, 0, 0, 0);
     int64_t tick = tick_count();
-    for (size_t n = 0; n<100; n++) {
+    for (size_t n = 0; n<5; n++) {
       encoding_stream_from_plain(&buffered, buffer, length);
       int found = search_find(search, &buffered, NULL);
       printf("%d %d us %d\r\n", (int)n, (int)((tick_count()-tick)/(n+1)), found);
       if (found) {
-        printf("\"");
+        printf("%d \"", (int)encoding_stream_offset_plain(&search->hit_start));
         for (const uint8_t* plain = search->hit_start.plain+search->hit_start.displacement; plain!=search->hit_end.plain+search->hit_end.displacement; plain++) {
           printf("%c", *plain);
         }
@@ -1583,6 +1584,29 @@ void search_test(void) {
     }
     search_destroy(search);
     free(buffer);
+  }
+
+  {
+    struct file_cache* file = file_cache_create("enwik8");
+    printf("hash search...\r\n");
+    struct encoding_stream buffered;
+    struct search* search = search_create_plain(1, 0, needle_stream, needle_encoding, output_encoding);
+    search_debug_tree(search, search->root, 0, 0, 0);
+    int64_t tick = tick_count();
+    for (size_t n = 0; n<5; n++) {
+      encoding_stream_from_file(&buffered, file, 0);
+      int found = search_find(search, &buffered, NULL);
+      printf("%d %d us %d\r\n", (int)n, (int)((tick_count()-tick)/(n+1)), found);
+      if (found) {
+        printf("%d \"", (int)encoding_stream_offset_file(&search->hit_start));
+        for (const uint8_t* plain = search->hit_start.plain+search->hit_start.displacement; plain!=search->hit_end.plain+search->hit_end.displacement; plain++) {
+          printf("%c", *plain);
+        }
+        printf("\"\r\n");
+      }
+      fflush(stdout);
+    }
+    search_destroy(search);
   }
 
   needle_encoding->destroy(needle_encoding);

@@ -12,6 +12,9 @@ struct file_cache* file_cache_create(const char* filename) {
   base->allocated = FILE_CACHE_NODES;
   base->first = NULL;
   base->last = NULL;
+  for (size_t n = 0; n<FILE_CACHE_NODES; n++) {
+    base->ranged[n] = NULL;
+  }
 
   struct stat info;
   fstat(base->fd, &info);
@@ -129,11 +132,26 @@ uint8_t* file_cache_use_node(struct file_cache* base, struct file_cache_node** r
 
     if (base->fd!=-1) {
       lseek(base->fd, (off_t)node->offset, SEEK_SET);
-      read(base->fd, &node->buffer[0], node->length);
+      ssize_t in = read(base->fd, &node->buffer[0], node->length);
+      if (in>0) {
+        node->length = (size_t)in;
+      } else {
+        node->length = 0;
+      }
+    } else {
+      node->length = 0;
     }
   }
 
   return &node->buffer[0];
+}
+
+// Mark node as used and transfer file content depending on the base offset while the file cache itself holds the node references
+uint8_t* file_cache_use_node_ranged(struct file_cache* base, struct file_cache_node** reference, file_offset_t offset, size_t length) {
+  file_offset_t index = (offset/TREE_BLOCK_LENGTH_MAX)%FILE_CACHE_NODES;
+  uint8_t* buffer = file_cache_use_node(base, &base->ranged[index], offset, length);
+  *reference = base->ranged[index];
+  return buffer;
 }
 
 // The file was modified while it was open?

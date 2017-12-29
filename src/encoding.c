@@ -23,6 +23,17 @@ void encoding_stream_from_page(struct encoding_stream* stream, struct range_tree
   stream->plain = buffer?(buffer->buffer->buffer+buffer->offset):NULL;
 }
 
+// Build stream from file
+void encoding_stream_from_file(struct encoding_stream* stream, struct file_cache* cache, file_offset_t offset) {
+  stream->type = ENCODING_STREAM_FILE;
+  stream->file.cache = cache;
+  stream->file.node = NULL;
+  stream->displacement = offset%TREE_BLOCK_LENGTH_MAX;
+  stream->file.offset = offset-stream->displacement;
+  stream->plain = file_cache_use_node_ranged(stream->file.cache, &stream->file.node, stream->file.offset, TREE_BLOCK_LENGTH_MAX);
+  stream->cache_length = stream->file.node->length;
+}
+
 // Return stream offset
 size_t encoding_stream_offset_plain(struct encoding_stream* stream) {
   return stream->displacement;
@@ -31,6 +42,11 @@ size_t encoding_stream_offset_plain(struct encoding_stream* stream) {
 // Return stream offset
 file_offset_t encoding_stream_offset_page(struct encoding_stream* stream) {
   return range_tree_offset(stream->buffer)+stream->displacement;
+}
+
+// Return stream offset
+file_offset_t encoding_stream_offset_file(struct encoding_stream* stream) {
+  return stream->file.offset+stream->displacement;
 }
 
 // Return streaming data that cannot read directly (forward)
@@ -71,22 +87,28 @@ void encoding_stream_forward_oob(struct encoding_stream* stream, size_t length) 
   stream->displacement += length;
 
   if (stream->type==ENCODING_STREAM_PLAIN) {
-    return;
-  }
+  } else if (stream->type==ENCODING_STREAM_PAGED) {
+    while (stream->buffer) {
+      struct range_tree_node* buffer = range_tree_next(stream->buffer);
+      if (!buffer) {
+        return;
+      }
 
-  while (stream->buffer) {
-    struct range_tree_node* buffer = range_tree_next(stream->buffer);
-    if (!buffer) {
-      return;
+      stream->displacement -= stream->buffer->length;
+      stream->buffer = buffer;
+      stream->cache_length = stream->buffer->length;
+      if (stream->displacement<stream->buffer->length) {
+        fragment_cache(stream->buffer->buffer);
+        stream->plain = stream->buffer->buffer->buffer+stream->buffer->offset;
+        break;
+      }
     }
-
-    stream->displacement -= stream->buffer->length;
-    stream->buffer = buffer;
-    stream->cache_length = stream->buffer->length;
-    if (stream->displacement<stream->buffer->length) {
-      fragment_cache(stream->buffer->buffer);
-      stream->plain = stream->buffer->buffer->buffer+stream->buffer->offset;
-      break;
+  } else if (stream->type==ENCODING_STREAM_FILE) {
+    while (stream->cache_length>=TREE_BLOCK_LENGTH_MAX && stream->displacement>=TREE_BLOCK_LENGTH_MAX) {
+      stream->displacement -= TREE_BLOCK_LENGTH_MAX;
+      stream->file.offset += TREE_BLOCK_LENGTH_MAX;
+      stream->plain = file_cache_use_node_ranged(stream->file.cache, &stream->file.node, stream->file.offset, TREE_BLOCK_LENGTH_MAX);
+      stream->cache_length = stream->file.node->length;
     }
   }
 }
@@ -96,34 +118,40 @@ void encoding_stream_reverse_oob(struct encoding_stream* stream, size_t length) 
   stream->displacement -= length;
 
   if (stream->type==ENCODING_STREAM_PLAIN) {
-    return;
-  }
+  } else if (stream->type==ENCODING_STREAM_PAGED) {
+    while (stream->buffer) {
+      struct range_tree_node* buffer = range_tree_prev(stream->buffer);
+      if (!buffer) {
+        return;
+      }
 
-  while (stream->buffer) {
-    struct range_tree_node* buffer = range_tree_prev(stream->buffer);
-    if (!buffer) {
-      return;
+      stream->buffer = buffer;
+      stream->displacement += stream->buffer->length;
+      stream->cache_length = stream->buffer->length;
+      if (stream->displacement<stream->buffer->length) {
+        fragment_cache(stream->buffer->buffer);
+        stream->plain = stream->buffer->buffer->buffer+stream->buffer->offset;
+        break;
+      }
     }
-
-    stream->buffer = buffer;
-    stream->displacement += stream->buffer->length;
-    stream->cache_length = stream->buffer->length;
-    if (stream->displacement<stream->buffer->length) {
-      fragment_cache(stream->buffer->buffer);
-      stream->plain = stream->buffer->buffer->buffer+stream->buffer->offset;
-      break;
+  } else if (stream->type==ENCODING_STREAM_FILE) {
+    while (stream->file.offset>0 && stream->displacement>=TREE_BLOCK_LENGTH_MAX) {
+      stream->displacement += TREE_BLOCK_LENGTH_MAX;
+      stream->file.offset -= TREE_BLOCK_LENGTH_MAX;
+      stream->plain = file_cache_use_node_ranged(stream->file.cache, &stream->file.node, stream->file.offset, TREE_BLOCK_LENGTH_MAX);
+      stream->cache_length = stream->file.node->length;
     }
   }
 }
 
 // Helper for range tree end check (TODO: clean include files to allow inline usage of range_tree_next)
-struct range_tree_node* encoding_stream_end_oob(struct encoding_stream* stream) {
-  return range_tree_next(stream->buffer);
+int encoding_stream_end_oob(struct encoding_stream* stream) {
+  return ((stream->type==ENCODING_STREAM_PAGED && (!stream->buffer || !range_tree_next(stream->buffer))) || (stream->type==ENCODING_STREAM_FILE && stream->cache_length<TREE_BLOCK_LENGTH_MAX))?1:0;
 }
 
 // Helper for range tree start check (TODO: clean include files to allow inline usage of range_tree_prev)
-struct range_tree_node* encoding_stream_start_oob(struct encoding_stream* stream) {
-  return range_tree_prev(stream->buffer);
+int encoding_stream_start_oob(struct encoding_stream* stream) {
+  return ((stream->type==ENCODING_STREAM_PAGED && (!stream->buffer || !range_tree_prev(stream->buffer))) || (stream->type==ENCODING_STREAM_FILE && stream->file.offset==0))?1:0;
 }
 
 // Reset code point cache
