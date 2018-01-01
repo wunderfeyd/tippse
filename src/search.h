@@ -25,6 +25,12 @@
 
 struct search_stack;
 
+#define SEARCH_SKIP_NODES 64
+
+struct search_skip_node {
+  size_t index[256];
+};
+
 struct search_node {
   int type;               // type of node
   struct search_stack* stack; // pointer to current stack
@@ -70,10 +76,9 @@ struct search {
   struct search_stack* stack;       // active stack
   struct encoding* encoding;        // encoding the search is compiled for
 
-  int hashed;                       // use hash search
-  uint32_t hash;                    // hash to search for
-  size_t hash_length;               // number of bytes to hash
-  uint32_t hashes[256];             // hash values for the individual bytes
+  struct search_skip_node skip[SEARCH_SKIP_NODES];    // skip tree/nodes
+  size_t skip_length;               // number of tree nodes
+  int skip_rescan;                  // rescan hit with basic search
 };
 
 struct search_node* search_node_create(int type);
@@ -109,7 +114,7 @@ int search_optimize_flatten_branch(struct search_node* node);
 void search_optimize_native(struct encoding* encoding, struct search_node* node);
 void search_optimize_plain(struct search_node* node);
 void search_prepare(struct search* base, struct search_node* node, struct search_node* prev);
-void search_prepare_hash(struct search* base, struct search_node* node);
+void search_prepare_skip(struct search* base, struct search_node* node);
 
 void search_test(void);
 #endif /* #ifndef TIPPSE_SEARCH_H */

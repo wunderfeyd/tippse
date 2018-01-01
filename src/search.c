@@ -194,7 +194,7 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
   base->reverse = reverse;
   base->groups = 0;
   base->group_hits = NULL;
-  base->stack_size = 1024;
+  base->stack_size = 16384;
   base->stack = NULL;
   base->encoding = output_encoding;
 
@@ -752,14 +752,14 @@ void search_debug_tree(struct search* base, struct search_node* node, size_t dep
             size_t c = n+codepoint;
             if (c<0x20 || c>0x7f) {
               if (node->type&SEARCH_NODE_TYPE_BYTE) {
-                printf("\\%02x", c);
+                printf("\\%02x", (int)c);
                 length+=3;
               } else {
-                printf("\\%06x", c);
+                printf("\\%06x", (int)c);
                 length+=7;
               }
             } else {
-              printf("%c", c);
+              printf("%c", (int)c);
               length++;
             }
           }
@@ -844,7 +844,7 @@ void search_optimize(struct search* base, struct encoding* encoding) {
   } while(again);
   search_optimize_plain(base->root);
   search_prepare(base, base->root, NULL);
-  search_prepare_hash(base, base->root);
+  search_prepare_skip(base, base->root);
 }
 
 // Remove empty branches or merge branch nodes into the current segment.
@@ -1145,87 +1145,72 @@ void search_prepare(struct search* base, struct search_node* node, struct search
   }
 }
 
-// Hash generator helper to create individual numbers
-inline void search_prepare_hash_next(uint32_t* generator) {
-  *generator = ((*generator)*(*generator)+(*generator))&65535;
-}
-
-// The search can test the string for possible equality while running over it (which could reduce from O(n*m) to O(2n) ) but only for direct accessible set nodes. Create a sum which could represent the string.
-// TODO: character switches are able to create the same sums, try different method another time
-void search_prepare_hash(struct search* base, struct search_node* node) {
-  uint32_t generator = 65521;
-  for (size_t n = 0; n<256; n++) {
-    base->hashes[n] = 0;
-  }
-
-  base->hash_length = 0;
-  base->hash = 0;
+// Build a skip tree (the search starts at the needle end, if no character match is found skip at the whole needle length otherwise skip to the possible needle end match)
+void search_prepare_skip(struct search* base, struct search_node* node) {
+  struct search_skip_node references[SEARCH_SKIP_NODES];
+  size_t nodes = 0;
   while (node) {
     if (!(node->type&SEARCH_NODE_TYPE_SET) || !(node->type&SEARCH_NODE_TYPE_BYTE) ||  node->min!=node->max) {
       break;
     }
 
     if (node->plain) {
-      for (size_t n = 0; n<node->size; n++) {
-        uint8_t codepoint = node->plain[n];
-        if (base->hashes[codepoint]==0) {
-          search_prepare_hash_next(&generator);
-          base->hashes[codepoint] = generator;
+      for (size_t n = 0; n<node->size && nodes<32; n++) {
+        for (size_t index = 0; index<256; index++) {
+          references[nodes].index[index] = (node->plain[n]==(uint8_t)index)?1:0;
         }
-        base->hash += base->hashes[codepoint];
+        nodes++;
       }
-      base->hash_length += node->size;
     } else {
-      uint32_t hash = 0;
-      int duplicate = 0;
-      size_t codepoint = 0;
-      struct range_tree_node* range = range_tree_first(node->set);
-      while (range && !duplicate) {
-        if (range->inserter&TIPPSE_INSERTER_MARK) {
-          for (size_t n = codepoint; n<codepoint+range->length; n++) {
-            if (base->hashes[n]!=0 && hash!=base->hashes[n]) {
-              if (hash==0) {
-                hash = base->hashes[n];
-              } else {
-                duplicate = 1;
-                break;
-              }
+      for (size_t n = 0; n<node->min && nodes<32; n++) {
+        for (size_t index = 0; index<256; index++) {
+          references[nodes].index[index] = 0;
+        }
+        size_t codepoint = 0;
+        struct range_tree_node* range = range_tree_first(node->set);
+        while (range) {
+          if (range->inserter&TIPPSE_INSERTER_MARK) {
+            for (size_t index = codepoint; n<codepoint+range->length; n++) {
+              references[nodes].index[index] = 1;
             }
           }
+          codepoint += range->length;
+          range = range_tree_next(range);
         }
-        codepoint += range->length;
-        range = range_tree_next(range);
-      }
 
-      if (duplicate) {
-        break;
+        nodes++;
       }
-
-      if (hash==0) {
-        search_prepare_hash_next(&generator);
-        hash = generator;
-      }
-
-      codepoint = 0;
-      range = range_tree_first(node->set);
-      while (range) {
-        if (range->inserter&TIPPSE_INSERTER_MARK) {
-          for (size_t n = codepoint; n<codepoint+range->length; n++) {
-            base->hashes[n] = hash;
-          }
-        }
-        codepoint += range->length;
-        range = range_tree_next(range);
-      }
-      base->hash += hash*node->min;
-      base->hash_length += node->min;
     }
 
     node = node->next;
   }
 
-  //printf("%08x - %d\r\n", (int)base->hash, (int)base->hash_length);
-  base->hashed = (base->hash_length>2)?1:0;
+  base->skip_length = 0;
+  if (nodes>0 && !base->reverse) {
+    base->skip_rescan = (node || base->groups>0)?1:0;
+    base->skip_length = nodes;
+    for (size_t pos = 0; pos<nodes; pos++) {
+      for (size_t index = 0; index<256; index++) {
+        size_t check = nodes-pos;
+        size_t skip_start = nodes-pos-1;
+        size_t skip = nodes;
+        while (check>0) {
+          check--;
+          if (references[check].index[index]) {
+            size_t combine = skip_start-check;
+            if (combine<skip) {
+              skip = combine;
+            }
+            skip_start = check;
+          }
+        }
+
+        base->skip[pos].index[index] = (references[nodes-pos-1].index[index])?0:(skip);
+        //printf("%d '%c': %d\r\n", (int)(nodes-pos-1), (int)index, (int)build->index[index].hit);
+      }
+    }
+  }
+  //printf("Nodes: %d\r\n", (int)nodes);
 }
 
 // Find next occurence of the compiled pattern until the stream ends or "left" has been count down
@@ -1241,47 +1226,40 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
 
   file_offset_t count = left?*left:FILE_OFFSET_T_MAX;
 
-  if (base->hashed) {
-    if (!base->reverse) {
-      struct stream head = *text;
-      uint32_t hash = 0;
-      for (size_t n = 0; n<base->hash_length; n++) {
-        hash += base->hashes[stream_read_forward(&head)];
-      }
+  if (base->skip_length>0) {
+    stream_forward(text, base->skip_length);
+    size_t hit = 0;
+    while (count>=hit) {
+      count-=hit;
+      size_t size = 0;
+      while (1) {
+        uint8_t index = stream_read_reverse(text);
+        hit = base->skip[size++].index[index];
+        //printf("%d '%c' -> %d\r\n", (int)stream_offset_plain(text), index, (int)hit);
+        if (hit) {
+          break;
+        }
 
-      while (!stream_end(text) && count>0) {
-        count--;
-        if (hash==base->hash) {
-          if (search_find_loop(base, base->root, text)) {
+        if (size==base->skip_length) {
+          if (!base->skip_rescan || search_find_loop(base, base->root, text)) {
             base->hit_start = *text;
+            stream_forward(text, base->skip_length);
+            if (!base->skip_rescan) {
+              base->hit_end = *text;
+            }
             stream_forward(text, 1);
             return 1;
           }
+          hit = 1;
+          break;
         }
-
-        hash -= base->hashes[stream_read_forward(text)];
-        hash += base->hashes[stream_read_forward(&head)];
-      }
-    } else {
-      struct stream head = *text;
-      uint32_t hash = 0;
-      for (size_t n = 0; n<base->hash_length; n++) {
-        hash += base->hashes[stream_read_reverse(text)];
       }
 
-      while (!stream_start(text) && count>0) {
-        count--;
-        if (hash==base->hash) {
-          if (search_find_loop(base, base->root, text)) {
-            base->hit_start = *text;
-            stream_reverse(text, 1);
-            return 1;
-          }
-        }
-
-        hash -= base->hashes[stream_read_reverse(&head)];
-        hash += base->hashes[stream_read_reverse(text)];
+      if (stream_end(text)) {
+        break;
       }
+
+      stream_forward(text, hit+size);
     }
   } else {
     if (!base->reverse) {
@@ -1342,6 +1320,7 @@ inline int search_node_set_check(struct search_node* node, codepoint_t index) {
 }
 
 // The hot loop of the search, matching and branching is done here. Non recursive version, but uses recursive style with a simulated stack. This version has replaced a recursive version to halt and continue the search process (in future)
+// TODO: the stack should grow if no slots left
 int search_find_loop(struct search* base, struct search_node* node, struct stream* text) {
   if (!base->stack) {
     base->stack = (struct search_stack*)malloc(sizeof(struct search_stack*)*base->stack_size);
@@ -1514,8 +1493,8 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
 
 // Some small manual unittests (TODO: remove or expand as soon the search is feature complete and optimized)
 void search_test(void) {
-  //const char* needle_text = "Recently";
-  const char* needle_text = "Recently, Standard Japanese has ";
+  const char* needle_text = "sIBM";
+  //const char* needle_text = "Recently, Standard Japanese has ";
   //const char* needle_text = "Hallo äÖÜ ß Test Ú ń ǹ";
   //const char* needle_text = "(haLlO|(Teßt){1,2}?)";
   //const char* needle_text = "(\\S+)\\s(sch)*(schnappi|schnapp|schlappi).*?[A-C][^\\d]{2}";
@@ -1524,7 +1503,7 @@ void search_test(void) {
   //const char* needle_text = "(schnappi|schnapp|schlappi){2}";
   //const char* needle_text = "make_";
   //const char* needle_text = "schnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappi";
-    struct stream needle_stream;
+  struct stream needle_stream;
   stream_from_plain(&needle_stream, (uint8_t*)needle_text, strlen(needle_text));
   struct encoding* needle_encoding = encoding_utf8_create();
   struct encoding* output_encoding = encoding_utf8_create();
@@ -1543,7 +1522,7 @@ void search_test(void) {
     }
     printf("\"\r\n");
     for (size_t n = 0; n<search->groups; n++) {
-      printf("%d: \"", n);
+      printf("%d: \"", (int)n);
       for (const uint8_t* plain = search->group_hits[n].start.plain+search->group_hits[n].start.displacement; plain!=search->group_hits[n].end.plain+search->group_hits[n].end.displacement; plain++) {
         printf("%c", *plain);
       }
@@ -1572,7 +1551,7 @@ void search_test(void) {
     for (size_t n = 0; n<5; n++) {
       stream_from_plain(&buffered, buffer, length);
       int found = search_find(search, &buffered, NULL);
-      printf("%d %d us %d\r\n", (int)n, (int)((tick_count()-tick)/(n+1)), found);
+      printf("%d %d us %d\r\n", (int)n, (int)((tick_count()-tick)/(int64_t)(n+1)), found);
       if (found) {
         printf("%d \"", (int)stream_offset_plain(&search->hit_start));
         for (const uint8_t* plain = search->hit_start.plain+search->hit_start.displacement; plain!=search->hit_end.plain+search->hit_end.displacement; plain++) {
@@ -1596,7 +1575,7 @@ void search_test(void) {
     for (size_t n = 0; n<5; n++) {
       stream_from_file(&buffered, file, 0);
       int found = search_find(search, &buffered, NULL);
-      printf("%d %d us %d\r\n", (int)n, (int)((tick_count()-tick)/(n+1)), found);
+      printf("%d %d us %d\r\n", (int)n, (int)((tick_count()-tick)/(int64_t)(n+1)), found);
       if (found) {
         printf("%d \"", (int)stream_offset_file(&search->hit_start));
         for (const uint8_t* plain = search->hit_start.plain+search->hit_start.displacement; plain!=search->hit_end.plain+search->hit_end.displacement; plain++) {
