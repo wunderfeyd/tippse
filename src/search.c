@@ -1190,10 +1190,24 @@ void search_prepare_skip(struct search* base, struct search_node* node) {
     base->skip_rescan = (node || base->groups>0)?1:0;
     base->skip_length = nodes;
     for (size_t pos = 0; pos<nodes; pos++) {
+      size_t skip_min = nodes;
+      size_t check = nodes-pos;
+      while (check<nodes) {
+        size_t index;
+        for (index = 0; index<256; index++) {
+          if (references[check].index[index] && references[nodes-pos-1].index[index]) {
+            break;
+          }
+        }
+        if (index<256) {
+          skip_min = check-(nodes-pos-1);
+        }
+        check++;
+      }
       for (size_t index = 0; index<256; index++) {
-        size_t check = nodes-pos;
+        size_t check = nodes-pos-1;
         size_t skip_start = nodes-pos-1;
-        size_t skip = nodes;
+        size_t skip = skip_min;
         while (check>0) {
           check--;
           if (references[check].index[index]) {
@@ -1204,8 +1218,7 @@ void search_prepare_skip(struct search* base, struct search_node* node) {
             skip_start = check;
           }
         }
-
-        base->skip[pos].index[index] = (references[nodes-pos-1].index[index])?0:(skip);
+        base->skip[pos].index[index] = references[nodes-pos-1].index[index]?0:skip;
         //printf("%d '%c': %d\r\n", (int)(nodes-pos-1), (int)index, (int)build->index[index].hit);
       }
     }

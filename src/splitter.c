@@ -113,9 +113,9 @@ void splitter_scrollbar(const struct splitter* base, struct screen* screen) {
       size = 1;
     }
 
-    int pos_start = (int)((start*(base->client_height-1-size))/(length-(end-start)))+1;
-    if (start==0) {
-     pos_start = 0;
+    int pos_start = 0;
+    if (start>0) {
+      pos_start = (int)((start*(base->client_height-1-size))/(length-(end-start)))+1;
     }
 
     int pos_end = pos_start+size;
