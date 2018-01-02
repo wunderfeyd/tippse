@@ -137,22 +137,33 @@ void search_node_set_decode_rle(struct search_node* node, int invert, uint16_t* 
 // Destroy the search object
 void search_destroy(struct search* base) {
   search_node_destroy_recursive(base->root);
+  while (base->stack.first) {
+    list_remove(&base->stack, base->stack.first);
+  }
+  list_destroy_inplace(&base->stack);
+
   free(base->group_hits);
-  free(base->stack);
   free(base);
 }
 
-// Create search object from plain text and encoding
-struct search* search_create_plain(int ignore_case, int reverse, struct stream needle, struct encoding* needle_encoding, struct encoding* output_encoding) {
-  //int64_t tick = tick_count();
+// Create search object
+struct search* search_create(int reverse, struct encoding* output_encoding) {
   struct search* base = malloc(sizeof(struct search));
   base->reverse = reverse;
   base->groups = 0;
   base->group_hits = NULL;
   base->root = NULL;
-  base->stack_size = 1024;
-  base->stack = NULL;
+  base->stack_size = 16;
+  list_create_inplace(&base->stack, sizeof(struct search_stack)*base->stack_size);
+  list_insert_empty(&base->stack, NULL);
   base->encoding = output_encoding;
+  return base;
+}
+
+// Create search object from plain text and encoding
+struct search* search_create_plain(int ignore_case, int reverse, struct stream needle, struct encoding* needle_encoding, struct encoding* output_encoding) {
+  //int64_t tick = tick_count();
+  struct search* base = search_create(reverse, output_encoding);
 
   struct encoding_cache cache;
   encoding_cache_clear(&cache, needle_encoding, &needle);
@@ -190,13 +201,7 @@ struct search* search_create_plain(int ignore_case, int reverse, struct stream n
 
 // Create search object from regular expression string
 struct search* search_create_regex(int ignore_case, int reverse, struct stream needle, struct encoding* needle_encoding, struct encoding* output_encoding) {
-  struct search* base = malloc(sizeof(struct search));
-  base->reverse = reverse;
-  base->groups = 0;
-  base->group_hits = NULL;
-  base->stack_size = 16384;
-  base->stack = NULL;
-  base->encoding = output_encoding;
+  struct search* base = search_create(reverse, output_encoding);
 
   base->root = search_node_create(SEARCH_NODE_TYPE_BRANCH);
   base->root->min = 1;
@@ -231,12 +236,12 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
 
       if (cp=='{') {
         offset++;
-        size_t min = (size_t)decode_based_unsigned_offset(&cache, 10, &offset);
+        size_t min = (size_t)decode_based_unsigned_offset(&cache, 10, &offset, SIZE_T_MAX);
         last->min = min;
         last->max = min;
         if (encoding_cache_find_codepoint(&cache, offset)==',') {
           offset++;
-          size_t max = (size_t)decode_based_unsigned_offset(&cache, 10, &offset);
+          size_t max = (size_t)decode_based_unsigned_offset(&cache, 10, &offset, SIZE_T_MAX);
           offset++;
           last->max = (max==0)?SIZE_T_MAX:max;
         } else {
@@ -356,6 +361,19 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
         last->next = next;
         last = next;
         offset++;
+        continue;
+      }
+
+      if (cp=='x' || cp=='u') {
+        offset++;
+        size_t index = (size_t)decode_based_unsigned_offset(&cache, 16, &offset, (cp=='x')?2:4);
+        struct search_node* next = search_node_create(SEARCH_NODE_TYPE_SET);
+        next->min = 1;
+        next->max = 1;
+        search_node_set_build(next);
+        next->set = range_tree_mark(next->set, index, 1, TIPPSE_INSERTER_MARK);
+        last->next = next;
+        last = next;
         continue;
       }
     }
@@ -538,6 +556,13 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
         advance++;
         continue;
       }
+
+      if (cp=='x' || cp=='u') {
+        size_t reloc = advance+offset+1;
+        search_node_set(check, (size_t)decode_based_unsigned_offset(cache, 16, &reloc, (cp=='x')?2:4));
+        advance = reloc-offset;
+        continue;
+      }
     }
 
     if (encoding_cache_find_codepoint(cache, offset+advance+1)=='-' && from<=0) {
@@ -592,7 +617,7 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
   return advance;
 }
 
-// Try to append unicode character to the current set of the node, if a transformation into multiple characters has to be made add a branch
+// Try to append unicode character to the current set of the node, if a transformation into multiple characters has been made add a branch
 size_t search_append_unicode(struct search_node* last, int ignore_case, struct encoding_cache* cache, size_t offset, struct search_node* shorten, size_t min) {
   size_t advance = 1;
   if (ignore_case) {
@@ -1155,14 +1180,14 @@ void search_prepare_skip(struct search* base, struct search_node* node) {
     }
 
     if (node->plain) {
-      for (size_t n = 0; n<node->size && nodes<32; n++) {
+      for (size_t n = 0; n<node->size && nodes<SEARCH_SKIP_NODES; n++) {
         for (size_t index = 0; index<256; index++) {
           references[nodes].index[index] = (node->plain[n]==(uint8_t)index)?1:0;
         }
         nodes++;
       }
     } else {
-      for (size_t n = 0; n<node->min && nodes<32; n++) {
+      for (size_t n = 0; n<node->min && nodes<SEARCH_SKIP_NODES; n++) {
         for (size_t index = 0; index<256; index++) {
           references[nodes].index[index] = 0;
         }
@@ -1248,7 +1273,6 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
       while (1) {
         uint8_t index = stream_read_reverse(text);
         hit = base->skip[size++].index[index];
-        //printf("%d '%c' -> %d\r\n", (int)stream_offset_plain(text), index, (int)hit);
         if (hit) {
           break;
         }
@@ -1332,15 +1356,45 @@ inline int search_node_set_check(struct search_node* node, codepoint_t index) {
   return index>=0 && range_tree_marked(node->set, (file_offset_t)index, 1, TIPPSE_INSERTER_MARK);
 }
 
-// The hot loop of the search, matching and branching is done here. Non recursive version, but uses recursive style with a simulated stack. This version has replaced a recursive version to halt and continue the search process (in future)
-// TODO: the stack should grow if no slots left
-int search_find_loop(struct search* base, struct search_node* node, struct stream* text) {
-  if (!base->stack) {
-    base->stack = (struct search_stack*)malloc(sizeof(struct search_stack*)*base->stack_size);
+// Create new stack and frame if needed
+inline void search_find_loop_enter(struct search* base, struct search_stack** load, struct search_stack** start, struct search_stack** end, struct list_node** frame) {
+  *load = (*load)+1;
+  if (*load!=*end) {
+    return;
   }
 
+  if (!(*frame)->next) {
+    list_insert_empty(&base->stack, *frame);
+  }
+
+  *frame = (*frame)->next;
+  *start = (struct search_stack*)list_object(*frame);
+  *end = (*start)+base->stack_size;
+  *load = *start;
+}
+
+// Create new stack and frame if needed
+inline void search_find_loop_leave(struct search* base, struct search_stack** load, struct search_stack** start, struct search_stack** end, struct list_node** frame) {
+  if (*load!=*start) {
+    *load = (*load)-1;
+    return;
+  }
+
+  *frame = (*frame)->prev;
+  *start = (struct search_stack*)list_object(*frame);
+  *end = (*start)+base->stack_size;
+  *load = (*end)-1;
+}
+
+// The hot loop of the search, matching and branching is done here. Non recursive version, but uses recursive style with a simulated stack. This version has replaced a recursive version to halt and continue the search process (in future)
+int search_find_loop(struct search* base, struct search_node* node, struct stream* text) {
   struct stream stream = *text;
-  struct search_stack* load = base->stack;
+  struct list_node* frame = base->stack.first;
+  struct search_stack* start = (struct search_stack*)list_object(frame);
+  struct search_stack* end = start+base->stack_size;
+  struct search_stack* load = start;
+
+  file_offset_t longest = 0;
   load->node = NULL;
   int enter = 1;
   int hit = 0;
@@ -1379,7 +1433,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
             }
 
             if (enter && node->min<node->max) {
-              load++;
+              search_find_loop_enter(base, &load, &start, &end, &frame);
               load->node = node;
               load->previous = node->stack;
               load->loop = node->min;
@@ -1426,7 +1480,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
 
           if (!enter) {
             node->stack = load->previous;
-            load--;
+            search_find_loop_leave(base, &load, &start, &end, &frame);
           } else {
             stream = load->stream;
           }
@@ -1434,7 +1488,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
       }
     } else {
       if (enter) {
-        load++;
+        search_find_loop_enter(base, &load, &start, &end, &frame);
         load->node = node;
         load->previous = node->stack;
         load->loop = (enter==2)?node->stack->loop+1:0;
@@ -1461,7 +1515,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
           } else {
             if (node->type&SEARCH_NODE_TYPE_POSSESSIVE) {
               node->stack = load->previous;
-              load--;
+              search_find_loop_leave(base, &load, &start, &end, &frame);
               enter = 1;
             }
           }
@@ -1469,7 +1523,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
       }
       if (!enter) {
         node->stack = load->previous;
-        load--;
+        search_find_loop_leave(base, &load, &start, &end, &frame);
       }
     }
 
@@ -1485,13 +1539,17 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
         continue;
       }
 
-      for (size_t n = 0; n<base->groups; n++) {
-        base->group_hits[n].start = base->group_hits[n].node_start->start;
-        base->group_hits[n].end = base->group_hits[n].node_end->end;
+      file_offset_t distance = stream_offset(&stream)-stream_offset(text);
+      if (distance>longest) {
+        longest = distance;
+        for (size_t n = 0; n<base->groups; n++) {
+          base->group_hits[n].start = base->group_hits[n].node_start->start;
+          base->group_hits[n].end = base->group_hits[n].node_end->end;
+        }
+        base->hit_end = stream;
+        hit = 1;
+        hits++;
       }
-      base->hit_end = stream;
-      hit = 1;
-      hits++;
       enter = 0;
     }
 

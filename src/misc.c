@@ -219,10 +219,11 @@ int64_t tick_count(void) {
 }
 
 // Convert human readable number into internal reprensentation
-uint64_t decode_based_unsigned_offset(struct encoding_cache* cache, int base, size_t* offset) {
+uint64_t decode_based_unsigned_offset(struct encoding_cache* cache, int base, size_t* offset, size_t count) {
   uint64_t output = 0;
   size_t advanced = *offset;
-  while (1) {
+  while (count>0) {
+    count--;
     codepoint_t codepoints[8];
     size_t advance = 1;
     size_t length = 1;
@@ -256,7 +257,7 @@ uint64_t decode_based_unsigned_offset(struct encoding_cache* cache, int base, si
   return output;
 }
 
-uint64_t decode_based_unsigned(struct encoding_cache* cache, int base) {
+uint64_t decode_based_unsigned(struct encoding_cache* cache, int base, size_t count) {
   size_t offset = 0;
-  return decode_based_unsigned_offset(cache, base, &offset);
+  return decode_based_unsigned_offset(cache, base, &offset, count);
 }

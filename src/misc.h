@@ -30,7 +30,7 @@ int is_directory(const char* path);
 
 int64_t tick_count(void);
 
-uint64_t decode_based_unsigned_offset(struct encoding_cache* cache, int base, size_t* offset);
-uint64_t decode_based_unsigned(struct encoding_cache* cache, int base);
+uint64_t decode_based_unsigned_offset(struct encoding_cache* cache, int base, size_t* offset, size_t count);
+uint64_t decode_based_unsigned(struct encoding_cache* cache, int base, size_t count);
 
 #endif /* #ifndef TIPPSE_MISC_H */

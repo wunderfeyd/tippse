@@ -361,7 +361,7 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
     encoding_cache_clear(&cache, base->focus->file->encoding, &stream);
     // TODO: this should be handled by the specialized document classes
     if (base->document->document==base->document->document_hex) {
-      file_offset_t offset = (file_offset_t)decode_based_unsigned(&cache, 16);
+      file_offset_t offset = (file_offset_t)decode_based_unsigned(&cache, 16, SIZE_T_MAX);
       file_offset_t length = base->document->file->buffer?base->document->file->buffer->length:0;
       if (offset>length) {
         offset = length;
@@ -370,7 +370,7 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
       base->document->view->offset = offset;
       base->document->view->show_scrollbar = 1;
     } else {
-      position_t line = (position_t)decode_based_unsigned(&cache, 10);
+      position_t line = (position_t)decode_based_unsigned(&cache, 10, SIZE_T_MAX);
       if (line>0) {
         document_text_goto(base->document->document, base->document, line-1);
       }

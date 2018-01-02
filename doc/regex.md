@@ -3,7 +3,7 @@ Regular expressions in Tippse
 
 * Escaping
 
-  Regular expressions command literals have to be different to usual literals. To allow both in the same text, the escape character `\` switches to the other form (literal or command). For example `\|` results in a `|` in the output instead of the alternative command `|`.
+  Regular expressions command literals have to be different to usual literals. To allow both in the same text, the escape character `\` switches to the other form (literal or command). For example `\|` results in a `|` in the output instead of the alternative command `|`. To enter an arbitrary character/codepoint it's possible to use \xXX and \uUUUU where XX and UUUU are hexadecimal representation of the codepoint.
 
 * Alternatives
 
@@ -11,7 +11,7 @@ Regular expressions in Tippse
 
 * Grouping
 
-  Literals and/or other groups can be grouped together either to repeat with quantization modifiers or to backreferences in replacements. `(abc)+`
+  Literals and/or other groups can be grouped together either to repeat with quantization modifiers or as backreferences in replacements. `(abc)+`
 
 * Sets
 
@@ -30,7 +30,7 @@ Regular expressions in Tippse
 
 * Quantization
 
-  After a group or literal the number of repetitions are added if mor or less than a single match is needed. Possible commands:
+  After a group or literal the number of repetitions are added if more or less than a single match is needed. Possible commands:
 
   1. `*` matches from 0 to infinite times
   2. `+` matches from 1 to infinite times
@@ -56,7 +56,7 @@ Regular expressions in Tippse
 
 * Backreferences
 
-  Backreferences are allowed in replacements only (TODO). Use \1 to \9 for the group number. `(\S)123(\S)` with replacement `\1\2` on `abc13def` results in `abcdef`.
+  Backreferences are allowed in replacements only. Use \1 to \9 for the group number. `(\S)123(\S)` with replacement `\1\2` on `abc123def` results in `abcdef`.
 
 * Notes
 
@@ -65,5 +65,4 @@ Regular expressions in Tippse
 * TODO
 
   * Usage of backreferences in the regular expression itself
-  * Modifier for byte or codepoint sets as well as escape for \xXX byte and \uUUUU codepoint
   * Line start and line end commands

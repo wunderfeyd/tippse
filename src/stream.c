@@ -34,19 +34,31 @@ void stream_from_file(struct stream* base, struct file_cache* cache, file_offset
   base->cache_length = base->file.node->length;
 }
 
-// Return stream offset
+// Return stream offset (plain stream)
 size_t stream_offset_plain(struct stream* base) {
   return base->displacement;
 }
 
-// Return stream offset
+// Return stream offset (page stream)
 file_offset_t stream_offset_page(struct stream* base) {
   return range_tree_offset(base->buffer)+base->displacement;
 }
 
-// Return stream offset
+// Return stream offset (file stream)
 file_offset_t stream_offset_file(struct stream* base) {
   return base->file.offset+base->displacement;
+}
+
+// Return stream offset (generalization)
+file_offset_t stream_offset(struct stream* base) {
+  if (base->type==STREAM_TYPE_PLAIN) {
+    return (file_offset_t)stream_offset_plain(base);
+  } else if (base->type==STREAM_TYPE_PAGED) {
+    return (file_offset_t)stream_offset_page(base);
+  } else if (base->type==STREAM_TYPE_FILE) {
+    return (file_offset_t)stream_offset_file(base);
+  }
+  return 0;
 }
 
 // Return streaming data that cannot read directly (forward)
@@ -69,11 +81,10 @@ uint8_t stream_read_forward_oob(struct stream* base) {
 // Return streaming data that cannot read directly (reverse)
 uint8_t stream_read_reverse_oob(struct stream* base) {
   if (base->type==STREAM_TYPE_PLAIN) {
-    base->displacement--;
     return 0;
   }
 
-  stream_reverse_oob(base, 1);
+  stream_reverse_oob(base, 0);
 
   if (base->displacement<base->cache_length) {
     return *(base->plain+base->displacement);
