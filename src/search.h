@@ -19,6 +19,9 @@
 #define SEARCH_NODE_TYPE_GROUP_START 32
 #define SEARCH_NODE_TYPE_GROUP_END 64
 #define SEARCH_NODE_TYPE_BYTE 128
+#define SEARCH_NODE_TYPE_BACKREFERENCE 256
+#define SEARCH_NODE_TYPE_START_POSITION 512
+#define SEARCH_NODE_TYPE_END_POSITION 1024
 
 #define SEARCH_NODE_SET_CODES UNICODE_CODEPOINT_MAX
 #define SEARCH_NODE_SET_BUCKET (sizeof(uint32_t)*8)
@@ -41,13 +44,14 @@ struct search_node {
   uint8_t* plain;         // plain string
   struct search_node* next; // list of next node on hit
   struct search_node* forward; // list of next node on hit
-  struct list sub;       // list of sub nodes
+  struct list sub;        // list of sub nodes
   struct list group_start; // list of groups entered by the node
-  struct list group_end; // list of groups exited by the node
-  struct stream start; // start of group content during scan
-  struct stream end;   // end of group content during scan
+  struct list group_end;  // list of groups exited by the node
+  struct stream start;    // start of group content during scan
+  struct stream end;      // end of group content during scan
   struct range_tree_node* set; // matching codepoints/bytes
   uint32_t bitset[256/SEARCH_NODE_SET_BUCKET+1]; // simple bit table for byte matching
+  size_t group;           // group number in back reference
 };
 
 struct search_group {

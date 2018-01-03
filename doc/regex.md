@@ -3,7 +3,7 @@ Regular expressions in Tippse
 
 * Escaping
 
-  Regular expressions command literals have to be different to usual literals. To allow both in the same text, the escape character `\` switches to the other form (literal or command). For example `\|` results in a `|` in the output instead of the alternative command `|`. To enter an arbitrary character/codepoint it's possible to use \xXX and \uUUUU where XX and UUUU are hexadecimal representation of the codepoint.
+  Regular expressions command literals have to be different to usual literals. To allow both in the same text, the escape character `\` switches to the other form (literal or command). For example `\|` results in a `|` in the output instead of the alternative command `|`. To enter an arbitrary character/codepoint it's possible to use \xXX, \uXXXX and \UXXXXXXXX where X is the hexadecimal representation of the codepoint.
 
 * Alternatives
 
@@ -54,15 +54,14 @@ Regular expressions in Tippse
 
     When using `+` the longest match of the group/literal is used. Unlike the greedy match type which also checks the rest of the expression.
 
+* Anchors
+
+  With `^` the search start with the next line start or file start. Whereas `$` checks for a line end or file end.
+
 * Backreferences
 
-  Backreferences are allowed in replacements only. Use \1 to \9 for the group number. `(\S)123(\S)` with replacement `\1\2` on `abc123def` results in `abcdef`.
+  Backreferences are allowed in replacements and during matching outside the referenced group. Use \1 to \9 for the group number. `(\S)123(\S)` with replacement `\1\2` on `abc123def` results in `abcdef`.
 
 * Notes
 
   When using the "ignore case" option the literal sets are expanded with their uppercase/lowercase variants. If the transformation results in more than one codepoint/character everything is added. For example the german `ß` is expanded to `ss`.
-
-* TODO
-
-  * Usage of backreferences in the regular expression itself
-  * Line start and line end commands

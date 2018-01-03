@@ -86,7 +86,7 @@ inline int stream_end(struct stream* base) {
 }
 
 inline int stream_start(struct stream* base) {
-  return (base->displacement>base->cache_length && (base->type==STREAM_TYPE_PLAIN || stream_start_oob(base)))?1:0;
+  return ((ssize_t)base->displacement<=0 && (base->type==STREAM_TYPE_PLAIN || stream_start_oob(base)))?1:0;
 }
 
 #endif  /* #ifndef TIPPSE_STREAM_H */

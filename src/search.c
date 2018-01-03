@@ -153,7 +153,7 @@ struct search* search_create(int reverse, struct encoding* output_encoding) {
   base->groups = 0;
   base->group_hits = NULL;
   base->root = NULL;
-  base->stack_size = 16;
+  base->stack_size = 1024;
   list_create_inplace(&base->stack, sizeof(struct search_stack)*base->stack_size);
   list_insert_empty(&base->stack, NULL);
   base->encoding = output_encoding;
@@ -208,8 +208,10 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
   base->root->max = 1;
 
   struct search_node* group[16];
+  size_t group_index[16];
   size_t group_depth = 1;
   group[0] = base->root;
+  group_index[0] = SIZE_T_MAX;
 
   struct encoding_cache cache;
   encoding_cache_clear(&cache, needle_encoding, &needle);
@@ -276,6 +278,7 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
           last->next = next;
           last = next;
           group[group_depth] = last;
+          group_index[group_depth] = base->groups;
           group_depth++;
           list_insert(&last->group_start, NULL, &base->groups);
           list_insert(&last->group_end, NULL, &base->groups);
@@ -354,6 +357,26 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
         offset += search_append_set(last, ignore_case, &cache, offset);
         continue;
       }
+
+      if (cp=='^') {
+        struct search_node* next = search_node_create(SEARCH_NODE_TYPE_START_POSITION);
+        next->min = 1;
+        next->max = 1;
+        last->next = next;
+        last = next;
+        offset++;
+        continue;
+      }
+
+      if (cp=='$') {
+        struct search_node* next = search_node_create(SEARCH_NODE_TYPE_END_POSITION);
+        next->min = 1;
+        next->max = 1;
+        last->next = next;
+        last = next;
+        offset++;
+        continue;
+      }
     } else {
       escape = 0;
       struct search_node* next = search_append_class(last, cp, 1);
@@ -377,6 +400,26 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
           last = next;
         }
         continue;
+      }
+
+      if (cp>='1' && cp<='9') {
+        size_t group = (size_t)(cp-'1');
+        size_t n;
+        for (n = 0; n<group_depth; n++) {
+          if (group_index[n]==group) {
+            break;
+          }
+        }
+        if (n==group_depth) {
+          struct search_node* next = search_node_create(SEARCH_NODE_TYPE_BACKREFERENCE);
+          next->min = 1;
+          next->max = 1;
+          next->group = group;
+          last->next = next;
+          last = next;
+          offset++;
+          continue;
+        }
       }
     }
 
@@ -754,6 +797,21 @@ void search_debug_tree(struct search* base, struct search_node* node, size_t dep
 
   if (node->type&SEARCH_NODE_TYPE_BYTE) {
     printf("8");
+    length++;
+  }
+
+  if (node->type&SEARCH_NODE_TYPE_BACKREFERENCE) {
+    printf("R");
+    length++;
+  }
+
+  if (node->type&SEARCH_NODE_TYPE_START_POSITION) {
+    printf("<");
+    length++;
+  }
+
+  if (node->type&SEARCH_NODE_TYPE_END_POSITION) {
+    printf(">");
     length++;
   }
 
@@ -1314,7 +1372,7 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
         stream_forward(text, 1);
       }
     } else {
-      while (!stream_start(text) && count>0) {
+      while (count>0) {
         count--;
         if (search_find_loop(base, base->root, text)) {
           base->hit_start = *text;
@@ -1322,6 +1380,9 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
           return 1;
         }
 
+        if (stream_start(text)) {
+          break;
+        }
         stream_reverse(text, 1);
       }
     }
@@ -1490,43 +1551,74 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
         }
       }
     } else {
-      if (enter) {
-        search_find_loop_enter(base, &load, &start, &end, &frame);
-        load->node = node;
-        load->previous = node->stack;
-        load->loop = (enter==2)?node->stack->loop+1:0;
-        load->sub = node->sub.first;
-        load->stream = stream;
-        load->hits = hits;
-        node->stack = load;
-        enter = 1;
-      } else {
-        stream = load->stream;
-      }
+      if (node->type&SEARCH_NODE_TYPE_BRANCH) {
+        if (enter) {
+          search_find_loop_enter(base, &load, &start, &end, &frame);
+          load->node = node;
+          load->previous = node->stack;
+          load->loop = (enter==2)?node->stack->loop+1:0;
+          load->sub = node->sub.first;
+          load->stream = stream;
+          load->hits = hits;
+          node->stack = load;
+          enter = 1;
+        } else {
+          stream = load->stream;
+        }
 
-      struct search_stack* index = node->stack;
-      if (index->loop<node->max) {
-        if (enter==0 || index->loop<node->min || (node->type&SEARCH_NODE_TYPE_POSSESSIVE)) {
-          if (index->sub) {
-            if ((node->type&(SEARCH_NODE_TYPE_GREEDY|SEARCH_NODE_TYPE_POSSESSIVE)) || index->loop<node->min || load->sub!=node->sub.first || load->hits==hits) {
-              enter = 1;
-              struct search_node* next = *((struct search_node**)list_object(index->sub));
-              index->sub = index->sub->next;
-              node = next;
-              continue;
-            }
-          } else {
-            if (node->type&SEARCH_NODE_TYPE_POSSESSIVE) {
-              node->stack = load->previous;
-              search_find_loop_leave(base, &load, &start, &end, &frame);
-              enter = 1;
+        struct search_stack* index = node->stack;
+        if (index->loop<node->max) {
+          if (enter==0 || index->loop<node->min || (node->type&SEARCH_NODE_TYPE_POSSESSIVE)) {
+            if (index->sub) {
+              if ((node->type&(SEARCH_NODE_TYPE_GREEDY|SEARCH_NODE_TYPE_POSSESSIVE)) || index->loop<node->min || load->sub!=node->sub.first || load->hits==hits) {
+                enter = 1;
+                struct search_node* next = *((struct search_node**)list_object(index->sub));
+                index->sub = index->sub->next;
+                node = next;
+                continue;
+              }
+            } else {
+              if (node->type&SEARCH_NODE_TYPE_POSSESSIVE) {
+                node->stack = load->previous;
+                search_find_loop_leave(base, &load, &start, &end, &frame);
+                enter = 1;
+              }
             }
           }
         }
-      }
-      if (!enter) {
-        node->stack = load->previous;
-        search_find_loop_leave(base, &load, &start, &end, &frame);
+        if (!enter) {
+          node->stack = load->previous;
+          search_find_loop_leave(base, &load, &start, &end, &frame);
+        }
+      } else {
+        if (node->type&SEARCH_NODE_TYPE_START_POSITION) {
+          enter = stream_start(&stream);
+          if (enter==0) { // TODO: we need to know the line ending style here in future
+            uint8_t index = stream_read_reverse(&stream);
+            stream_forward(&stream, 1);
+            enter = (index=='\r' || index=='\n')?1:0;
+          }
+        } else if (node->type&SEARCH_NODE_TYPE_END_POSITION) {
+          enter = stream_end(&stream);
+          if (enter==0) { // TODO: we need to know the line ending style here in future
+            uint8_t index = stream_read_forward(&stream);
+            stream_reverse(&stream, 1);
+            enter = (index=='\r' || index=='\n')?1:0;
+          }
+        } else if (node->type&SEARCH_NODE_TYPE_BACKREFERENCE) {
+          // TODO: are min/max or modifiers needed here?
+          struct stream source = base->group_hits[node->group].node_start->start;
+          file_offset_t from = stream_offset(&source);
+          file_offset_t to = stream_offset(&base->group_hits[node->group].node_start->end);
+          enter = 1;
+          while (from<to) {
+            if (stream_read_forward(&stream)!=stream_read_forward(&source)) {
+              enter = 0;
+              break;
+            }
+            from++;
+          }
+        }
       }
     }
 
@@ -1543,7 +1635,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
       }
 
       file_offset_t distance = stream_offset(&stream)-stream_offset(text);
-      if (distance>longest) {
+      if (distance>longest || hit==0) {
         longest = distance;
         for (size_t n = 0; n<base->groups; n++) {
           base->group_hits[n].start = base->group_hits[n].node_start->start;
@@ -1567,6 +1659,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
 
 // Some small manual unittests (TODO: remove or expand as soon the search is feature complete and optimized)
 void search_test(void) {
+  //const char* needle_text = "[^\n]*";
   const char* needle_text = "sIBM";
   //const char* needle_text = "Recently, Standard Japanese has ";
   //const char* needle_text = "Hallo äÖÜ ß Test Ú ń ǹ";
