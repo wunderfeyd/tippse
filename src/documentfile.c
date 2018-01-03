@@ -136,8 +136,8 @@ void document_file_encoding(struct document_file* base, struct encoding* encodin
   base->encoding = encoding;
 }
 
-// Execute system command and push output into file contents
-void document_file_pipe(struct document_file* base, const char* command) {
+// Create another process or thread and route the output into the file
+void document_file_create_pipe(struct document_file* base) {
   range_tree_destroy(base->buffer, base);
   base->buffer = NULL;
   document_undo_empty(base, base->undos);
@@ -156,13 +156,6 @@ void document_file_pipe(struct document_file* base, const char* command) {
     dup2(base->pipefd[1], 2);
     close(base->pipefd[0]);
     close(base->pipefd[1]);
-    char* argv[4];
-    argv[0] = "/bin/sh";
-    argv[1] = "-c";
-    argv[2] = (char*)command;
-    argv[3] = NULL;
-    execv(argv[0], &argv[0]);
-    exit(0);
   } else {
     close(base->pipefd[1]);
 
@@ -170,10 +163,24 @@ void document_file_pipe(struct document_file* base, const char* command) {
     fcntl(base->pipefd[0], F_SETFL, flags|O_NONBLOCK);
 
     document_undo_mark_save_point(base);
-    document_file_name(base, command);
     document_file_detect_properties(base);
     base->bookmarks = range_tree_static(base->bookmarks, base->buffer?base->buffer->length:0, 0);
     document_file_reset_views(base);
+  }
+}
+
+// Execute system command and push output into file contents
+void document_file_pipe(struct document_file* base, const char* command) {
+  document_file_name(base, command);
+  document_file_create_pipe(base);
+  if (base->pid==0) {
+    char* argv[4];
+    argv[0] = "/bin/sh";
+    argv[1] = "-c";
+    argv[2] = (char*)command;
+    argv[3] = NULL;
+    execv(argv[0], &argv[0]);
+    exit(0);
   }
 }
 

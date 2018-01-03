@@ -18,6 +18,11 @@
 #include "encoding/native.h"
 #include "unicode.h"
 
+struct directory {
+  DIR* dir;             // directory stream
+  struct dirent* entry; // last read directory entry
+};
+
 char** merge_sort(char** sort1, char** sort2, size_t count);
 
 char* strip_file_name(const char* file);
@@ -32,5 +37,9 @@ int64_t tick_count(void);
 
 uint64_t decode_based_unsigned_offset(struct encoding_cache* cache, int base, size_t* offset, size_t count);
 uint64_t decode_based_unsigned(struct encoding_cache* cache, int base, size_t count);
+
+struct directory* directory_create(const char* path);
+const char* directory_next(struct directory* base);
+void directory_destroy(struct directory* base);
 
 #endif /* #ifndef TIPPSE_MISC_H */

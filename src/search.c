@@ -364,16 +364,18 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
         continue;
       }
 
-      if (cp=='x' || cp=='u') {
+      if (cp=='x' || cp=='u' || cp=='U') {
         offset++;
-        size_t index = (size_t)decode_based_unsigned_offset(&cache, 16, &offset, (cp=='x')?2:4);
-        struct search_node* next = search_node_create(SEARCH_NODE_TYPE_SET);
-        next->min = 1;
-        next->max = 1;
-        search_node_set_build(next);
-        next->set = range_tree_mark(next->set, index, 1, TIPPSE_INSERTER_MARK);
-        last->next = next;
-        last = next;
+        size_t index = (size_t)decode_based_unsigned_offset(&cache, 16, &offset, (cp=='x')?2:((cp=='u')?4:8));
+        if (index<SEARCH_NODE_SET_CODES) {
+          struct search_node* next = search_node_create(SEARCH_NODE_TYPE_SET);
+          next->min = 1;
+          next->max = 1;
+          search_node_set_build(next);
+          search_node_set(next, index);
+          last->next = next;
+          last = next;
+        }
         continue;
       }
     }
@@ -557,10 +559,11 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
         continue;
       }
 
-      if (cp=='x' || cp=='u') {
+      if (cp=='x' || cp=='u' || cp=='U') {
         size_t reloc = advance+offset+1;
-        search_node_set(check, (size_t)decode_based_unsigned_offset(cache, 16, &reloc, (cp=='x')?2:4));
+        size_t index = (size_t)decode_based_unsigned_offset(cache, 16, &reloc, (cp=='x')?2:((cp=='u')?4:8));
         advance = reloc-offset;
+        search_node_set(check, index);
         continue;
       }
     }
@@ -1356,7 +1359,7 @@ inline int search_node_set_check(struct search_node* node, codepoint_t index) {
   return index>=0 && range_tree_marked(node->set, (file_offset_t)index, 1, TIPPSE_INSERTER_MARK);
 }
 
-// Create new stack and frame if needed
+// Next stack entry, create new stack and frame if needed
 inline void search_find_loop_enter(struct search* base, struct search_stack** load, struct search_stack** start, struct search_stack** end, struct list_node** frame) {
   *load = (*load)+1;
   if (*load!=*end) {
@@ -1373,7 +1376,7 @@ inline void search_find_loop_enter(struct search* base, struct search_stack** lo
   *load = *start;
 }
 
-// Create new stack and frame if needed
+// Previous stack entry
 inline void search_find_loop_leave(struct search* base, struct search_stack** load, struct search_stack** start, struct search_stack** end, struct list_node** frame) {
   if (*load!=*start) {
     *load = (*load)-1;

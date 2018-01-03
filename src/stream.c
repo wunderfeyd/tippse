@@ -146,7 +146,7 @@ void stream_reverse_oob(struct stream* base, size_t length) {
       }
     }
   } else if (base->type==STREAM_TYPE_FILE) {
-    while (base->file.offset>0 && base->displacement>=TREE_BLOCK_LENGTH_MAX) {
+    while (base->file.offset>0 && (ssize_t)base->displacement<0) {
       base->displacement += TREE_BLOCK_LENGTH_MAX;
       base->file.offset -= TREE_BLOCK_LENGTH_MAX;
       base->plain = file_cache_use_node_ranged(base->file.cache, &base->file.node, base->file.offset, TREE_BLOCK_LENGTH_MAX);

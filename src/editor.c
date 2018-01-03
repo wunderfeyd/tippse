@@ -100,8 +100,9 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"nfcnfd", TIPPSE_CMD_NFC_NFD, "Convert from nfc to nfd (document/selection)"},
   {"searchmodetext", TIPPSE_CMD_SEARCH_MODE_TEXT, "Search with uninterpreted plain text"},
   {"searchmoderegex", TIPPSE_CMD_SEARCH_MODE_REGEX, "Search with regular expression"},
-  {"searchcasesensistive", TIPPSE_CMD_SEARCH_CASE_SENSITIVE, "Search case senstive"},
+  {"searchcasesensitive", TIPPSE_CMD_SEARCH_CASE_SENSITIVE, "Search case senstive"},
   {"searchcaseignore", TIPPSE_CMD_SEARCH_CASE_IGNORE, "Search while ignoring case"},
+  {"searchdirectory", TIPPSE_CMD_SEARCH_DIRECTORY, "Search in current directory"},
   {NULL, 0, ""}
 };
 
@@ -148,6 +149,8 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
 
   base->compiler_doc = document_file_create(0, 1);
 
+  base->search_results_doc = document_file_create(0, 1);
+
   base->filter_doc = document_file_create(0, 1);
   document_file_name(base->filter_doc, "Filter");
 
@@ -166,6 +169,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   list_insert(base->documents, NULL, &base->browser_doc);
   list_insert(base->documents, NULL, &base->commands_doc);
   list_insert(base->documents, NULL, &base->compiler_doc);
+  list_insert(base->documents, NULL, &base->search_results_doc);
   list_insert(base->documents, NULL, &base->filter_doc);
 
   for (int n = argc-1; n>=1; n--) {
@@ -332,6 +336,16 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
     editor_focus(base, base->document, 1);
     if (base->search_doc->buffer) {
       document_search(base->last_document, base->search_doc->buffer, NULL, 1, base->search_ignore_case, base->search_regex, 0, 0);
+    }
+  } else if (command==TIPPSE_CMD_SEARCH_DIRECTORY) {
+    if (base->document->file->pipefd[1]==-1 && base->document->file==base->search_results_doc) {
+      document_file_create_pipe(base->document->file);
+      if (base->document->file->pid==0) {
+        document_search_directory(base->base_path, base->search_doc->buffer, NULL, base->search_ignore_case, base->search_regex, 0);
+        exit(0);
+      }
+    } else {
+      splitter_assign_document_file(base->document, base->search_results_doc);
     }
   } else if (command==TIPPSE_CMD_REPLACE) {
     editor_panel_assign(base, base->replace_doc);

@@ -113,7 +113,8 @@ struct splitter;
 #define TIPPSE_CMD_SEARCH_MODE_REGEX 63
 #define TIPPSE_CMD_SEARCH_CASE_SENSITIVE 64
 #define TIPPSE_CMD_SEARCH_CASE_IGNORE 65
-#define TIPPSE_CMD_MAX 66
+#define TIPPSE_CMD_SEARCH_DIRECTORY 66
+#define TIPPSE_CMD_MAX 67
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -134,6 +135,7 @@ struct editor {
   struct document_file* replace_doc;  // document: current replace text
   struct document_file* goto_doc;     // document: line/offset for position jump
   struct document_file* compiler_doc; // document: compiler output
+  struct document_file* search_results_doc; // document: search result output
   struct document_file* filter_doc;   // document: panel filter
   struct document_file* commands_doc; // document: list of known commands
 

@@ -176,62 +176,145 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
   return 0;
 }
 
+// Search in directory
+void document_search_directory(const char* path, struct range_tree_node* search_text, struct range_tree_node* replace_text, int ignore_case, int regex, int replace) {
+  printf("Scanning %s...\n", path);
+  struct list* entries = list_create(sizeof(char*));
+  char* copy = strdup(path);
+  list_insert(entries, entries->last, &copy);
+
+  while (entries->first) {
+    struct list_node* insert = entries->last;
+    char* scan = *(char**)list_object(insert);
+    if (is_directory(scan)) {
+      struct directory* directory = directory_create(scan);
+      while (1) {
+        const char* filename = directory_next(directory);
+        if (!filename) {
+          break;
+        }
+
+        if (strcmp(filename, "..")!=0 && strcmp(filename, ".")!=0) {
+          char* result = combine_path_file(scan, filename);
+          list_insert(entries, insert, &result);
+        }
+      }
+      directory_destroy(directory);
+    } else {
+      struct stream needle_stream;
+      stream_from_page(&needle_stream, range_tree_first(search_text), 0);
+      struct document_file* file = document_file_create(0, 0);
+      struct file_cache* cache = file_cache_create(scan);
+      struct stream stream;
+      stream_from_file(&stream, cache, 0);
+      document_file_detect_properties_stream(file, &stream);
+      struct search* search;
+      if (regex) {
+        search = search_create_regex(ignore_case, 0, needle_stream, file->encoding, file->encoding);
+      } else {
+        search = search_create_plain(ignore_case, 0, needle_stream, file->encoding, file->encoding);
+      }
+
+      file_offset_t line = 1;
+      struct stream newlines = stream;
+      file_offset_t line_hit = line;
+      struct stream line_start = newlines;
+      while (!stream_end(&stream)) {
+        stream_forward_oob(&stream, 0);
+        int found = search_find(search, &stream, NULL);
+        if (found) {
+          file_offset_t hit = stream_offset_file(&search->hit_start);
+          stream_forward_oob(&newlines, 0);
+          while (stream_offset(&newlines)<hit) {
+            line_hit = line;
+            line_start = newlines;
+            while (!stream_end(&newlines) && stream_read_forward(&newlines)!='\n') {
+            }
+            line++;
+          }
+          printf("%s:%d: ", scan, (int)line_hit);
+
+          int columns = 80;
+          struct stream line_copy = line_start;
+          stream_forward_oob(&line_copy, 0);
+          while (!stream_end(&line_copy) && columns>0) {
+            columns--;
+            uint8_t index = stream_read_forward(&line_copy);
+            if (index=='\n') {
+              break;
+            }
+            if (index>=0x20 || index=='\t') {
+              printf("%c", index);
+            }
+          }
+          printf("\n");
+        }
+      }
+
+      search_destroy(search);
+      file_cache_dereference(cache);
+      document_file_destroy(file);
+    }
+    free(scan);
+    list_remove(entries, insert);
+  }
+  list_destroy(entries);
+  printf("... done\n");
+}
 
 // Read directory into document, sort by file name
 void document_directory(struct document_file* file, struct stream* filter_stream, struct encoding* filter_encoding) {
-  DIR* directory = opendir(file->filename);
-  if (directory) {
-    struct search* search = filter_stream?search_create_plain(1, 0, *filter_stream, filter_encoding, file->encoding):NULL;
+  struct directory* directory = directory_create(file->filename);
+  struct search* search = filter_stream?search_create_plain(1, 0, *filter_stream, filter_encoding, file->encoding):NULL;
 
-    struct list* files = list_create(sizeof(char*));
-    while (1) {
-      struct dirent* entry = readdir(directory);
-      if (!entry) {
-        break;
-      }
-
-      struct stream text_stream;
-      stream_from_plain(&text_stream, (uint8_t*)&entry->d_name[0], strlen(&entry->d_name[0]));
-      if (!search || search_find(search, &text_stream, NULL)) {
-        char* name = strdup(&entry->d_name[0]);
-        list_insert(files, NULL, &name);
-      }
+  struct list* files = list_create(sizeof(char*));
+  while (1) {
+    const char* filename = directory_next(directory);
+    if (!filename) {
+      break;
     }
 
-    closedir(directory);
-
-    if (search) {
-      search_destroy(search);
+    struct stream text_stream;
+    stream_from_plain(&text_stream, (uint8_t*)filename, strlen(filename));
+    if (!search || search_find(search, &text_stream, NULL)) {
+      char* name = strdup(filename);
+      list_insert(files, NULL, &name);
     }
-
-    char** sort1 = malloc(sizeof(char*)*files->count);
-    char** sort2 = malloc(sizeof(char*)*files->count);
-    struct list_node* name = files->first;
-    for (size_t n = 0; n<files->count && name; n++) {
-      sort1[n] = *(char**)list_object(name);
-      name = name->next;
-    }
-
-    char** sort = merge_sort(sort1, sort2, files->count);
-
-    file->buffer = range_tree_delete(file->buffer, 0, file->buffer?file->buffer->length:0, 0, file);
-
-    for (size_t n = 0; n<files->count; n++) {
-      if (file->buffer) {
-        file->buffer = range_tree_insert_split(file->buffer, file->buffer?file->buffer->length:0, (uint8_t*)"\n", 1, 0);
-      }
-
-      file->buffer = range_tree_insert_split(file->buffer, file->buffer?file->buffer->length:0, (uint8_t*)sort[n], strlen(sort[n]), 0);
-      free(sort[n]);
-    }
-
-    free(sort2);
-    free(sort1);
-
-    while (files->first) {
-      list_remove(files, files->first);
-    }
-
-    list_destroy(files);
   }
+
+  directory_destroy(directory);
+
+  if (search) {
+    search_destroy(search);
+  }
+
+  char** sort1 = malloc(sizeof(char*)*files->count);
+  char** sort2 = malloc(sizeof(char*)*files->count);
+  struct list_node* name = files->first;
+  for (size_t n = 0; n<files->count && name; n++) {
+    sort1[n] = *(char**)list_object(name);
+    name = name->next;
+  }
+
+  char** sort = merge_sort(sort1, sort2, files->count);
+
+  file->buffer = range_tree_delete(file->buffer, 0, file->buffer?file->buffer->length:0, 0, file);
+
+  for (size_t n = 0; n<files->count; n++) {
+    if (file->buffer) {
+      file->buffer = range_tree_insert_split(file->buffer, file->buffer?file->buffer->length:0, (uint8_t*)"\n", 1, 0);
+    }
+
+    file->buffer = range_tree_insert_split(file->buffer, file->buffer?file->buffer->length:0, (uint8_t*)sort[n], strlen(sort[n]), 0);
+    free(sort[n]);
+  }
+
+  free(sort2);
+  free(sort1);
+
+  while (files->first) {
+    list_remove(files, files->first);
+  }
+
+  list_destroy(files);
 }

@@ -261,3 +261,32 @@ uint64_t decode_based_unsigned(struct encoding_cache* cache, int base, size_t co
   size_t offset = 0;
   return decode_based_unsigned_offset(cache, base, &offset, count);
 }
+
+// Build directory stream
+struct directory* directory_create(const char* path) {
+  struct directory* base = malloc(sizeof(struct directory));
+  base->dir = opendir(path);
+  return base;
+}
+
+// Get name of next directory entry
+const char* directory_next(struct directory* base) {
+  if (!base->dir) {
+    return NULL;
+  }
+
+  base->entry = readdir(base->dir);
+  if (!base->entry) {
+    return NULL;
+  }
+
+  return &base->entry->d_name[0];
+}
+
+// Close directory stream
+void directory_destroy(struct directory* base) {
+  if (base->dir) {
+    closedir(base->dir);
+  }
+  free(base);
+}

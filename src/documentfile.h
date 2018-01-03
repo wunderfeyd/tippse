@@ -110,6 +110,7 @@ void document_file_clear(struct document_file* base, int all);
 void document_file_destroy(struct document_file* base);
 void document_file_name(struct document_file* base, const char* filename);
 void document_file_encoding(struct document_file* base, struct encoding* encoding);
+void document_file_create_pipe(struct document_file* base);
 void document_file_pipe(struct document_file* base, const char* command);
 void document_file_fill_pipe(struct document_file* base, uint8_t* buffer, size_t length);
 void document_file_close_pipe(struct document_file* base);
