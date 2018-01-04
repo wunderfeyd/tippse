@@ -410,7 +410,7 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
             break;
           }
         }
-        if (n==group_depth) {
+        if (n==group_depth && group<base->groups) {
           struct search_node* next = search_node_create(SEARCH_NODE_TYPE_BACKREFERENCE);
           next->min = 1;
           next->max = 1;
@@ -566,6 +566,7 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
   struct search_node* check = search_node_create(SEARCH_NODE_TYPE_SET);
   check->min = 1;
   check->max = 1;
+  search_node_set_build(check);
   list_insert(&last->sub, NULL, &check);
 
   codepoint_t from = 0;
@@ -1168,7 +1169,7 @@ void search_optimize_plain(struct search_node* node) {
     subs = subs->next;
   }
 
-  if (node->next && node->size>0 && node->next->size>0 && !(node->type&SEARCH_NODE_TYPE_GROUP_END) && !(node->next->type&SEARCH_NODE_TYPE_GROUP_START)) {
+  if (node->next && node->size>0 && node->next->size>0 && !node->next->group_start.first && !node->group_end.first) {
     size_t size = node->size+node->next->size;
     uint8_t* plain = malloc(sizeof(uint8_t)*size);
     memcpy(plain, node->plain, node->size);
@@ -1176,6 +1177,7 @@ void search_optimize_plain(struct search_node* node) {
     free(node->plain);
     node->plain = plain;
     node->size = size;
+    search_node_group_copy(&node->group_end, &node->next->group_end);
     struct search_node* remove = node->next;
     node->next = node->next->next;
     search_node_destroy(remove);
@@ -1752,6 +1754,44 @@ void search_test(void) {
       }
       fflush(stdout);
     }
+    search_destroy(search);
+  }
+
+  for (size_t fuzz = 0; fuzz<1000000; fuzz++) {
+    uint8_t random[8192];
+    size_t length = (size_t)(rand()%32);
+    for (size_t n = 0; n<length; n++) {
+      random[n] = rand()&0x7f;
+    }
+
+    uint8_t output[8192];
+    size_t raw = (size_t)(rand()%8192);
+    for (size_t n = 0; n<raw; n++) {
+      output[n] = rand()&0xff;
+    }
+
+    struct stream needle_stream;
+    stream_from_plain(&needle_stream, &random[0], length);
+
+    struct stream output_stream;
+    stream_from_plain(&output_stream, &output[0], raw);
+
+    struct search* search = search_create_regex(1, 0, needle_stream, needle_encoding, output_encoding);
+    if ((fuzz&0)==0) {
+      printf(">> %d || ", (int)fuzz);
+      for (size_t n = 0; n<length; n++) {
+        if (random[n]>=32 && random[n]<127) {
+          printf("%c", random[n]);
+        } else {
+          printf(".");
+        }
+      }
+      printf("\r\n");
+      search_debug_tree(search, search->root, 0, 0, 0);
+    }
+    int found = search_find(search, &output_stream, NULL);
+    printf("<< %d\r\n", found);
+
     search_destroy(search);
   }
 
