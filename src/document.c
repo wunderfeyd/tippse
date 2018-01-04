@@ -225,7 +225,7 @@ void document_search_directory(const char* path, struct range_tree_node* search_
         if (found) {
           file_offset_t hit = stream_offset_file(&search->hit_start);
           stream_forward_oob(&newlines, 0);
-          while (stream_offset(&newlines)<hit) {
+          while (stream_offset(&newlines)<=hit) {
             line_hit = line;
             line_start = newlines;
             while (!stream_end(&newlines) && stream_read_forward(&newlines)!='\n') {
