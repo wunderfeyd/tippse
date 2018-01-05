@@ -102,6 +102,8 @@ void stream_forward_oob(struct stream* base, size_t length) {
     while (base->buffer) {
       struct range_tree_node* buffer = range_tree_next(base->buffer);
       if (!buffer) {
+        fragment_cache(base->buffer->buffer);
+        base->plain = base->buffer->buffer->buffer+base->buffer->offset;
         return;
       }
 
@@ -133,6 +135,8 @@ void stream_reverse_oob(struct stream* base, size_t length) {
     while (base->buffer) {
       struct range_tree_node* buffer = range_tree_prev(base->buffer);
       if (!buffer) {
+        fragment_cache(base->buffer->buffer);
+        base->plain = base->buffer->buffer->buffer+base->buffer->offset;
         return;
       }
 

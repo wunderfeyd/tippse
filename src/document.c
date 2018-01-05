@@ -3,7 +3,7 @@
 #include "document.h"
 
 // Search in document
-int document_search(struct splitter* splitter, struct range_tree_node* search_text, struct range_tree_node* replace_text, int reverse, int ignore_case, int regex, int all, int replace) {
+int document_search(struct splitter* splitter, struct range_tree_node* search_text, struct encoding* search_encoding, struct range_tree_node* replace_text, struct encoding* replace_encoding, int reverse, int ignore_case, int regex, int all, int replace) {
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
@@ -17,9 +17,9 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
   stream_from_page(&needle_stream, range_tree_first(search_text), 0);
   struct search* search;
   if (regex) {
-    search = search_create_regex(ignore_case, reverse, needle_stream, file->encoding, file->encoding);
+    search = search_create_regex(ignore_case, reverse, needle_stream, search_encoding, file->encoding);
   } else {
-    search = search_create_plain(ignore_case, reverse, needle_stream, file->encoding, file->encoding);
+    search = search_create_plain(ignore_case, reverse, needle_stream, search_encoding, file->encoding);
   }
 
   file_offset_t offset = view->offset;
@@ -27,15 +27,13 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
   file_offset_t replacements = 0;
 
   int first = 1;
-  int found = 0;
+  int found = 1;
+  int wrapped = 0;
   while (1) {
-    found = 0;
-    if (replace && view->selection_low!=FILE_OFFSET_T_MAX) {
+    if (replace && view->selection_low!=FILE_OFFSET_T_MAX && found) {
       if (replacements==0) {
         document_undo_chain(file, file->undos);
       }
-
-      replacements++;
 
       int hit = 1;
       if (first) {
@@ -47,17 +45,23 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
       }
 
       if (hit) {
-        struct range_tree_node* replacement = regex?search_replacement(search, replace_text, file->encoding, file->buffer):replace_text;
+        replacements++;
+        struct range_tree_node* replacement = regex?search_replacement(search, replace_text, replace_encoding, file->buffer):replace_text;
         document_file_reduce(&begin, view->selection_low, view->selection_high-view->selection_low);
         document_file_delete_selection(splitter->file, splitter->view);
-        document_file_expand(&begin, view->offset, replacement->length);
-        document_file_insert_buffer(splitter->file, view->offset, replacement);
-        if (regex) {
-          range_tree_destroy(replacement, NULL);
-        }
 
         file_offset_t start = view->offset;
-        file_offset_t end = start+replace_text->length;
+        file_offset_t end = start;
+        if (replacement) {
+          document_file_expand(&begin, view->offset, replacement->length);
+          document_file_insert_buffer(splitter->file, view->offset, replacement);
+          end = view->offset;
+
+          if (regex) {
+            range_tree_destroy(replacement, NULL);
+          }
+        }
+
         view->selection_low = start;
         view->selection_high = end;
         view->selection_start = start;
@@ -66,91 +70,95 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
     }
 
     if (!file->buffer) {
+      found = 0;
       break;
     }
 
-    if (!reverse) {
-      if (view->selection_low!=FILE_OFFSET_T_MAX) {
-        offset = view->selection_high;
-      }
-    } else {
-      if (view->selection_low!=FILE_OFFSET_T_MAX) {
-        offset = view->selection_low;
-        if (offset==0) {
-          offset = file->buffer->length-1;
-        } else {
-          offset--;
+    if (found) {
+      if (!reverse) {
+        if (view->selection_low!=FILE_OFFSET_T_MAX) {
+          offset = view->selection_high;
+        }
+      } else {
+        if (view->selection_low!=FILE_OFFSET_T_MAX) {
+          offset = view->selection_low;
+          if (offset==0) {
+            offset = file->buffer->length;
+          } else {
+            offset--;
+          }
         }
       }
     }
 
-    if (offset>=file->buffer->length) {
-      offset = file->buffer->length-1;
+    if (offset>file->buffer->length) {
+      offset = file->buffer->length;
     }
 
     if (first) {
       begin = offset;
+      if ((offset==0 && !reverse) || (offset==file->buffer->length && reverse)) {
+        wrapped = 1;
+      }
     }
 
-    while (1) {
-      file_offset_t displacement;
-      struct range_tree_node* buffer = range_tree_find_offset(file->buffer, offset, &displacement);
-      struct stream text_stream;
-      stream_from_page(&text_stream, buffer, displacement);
+    file_offset_t displacement;
+    struct range_tree_node* buffer = range_tree_find_offset(file->buffer, offset, &displacement);
+    struct stream text_stream;
+    stream_from_page(&text_stream, buffer, displacement);
 
-      file_offset_t left;
-      if (!reverse) {
-        if (offset<begin) {
-          left = begin-offset;
-        } else {
-          left = file->buffer->length;
-        }
+    file_offset_t left;
+    if (!reverse) {
+      if (offset<begin) {
+        left = begin-offset;
       } else {
-        if (offset>begin) {
-          left = offset-begin;
-        } else {
-          left = file->buffer->length;
-        }
+        left = file->buffer->length-offset;
       }
-
-      while (1) {
-        int hit = search_find(search, &text_stream, &left);
-        if (!hit) {
-          break;
-        }
-        file_offset_t start = stream_offset_page(&search->hit_start);
-        file_offset_t end = stream_offset_page(&search->hit_end);
-        if ((!reverse && start>=offset) || (reverse && end<=offset)) {
-          view->offset = start;
-          view->selection_low = start;
-          view->selection_high = end;
-          view->selection_start = start;
-          view->selection_end = end;
-          found = 1;
-          break;
-        }
+    } else {
+      if (offset>begin) {
+        left = offset-begin+1;
+      } else {
+        left = offset+1;
       }
+    }
 
-      if (found) {
+    found = 0;
+    while (1) {
+      int hit = search_find(search, &text_stream, &left);
+      if (!hit) {
         break;
       }
-
-      if (!reverse) {
-        if (offset==0) {
-          break;
-        }
-        offset = 0;
-      } else {
-        if (offset==file->buffer->length-1) {
-          break;
-        }
-        offset = file->buffer->length-1;
+      file_offset_t start = stream_offset_page(&search->hit_start);
+      file_offset_t end = stream_offset_page(&search->hit_end);
+      if ((!reverse && start>=offset) || (reverse && end<=offset)) {
+        view->offset = start;
+        view->selection_low = start;
+        view->selection_high = end;
+        view->selection_start = start;
+        view->selection_end = end;
+        found = 1;
+        break;
       }
     }
 
     first = 0;
-    if (!found || !all) {
+    if ((left==0 && wrapped) || (found && !all)) {
       break;
+    }
+
+    if (!found) {
+      if (wrapped) {
+        break;
+      } else {
+        if (!reverse) {
+          offset = 0;
+        } else {
+          offset = file->buffer->length;
+        }
+
+        wrapped = 1;
+        continue;
+      }
     }
   }
 
@@ -177,7 +185,7 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
 }
 
 // Search in directory
-void document_search_directory(const char* path, struct range_tree_node* search_text, struct range_tree_node* replace_text, int ignore_case, int regex, int replace) {
+void document_search_directory(const char* path, struct range_tree_node* search_text, struct encoding* search_encoding, struct range_tree_node* replace_text, struct encoding* replace_encoding, int ignore_case, int regex, int replace) {
   printf("Scanning %s...\n", path);
   struct list* entries = list_create(sizeof(char*));
   char* copy = strdup(path);
@@ -210,9 +218,9 @@ void document_search_directory(const char* path, struct range_tree_node* search_
       document_file_detect_properties_stream(file, &stream);
       struct search* search;
       if (regex) {
-        search = search_create_regex(ignore_case, 0, needle_stream, file->encoding, file->encoding);
+        search = search_create_regex(ignore_case, 0, needle_stream, search_encoding, file->encoding);
       } else {
-        search = search_create_plain(ignore_case, 0, needle_stream, file->encoding, file->encoding);
+        search = search_create_plain(ignore_case, 0, needle_stream, search_encoding, file->encoding);
       }
 
       file_offset_t line = 1;

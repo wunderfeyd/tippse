@@ -1330,8 +1330,7 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
   if (base->skip_length>0) {
     stream_forward(text, base->skip_length);
     size_t hit = 0;
-    while (count>=hit) {
-      count-=hit;
+    while (text->displacement<=text->cache_length || !stream_end(text)) {
       size_t size = 0;
       while (1) {
         uint8_t index = stream_read_reverse(text);
@@ -1355,11 +1354,13 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
         }
       }
 
-      if (stream_end(text)) {
+      if (count<hit) {
+        count = 0;
         break;
       }
+      count-=hit;
 
-      stream_forward(text, hit+size);
+      stream_forward(text, size+hit);
     }
   } else {
     if (!base->reverse) {

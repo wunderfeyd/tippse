@@ -32,8 +32,8 @@ struct document {
 #include "document_text.h"
 #include "search.h"
 
-int document_search(struct splitter* splitter, struct range_tree_node* search_text, struct range_tree_node* replace_text, int reverse, int ignore_case, int regex, int all, int replace);
-void document_search_directory(const char* path, struct range_tree_node* search_text, struct range_tree_node* replace_text, int ignore_case, int regex, int replace);
+int document_search(struct splitter* splitter, struct range_tree_node* search_text, struct encoding* search_encoding, struct range_tree_node* replace_text, struct encoding* replace_encoding, int reverse, int ignore_case, int regex, int all, int replace);
+void document_search_directory(const char* path, struct range_tree_node* search_text, struct encoding* search_encoding, struct range_tree_node* replace_text, struct encoding* replace_encoding, int ignore_case, int regex, int replace);
 void document_directory(struct document_file* file, struct stream* filter_stream, struct encoding* filter_encoding);
 
 #endif /* #ifndef TIPPSE_DOCUMENT_H */
