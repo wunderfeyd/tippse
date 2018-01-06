@@ -399,9 +399,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 
           page_count = 0;
         } else {
-          if (dirty_pages==~0) {
-            page_count++;
-          }
+          page_count++;
         }
       } else {
         if (stop==0) {
@@ -824,15 +822,17 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
-  struct document_text_position in;
-  in.type = VISUAL_SEEK_OFFSET;
-  in.offset = file->buffer?file->buffer->length:0;
-  in.clip = 0;
+  if (file->buffer && file->buffer->visuals.dirty) {
+    struct document_text_position in;
+    in.type = VISUAL_SEEK_OFFSET;
+    in.offset = file->buffer?file->buffer->length:0;
+    in.clip = 0;
 
-  struct document_text_render_info render_info;
-  document_text_render_clear(&render_info, splitter->client_width-view->address_width);
-  document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
-  document_text_render_span(&render_info, NULL, NULL, view, file, &in, NULL, 16, 1);
+    struct document_text_render_info render_info;
+    document_text_render_clear(&render_info, splitter->client_width-view->address_width);
+    document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
+    document_text_render_span(&render_info, NULL, NULL, view, file, &in, NULL, 16, 1);
+  }
 
   return file->buffer?file->buffer->visuals.dirty:0;
 }

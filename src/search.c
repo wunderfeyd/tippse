@@ -1237,8 +1237,8 @@ void search_prepare(struct search* base, struct search_node* node, struct search
 void search_prepare_skip(struct search* base, struct search_node* node) {
   struct search_skip_node references[SEARCH_SKIP_NODES];
   size_t nodes = 0;
-  while (node) {
-    if (!(node->type&SEARCH_NODE_TYPE_SET) || !(node->type&SEARCH_NODE_TYPE_BYTE) ||  node->min!=node->max) {
+  while (node && nodes<SEARCH_SKIP_NODES) {
+    if (!(node->type&SEARCH_NODE_TYPE_SET) || !(node->type&SEARCH_NODE_TYPE_BYTE) || node->min!=node->max) {
       break;
     }
 
@@ -1342,8 +1342,8 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
         if (size==base->skip_length) {
           if (!base->skip_rescan || search_find_loop(base, base->root, text)) {
             base->hit_start = *text;
-            stream_forward(text, base->skip_length);
             if (!base->skip_rescan) {
+              stream_forward(text, base->skip_length);
               base->hit_end = *text;
             }
             stream_forward(text, 1);
