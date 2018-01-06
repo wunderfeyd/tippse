@@ -11,6 +11,8 @@ struct range_tree_node;
 #define TIPPSE_UNDO_TYPE_DELETE 0
 #define TIPPSE_UNDO_TYPE_INSERT 1
 
+#define TIPPSE_UNDO_MAX 5000
+
 struct document_undo {
   file_offset_t offset;             // offset of change
   file_offset_t length;             // length of change

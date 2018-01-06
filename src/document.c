@@ -25,48 +25,41 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
   file_offset_t offset = view->offset;
   file_offset_t begin = 0;
   file_offset_t replacements = 0;
+  file_offset_t low_first = view->selection_low;
+  file_offset_t high_first = view->selection_high;
 
   int first = 1;
   int found = 1;
   int wrapped = 0;
   while (1) {
-    if (replace && view->selection_low!=FILE_OFFSET_T_MAX && found) {
+    if (replace && view->selection_low!=FILE_OFFSET_T_MAX && found && !first) {
       if (replacements==0) {
         document_undo_chain(file, file->undos);
       }
 
-      int hit = 1;
-      if (first) {
-        file_offset_t displacement;
-        struct range_tree_node* buffer = range_tree_find_offset(file->buffer, view->selection_low, &displacement);
-        struct stream text_stream;
-        stream_from_page(&text_stream, buffer, displacement);
-        hit = search_find_check(search, &text_stream);
-      }
+      replacements++;
+      struct range_tree_node* replacement = regex?search_replacement(search, replace_text, replace_encoding, file->buffer):replace_text;
+      document_file_reduce(&begin, view->selection_low, view->selection_high-view->selection_low);
+      document_file_delete_selection(splitter->file, splitter->view);
 
-      if (hit) {
-        replacements++;
-        struct range_tree_node* replacement = regex?search_replacement(search, replace_text, replace_encoding, file->buffer):replace_text;
-        document_file_reduce(&begin, view->selection_low, view->selection_high-view->selection_low);
-        document_file_delete_selection(splitter->file, splitter->view);
-
-        file_offset_t start = view->offset;
-        file_offset_t end = start;
-        if (replacement) {
+      file_offset_t start = view->offset;
+      file_offset_t end = start;
+      if (replacement) {
+        if (begin!=view->offset) {
           document_file_expand(&begin, view->offset, replacement->length);
-          document_file_insert_buffer(splitter->file, view->offset, replacement);
-          end = view->offset;
-
-          if (regex) {
-            range_tree_destroy(replacement, NULL);
-          }
         }
+        document_file_insert_buffer(splitter->file, view->offset, replacement);
+        end = view->offset;
 
-        view->selection_low = start;
-        view->selection_high = end;
-        view->selection_start = start;
-        view->selection_end = end;
+        if (regex) {
+          range_tree_destroy(replacement, NULL);
+        }
       }
+
+      view->selection_low = start;
+      view->selection_high = end;
+      view->selection_start = start;
+      view->selection_end = end;
     }
 
     if (!file->buffer) {
@@ -74,18 +67,17 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
       break;
     }
 
+
     if (found) {
       if (!reverse) {
         if (view->selection_low!=FILE_OFFSET_T_MAX) {
-          offset = view->selection_high;
+          offset = (first && replace)?view->selection_low:view->selection_high;
         }
       } else {
         if (view->selection_low!=FILE_OFFSET_T_MAX) {
-          offset = view->selection_low;
+          offset = (first && replace)?view->selection_high:view->selection_low;
           if (offset==0) {
             offset = file->buffer->length;
-          } else {
-            offset--;
           }
         }
       }
@@ -97,9 +89,6 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
 
     if (first) {
       begin = offset;
-      if ((offset==0 && !reverse) || (offset==file->buffer->length && reverse)) {
-        wrapped = 1;
-      }
     }
 
     file_offset_t displacement;
@@ -109,13 +98,17 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
 
     file_offset_t left;
     if (!reverse) {
-      if (offset<begin) {
+      if (wrapped && offset>=begin) {
+        left = 0;
+      } else if (offset<begin) {
         left = begin-offset;
       } else {
         left = file->buffer->length-offset;
       }
     } else {
-      if (offset>begin) {
+      if (wrapped && offset<=begin) {
+        left = 0;
+      } else if (offset>begin) {
         left = offset-begin+1;
       } else {
         left = offset+1;
@@ -123,28 +116,30 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
     }
 
     found = 0;
-    while (1) {
-      int hit = search_find(search, &text_stream, &left);
-      if (!hit) {
-        break;
-      }
-      file_offset_t start = stream_offset_page(&search->hit_start);
-      file_offset_t end = stream_offset_page(&search->hit_end);
-      if ((!reverse && start>=offset) || (reverse && end<=offset)) {
-        view->offset = start;
-        view->selection_low = start;
-        view->selection_high = end;
-        view->selection_start = start;
-        view->selection_end = end;
-        found = 1;
-        break;
+    if (left>0) {
+      while (1) {
+        int hit = search_find(search, &text_stream, &left);
+        if (!hit) {
+          break;
+        }
+        file_offset_t start = stream_offset_page(&search->hit_start);
+        file_offset_t end = stream_offset_page(&search->hit_end);
+        if (((!reverse && start>=offset) || (reverse && end<=offset)) && end-start<=left) {
+          view->offset = start;
+          view->selection_low = start;
+          view->selection_high = end;
+          view->selection_start = start;
+          view->selection_end = end;
+          found = 1;
+          break;
+        }
       }
     }
 
-    first = 0;
-    if ((left==0 && wrapped) || (found && !all)) {
+    if ((left==0 && wrapped) || (found && !all && (!replace || !first || low_first!=view->selection_low || high_first!=view->selection_high))) {
       break;
     }
+    first = 0;
 
     if (!found) {
       if (wrapped) {
@@ -157,6 +152,9 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
         }
 
         wrapped = 1;
+        if (begin==offset) {
+          break;
+        }
         continue;
       }
     }

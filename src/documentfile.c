@@ -211,7 +211,7 @@ void document_file_close_pipe(struct document_file* base) {
 }
 
 // Load file from file system, up to a certain threshold
-void document_file_load(struct document_file* base, const char* filename, int reload) {
+void document_file_load(struct document_file* base, const char* filename, int reload, int reset) {
   document_file_clear(base, !reload);
   int f = open(filename, O_RDONLY);
   if (f!=-1) {
@@ -251,11 +251,17 @@ void document_file_load(struct document_file* base, const char* filename, int re
     close(f);
   }
 
-  document_undo_mark_save_point(base);
   document_file_name(base, filename);
   document_file_detect_properties(base);
   base->bookmarks = range_tree_resize(base->bookmarks, base->buffer?base->buffer->length:0, 0);
   if (!reload) {
+    document_undo_empty(base, base->undos);
+    document_undo_empty(base, base->redos);
+  } else {
+    document_undo_mark_save_point(base);
+  }
+
+  if (!reset) {
     document_file_reset_views(base);
   } else {
     document_file_change_views(base);
@@ -278,7 +284,8 @@ void document_file_load_memory(struct document_file* base, const uint8_t* buffer
     buffer += max;
   }
 
-  document_undo_mark_save_point(base);
+  document_undo_empty(base, base->undos);
+  document_undo_empty(base, base->redos);
   document_file_name(base, "<memory>");
   document_file_detect_properties(base);
   base->bookmarks = range_tree_static(base->bookmarks, base->buffer?base->buffer->length:0, 0);
@@ -312,7 +319,7 @@ void document_file_save(struct document_file* base, const char* filename) {
     char* tmpname = combine_string(filename, ".save.tmp");
     if (document_file_save_plain(base, tmpname)) {
       if (rename(tmpname, filename)==0) {
-        document_file_load(base, filename, 1);
+        document_file_load(base, filename, 1, 0);
       }
     }
 

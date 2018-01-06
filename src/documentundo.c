@@ -8,6 +8,20 @@ void document_undo_add(struct document_file* file, struct document_view* view, f
     return;
   }
 
+  while (file->undos->count>TIPPSE_UNDO_MAX) {
+    struct document_undo* undo = (struct document_undo*)list_object(file->undos->last);
+    if (undo->buffer) {
+      range_tree_destroy(undo->buffer, file);
+    }
+
+    list_remove(file->undos, file->undos->last);
+    if (file->undo_save_point>0) {
+      file->undo_save_point--;
+    } else {
+      file->undo_save_point = SIZE_T_MAX;
+    }
+  }
+
   struct document_undo* undo = (struct document_undo*)list_object(list_insert_empty(file->undos, NULL));
   undo->offset = offset;
   undo->length = length;
@@ -52,18 +66,13 @@ void document_undo_chain(struct document_file* file, struct list* list) {
 
 // Clear undo list
 void document_undo_empty(struct document_file* file, struct list* list) {
-  while (1) {
-    struct list_node* node = list->first;
-    if (!node) {
-      break;
-    }
-
-    struct document_undo* undo = (struct document_undo*)list_object(node);
+  while (list->first) {
+    struct document_undo* undo = (struct document_undo*)list_object(list->first);
     if (undo->buffer) {
       range_tree_destroy(undo->buffer, file);
     }
 
-    list_remove(list, node);
+    list_remove(list, list->first);
   }
 
   document_undo_check_save_point(file);

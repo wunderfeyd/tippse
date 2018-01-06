@@ -114,7 +114,7 @@ void document_file_create_pipe(struct document_file* base);
 void document_file_pipe(struct document_file* base, const char* command);
 void document_file_fill_pipe(struct document_file* base, uint8_t* buffer, size_t length);
 void document_file_close_pipe(struct document_file* base);
-void document_file_load(struct document_file* base, const char* filename, int reload);
+void document_file_load(struct document_file* base, const char* filename, int reload, int reset);
 void document_file_load_memory(struct document_file* base, const uint8_t* buffer, size_t length);
 int document_file_save_plain(struct document_file* base, const char* filename);
 void document_file_save(struct document_file* base, const char* filename);

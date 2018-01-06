@@ -28,6 +28,7 @@ void clipboard_command_set(struct range_tree_node* data, int binary, const char*
       struct range_tree_node* node = range_tree_first(data);
       while (node) {
         char* buffer = (char*)malloc(node->length*3+1);
+        fragment_cache(node->buffer);
         for (file_offset_t pos = 0; pos<node->length; pos++) sprintf(buffer+3*pos, "%02x ", *(node->buffer->buffer+node->offset+pos));
         fwrite(buffer, 1, node->length*3, pipe);
         free(buffer);
@@ -36,6 +37,7 @@ void clipboard_command_set(struct range_tree_node* data, int binary, const char*
     } else {
       struct range_tree_node* node = range_tree_first(data);
       while (node) {
+        fragment_cache(node->buffer);
         fwrite(node->buffer->buffer+node->offset, 1, node->length, pipe);
         node = range_tree_next(node);
       }

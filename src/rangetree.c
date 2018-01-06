@@ -725,32 +725,30 @@ struct range_tree_node* range_tree_fuse(struct range_tree_node* root, struct ran
       range_tree_update(next);
       first->inserter &= ~TIPPSE_INSERTER_LEAF;
       root = range_tree_update(first);
-    } else if (first->length+next->length<TREE_BLOCK_LENGTH_MIN) {
-      if (first->length+next->length<TREE_BLOCK_LENGTH_MAX) {
-        // TODO: Think about to allow merging fragments from different locations in future
-        if (first->buffer && first->buffer->type==FRAGMENT_MEMORY && next->buffer && next->buffer->type==FRAGMENT_MEMORY) {
-          uint8_t* copy = (uint8_t*)malloc(first->length+next->length);
-          memcpy(copy, first->buffer->buffer+first->offset, first->length);
-          memcpy(copy+first->length, next->buffer->buffer+next->offset, next->length);
-          struct fragment* buffer = fragment_create_memory(copy, first->length+next->length);
-          fragment_dereference(first->buffer, file);
-          first->buffer = buffer;
-          first->length = buffer->length;
-          first->offset = 0;
+    } else if (first->length+next->length<TREE_BLOCK_LENGTH_MAX) {
+      if (first->buffer && next->buffer && (first->buffer->type==FRAGMENT_MEMORY || next->buffer->type==FRAGMENT_MEMORY)) {
+        fragment_cache(first->buffer);
+        fragment_cache(next->buffer);
+        uint8_t* copy = (uint8_t*)malloc(first->length+next->length);
+        memcpy(copy, first->buffer->buffer+first->offset, first->length);
+        memcpy(copy+first->length, next->buffer->buffer+next->offset, next->length);
+        struct fragment* buffer = fragment_create_memory(copy, first->length+next->length);
+        fragment_dereference(first->buffer, file);
+        first->buffer = buffer;
+        first->length = buffer->length;
+        first->offset = 0;
 
-          range_tree_shrink(first);
-          range_tree_update(first);
+        range_tree_shrink(first);
+        range_tree_update(first);
 
-          if (next==last) {
-            last = first;
-          }
-          fragment_dereference(next->buffer, file);
-          next->buffer = NULL;
-          next->inserter &= ~TIPPSE_INSERTER_LEAF;
-          range_tree_shrink(next);
-          root = range_tree_update(next);
-          continue;
+        if (next==last) {
+          last = first;
         }
+        fragment_dereference(next->buffer, file);
+        next->buffer = NULL;
+        next->inserter &= ~TIPPSE_INSERTER_LEAF;
+        root = range_tree_update(next);
+        continue;
       }
     }
 

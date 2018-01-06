@@ -53,9 +53,11 @@ void fragment_dereference(struct fragment* base, struct document_file* file) {
     if (base->type==FRAGMENT_MEMORY) {
       free(base->buffer);
     } else {
+      if (base->cache_node) {
+        file_cache_release_node(base->cache, base->cache_node);
+      }
       file_cache_dereference(base->cache);
     }
-
     free(base);
   }
 }

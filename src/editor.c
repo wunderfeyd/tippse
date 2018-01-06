@@ -606,7 +606,7 @@ void editor_open_document(struct editor* base, const char* name, struct splitter
       }
     } else {
       new_document_doc = document_file_create(1, 1);
-      document_file_load(new_document_doc, relative, 0);
+      document_file_load(new_document_doc, relative, 0, 1);
     }
   }
 
@@ -629,7 +629,7 @@ void editor_reload_document(struct editor* base, struct document_file* file) {
     return;
   }
 
-  document_file_load(file, file->filename, 1);
+  document_file_load(file, file->filename, 0, 0);
 }
 
 // Save single modified document
