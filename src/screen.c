@@ -121,6 +121,38 @@ void screen_check(struct screen* base) {
   }
 }
 
+void screen_character_width_detect(struct screen* base) {
+  codepoint_t cps = 0x10000;
+  char* output = (char*)malloc((size_t)(24*cps));
+  char* pos = output;
+  pos += sprintf(pos, "\x1b[?25l");
+  for (codepoint_t cp = 0; cp<cps; cp++) {
+    pos += sprintf(pos, "\x1b[H");
+    pos += (*base->encoding->encode)(NULL, cp, (uint8_t*)pos, SIZE_T_MAX);
+    pos += sprintf(pos, "\x1b[6n");
+  }
+  write(STDOUT_FILENO, output, (size_t)(pos-output));
+  free(output);
+
+  int width = 0;
+  codepoint_t cp = 0;
+  while (cp<cps) {
+    uint8_t input[1024];
+    int in = read(STDIN_FILENO, &input[0], sizeof(input));
+    for (int n = 0; n<in; n++) {
+      if (input[n]=='R') {
+        unicode_width_adjust(cp, width);
+        cp++;
+        if (cp==cps) {
+          break;
+        }
+      } else {
+        width = (int)(input[n]-'1');
+      }
+    }
+  }
+}
+
 // Put char on backbuffer
 void screen_draw_char(struct screen* base, char** pos, int n, int* w, int* foreground_old, int* background_old) {
   if ((n/base->width)!=((*w)/base->width)) {
@@ -315,12 +347,28 @@ void screen_setchar(const struct screen* base, int x, int y, int clip_x, int cli
     return;
   }
 
-  struct screen_char* c = &base->buffer[y*base->width+x];
-  for (size_t copy = 0; copy<length; copy++) {
-    c->codepoints[copy] = codepoints[copy];
+  int pos = y*base->width+x;
+  struct screen_char* c = &base->buffer[pos];
+  if (c->codepoints[0]==-1 && pos>0) {
+    struct screen_char* prev = &base->buffer[pos-1];
+    if (prev->codepoints[0]!=-1 && unicode_width(&prev->codepoints[0], prev->length)>1) {
+      prev->length = 1;
+      prev->codepoints[0] = '?';
+    }
   }
 
-  c->length = length;
-  c->foreground = foreground;
-  c->background = background;
+  if (x==base->width-1 && unicode_width(&codepoints[0], length)>1) {
+    c->length = 1;
+    c->codepoints[0] = '?';
+    c->foreground = foreground;
+    c->background = background;
+  } else {
+    for (size_t copy = 0; copy<length; copy++) {
+      c->codepoints[copy] = codepoints[copy];
+    }
+
+    c->length = length;
+    c->foreground = foreground;
+    c->background = background;
+  }
 }

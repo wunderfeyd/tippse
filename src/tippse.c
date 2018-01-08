@@ -187,6 +187,8 @@ int main(int argc, const char** argv) {
   struct screen* screen = screen_create();
   struct editor* editor = editor_create(base_path, screen, argc, argv);
 
+  // screen_character_width_detect(screen);
+
   int bracket_paste = 0;
   int mouse_buttons = 0;
   int mouse_buttons_old = 0;

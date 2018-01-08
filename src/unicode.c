@@ -172,6 +172,17 @@ inline int unicode_bitfield_check(unsigned int* table, codepoint_t codepoint) {
   return 0;
 }
 
+// Mark or reset bit for specific codepoint
+inline void unicode_bitfield_set(unsigned int* table, codepoint_t codepoint, int set) {
+  if (codepoint>=0 && codepoint<UNICODE_CODEPOINT_MAX) {
+    if (!set) {
+      table[codepoint/((int)sizeof(unsigned int)*8)] &= ~(((unsigned int)1)<<(codepoint&((int)sizeof(unsigned int)*8-1)));
+    } else {
+      table[codepoint/((int)sizeof(unsigned int)*8)] |= ((unsigned int)1)<<(codepoint&((int)sizeof(unsigned int)*8-1));
+    }
+  }
+}
+
 // Return contents and length of combining character sequence
 size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offset, codepoint_t* codepoints, size_t max, size_t* advance, size_t* length) {
   size_t pos = 0;
@@ -224,6 +235,12 @@ int unicode_width(codepoint_t* codepoints, size_t max) {
 
   // Check if we have CJK ideographs (which are displayed in two columns each)
   return unicode_bitfield_check(&unicode_widths[0], codepoints[0])+1;
+}
+
+// Adjust visual width with read terminal font capabilities
+void unicode_width_adjust(codepoint_t cp, int width) {
+  unicode_bitfield_set(&unicode_invisibles[0], cp, (width==0)?1:0);
+  unicode_bitfield_set(&unicode_widths[0], cp, (width==2)?1:0);
 }
 
 // Transform to uppercase

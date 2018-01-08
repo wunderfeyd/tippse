@@ -709,11 +709,21 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     }
 
     position_t word_length = 0;
-    if (cp<=' ' && view->wrapping) {
-      position_t row_width = render_info->width-render_info->indentation-file->tabstop_width;
-      word_length = document_text_render_lookahead_word_wrap(file, &render_info->cache, row_width+1);
-      if (word_length>row_width) {
-        word_length = 0;
+    if (view->wrapping) {
+      codepoint_t codepoints[8];
+      size_t advance = 1;
+      size_t length = 1;
+      size_t read = unicode_read_combined_sequence(&render_info->cache, 0, &codepoints[0], 8, &advance, &length);
+      position_t width = unicode_width(&codepoints[0], read)-1;
+      if (cp<=' ') {
+        position_t row_width = render_info->width-render_info->indentation-file->tabstop_width;
+        word_length = document_text_render_lookahead_word_wrap(file, &render_info->cache, row_width+1);
+        if (word_length>row_width) {
+          word_length = 0;
+        }
+      }
+      if (word_length<width) {
+        word_length = width;
       }
     }
 

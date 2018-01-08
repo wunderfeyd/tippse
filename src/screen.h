@@ -36,6 +36,7 @@ struct screen {
 void screen_destroy(struct screen* base);
 struct screen* screen_create(void);
 void screen_check(struct screen* base);
+void screen_character_width_detect(struct screen* base);
 void screen_draw_char(struct screen* base, char** pos, int n, int* w, int* foreground_old, int* background_old);
 void screen_draw_update(struct screen* base, char** pos, int old, int n, int* w, int* foreground_old, int* background_old);
 void screen_title(struct screen* base, const char* title);
