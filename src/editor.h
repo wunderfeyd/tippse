@@ -3,12 +3,17 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include "types.h"
 
 struct screen;
 struct list;
 struct trie;
 struct document_file;
 struct splitter;
+
+#define CONSOLE_TYPE_NORMAL 0
+#define CONSOLE_TYPE_WARNING 1
+#define CONSOLE_TYPE_ERROR 2
 
 #define TIPPSE_KEY_MOD_SHIFT 0x1000
 #define TIPPSE_KEY_MOD_CTRL 0x2000
@@ -114,7 +119,8 @@ struct splitter;
 #define TIPPSE_CMD_SEARCH_CASE_SENSITIVE 64
 #define TIPPSE_CMD_SEARCH_CASE_IGNORE 65
 #define TIPPSE_CMD_SEARCH_DIRECTORY 66
-#define TIPPSE_CMD_MAX 67
+#define TIPPSE_CMD_CONSOLE 67
+#define TIPPSE_CMD_MAX 68
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -138,6 +144,7 @@ struct editor {
   struct document_file* search_results_doc; // document: search result output
   struct document_file* filter_doc;   // document: panel filter
   struct document_file* commands_doc; // document: list of known commands
+  struct document_file* console_doc;  // document: list last editor messages
 
   struct splitter* splitters;         // Tree of splitters
   struct splitter* panel;             // Extra panel for toolbox user input
@@ -155,6 +162,11 @@ struct editor {
 
   char* command_map[TIPPSE_CMD_MAX];
   int pipefd[2];                      // Process stdin/stdout pipes
+  int console_index;                  // Index of console updates
+  int console_status;                 // Last index displayed as status line
+  int64_t console_timeout;            // Display end time of last index
+  char* console_text;                 // Last console line text
+  int console_color;                  // Last console line color
 };
 
 #include "misc.h"
@@ -189,6 +201,8 @@ void editor_view_commands(struct editor* base, struct stream* filter_stream, str
 int editor_update_panel_height(struct editor* base, struct splitter* panel, int max);
 struct document_file* editor_empty_document(struct editor* base);
 void editor_update_search_title(struct editor* base);
+
+void editor_console_update(struct editor* base, const char* text, size_t length, int type);
 
 void editor_command_map_create(struct editor* base);
 void editor_command_map_destroy(struct editor* base);

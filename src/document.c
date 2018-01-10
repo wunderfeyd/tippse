@@ -8,8 +8,7 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
   struct document_view* view = splitter->view;
 
   if (!search_text || !file->buffer) {
-    ((struct document_text*)splitter->document_text)->keep_status = 1;
-    splitter_status(splitter, "No text to search for!", 1);
+    editor_console_update(file->editor, "No text to search for!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
     return 0;
   }
 
@@ -166,11 +165,10 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
     document_undo_chain(file, file->undos);
   }
 
-  ((struct document_text*)splitter->document_text)->keep_status = 1;
   if (replace) {
     char status[1024];
     sprintf(&status[0], "%d replacements", (int)replacements);
-    splitter_status(splitter, &status[0], 1);
+    editor_console_update(file->editor, &status[0], SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
     return 1;
   }
 
@@ -178,7 +176,7 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
     return 1;
   }
 
-  splitter_status(splitter, "Not found!", 1);
+  editor_console_update(file->editor, "Not found!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
   return 0;
 }
 
@@ -209,7 +207,7 @@ void document_search_directory(const char* path, struct range_tree_node* search_
     } else {
       struct stream needle_stream;
       stream_from_page(&needle_stream, range_tree_first(search_text), 0);
-      struct document_file* file = document_file_create(0, 0);
+      struct document_file* file = document_file_create(0, 0, NULL);
       struct file_cache* cache = file_cache_create(scan);
       struct stream stream;
       stream_from_file(&stream, cache, 0);

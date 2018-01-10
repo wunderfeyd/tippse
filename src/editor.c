@@ -103,6 +103,7 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"searchcasesensitive", TIPPSE_CMD_SEARCH_CASE_SENSITIVE, "Search case senstive"},
   {"searchcaseignore", TIPPSE_CMD_SEARCH_CASE_IGNORE, "Search while ignoring case"},
   {"searchdirectory", TIPPSE_CMD_SEARCH_DIRECTORY, "Search in current directory"},
+  {"console", TIPPSE_CMD_CONSOLE, "Open editor console"},
   {NULL, 0, ""}
 };
 
@@ -118,41 +119,48 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->tick_incremental = -1;
   base->search_regex = 0;
   base->search_ignore_case = 1;
+  base->console_index = 0;
+  base->console_status = 0;
+  base->console_timeout = 0;
+  base->console_text = NULL;
 
   editor_command_map_create(base);
 
   base->documents = list_create(sizeof(struct document_file*));
 
-  base->tabs_doc = document_file_create(0, 1);
+  base->tabs_doc = document_file_create(0, 1, base);
   document_file_name(base->tabs_doc, "Open");
   base->tabs_doc->defaults.wrapping = 0;
   base->tabs_doc->line_select = 1;
 
-  base->browser_doc = document_file_create(0, 1);
+  base->browser_doc = document_file_create(0, 1, base);
   document_file_name(base->browser_doc, base->base_path);
   base->browser_doc->defaults.wrapping = 0;
   base->browser_doc->line_select = 1;
 
-  base->commands_doc = document_file_create(0, 1);
+  base->commands_doc = document_file_create(0, 1, base);
   document_file_name(base->commands_doc, base->base_path);
   base->commands_doc->defaults.wrapping = 0;
   base->commands_doc->line_select = 1;
 
   base->document = splitter_create(0, 0, NULL, NULL,  "");
 
-  base->search_doc = document_file_create(0, 1);
-  base->replace_doc = document_file_create(0, 1);
+  base->search_doc = document_file_create(0, 1, base);
+  base->replace_doc = document_file_create(0, 1, base);
   editor_update_search_title(base);
 
-  base->goto_doc = document_file_create(0, 1);
+  base->goto_doc = document_file_create(0, 1, base);
   document_file_name(base->goto_doc, "Goto");
 
-  base->compiler_doc = document_file_create(0, 1);
+  base->compiler_doc = document_file_create(0, 1, base);
 
-  base->search_results_doc = document_file_create(0, 1);
+  base->search_results_doc = document_file_create(0, 1, base);
 
-  base->filter_doc = document_file_create(0, 1);
+  base->filter_doc = document_file_create(0, 1, base);
   document_file_name(base->filter_doc, "Filter");
+
+  base->console_doc = document_file_create(0, 1, base);
+  document_file_name(base->console_doc, "Console");
 
   base->panel = splitter_create(0, 0, NULL, NULL, "");
   splitter_assign_document_file(base->panel, base->search_doc);
@@ -171,6 +179,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   list_insert(base->documents, NULL, &base->compiler_doc);
   list_insert(base->documents, NULL, &base->search_results_doc);
   list_insert(base->documents, NULL, &base->filter_doc);
+  list_insert(base->documents, NULL, &base->console_doc);
 
   for (int n = argc-1; n>=1; n--) {
     editor_open_document(base, argv[n], NULL, base->document);
@@ -198,7 +207,7 @@ void editor_destroy(struct editor* base) {
 
   list_destroy(base->documents);
   editor_command_map_destroy(base);
-
+  free(base->console_text);
   free(base);
 }
 
@@ -260,10 +269,24 @@ void editor_draw(struct editor* base) {
   }
 
   screen_drawtext(base->screen, (x>0)?x+1:x, 0, 0, 0, base->screen->width, base->screen->height, base->focus->name, (size_t)base->screen->width, foreground, background);
+
+  int64_t tick = tick_count();
+  if (base->console_status!=base->console_index) {
+    base->console_timeout = tick+1000000;
+    base->console_status = base->console_index;
+  }
+
+  const char* status = base->focus->status;
+  if (tick<base->console_timeout && base->console_text) {
+    status = base->console_text;
+    foreground = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
+    background = base->focus->file->defaults.colors[base->console_color];
+  }
+
   struct stream stream;
-  stream_from_plain(&stream, (uint8_t*)base->focus->status, SIZE_T_MAX);
+  stream_from_plain(&stream, (uint8_t*)status, SIZE_T_MAX);
   size_t length = encoding_utf8_strlen(NULL, &stream);
-  screen_drawtext(base->screen, base->screen->width-(int)length, 0, 0, 0, base->screen->width, base->screen->height, base->focus->status, length, base->focus->status_inverted?background:foreground, base->focus->status_inverted?foreground:background);
+  screen_drawtext(base->screen, base->screen->width-(int)length, 0, 0, 0, base->screen->width, base->screen->height, status, length, foreground, background);
 
   screen_draw(base->screen);
 }
@@ -329,14 +352,10 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
     editor_panel_assign(base, base->search_doc);
   } else if (command==TIPPSE_CMD_SEARCH_NEXT) {
     editor_focus(base, base->document, 1);
-    if (base->search_doc->buffer) {
-      document_search(base->last_document, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 0, base->search_ignore_case, base->search_regex, 0, 0);
-    }
+    document_search(base->last_document, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 0, base->search_ignore_case, base->search_regex, 0, 0);
   } else if (command==TIPPSE_CMD_SEARCH_PREV) {
     editor_focus(base, base->document, 1);
-    if (base->search_doc->buffer) {
-      document_search(base->last_document, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 1, base->search_ignore_case, base->search_regex, 0, 0);
-    }
+    document_search(base->last_document, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 1, base->search_ignore_case, base->search_regex, 0, 0);
   } else if (command==TIPPSE_CMD_SEARCH_DIRECTORY) {
     if (base->document->file->pipefd[1]==-1 && base->document->file==base->search_results_doc) {
       document_file_create_pipe(base->document->file);
@@ -360,6 +379,8 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
     document_search(base->last_document, base->search_doc->buffer, base->search_doc->encoding, base->replace_doc->buffer, base->replace_doc->encoding, 0, base->search_ignore_case, base->search_regex, 1, 1);
   } else if (command==TIPPSE_CMD_GOTO) {
     editor_panel_assign(base, base->goto_doc);
+  } else if (command==TIPPSE_CMD_CONSOLE) {
+    editor_panel_assign(base, base->console_doc);
   } else if (command==TIPPSE_CMD_VIEW_SWITCH) {
     if (base->focus->document==base->focus->document_hex) {
       base->focus->document = base->focus->document_text;
@@ -564,6 +585,36 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
     }
 
     free(name);
+  } else {
+    if (node->document==node->document_text) {
+      file_offset_t offset = document_text_line_start_offset(node->document, node);
+      file_offset_t displacement;
+      struct range_tree_node* buffer = range_tree_find_offset(node->file->buffer, offset, &displacement);
+      struct stream text_stream;
+      stream_from_page(&text_stream, buffer, displacement);
+
+      const char* filter = "\\s*([^\\n\\r]*)\\s*\\:\\s*(\\d*)\\s*\\:";
+      struct stream filter_stream;
+      stream_from_plain(&filter_stream, (uint8_t*)filter, strlen(filter));
+
+      struct search* search = search_create_regex(1, 0, filter_stream, node->file->encoding, node->file->encoding);
+      if (search_find_check(search, &text_stream)) {
+        char* name = (char*)range_tree_raw(node->file->buffer, stream_offset(&search->group_hits[0].start), stream_offset(&search->group_hits[0].end));
+        if (name) {
+          editor_focus(base, destination, 1);
+          done = 1;
+          editor_open_document(base, name, NULL, destination);
+          struct encoding_cache cache;
+          encoding_cache_clear(&cache, base->focus->file->encoding, &search->group_hits[1].start);
+          position_t line = (position_t)decode_based_unsigned(&cache, 10, SIZE_T_MAX);
+          if (line>0) {
+            document_text_goto(node->document, node, line-1);
+          }
+        }
+        free(name);
+      }
+      search_destroy(search);
+    }
   }
 
   return done;
@@ -605,7 +656,7 @@ void editor_open_document(struct editor* base, const char* name, struct splitter
         editor_view_browser(base, relative, NULL, NULL);
       }
     } else {
-      new_document_doc = document_file_create(1, 1);
+      new_document_doc = document_file_create(1, 1, base);
       document_file_load(new_document_doc, relative, 0, 1);
     }
   }
@@ -685,7 +736,7 @@ void editor_close_document(struct editor* base, struct document_file* file) {
 
 // Create empty document
 struct document_file* editor_empty_document(struct editor* base) {
-  struct document_file* file = document_file_create(1, 1);
+  struct document_file* file = document_file_create(1, 1, base);
   document_file_name(file, "Untitled");
   list_insert(base->documents, NULL, &file);
   return file;
@@ -864,4 +915,23 @@ void editor_update_search_title(struct editor* base) {
 
   sprintf(&title[0], "Replace [%s]", base->search_regex?"RegEx":"Text");
   document_file_name(base->replace_doc, &title[0]);
+}
+
+// Append line to console
+void editor_console_update(struct editor* base, const char* text, size_t length, int type) {
+  if (!base) {
+    return;
+  }
+
+  if (length==SIZE_T_MAX) {
+    length = strlen(text);
+  }
+
+  free(base->console_text);
+  base->console_text = strndup(text, length);
+  base->console_color = VISUAL_FLAG_COLOR_CONSOLENORMAL+type;
+
+  base->console_doc->buffer = range_tree_insert_split(base->console_doc->buffer, base->console_doc->buffer?base->console_doc->buffer->length:0, (uint8_t*)text, length, 0);
+  base->console_doc->buffer = range_tree_insert_split(base->console_doc->buffer, base->console_doc->buffer?base->console_doc->buffer->length:0, (uint8_t*)"\n", 1, 0);
+  base->console_index++;
 }

@@ -86,7 +86,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
 
   char status[1024];
   sprintf(&status[0], "%lu/%lu bytes - %08lx - Hex %s", (unsigned long)view->offset, (unsigned long)file_size, (unsigned long)view->offset, (*file->encoding->name)());
-  splitter_status(splitter, &status[0], 0);
+  splitter_status(splitter, &status[0]);
 
   size_t char_size = 1;
   int y;

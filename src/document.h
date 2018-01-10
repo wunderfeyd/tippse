@@ -5,7 +5,6 @@
 #include <string.h>
 #include "types.h"
 #include "list.h"
-#include "misc.h"
 
 struct document;
 struct screen;
@@ -31,6 +30,7 @@ struct document {
 #include "splitter.h"
 #include "document_text.h"
 #include "search.h"
+#include "editor.h"
 
 int document_search(struct splitter* splitter, struct range_tree_node* search_text, struct encoding* search_encoding, struct range_tree_node* replace_text, struct encoding* replace_encoding, int reverse, int ignore_case, int regex, int all, int replace);
 void document_search_directory(const char* path, struct range_tree_node* search_text, struct encoding* search_encoding, struct range_tree_node* replace_text, struct encoding* replace_encoding, int ignore_case, int regex, int replace);

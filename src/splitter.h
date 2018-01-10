@@ -32,7 +32,6 @@ struct splitter {
   int active;
   char* name;
   char* status;
-  int status_inverted;
 
   struct document_file* file;
   struct document_view* view;
@@ -54,7 +53,7 @@ void splitter_destroy(struct splitter* base);
 void splitter_drawchar(const struct splitter* base, struct screen* screen, int x, int y, codepoint_t* codepoints, size_t length, int foreground, int background);
 void splitter_drawtext(const struct splitter* base, struct screen* screen, int x, int y, const char* text, size_t length, int foreground, int background);
 void splitter_name(struct splitter* base, const char* name);
-void splitter_status(struct splitter* base, const char* status, int status_inverted);
+void splitter_status(struct splitter* base, const char* status);
 void splitter_cursor(struct splitter* base, struct screen* screen, int x, int y);
 void splitter_scrollbar(const struct splitter* base, struct screen* screen);
 void splitter_hilight(const struct splitter* base, struct screen* screen, int x, int y, int color);

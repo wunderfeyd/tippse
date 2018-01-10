@@ -9,7 +9,6 @@ struct document_text;
 
 struct document_text {
   struct document vtbl;             // virtual table of document
-  int keep_status;                  // keep status temporarily
 };
 
 // Saved state between two render calls
@@ -126,6 +125,7 @@ void document_text_raise_indentation(struct document* base, struct splitter* spl
 int document_text_mark_brackets(struct document* base, struct screen* screen, struct splitter* splitter, struct document_text_position* cursor);
 
 void document_text_goto(struct document* base, struct splitter* splitter, position_t line);
+file_offset_t document_text_line_start_offset(struct document* base, struct splitter* splitter);
 
 void document_text_transform(struct document* base, struct trie* transformation, struct document_file* file, file_offset_t from, file_offset_t to);
 

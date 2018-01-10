@@ -24,6 +24,9 @@ const char* config_default =
       "minus:red,"
       "linenumber:grey,"
       "bracketerror:red,"
+      "consolenormal:grey,"
+      "consolewarning:yellow,"
+      "consoleerror:red,"
     "},"
     "wrapping:1,"
     "invisibles:0,"
@@ -422,7 +425,7 @@ void config_clear(struct config* base) {
 
 // Load configuration file from disk or memory
 void config_load(struct config* base, const char* filename) {
-  struct document_file* file = document_file_create(0, 0);
+  struct document_file* file = document_file_create(0, 0, NULL);
   if (filename) {
     document_file_load(file, filename, 0, 0);
   } else {

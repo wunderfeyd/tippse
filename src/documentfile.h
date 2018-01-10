@@ -17,6 +17,7 @@ struct range_tree_node;
 struct list;
 struct encoding;
 struct config;
+struct editor;
 
 #include "visualinfo.h"
 
@@ -63,6 +64,7 @@ struct document_file {
   struct file_type* type;               // file type
   struct encoding* encoding;            // file encoding
   struct config* config;                // configuration
+  struct editor* editor;                // The editor instance the file belongs to
   int tabstop;                          // type of tabstop
   int tabstop_width;                    // number of spaces per tab
   int newline;                          // type of newline, e.g. Unix or DOS
@@ -104,8 +106,9 @@ struct document_file {
 #include "encoding/utf8.h"
 #include "encoding/cp850.h"
 #include "encoding/ascii.h"
+#include "editor.h"
 
-struct document_file* document_file_create(int save, int config);
+struct document_file* document_file_create(int save, int config, struct editor* editor);
 void document_file_clear(struct document_file* base, int all);
 void document_file_destroy(struct document_file* base);
 void document_file_name(struct document_file* base, const char* filename);

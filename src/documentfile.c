@@ -24,8 +24,9 @@ struct document_file_type document_file_types[] = {
 };
 
 // Create file operations
-struct document_file* document_file_create(int save, int config) {
+struct document_file* document_file_create(int save, int config, struct editor* editor) {
   struct document_file* base = (struct document_file*)malloc(sizeof(struct document_file));
+  base->editor = editor;
   base->buffer = NULL;
   base->bookmarks = NULL;
   base->cache = NULL;
@@ -303,6 +304,7 @@ int document_file_save_plain(struct document_file* base, const char* filename) {
     struct range_tree_node* buffer = range_tree_first(base->buffer);
     while (buffer) {
       fragment_cache(buffer->buffer);
+      // TODO: check write lengths
       write(f, buffer->buffer->buffer+buffer->offset, buffer->length);
       buffer = range_tree_next(buffer);
     }
@@ -320,13 +322,21 @@ void document_file_save(struct document_file* base, const char* filename) {
     if (document_file_save_plain(base, tmpname)) {
       if (rename(tmpname, filename)==0) {
         document_file_load(base, filename, 1, 0);
+        editor_console_update(base->editor, "Saved!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
+      } else {
+        editor_console_update(base->editor, "Renaming failed!", SIZE_T_MAX, CONSOLE_TYPE_ERROR);
       }
+    } else {
+      editor_console_update(base->editor, "Writing failed!", SIZE_T_MAX, CONSOLE_TYPE_ERROR);
     }
 
     free(tmpname);
   } else {
     if (document_file_save_plain(base, filename)) {
       document_undo_mark_save_point(base);
+      editor_console_update(base->editor, "Saved!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
+    } else {
+      editor_console_update(base->editor, "Writing failed!", SIZE_T_MAX, CONSOLE_TYPE_ERROR);
     }
 
     if (base->cache) {
@@ -336,10 +346,6 @@ void document_file_save(struct document_file* base, const char* filename) {
       document_file_reference_cache(base, base->cache);
     }
   }
-
-  //document->keep_status = 1;
-  //splitter_status(splitter, "Saved!", 1);
-  //splitter_name(splitter, filename);
 }
 
 // Detect file properties

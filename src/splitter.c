@@ -27,7 +27,6 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
     base->side[0] = NULL;
     base->side[1] = NULL;
     base->active = 0;
-    base->status_inverted = 0;
     base->type = type;
 
     base->document_text = document_text_create();
@@ -81,13 +80,11 @@ void splitter_name(struct splitter* base, const char* name) {
 }
 
 // Set splitter status
-void splitter_status(struct splitter* base, const char* status, int status_inverted) {
+void splitter_status(struct splitter* base, const char* status) {
   if (status!=base->status) {
     free(base->status);
     base->status = strdup(status);
   }
-
-  base->status_inverted = status_inverted;
 }
 
 // Set cursor

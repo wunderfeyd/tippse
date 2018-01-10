@@ -21,7 +21,6 @@ extern struct trie* unicode_transform_nfc_nfd;
 // Create document
 struct document* document_text_create(void) {
   struct document_text* document = (struct document_text*)malloc(sizeof(struct document_text));
-  document->keep_status = 0;
   document->vtbl.reset = document_text_reset;
   document->vtbl.draw = document_text_draw;
   document->vtbl.keypress = document_text_keypress;
@@ -851,7 +850,6 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
 void document_text_draw(struct document* base, struct screen* screen, struct splitter* splitter) {
   debug_screen = screen;
   debug_splitter = splitter;
-  struct document_text* document = (struct document_text*)base;
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
@@ -1011,15 +1009,12 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     }
   }
 
-  if (!document->keep_status) {
-    const char* newline[TIPPSE_NEWLINE_MAX] = {"Auto", "Lf", "Cr", "CrLf"};
-    const char* tabstop[TIPPSE_TABSTOP_MAX] = {"Auto", "Tab", "Space"};
-    char status[1024];
-    sprintf(&status[0], "%s%s%d/%d:%d - %d/%d byte - %s*%d %s %s %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), (int)(cursor.line+1), (int)(cursor.column+1), (int)view->offset, file->buffer?(int)file->buffer->length:0, tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->encoding->name)());
-    splitter_status(splitter, &status[0], 0);
-  }
+  const char* newline[TIPPSE_NEWLINE_MAX] = {"Auto", "Lf", "Cr", "CrLf"};
+  const char* tabstop[TIPPSE_TABSTOP_MAX] = {"Auto", "Tab", "Space"};
+  char status[1024];
+  sprintf(&status[0], "%s%s%d/%d:%d - %d/%d byte - %s*%d %s %s %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), (int)(cursor.line+1), (int)(cursor.column+1), (int)view->offset, file->buffer?(int)file->buffer->length:0, tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->encoding->name)());
+  splitter_status(splitter, &status[0]);
 
-  document->keep_status = 0;
   view->scroll_y_max = file->buffer?file->buffer->visuals.ys:0;
   splitter_scrollbar(splitter, screen);
 }
@@ -1776,6 +1771,28 @@ void document_text_goto(struct document* base, struct splitter* splitter, positi
   view->cursor_x = out.x;
   view->cursor_y = out.y;
   view->show_scrollbar = 1;
+}
+
+// Return line start offset of current cursor position
+file_offset_t document_text_line_start_offset(struct document* base, struct splitter* splitter) {
+  struct document_view* view = splitter->view;
+
+  struct document_text_position in_offset;
+  in_offset.type = VISUAL_SEEK_OFFSET;
+  in_offset.clip = 0;
+  in_offset.offset = view->offset;
+
+  struct document_text_position out;
+
+  document_text_cursor_position(splitter, &in_offset, &out, 0, 1);
+
+  struct document_text_position in_line_column;
+  in_line_column.type = VISUAL_SEEK_LINE_COLUMN;
+  in_line_column.clip = 0;
+  in_line_column.column = 0;
+  in_line_column.line = out.line;
+
+  return document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
 }
 
 // Transform text
