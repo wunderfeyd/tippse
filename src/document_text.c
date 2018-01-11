@@ -1048,7 +1048,8 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   int seek = 0;
   int selection_keep = 0;
 
-  if (command!=TIPPSE_CMD_UP && command!=TIPPSE_CMD_DOWN && command!=TIPPSE_CMD_PAGEDOWN && command!=TIPPSE_CMD_PAGEUP && command!=TIPPSE_CMD_SELECT_UP && command!=TIPPSE_CMD_SELECT_DOWN && command!=TIPPSE_CMD_SELECT_PAGEDOWN && command!=TIPPSE_CMD_SELECT_PAGEUP) {
+  if ((command!=TIPPSE_CMD_UP && command!=TIPPSE_CMD_DOWN && command!=TIPPSE_CMD_PAGEDOWN && command!=TIPPSE_CMD_PAGEUP && command!=TIPPSE_CMD_SELECT_UP && command!=TIPPSE_CMD_SELECT_DOWN && command!=TIPPSE_CMD_SELECT_PAGEDOWN && command!=TIPPSE_CMD_SELECT_PAGEUP) || view->update_offset) {
+    view->update_offset = 0;
     in_offset.offset = view->offset;
     document_text_cursor_position(splitter, &in_offset, &out, 1, 1);
     view->cursor_x = out.x;

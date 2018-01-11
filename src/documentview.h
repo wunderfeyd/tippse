@@ -29,6 +29,7 @@ struct document_view {
   int show_invisibles;                  // show invisibles?
   int wrapping;                         // show word wrapping?
   int line_select;                      // show whole line selected?
+  int update_offset;                    // offset was changed? try to recalculate current cursor positions
 };
 
 #include "rangetree.h"

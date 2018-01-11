@@ -48,6 +48,7 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
           document_file_expand(&begin, view->offset, replacement->length);
         }
         document_file_insert_buffer(splitter->file, view->offset, replacement);
+        view->update_offset = 1;
         end = view->offset;
 
         if (regex) {
@@ -124,7 +125,8 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
         file_offset_t start = stream_offset_page(&search->hit_start);
         file_offset_t end = stream_offset_page(&search->hit_end);
         if (((!reverse && start>=offset) || (reverse && end<=offset)) && end-start<=left) {
-          view->offset = start;
+          view->offset = reverse?start:end;
+          view->update_offset = 1;
           view->selection_low = start;
           view->selection_high = end;
           view->selection_start = start;

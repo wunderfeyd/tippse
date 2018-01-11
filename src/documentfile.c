@@ -214,42 +214,44 @@ void document_file_close_pipe(struct document_file* base) {
 // Load file from file system, up to a certain threshold
 void document_file_load(struct document_file* base, const char* filename, int reload, int reset) {
   document_file_clear(base, !reload);
-  int f = open(filename, O_RDONLY);
-  if (f!=-1) {
-    base->cache = file_cache_create(filename);
-    document_file_reference_cache(base, base->cache);
+  if (!is_directory(filename)) {
+    int f = open(filename, O_RDONLY);
+    if (f!=-1) {
+      base->cache = file_cache_create(filename);
+      document_file_reference_cache(base, base->cache);
 
-    file_offset_t length = (file_offset_t)lseek(f, 0, SEEK_END);
-    lseek(f, 0, SEEK_SET);
-    file_offset_t offset = 0;
-    while (1) {
-      file_offset_t block = 0;
-      struct fragment* fragment = NULL;
-      if (length<TIPPSE_DOCUMENT_MEMORY_LOADMAX) {
-        uint8_t* copy = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MAX);
-        ssize_t in = read(f, copy, TREE_BLOCK_LENGTH_MAX);
-        block = (file_offset_t)((in>=0)?in:0);
-        fragment = fragment_create_memory(copy, (size_t)block);
-      } else {
-        block = length-offset;
-        if (block>TREE_BLOCK_LENGTH_MAX) {
-          block = TREE_BLOCK_LENGTH_MAX;
+      file_offset_t length = (file_offset_t)lseek(f, 0, SEEK_END);
+      lseek(f, 0, SEEK_SET);
+      file_offset_t offset = 0;
+      while (1) {
+        file_offset_t block = 0;
+        struct fragment* fragment = NULL;
+        if (length<TIPPSE_DOCUMENT_MEMORY_LOADMAX) {
+          uint8_t* copy = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MAX);
+          ssize_t in = read(f, copy, TREE_BLOCK_LENGTH_MAX);
+          block = (file_offset_t)((in>=0)?in:0);
+          fragment = fragment_create_memory(copy, (size_t)block);
+        } else {
+          block = length-offset;
+          if (block>TREE_BLOCK_LENGTH_MAX) {
+            block = TREE_BLOCK_LENGTH_MAX;
+          }
+
+          fragment = fragment_create_file(base->cache, offset, (size_t)block, base);
         }
 
-        fragment = fragment_create_file(base->cache, offset, (size_t)block, base);
-      }
+        if (block==0) {
+          fragment_dereference(fragment, base);
+          break;
+        }
 
-      if (block==0) {
+        base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, fragment->length, 0, base);
         fragment_dereference(fragment, base);
-        break;
+        offset += block;
       }
 
-      base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, fragment->length, 0, base);
-      fragment_dereference(fragment, base);
-      offset += block;
+      close(f);
     }
-
-    close(f);
   }
 
   document_file_name(base, filename);

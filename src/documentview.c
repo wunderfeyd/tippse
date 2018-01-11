@@ -21,6 +21,7 @@ void document_view_destroy(struct document_view* base) {
 // Reset view
 void document_view_reset(struct document_view* base, struct document_file* file) {
   base->offset = 0;
+  base->update_offset = 0;
   base->cursor_x = 0;
   base->cursor_y = 0;
   base->scroll_x = 0;
