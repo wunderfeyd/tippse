@@ -304,14 +304,14 @@ void document_directory(struct document_file* file, struct stream* filter_stream
 
   char** sort = merge_sort(sort1, sort2, files->count);
 
-  file->buffer = range_tree_delete(file->buffer, 0, file->buffer?file->buffer->length:0, 0, file);
+  file->buffer = range_tree_delete(file->buffer, 0, range_tree_length(file->buffer), 0, file);
 
   for (size_t n = 0; n<files->count; n++) {
     if (file->buffer) {
-      file->buffer = range_tree_insert_split(file->buffer, file->buffer?file->buffer->length:0, (uint8_t*)"\n", 1, 0);
+      file->buffer = range_tree_insert_split(file->buffer, range_tree_length(file->buffer), (uint8_t*)"\n", 1, 0);
     }
 
-    file->buffer = range_tree_insert_split(file->buffer, file->buffer?file->buffer->length:0, (uint8_t*)sort[n], strlen(sort[n]), 0);
+    file->buffer = range_tree_insert_split(file->buffer, range_tree_length(file->buffer), (uint8_t*)sort[n], strlen(sort[n]), 0);
     free(sort[n]);
   }
 
@@ -323,4 +323,20 @@ void document_directory(struct document_file* file, struct stream* filter_stream
   }
 
   list_destroy(files);
+}
+
+// Select whole document
+void document_select_all(struct splitter* splitter, int update_offset) {
+  struct document_file* file = splitter->file;
+  struct document_view* view = splitter->view;
+
+  file_offset_t end = range_tree_length(file->buffer);
+  if (update_offset) {
+    view->update_offset = 1;
+    view->offset = end;
+  }
+  view->selection_low = 0;
+  view->selection_high = end;
+  view->selection_start = 0;
+  view->selection_end = end;
 }

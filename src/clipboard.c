@@ -83,7 +83,7 @@ struct range_tree_node* clipboard_command_get(const char* command) {
         uint8_t* buffer = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MAX*3);
         file_offset_t length = fread(buffer, 1, TREE_BLOCK_LENGTH_MAX*3, pipe);
         if (length) {
-          file_offset_t offset = data?data->length:0;
+          file_offset_t offset = range_tree_length(data);
           for (file_offset_t pos = 0; pos<length/3; pos++) *(buffer+pos) = document_hex_value_from_string((const char*)buffer+pos*3, 3);
           struct fragment* fragment = fragment_create_memory(buffer, length/3);
           data = range_tree_insert(data, offset, fragment, 0, length/3, 0, NULL);
@@ -104,7 +104,7 @@ struct range_tree_node* clipboard_command_get(const char* command) {
         uint8_t* buffer = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MAX);
         file_offset_t length = fread(buffer, 1, TREE_BLOCK_LENGTH_MAX, pipe);
         if (length) {
-          file_offset_t offset = data?data->length:0;
+          file_offset_t offset = range_tree_length(data);
           struct fragment* fragment = fragment_create_memory(buffer, length);
           data = range_tree_insert(data, offset, fragment, 0, length, 0, NULL);
           fragment_dereference(fragment, NULL);

@@ -273,19 +273,15 @@ void splitter_draw_split_vertical(const struct splitter* base, struct screen* sc
 }
 
 void splitter_draw_multiple_recursive(struct splitter* base, struct screen* screen, int x, int y, int width, int height, int incremental) {
-  if (width<=0 && height<=0) {
-    return;
-  }
-
   if (base->side[0] && base->side[1]) {
     int size = (base->type&TIPPSE_SPLITTER_HORZ)?width:height;
     int size0 = size;
     int size1 = size;
     if (base->type&TIPPSE_SPLITTER_FIXED0) {
-      size0 = base->split;
+      size0 = base->split<size?base->split:size;
       size1 = size-size0;
     } else if (base->type&TIPPSE_SPLITTER_FIXED1) {
-      size1 = base->split;
+      size1 = base->split<size?base->split:size;
       size0 = size-size1;
     } else {
       size0 = (size*base->split)/100;
@@ -319,10 +315,10 @@ void splitter_draw_multiple_recursive(struct splitter* base, struct screen* scre
   } else {
     base->x = x;
     base->y = y;
-    base->width = width;
-    base->height = height;
-    base->client_width = width;
-    base->client_height = height;
+    base->width = width>0?width:0;
+    base->height = height>0?height:0;
+    base->client_width = base->width;
+    base->client_height = base->height;
     if (!incremental) {
       splitter_draw(base, screen);
     } else {

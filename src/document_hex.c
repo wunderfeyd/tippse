@@ -38,7 +38,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
     return;
   }
 
-  file_offset_t file_size = file->buffer?file->buffer->length:0;
+  file_offset_t file_size = range_tree_length(file->buffer);
   view->cursor_x = view->offset%16;
   view->cursor_y = (position_t)(view->offset/16);
   if (view->cursor_y>=view->scroll_y+splitter->client_height) {
@@ -171,7 +171,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
-  file_offset_t file_size = file->buffer?file->buffer->length:0;
+  file_offset_t file_size = range_tree_length(file->buffer);
   file_offset_t offset_old = view->offset;
   int selection_keep = 0;
 
@@ -282,7 +282,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     document->cp_first = 0;
   }
 
-  file_size = file->buffer?file->buffer->length:0;
+  file_size = range_tree_length(file->buffer);
   if (view->offset>((file_offset_t)1<<(sizeof(file_offset_t)*8-1))) {
     view->offset = 0;
   } else if (view->offset>file_size) {
@@ -293,18 +293,25 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   if (command==TIPPSE_CMD_MOUSE) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
       if (!(button_old&TIPPSE_MOUSE_LBUTTON) && !(key&TIPPSE_KEY_MOD_SHIFT)) view->selection_start = FILE_OFFSET_T_MAX;
-      if (view->selection_start==FILE_OFFSET_T_MAX) view->selection_start = view->offset;
+      if (view->selection_start==FILE_OFFSET_T_MAX) {
+        view->selection_reset = 1;
+        view->selection_start = view->offset;
+      }
       view->selection_end = view->offset;
     }
   } else {
     if (command==TIPPSE_CMD_SELECT_UP || command==TIPPSE_CMD_SELECT_DOWN || command==TIPPSE_CMD_SELECT_LEFT || command==TIPPSE_CMD_SELECT_RIGHT || command==TIPPSE_CMD_SELECT_PAGEUP || command==TIPPSE_CMD_SELECT_PAGEDOWN || command==TIPPSE_CMD_SELECT_FIRST || command==TIPPSE_CMD_SELECT_LAST || command==TIPPSE_CMD_SELECT_HOME || command==TIPPSE_CMD_SELECT_END) {
-      if (view->selection_start==FILE_OFFSET_T_MAX) view->selection_start = offset_old;
+      if (view->selection_start==FILE_OFFSET_T_MAX) {
+        view->selection_reset = 1;
+        view->selection_start = offset_old;
+      }
       view->selection_end = view->offset;
     } else {
       selection_reset = selection_keep?0:1;
     }
   }
   if (selection_reset) {
+    view->selection_reset = 1;
     view->selection_start = FILE_OFFSET_T_MAX;
     view->selection_end = FILE_OFFSET_T_MAX;
   }
@@ -327,7 +334,7 @@ void document_hex_cursor_from_point(struct document* base, struct splitter* spli
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
-  file_offset_t file_size = file->buffer?file->buffer->length:0;
+  file_offset_t file_size = range_tree_length(file->buffer);
   if (y<0) *offset = 0;
   if (y>=0 && y<splitter->client_height) {
     if (x>=8 && x<10) *offset = (file_offset_t)((view->scroll_y+y)*16);

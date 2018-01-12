@@ -16,6 +16,7 @@ struct document_view {
   file_offset_t selection_end;          // end position of selection
   file_offset_t selection_low;          // smallest position of selection
   file_offset_t selection_high;         // highest position of selection
+  int selection_reset;                  // Selection was changed
   struct range_tree_node* selection;    // information for multiple selections
 
   position_t scroll_x;                  // scroll X offset

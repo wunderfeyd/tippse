@@ -468,7 +468,7 @@ struct range_tree_node* search_replacement(struct search* base, struct range_tre
   while (1) {
     codepoint_t cp = encoding_cache_find_codepoint(&cache, offset);
     if (size>TREE_BLOCK_LENGTH_MAX-8 || cp<=0) {
-      output = range_tree_insert_split(output, output?output->length:0, &coded[0], size, 0);
+      output = range_tree_insert_split(output, range_tree_length(output), &coded[0], size, 0);
       size = 0;
     }
 
@@ -495,7 +495,7 @@ struct range_tree_node* search_replacement(struct search* base, struct range_tre
       } else if (cp=='0') {
         cp = '\0';
       } else if (cp>='1' && cp<='9') {
-        output = range_tree_insert_split(output, output?output->length:0, &coded[0], size, 0);
+        output = range_tree_insert_split(output, range_tree_length(output), &coded[0], size, 0);
         size = 0;
         size_t group = (size_t)(cp-'1');
         if (group<base->groups) {
@@ -504,7 +504,7 @@ struct range_tree_node* search_replacement(struct search* base, struct range_tre
           if (start<end) {
             // TODO: this looks inefficient (copy->paste->delete ... use direct copy)
             struct range_tree_node* copy = range_tree_copy(document_root, start, end-start);
-            output = range_tree_paste(output, copy, output?output->length:0, NULL);
+            output = range_tree_paste(output, copy, range_tree_length(output), NULL);
             range_tree_destroy(copy, NULL);
           }
         }

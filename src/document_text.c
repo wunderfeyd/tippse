@@ -834,7 +834,7 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
   if (file->buffer && file->buffer->visuals.dirty) {
     struct document_text_position in;
     in.type = VISUAL_SEEK_OFFSET;
-    in.offset = file->buffer?file->buffer->length:0;
+    in.offset = range_tree_length(file->buffer);
     in.clip = 0;
 
     struct document_text_render_info render_info;
@@ -1012,7 +1012,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   const char* newline[TIPPSE_NEWLINE_MAX] = {"Auto", "Lf", "Cr", "CrLf"};
   const char* tabstop[TIPPSE_TABSTOP_MAX] = {"Auto", "Tab", "Space"};
   char status[1024];
-  sprintf(&status[0], "%s%s%d/%d:%d - %d/%d byte - %s*%d %s %s %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), (int)(cursor.line+1), (int)(cursor.column+1), (int)view->offset, file->buffer?(int)file->buffer->length:0, tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->encoding->name)());
+  sprintf(&status[0], "%s%s%d/%d:%d - %d/%d byte - %s*%d %s %s %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), (int)(cursor.line+1), (int)(cursor.column+1), (int)view->offset, (int)range_tree_length(file->buffer), tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->encoding->name)());
   splitter_status(splitter, &status[0]);
 
   view->scroll_y_max = file->buffer?file->buffer->visuals.ys:0;
@@ -1043,7 +1043,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   in_line_column.clip = 0;
 
   //range_tree_check(document->buffer);
-  file_offset_t file_size = file->buffer?file->buffer->length:0;
+  file_offset_t file_size = range_tree_length(file->buffer);
   file_offset_t offset_old = view->offset;
   int seek = 0;
   int selection_keep = 0;
@@ -1182,6 +1182,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       view->cursor_x = out.x;
       view->cursor_y = out.y;
       if (view->selection_start==FILE_OFFSET_T_MAX) {
+        view->selection_reset = 1;
         view->selection_start = view->offset;
       }
       view->selection_end = view->offset;
@@ -1206,25 +1207,25 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     if (view->selection_low!=FILE_OFFSET_T_MAX) {
       document_text_transform(base, unicode_transform_upper, file, view->selection_low, view->selection_high);
     } else {
-      document_text_transform(base, unicode_transform_upper, file, 0, file->buffer?file->buffer->length:0);
+      document_text_transform(base, unicode_transform_upper, file, 0, range_tree_length(file->buffer));
     }
   } else if (command==TIPPSE_CMD_LOWER) {
     if (view->selection_low!=FILE_OFFSET_T_MAX) {
       document_text_transform(base, unicode_transform_lower, file, view->selection_low, view->selection_high);
     } else {
-      document_text_transform(base, unicode_transform_lower, file, 0, file->buffer?file->buffer->length:0);
+      document_text_transform(base, unicode_transform_lower, file, 0, range_tree_length(file->buffer));
     }
   } else if (command==TIPPSE_CMD_NFC_NFD) {
     if (view->selection_low!=FILE_OFFSET_T_MAX) {
       document_text_transform(base, unicode_transform_nfc_nfd, file, view->selection_low, view->selection_high);
     } else {
-      document_text_transform(base, unicode_transform_nfc_nfd, file, 0, file->buffer?file->buffer->length:0);
+      document_text_transform(base, unicode_transform_nfc_nfd, file, 0, range_tree_length(file->buffer));
     }
   } else if (command==TIPPSE_CMD_NFD_NFC) {
     if (view->selection_low!=FILE_OFFSET_T_MAX) {
       document_text_transform(base, unicode_transform_nfd_nfc, file, view->selection_low, view->selection_high);
     } else {
-      document_text_transform(base, unicode_transform_nfd_nfc, file, 0, file->buffer?file->buffer->length:0);
+      document_text_transform(base, unicode_transform_nfd_nfc, file, 0, range_tree_length(file->buffer));
     }
   } else if (command==TIPPSE_CMD_TAB) {
     document_undo_chain(file, file->undos);
@@ -1400,18 +1401,25 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   if (command==TIPPSE_CMD_MOUSE) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
       if (!(button_old&TIPPSE_MOUSE_LBUTTON) && !(key&TIPPSE_KEY_MOD_SHIFT)) view->selection_start = FILE_OFFSET_T_MAX;
-      if (view->selection_start==FILE_OFFSET_T_MAX) view->selection_start = view->offset;
+      if (view->selection_start==FILE_OFFSET_T_MAX) {
+        view->selection_reset = 1;
+        view->selection_start = view->offset;
+      }
       view->selection_end = view->offset;
     }
   } else {
     if (command==TIPPSE_CMD_SELECT_UP || command==TIPPSE_CMD_SELECT_DOWN || command==TIPPSE_CMD_SELECT_LEFT || command==TIPPSE_CMD_SELECT_RIGHT || command==TIPPSE_CMD_SELECT_PAGEUP || command==TIPPSE_CMD_SELECT_PAGEDOWN || command==TIPPSE_CMD_SELECT_FIRST || command==TIPPSE_CMD_SELECT_LAST || command==TIPPSE_CMD_SELECT_HOME || command==TIPPSE_CMD_SELECT_END) {
-      if (view->selection_start==FILE_OFFSET_T_MAX) view->selection_start = offset_old;
+      if (view->selection_start==FILE_OFFSET_T_MAX) {
+        view->selection_reset = 1;
+        view->selection_start = offset_old;
+      }
       view->selection_end = view->offset;
     } else {
       selection_reset = selection_keep?0:1;
     }
   }
   if (selection_reset) {
+    view->selection_reset = 1;
     view->selection_start = FILE_OFFSET_T_MAX;
     view->selection_end = FILE_OFFSET_T_MAX;
   }

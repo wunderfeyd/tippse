@@ -15,7 +15,7 @@ void stream_from_page(struct stream* base, struct range_tree_node* buffer, file_
   base->type = STREAM_TYPE_PAGED;
   base->buffer = buffer;
   base->displacement = displacement;
-  base->cache_length = buffer?buffer->length:0;
+  base->cache_length = range_tree_length(buffer);
   if (buffer) {
     fragment_cache(buffer->buffer);
   }

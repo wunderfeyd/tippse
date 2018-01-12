@@ -204,6 +204,8 @@ void editor_update_search_title(struct editor* base);
 
 void editor_console_update(struct editor* base, const char* text, size_t length, int type);
 
+void editor_search(struct editor* base);
+
 void editor_command_map_create(struct editor* base);
 void editor_command_map_destroy(struct editor* base);
 void editor_command_map_read(struct editor* base, struct document_file* file);

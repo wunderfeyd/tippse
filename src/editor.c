@@ -279,8 +279,12 @@ void editor_draw(struct editor* base) {
   const char* status = base->focus->status;
   if (tick<base->console_timeout && base->console_text) {
     status = base->console_text;
-    foreground = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
-    background = base->focus->file->defaults.colors[base->console_color];
+    if (base->console_color==VISUAL_FLAG_COLOR_CONSOLENORMAL) {
+      foreground = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
+      background = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_STATUS];
+    } else {
+      foreground = base->focus->file->defaults.colors[base->console_color];
+    }
   }
 
   struct stream stream;
@@ -349,7 +353,7 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
   if (command==TIPPSE_CMD_QUIT) {
     base->close = 1;
   } else if (command==TIPPSE_CMD_SEARCH) {
-    editor_panel_assign(base, base->search_doc);
+    editor_search(base);
   } else if (command==TIPPSE_CMD_SEARCH_NEXT) {
     editor_focus(base, base->document, 1);
     document_search(base->last_document, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 0, base->search_ignore_case, base->search_regex, 0, 0);
@@ -368,6 +372,7 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
     }
   } else if (command==TIPPSE_CMD_REPLACE) {
     editor_panel_assign(base, base->replace_doc);
+    document_select_all(base->panel, 1);
   } else if (command==TIPPSE_CMD_REPLACE_NEXT) {
     editor_focus(base, base->document, 1);
     document_search(base->last_document, base->search_doc->buffer, base->search_doc->encoding, base->replace_doc->buffer, base->replace_doc->encoding, 0, base->search_ignore_case, base->search_regex, 0, 1);
@@ -379,6 +384,7 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
     document_search(base->last_document, base->search_doc->buffer, base->search_doc->encoding, base->replace_doc->buffer, base->replace_doc->encoding, 0, base->search_ignore_case, base->search_regex, 1, 1);
   } else if (command==TIPPSE_CMD_GOTO) {
     editor_panel_assign(base, base->goto_doc);
+    document_select_all(base->panel, 1);
   } else if (command==TIPPSE_CMD_CONSOLE) {
     editor_panel_assign(base, base->console_doc);
   } else if (command==TIPPSE_CMD_VIEW_SWITCH) {
@@ -593,7 +599,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
       struct stream text_stream;
       stream_from_page(&text_stream, buffer, displacement);
 
-      const char* filter = "\\s*([^\\n\\r]*)\\s*\\:\\s*(\\d*)\\s*\\:";
+      const char* filter = "\\s*([^\\n\\r]*?)\\s*\\:\\s*(\\d+)\\s*\\:";
       struct stream filter_stream;
       stream_from_plain(&filter_stream, (uint8_t*)filter, strlen(filter));
 
@@ -934,4 +940,18 @@ void editor_console_update(struct editor* base, const char* text, size_t length,
   base->console_doc->buffer = range_tree_insert_split(base->console_doc->buffer, base->console_doc->buffer?base->console_doc->buffer->length:0, (uint8_t*)text, length, 0);
   base->console_doc->buffer = range_tree_insert_split(base->console_doc->buffer, base->console_doc->buffer?base->console_doc->buffer->length:0, (uint8_t*)"\n", 1, 0);
   base->console_index++;
+}
+
+// Update search dialog
+void editor_search(struct editor* base) {
+  editor_panel_assign(base, base->search_doc);
+  if (base->document->view->selection_reset && base->document->view->selection_low!=FILE_OFFSET_T_MAX) {
+    // TODO: update encoding in search panel? or transform to encoding?
+    document_file_delete(base->search_doc, 0, base->search_doc->buffer?base->search_doc->buffer->length:0);
+    struct range_tree_node* buffer = range_tree_copy(base->document->file->buffer, base->document->view->selection_low, base->document->view->selection_high-base->document->view->selection_low);
+    document_file_insert_buffer(base->search_doc, 0, buffer);
+    range_tree_destroy(buffer, NULL);
+  }
+  document_select_all(base->panel, 1);
+  base->document->view->selection_reset = 0;
 }

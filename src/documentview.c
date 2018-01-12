@@ -22,6 +22,7 @@ void document_view_destroy(struct document_view* base) {
 void document_view_reset(struct document_view* base, struct document_file* file) {
   base->offset = 0;
   base->update_offset = 0;
+  base->selection_reset = 1;
   base->cursor_x = 0;
   base->cursor_y = 0;
   base->scroll_x = 0;
@@ -55,5 +56,5 @@ void document_view_filechange(struct document_view* base, struct document_file* 
   base->show_invisibles = file->defaults.invisibles;
   base->line_select = file->line_select;
   base->bracket_indentation = 0;
-  base->selection = range_tree_resize(base->selection, file->buffer?file->buffer->length:0, 0);
+  base->selection = range_tree_resize(base->selection, range_tree_length(file->buffer), 0);
 }

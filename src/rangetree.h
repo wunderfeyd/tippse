@@ -47,6 +47,7 @@ struct range_tree_node* range_tree_first(struct range_tree_node* node);
 struct range_tree_node* range_tree_last(struct range_tree_node* node);
 inline struct range_tree_node* range_tree_next(struct range_tree_node* node) {return node->next;}
 inline struct range_tree_node* range_tree_prev(struct range_tree_node* node) {return node->prev;}
+inline file_offset_t range_tree_length(struct range_tree_node* node) {return node?node->length:0;}
 void range_tree_exchange(struct range_tree_node* node, struct range_tree_node* old, struct range_tree_node* new);
 struct range_tree_node* range_tree_rotate(struct range_tree_node* node, int side);
 struct range_tree_node* range_tree_balance(struct range_tree_node* node);
