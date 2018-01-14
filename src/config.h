@@ -4,13 +4,22 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "types.h"
+#include "list.h"
 struct trie;
-struct list;
+
+struct config_command {
+  int cached;               // cached?
+  int64_t value;            // cached value
+  struct list arguments;    // all arguments separated
+};
 
 struct config_value {
-  int64_t value;            // cached value
-  int cached;               // cached?
+  int cached;               // was first command cached?
+  int64_t value;            // cached value of first command
+  int parsed;               // already parsed?
+  struct list commands;     // parsed commands
   codepoint_t* codepoints;  // codepoints
+  size_t length;            // number of codepoints
 };
 
 struct config {
@@ -24,14 +33,17 @@ struct config_cache {
   const char* description;  // description
 };
 
-#include "list.h"
 #include "trie.h"
 #include "rangetree.h"
 #include "encoding.h"
 #include "documentfile.h"
 
+void config_command_create(struct config_command* base);
+void config_command_destroy(struct config_command* base);
+
 void config_value_create(struct config_value* base, codepoint_t* value_codepoints, size_t value_length);
 void config_value_destroy(struct config_value* base);
+void config_value_parse_command(struct config_value* base);
 
 struct config* config_create(void);
 void config_destroy(struct config* base);

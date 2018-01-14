@@ -387,14 +387,82 @@ const char* config_default =
   "}"
 ;
 
+// Build command
+void config_command_create(struct config_command* base) {
+  base->cached = 0;
+  list_create_inplace(&base->arguments, sizeof(codepoint_t*));
+}
+
+void config_command_destroy(struct config_command* base) {
+  while (base->arguments.first) {
+    free(*(codepoint_t**)list_object(base->arguments.first));
+    list_remove(&base->arguments, base->arguments.first);
+  }
+  list_destroy_inplace(&base->arguments);
+}
+
 // Create configuration entry assigned value
 void config_value_create(struct config_value* base, codepoint_t* value_codepoints, size_t value_length) {
   base->cached = 0;
+  base->parsed = 0;
   base->codepoints = malloc(sizeof(codepoint_t)*value_length);
+  base->length = value_length;
+  list_create_inplace(&base->commands, sizeof(struct config_command));
   memcpy(base->codepoints, value_codepoints, sizeof(codepoint_t)*value_length);
+  config_value_parse_command(base);
+}
+
+// Create agrument and command tables from command string
+void config_value_parse_command(struct config_value* base) {
+  codepoint_t* pos = base->codepoints;
+  int string = 0;
+  int escape = 0;
+  size_t argument = 0;
+  codepoint_t* tmp = malloc(sizeof(codepoint_t)*base->length);
+  codepoint_t* build = tmp;
+  while (1) {
+    codepoint_t cp = *pos++;
+    if (cp==0 || ((cp==' ' || cp=='\t' || cp==';') && !string && !escape)) {
+      if (build!=tmp) {
+        if (argument==0) {
+          list_insert_empty(&base->commands, base->commands.last);
+          config_command_create((struct config_command*)list_object(base->commands.last));
+        }
+        *build++ = 0;
+        size_t length = sizeof(codepoint_t)*(size_t)(build-tmp);
+        codepoint_t* value = (codepoint_t*)malloc(length);
+        memcpy(value, tmp, length);
+        struct config_command* command = (struct config_command*)list_object(base->commands.last);
+        list_insert(&command->arguments, command->arguments.last, &value);
+        argument++;
+      }
+      if (cp==0) {
+        break;
+      }
+      if (cp==';') {
+        argument = 0;
+      }
+      build = tmp;
+    } else if (cp=='\\' && !string && !escape) {
+      escape = 1;
+    } else if (cp=='"' && !string && !escape) {
+      string = 1;
+    } else if (cp=='"' && string && !escape) {
+      string = 0;
+    } else {
+      escape = 0;
+      *build++ = cp;
+    }
+  }
+  free(tmp);
 }
 
 void config_value_destroy(struct config_value* base) {
+  while (base->commands.first) {
+    config_command_destroy((struct config_command*)list_object(base->commands.first));
+    list_remove(&base->commands, base->commands.first);
+  }
+  list_destroy_inplace(&base->commands);
   free(base->codepoints);
 }
 
@@ -453,13 +521,8 @@ void config_load(struct config* base, const char* filename) {
         break;
       }
 
-      if (escape>0) {
-        escape--;
-        continue;
-      }
-
       int append = 0;
-      if (!string) {
+      if (!string && !escape) {
         if (cp==',' || cp=='{' || cp=='}') {
           size_t keyword = keyword_length-((brackets>0)?bracket_positions[brackets-1]:0);
           if (cp!='{' && keyword) {
@@ -490,18 +553,29 @@ void config_load(struct config* base, const char* filename) {
         } else if (cp=='{') {
         } else if (cp=='"') {
           string = 1;
+          if (!value) {
+            append = 1;
+          }
         } else if (cp==':') {
           value = 1;
-        } else if (cp=='\r' || cp=='\n' || cp==' ' || cp=='\t') {
+        } else if (cp=='\r' || cp=='\n' || ((cp=='\t' || cp==' ') && !value)) {
         } else {
           append = 1;
         }
       } else {
-        if (cp=='"' || cp=='\r' || cp=='\n') {
-          string = 0;
-        } else if (cp=='\\') {
-          escape = 1;
+        if (!escape) {
+          if (cp=='"' || cp=='\r' || cp=='\n') {
+            string = 0;
+            if (!value) {
+              append = 1;
+            }
+          } else if (cp=='\\') {
+            escape = 1;
+          } else {
+            append = 1;
+          }
         } else {
+          escape = 0;
           append = 1;
         }
       }
@@ -630,7 +704,15 @@ struct trie_node* config_find_ascii(struct config* base, const char* keyword) {
 // Get value at found position
 codepoint_t* config_value(struct trie_node* parent) {
   if (parent && parent->end) {
-    return ((struct config_value*)list_object(*(struct list_node**)trie_object(parent)))->codepoints;
+    struct config_value* value = (struct config_value*)list_object(*(struct list_node**)trie_object(parent));
+    if (!value->commands.first) {
+      return NULL;
+    }
+    struct config_command* command = (struct config_command*)list_object(value->commands.first);
+    if (!command->arguments.first) {
+      return NULL;
+    }
+    return *(codepoint_t**)list_object(command->arguments.first);
   }
 
   return NULL;
@@ -700,7 +782,10 @@ int64_t config_convert_int64_cache(struct trie_node* parent, struct config_cache
 
     value->cached = 1;
     while (cache->text) {
-      codepoint_t* left = value->codepoints;
+      codepoint_t* left = config_value(parent);
+      if (!left) {
+        break;
+      }
       const char* right = cache->text;
       while ((*left && (codepoint_t)*right) && (*left==(codepoint_t)*right)) {
         left++;
