@@ -327,13 +327,18 @@ void editor_keypress(struct editor* base, int key, codepoint_t cp, int button, i
     parent = config_advance_codepoints(base->focus->file->config, parent, &cp, 1);
   }
 
+  if (!parent || !parent->end) {
+    editor_intercept(base, TIPPSE_CMD_CHARACTER, NULL, key, cp, button, button_old, x, y);
+    return;
+  }
+
   // Copy and execute (copy is needed in case of file access commands altering the config structure)
   struct config_value* value = config_value_clone((struct config_value*)list_object(*(struct list_node**)trie_object(parent)));
   struct list_node* it = value->commands.first;
   while (it) {
     struct config_command* arguments = (struct config_command*)list_object(it);
     int command = (int)config_command_cache(arguments, &editor_commands[0]);
-    if (command!=TIPPSE_KEY_CHARACTER || cp>=0x20) {
+    if (command!=TIPPSE_CMD_CHARACTER) {
       editor_intercept(base, command, arguments, key, cp, button, button_old, x, y);
     }
     it = it->next;
