@@ -10,7 +10,8 @@ struct trie;
 struct config_command {
   int cached;               // cached?
   int64_t value;            // cached value
-  struct list arguments;    // all arguments separated
+  codepoint_t** arguments;  // all arguments separated
+  size_t length;            // number of arguments
 };
 
 struct config_value {
@@ -40,9 +41,13 @@ struct config_cache {
 
 void config_command_create(struct config_command* base);
 void config_command_destroy(struct config_command* base);
+int64_t config_command_cache(struct config_command* base, struct config_cache* cache);
 
-void config_value_create(struct config_value* base, codepoint_t* value_codepoints, size_t value_length);
+struct config_value* config_value_create(codepoint_t* value_codepoints, size_t value_length);
+void config_value_create_inplace(struct config_value* base, codepoint_t* value_codepoints, size_t value_length);
 void config_value_destroy(struct config_value* base);
+void config_value_destroy_inplace(struct config_value* base);
+struct config_value* config_value_clone(struct config_value* base);
 void config_value_parse_command(struct config_value* base);
 
 struct config* config_create(void);

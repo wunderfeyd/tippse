@@ -166,7 +166,7 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
 }
 
 // Handle key press
-void document_hex_keypress(struct document* base, struct splitter* splitter, int command, int key, codepoint_t cp, int button, int button_old, int x, int y) {
+void document_hex_keypress(struct document* base, struct splitter* splitter, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y) {
   struct document_hex* document = (struct document_hex*)base;
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;

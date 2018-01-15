@@ -9,11 +9,12 @@
 struct document;
 struct screen;
 struct splitter;
+struct config_command;
 
 struct document {
   void (*reset)(struct document* base, struct splitter* splitter);
   void (*draw)(struct document* base, struct screen* screen, struct splitter* splitter);
-  void (*keypress)(struct document* base, struct splitter* splitter, int command, int key, codepoint_t cp, int button, int button_old, int x, int y);
+  void (*keypress)(struct document* base, struct splitter* splitter, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y);
   int (*incremental_update)(struct document* base, struct splitter* splitter);
 };
 
@@ -31,6 +32,7 @@ struct document {
 #include "document_text.h"
 #include "search.h"
 #include "editor.h"
+#include "config.h"
 
 int document_search(struct splitter* splitter, struct range_tree_node* search_text, struct encoding* search_encoding, struct range_tree_node* replace_text, struct encoding* replace_encoding, int reverse, int ignore_case, int regex, int all, int replace);
 void document_search_directory(const char* path, struct range_tree_node* search_text, struct encoding* search_encoding, struct range_tree_node* replace_text, struct encoding* replace_encoding, int ignore_case, int regex, int replace);

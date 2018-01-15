@@ -1020,12 +1020,12 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 }
 
 // Handle key press
-void document_text_keypress(struct document* base, struct splitter* splitter, int command, int key, codepoint_t cp, int button, int button_old, int x, int y) {
+void document_text_keypress(struct document* base, struct splitter* splitter, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y) {
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
   if (view->line_select) {
-    document_text_keypress_line_select(base, splitter, command, key, cp, button, button_old, x, y);
+    document_text_keypress_line_select(base, splitter, command, arguments, key, cp, button, button_old, x, y);
     return;
   }
 
@@ -1439,7 +1439,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 }
 
 // In line select mode the keyboard is used in a different way since the display shows a list of options one can't edit
-void document_text_keypress_line_select(struct document* base, struct splitter* splitter, int command, int key, codepoint_t cp, int button, int button_old, int x, int y) {
+void document_text_keypress_line_select(struct document* base, struct splitter* splitter, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y) {
   struct document_view* view = splitter->view;
 
   struct document_text_position out;

@@ -102,7 +102,7 @@ struct splitter;
 #define TIPPSE_CMD_CLOSE 47
 #define TIPPSE_CMD_SAVEALL 48
 #define TIPPSE_CMD_UNSPLIT 49
-#define TIPPSE_CMD_COMPILE 50
+#define TIPPSE_CMD_SHELL 50
 #define TIPPSE_CMD_REPLACE 51
 #define TIPPSE_CMD_REPLACE_NEXT 52
 #define TIPPSE_CMD_REPLACE_PREV 53
@@ -176,6 +176,7 @@ struct editor {
 #include "list.h"
 #include "trie.h"
 #include "search.h"
+#include "config.h"
 
 struct editor* editor_create(const char* base_path, struct screen* screen, int argc, const char** argv);
 void editor_destroy(struct editor* base);
@@ -183,7 +184,7 @@ void editor_closed(struct editor* base);
 void editor_draw(struct editor* base);
 void editor_tick(struct editor* base);
 void editor_keypress(struct editor* base, int key, codepoint_t cp, int button, int button_old, int x, int y);
-void editor_intercept(struct editor* base, int command, int key, codepoint_t cp, int button, int button_old, int x, int y);
+void editor_intercept(struct editor* base, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y);
 
 void editor_focus(struct editor* base, struct splitter* node, int disable);
 void editor_split(struct editor* base, struct splitter* node);

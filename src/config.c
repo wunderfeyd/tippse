@@ -30,6 +30,9 @@ const char* config_default =
     "},"
     "wrapping:1,"
     "invisibles:0,"
+    "shell:{"
+      "compile:\"find / -iname \\\"*.*\\\"\","
+    "},"
     "keys:{"
       "up:up,"
       "down:down,"
@@ -81,7 +84,7 @@ const char* config_default =
       "return:return,"
       "ctrl+a:selectall,"
       "pastestart:paste,"
-      "f5:compile,"
+      "f5:shell compile,"
       "ctrl+h:replace,"
       "f6:replacenext,"
       "shift+f6:replaceprevious,"
@@ -390,19 +393,25 @@ const char* config_default =
 // Build command
 void config_command_create(struct config_command* base) {
   base->cached = 0;
-  list_create_inplace(&base->arguments, sizeof(codepoint_t*));
+  base->arguments = NULL;
+  base->length = 0;
 }
 
 void config_command_destroy(struct config_command* base) {
-  while (base->arguments.first) {
-    free(*(codepoint_t**)list_object(base->arguments.first));
-    list_remove(&base->arguments, base->arguments.first);
+  for (size_t n = 0; n<base->length; n++) {
+    free(base->arguments[n]);
   }
-  list_destroy_inplace(&base->arguments);
+  free(base->arguments);
 }
 
 // Create configuration entry assigned value
-void config_value_create(struct config_value* base, codepoint_t* value_codepoints, size_t value_length) {
+struct config_value* config_value_create(codepoint_t* value_codepoints, size_t value_length) {
+  struct config_value* base = malloc(sizeof(struct config_value));
+  config_value_create_inplace(base, value_codepoints, value_length);
+  return base;
+}
+
+void config_value_create_inplace(struct config_value* base, codepoint_t* value_codepoints, size_t value_length) {
   base->cached = 0;
   base->parsed = 0;
   base->codepoints = malloc(sizeof(codepoint_t)*value_length);
@@ -418,23 +427,30 @@ void config_value_parse_command(struct config_value* base) {
   int string = 0;
   int escape = 0;
   size_t argument = 0;
-  codepoint_t* tmp = malloc(sizeof(codepoint_t)*base->length);
+  codepoint_t* arguments[256];
+  codepoint_t* tmp = (codepoint_t*)malloc(sizeof(codepoint_t)*base->length);
   codepoint_t* build = tmp;
+
   while (1) {
     codepoint_t cp = *pos++;
     if (cp==0 || ((cp==' ' || cp=='\t' || cp==';') && !string && !escape)) {
-      if (build!=tmp) {
-        if (argument==0) {
+      if (build!=tmp && argument<sizeof(arguments)/sizeof(codepoint_t*)) {
+        *build++ = 0;
+        size_t length = sizeof(codepoint_t)*(size_t)(build-tmp);
+        arguments[argument] = (codepoint_t*)malloc(length);
+        memcpy(arguments[argument], tmp, length);
+        argument++;
+      }
+      if (cp==';' || cp==0) {
+        if (argument>0) {
           list_insert_empty(&base->commands, base->commands.last);
           config_command_create((struct config_command*)list_object(base->commands.last));
         }
-        *build++ = 0;
-        size_t length = sizeof(codepoint_t)*(size_t)(build-tmp);
-        codepoint_t* value = (codepoint_t*)malloc(length);
-        memcpy(value, tmp, length);
         struct config_command* command = (struct config_command*)list_object(base->commands.last);
-        list_insert(&command->arguments, command->arguments.last, &value);
-        argument++;
+        command->length = argument;
+        size_t length = sizeof(codepoint_t*)*argument;
+        command->arguments = malloc(length);
+        memcpy(command->arguments, &arguments[0], length);
       }
       if (cp==0) {
         break;
@@ -443,7 +459,7 @@ void config_value_parse_command(struct config_value* base) {
         argument = 0;
       }
       build = tmp;
-    } else if (cp=='\\' && !string && !escape) {
+    } else if (cp=='\\' && !escape) {
       escape = 1;
     } else if (cp=='"' && !string && !escape) {
       string = 1;
@@ -458,12 +474,22 @@ void config_value_parse_command(struct config_value* base) {
 }
 
 void config_value_destroy(struct config_value* base) {
+  config_value_destroy_inplace(base);
+  free(base);
+}
+
+void config_value_destroy_inplace(struct config_value* base) {
   while (base->commands.first) {
     config_command_destroy((struct config_command*)list_object(base->commands.first));
     list_remove(&base->commands, base->commands.first);
   }
   list_destroy_inplace(&base->commands);
   free(base->codepoints);
+}
+
+// Duplicate node
+struct config_value* config_value_clone(struct config_value* base) {
+  return config_value_create(base->codepoints, base->length);
 }
 
 // Create configuration
@@ -486,7 +512,7 @@ void config_destroy(struct config* base) {
 void config_clear(struct config* base) {
   trie_clear(base->keywords);
   while (base->values->first) {
-    config_value_destroy((struct config_value*)list_object(base->values->first));
+    config_value_destroy_inplace((struct config_value*)list_object(base->values->first));
     list_remove(base->values, base->values->first);
   }
 }
@@ -550,10 +576,9 @@ void config_load(struct config* base, const char* filename) {
 
           value_length = 0;
           value = 0;
-        } else if (cp=='{') {
         } else if (cp=='"') {
           string = 1;
-          if (!value) {
+          if (value) {
             append = 1;
           }
         } else if (cp==':') {
@@ -566,11 +591,14 @@ void config_load(struct config* base, const char* filename) {
         if (!escape) {
           if (cp=='"' || cp=='\r' || cp=='\n') {
             string = 0;
-            if (!value) {
+            if (value) {
               append = 1;
             }
           } else if (cp=='\\') {
             escape = 1;
+            if (value) {
+              append = 1;
+            }
           } else {
             append = 1;
           }
@@ -644,14 +672,14 @@ void config_update(struct config* base, codepoint_t* keyword_codepoints, size_t 
   }
 
   struct list_node* node = list_insert_empty(base->values, NULL);
-  config_value_create((struct config_value*)list_object(node), value_codepoints, value_length);
+  config_value_create_inplace((struct config_value*)list_object(node), value_codepoints, value_length);
 
   struct trie_node* parent = NULL;
   while (keyword_length-->0) {
     parent = trie_append_codepoint(base->keywords, parent, *keyword_codepoints, 0);
     if (keyword_length==0) {
       if (parent->end) {
-        config_value_destroy((struct config_value*)list_object(*(struct list_node**)trie_object(parent)));
+        config_value_destroy_inplace((struct config_value*)list_object(*(struct list_node**)trie_object(parent)));
         list_remove(base->values, *(struct list_node**)trie_object(parent));
       }
 
@@ -709,10 +737,10 @@ codepoint_t* config_value(struct trie_node* parent) {
       return NULL;
     }
     struct config_command* command = (struct config_command*)list_object(value->commands.first);
-    if (!command->arguments.first) {
+    if (command->length==0) {
       return NULL;
     }
-    return *(codepoint_t**)list_object(command->arguments.first);
+    return command->arguments[0];
   }
 
   return NULL;
@@ -781,27 +809,51 @@ int64_t config_convert_int64_cache(struct trie_node* parent, struct config_cache
     }
 
     value->cached = 1;
-    while (cache->text) {
-      codepoint_t* left = config_value(parent);
-      if (!left) {
-        break;
-      }
-      const char* right = cache->text;
-      while ((*left && (codepoint_t)*right) && (*left==(codepoint_t)*right)) {
-        left++;
-        right++;
-      }
-
-      if (!*left && !*right) {
-        value->value = cache->value;
-        return value->value;
-      }
-      cache++;
+    struct config_command* command = (struct config_command*)list_object(value->commands.first);
+    if (command->length==0) {
+      value->value = 0;
+      return value->value;
     }
 
-    value->value = config_convert_int64_plain(value->codepoints);
+    value->value = config_command_cache(command, cache);
     return value->value;
   }
 
   return 0;
+}
+
+// Assign keyword and cache
+int64_t config_command_cache(struct config_command* base, struct config_cache* cache) {
+  if (base->cached) {
+    return base->value;
+  }
+
+  base->cached = 1;
+  if (base->length==0) {
+    base->value = 0;
+    return base->value;
+  }
+
+  codepoint_t* codepoints = base->arguments[0];
+
+  while (cache->text) {
+    codepoint_t* left = codepoints;
+    if (!left) {
+      break;
+    }
+    const char* right = cache->text;
+    while ((*left && (codepoint_t)*right) && (*left==(codepoint_t)*right)) {
+      left++;
+      right++;
+    }
+
+    if (!*left && !*right) {
+      base->value = cache->value;
+      return base->value;
+    }
+    cache++;
+  }
+
+  base->value = config_convert_int64_plain(codepoints);
+  return base->value;
 }

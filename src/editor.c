@@ -86,7 +86,7 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"close", TIPPSE_CMD_CLOSE, "Close active document"},
   {"saveall", TIPPSE_CMD_SAVEALL, "Save all modified documents"},
   {"unsplit", TIPPSE_CMD_UNSPLIT, "Remove active view"},
-  {"compile", TIPPSE_CMD_COMPILE, "Show compiler output or start compilation if already shown"},
+  {"shell", TIPPSE_CMD_SHELL, "Show shell output or start shell command if already shown"},
   {"replace", TIPPSE_CMD_REPLACE, "Open replace panel"},
   {"replacenext", TIPPSE_CMD_REPLACE_NEXT, "Replace selection and find next occurrence of text to search"},
   {"replaceprevious", TIPPSE_CMD_REPLACE_PREV, "Replace selection and find previous occurrence of text to search"},
@@ -327,14 +327,22 @@ void editor_keypress(struct editor* base, int key, codepoint_t cp, int button, i
     parent = config_advance_codepoints(base->focus->file->config, parent, &cp, 1);
   }
 
-  int command = (int)config_convert_int64_cache(parent, &editor_commands[0]);
-  if (command!=TIPPSE_KEY_CHARACTER || cp>=0x20) {
-    editor_intercept(base, command, key, cp, button, button_old, x, y);
+  // Copy and execute (copy is needed in case of file access commands altering the config structure)
+  struct config_value* value = config_value_clone((struct config_value*)list_object(*(struct list_node**)trie_object(parent)));
+  struct list_node* it = value->commands.first;
+  while (it) {
+    struct config_command* arguments = (struct config_command*)list_object(it);
+    int command = (int)config_command_cache(arguments, &editor_commands[0]);
+    if (command!=TIPPSE_KEY_CHARACTER || cp>=0x20) {
+      editor_intercept(base, command, arguments, key, cp, button, button_old, x, y);
+    }
+    it = it->next;
   }
+  config_value_destroy(value);
 }
 
 // After event translation we can intercept the core commands (for now)
-void editor_intercept(struct editor* base, int command, int key, codepoint_t cp, int button, int button_old, int x, int y) {
+void editor_intercept(struct editor* base, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y) {
   if (command==TIPPSE_CMD_MOUSE) {
     struct splitter* select = splitter_by_coordinate(base->splitters, x, y);
     if (select && button!=0 && button_old==0) {
@@ -434,9 +442,25 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
     editor_save_document(base, base->document->file);
   } else if (command==TIPPSE_CMD_SAVEALL) {
     editor_save_documents(base);
-  } else if (command==TIPPSE_CMD_COMPILE) {
+  } else if (command==TIPPSE_CMD_SHELL) {
     if (base->document->file->pipefd[1]==-1 && base->document->file==base->compiler_doc) {
-      document_file_pipe(base->document->file, "find / -iname \"*.*\"");
+      if (arguments && arguments->length>1) {
+        struct trie_node* parent = config_find_ascii(base->focus->file->config, "/shell/");
+        if (parent) {
+          // TODO: remove need for zero termination in next iteration
+          size_t length = 0;
+          codepoint_t* check = arguments->arguments[1];
+          while (*check++) {
+            length++;
+          }
+          parent = config_advance_codepoints(base->focus->file->config, parent, arguments->arguments[1], length);
+        }
+
+        // TODO: Use current shell encoding
+        char* shell = config_convert_ascii(parent);
+        document_file_pipe(base->document->file, shell);
+        free(shell);
+      }
     } else {
       splitter_assign_document_file(base->document, base->compiler_doc);
     }
@@ -456,9 +480,9 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
     if (base->focus->file==base->tabs_doc || base->focus->file==base->browser_doc || base->focus->file==base->commands_doc || base->focus->file==base->filter_doc) {
       file_offset_t before = base->filter->file->buffer?base->filter->file->buffer->length:0;
       if (command==TIPPSE_CMD_UP || command==TIPPSE_CMD_DOWN || command==TIPPSE_CMD_PAGEDOWN || command==TIPPSE_CMD_PAGEUP || command==TIPPSE_CMD_HOME || command==TIPPSE_CMD_END || command==TIPPSE_CMD_RETURN) {
-        (*base->panel->document->keypress)(base->panel->document, base->panel, command, key, cp, button, button_old, x-base->document->x, y-base->focus->y);
+        (*base->panel->document->keypress)(base->panel->document, base->panel, command, arguments, key, cp, button, button_old, x-base->document->x, y-base->focus->y);
       } else {
-        (*base->filter->document->keypress)(base->filter->document, base->filter, command, key, cp, button, button_old, x-base->filter->x, y-base->panel->y);
+        (*base->filter->document->keypress)(base->filter->document, base->filter, command, arguments, key, cp, button, button_old, x-base->filter->x, y-base->panel->y);
       }
 
       int selected = 0;
@@ -487,7 +511,7 @@ void editor_intercept(struct editor* base, int command, int key, codepoint_t cp,
         editor_focus(base, now?base->filter:base->panel, 1);
       }
     } else {
-      (*base->focus->document->keypress)(base->focus->document, base->focus, command, key, cp, button, button_old, x-base->focus->x, y-base->focus->y);
+      (*base->focus->document->keypress)(base->focus->document, base->focus, command, arguments, key, cp, button, button_old, x-base->focus->x, y-base->focus->y);
     }
   }
 }
@@ -583,7 +607,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
           }
 
           if (*compare1==' ') {
-            editor_intercept(base, (int)n, 0, 0, 0, 0, 0, 0);
+            editor_intercept(base, (int)n, NULL, 0, 0, 0, 0, 0, 0);
             break;
           }
         }
@@ -775,7 +799,7 @@ void editor_view_browser(struct editor* base, const char* filename, struct strea
   document_view_reset(base->panel->view, base->browser_doc);
   base->panel->view->line_select = 1;
 
-  (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, 0, 0, 0, 0, 0, 0);
+  (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
 }
 
 // Update and change to document view
@@ -813,7 +837,7 @@ void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct 
   document_view_reset(base->panel->view, base->tabs_doc);
   base->panel->view->line_select = 1;
 
-  (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, 0, 0, 0, 0, 0, 0);
+  (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
 }
 
 // Update and change to commands view
@@ -852,7 +876,7 @@ void editor_view_commands(struct editor* base, struct stream* filter_stream, str
   document_view_reset(base->panel->view, base->commands_doc);
   base->panel->view->line_select = 1;
 
-  (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, 0, 0, 0, 0, 0, 0);
+  (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
 }
 
 // Setup command map array
