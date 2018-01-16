@@ -68,4 +68,7 @@ inline size_t encoding_cache_find_length(struct encoding_cache* base, size_t off
 
 uint16_t* encoding_reverse_table(uint16_t* table, size_t length, size_t max);
 
+struct range_tree_node* encoding_transform_stream(struct stream* stream, struct encoding* from, struct encoding* to);
+uint8_t* encoding_transform_plain(const uint8_t* buffer, size_t length, struct encoding* from, struct encoding* to);
+
 #endif  /* #ifndef TIPPSE_ENCODING_H */

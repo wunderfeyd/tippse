@@ -7,10 +7,15 @@
 #include "list.h"
 struct trie;
 
+struct config_argument {
+  codepoint_t* codepoints;  // argument codepoints
+  size_t length;            // argument length
+};
+
 struct config_command {
   int cached;               // cached?
   int64_t value;            // cached value
-  codepoint_t** arguments;  // all arguments separated
+  struct config_argument* arguments;  // all arguments separated
   size_t length;            // number of arguments
 };
 
@@ -64,12 +69,12 @@ struct trie_node* config_find_ascii(struct config* base, const char* keyword);
 struct trie_node* config_advance_codepoints(struct config* base, struct trie_node* parent, codepoint_t* keyword_codepoints, size_t keyword_length);
 struct trie_node* config_advance_ascii(struct config* base, struct trie_node* parent, const char* keyword);
 
-codepoint_t* config_value(struct trie_node* parent);
+struct config_argument* config_value(struct trie_node* parent);
 
-char* config_convert_ascii(struct trie_node* parent);
-char* config_convert_ascii_plain(codepoint_t* codepoints);
+uint8_t* config_convert_encoding(struct trie_node* parent, struct encoding* encoding);
+uint8_t* config_convert_encoding_plain(struct config_argument* argument, struct encoding* encoding);
 int64_t config_convert_int64_cache(struct trie_node* parent, struct config_cache* cache);
 int64_t config_convert_int64(struct trie_node* parent);
-int64_t config_convert_int64_plain(codepoint_t* codepoints);
+int64_t config_convert_int64_plain(struct config_argument* argument);
 
 #endif /* #ifndef TIPPSE_CONFIG_H */

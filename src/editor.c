@@ -452,19 +452,15 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
       if (arguments && arguments->length>1) {
         struct trie_node* parent = config_find_ascii(base->focus->file->config, "/shell/");
         if (parent) {
-          // TODO: remove need for zero termination in next iteration
-          size_t length = 0;
-          codepoint_t* check = arguments->arguments[1];
-          while (*check++) {
-            length++;
-          }
-          parent = config_advance_codepoints(base->focus->file->config, parent, arguments->arguments[1], length);
+          parent = config_advance_codepoints(base->focus->file->config, parent, arguments->arguments[1].codepoints, arguments->arguments[1].length);
         }
 
-        // TODO: Use current shell encoding
-        char* shell = config_convert_ascii(parent);
+        // TODO: Use current shell encoding (get it somewhere)
+        struct encoding* utf8 = encoding_utf8_create();
+        char* shell = (char*)config_convert_encoding(parent, utf8);
         document_file_pipe(base->document->file, shell);
         free(shell);
+        encoding_utf8_destroy(utf8);
       }
     } else {
       splitter_assign_document_file(base->document, base->compiler_doc);
@@ -790,7 +786,7 @@ void editor_panel_assign(struct editor* base, struct document_file* file) {
 // Update and change to browser view
 void editor_view_browser(struct editor* base, const char* filename, struct stream* filter_stream, struct encoding* filter_encoding) {
   if (!filter_stream) {
-    document_file_clear(base->filter_doc, 0);
+    editor_filter_clear(base);
   }
 
   editor_panel_assign(base, base->browser_doc);
@@ -810,7 +806,7 @@ void editor_view_browser(struct editor* base, const char* filename, struct strea
 // Update and change to document view
 void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding) {
   if (!filter_stream) {
-    document_file_clear(base->filter_doc, 0);
+    editor_filter_clear(base);
   }
 
   editor_panel_assign(base, base->tabs_doc);
@@ -849,7 +845,7 @@ void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct 
 void editor_view_commands(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding) {
   if (!filter_stream) {
     editor_command_map_read(base, base->document->file);
-    document_file_clear(base->filter_doc, 0);
+    editor_filter_clear(base);
   }
 
   editor_panel_assign(base, base->commands_doc);
@@ -983,4 +979,11 @@ void editor_search(struct editor* base) {
   }
   document_select_all(base->panel, 1);
   base->document->view->selection_reset = 0;
+}
+
+// Empty filter text
+void editor_filter_clear(struct editor* base) {
+  if (base->filter_doc->buffer) {
+    document_file_delete(base->filter_doc, 0, base->filter_doc->buffer->length);
+  }
 }

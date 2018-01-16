@@ -1804,7 +1804,7 @@ file_offset_t document_text_line_start_offset(struct document* base, struct spli
   return document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
 }
 
-// Transform text
+// Transform text // TODO: move to encoding.c
 void document_text_transform(struct document* base, struct trie* transformation, struct document_file* file, file_offset_t from, file_offset_t to) {
   int seek = 1;
   size_t offset = 0;

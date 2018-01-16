@@ -399,7 +399,7 @@ void config_command_create(struct config_command* base) {
 
 void config_command_destroy(struct config_command* base) {
   for (size_t n = 0; n<base->length; n++) {
-    free(base->arguments[n]);
+    free(base->arguments[n].codepoints);
   }
   free(base->arguments);
 }
@@ -421,13 +421,13 @@ void config_value_create_inplace(struct config_value* base, codepoint_t* value_c
   config_value_parse_command(base);
 }
 
-// Create agrument and command tables from command string
+// Create argument and command tables from command string
 void config_value_parse_command(struct config_value* base) {
   codepoint_t* pos = base->codepoints;
   int string = 0;
   int escape = 0;
   size_t argument = 0;
-  codepoint_t* arguments[256];
+  struct config_argument arguments[256];
   codepoint_t* tmp = (codepoint_t*)malloc(sizeof(codepoint_t)*base->length);
   codepoint_t* build = tmp;
 
@@ -435,10 +435,11 @@ void config_value_parse_command(struct config_value* base) {
     codepoint_t cp = *pos++;
     if (cp==0 || ((cp==' ' || cp=='\t' || cp==';') && !string && !escape)) {
       if (build!=tmp && argument<sizeof(arguments)/sizeof(codepoint_t*)) {
-        *build++ = 0;
-        size_t length = sizeof(codepoint_t)*(size_t)(build-tmp);
-        arguments[argument] = (codepoint_t*)malloc(length);
-        memcpy(arguments[argument], tmp, length);
+        *build = 0;
+        size_t length = sizeof(codepoint_t)*(size_t)(build-tmp+1);
+        arguments[argument].codepoints = (codepoint_t*)malloc(length);
+        memcpy(arguments[argument].codepoints, tmp, length);
+        arguments[argument].length = (size_t)(build-tmp);
         argument++;
       }
       if (cp==';' || cp==0) {
@@ -448,7 +449,7 @@ void config_value_parse_command(struct config_value* base) {
         }
         struct config_command* command = (struct config_command*)list_object(base->commands.last);
         command->length = argument;
-        size_t length = sizeof(codepoint_t*)*argument;
+        size_t length = sizeof(struct config_argument)*argument;
         command->arguments = malloc(length);
         memcpy(command->arguments, &arguments[0], length);
       }
@@ -730,7 +731,7 @@ struct trie_node* config_find_ascii(struct config* base, const char* keyword) {
 }
 
 // Get value at found position
-codepoint_t* config_value(struct trie_node* parent) {
+struct config_argument* config_value(struct trie_node* parent) {
   if (parent && parent->end) {
     struct config_value* value = (struct config_value*)list_object(*(struct list_node**)trie_object(parent));
     if (!value->commands.first) {
@@ -740,44 +741,38 @@ codepoint_t* config_value(struct trie_node* parent) {
     if (command->length==0) {
       return NULL;
     }
-    return command->arguments[0];
+    return &command->arguments[0];
   }
 
   return NULL;
 }
 
-// Convert code points to ASCII
-char* config_convert_ascii_plain(codepoint_t* codepoints) {
-  if (!codepoints) {
-    return strdup("");
+// Convert code points to encoding
+uint8_t* config_convert_encoding_plain(struct config_argument* argument, struct encoding* encoding) {
+  if (!argument) {
+    return (uint8_t*)strdup("");
   }
 
-  size_t length = 0;
-  while (codepoints[length++]) {
-  }
-
-  char* string = malloc(sizeof(char)*length);
-  length = 0;
-  do {
-    string[length] = (char)codepoints[length];
-  } while (codepoints[length++]);
-
+  struct encoding* native = encoding_native_create();
+  uint8_t* string = encoding_transform_plain((uint8_t*)argument->codepoints, argument->length*sizeof(codepoint_t), native, encoding);
+  encoding_native_destroy(native);
   return string;
 }
 
-// Convert value to ASCII
-char* config_convert_ascii(struct trie_node* parent) {
-  return config_convert_ascii_plain(config_value(parent));
+// Convert value to encoding
+uint8_t* config_convert_encoding(struct trie_node* parent, struct encoding* encoding) {
+  return config_convert_encoding_plain(config_value(parent), encoding);
 }
 
 // Convert code points to integer
-int64_t config_convert_int64_plain(codepoint_t* codepoints) {
-  if (!codepoints) {
+int64_t config_convert_int64_plain(struct config_argument* argument) {
+  if (!argument) {
     return 0;
   }
 
   int negate = 0;
   int64_t value = 0;
+  codepoint_t* codepoints = argument->codepoints;
   while (*codepoints) {
     codepoint_t cp = *codepoints++;
     if (cp=='-') {
@@ -834,10 +829,10 @@ int64_t config_command_cache(struct config_command* base, struct config_cache* c
     return base->value;
   }
 
-  codepoint_t* codepoints = base->arguments[0];
+  struct config_argument* argument = &base->arguments[0];
 
   while (cache->text) {
-    codepoint_t* left = codepoints;
+    codepoint_t* left = argument->codepoints;
     if (!left) {
       break;
     }
@@ -854,6 +849,6 @@ int64_t config_command_cache(struct config_command* base, struct config_cache* c
     cache++;
   }
 
-  base->value = config_convert_int64_plain(codepoints);
+  base->value = config_convert_int64_plain(argument);
   return base->value;
 }
