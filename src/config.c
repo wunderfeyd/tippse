@@ -592,15 +592,12 @@ void config_load(struct config* base, const char* filename) {
         if (!escape) {
           if (cp=='"' || cp=='\r' || cp=='\n') {
             string = 0;
-            if (value) {
-              append = 1;
-            }
           } else if (cp=='\\') {
             escape = 1;
-            if (value) {
-              append = 1;
-            }
           } else {
+            append = 1;
+          }
+          if (value) {
             append = 1;
           }
         } else {

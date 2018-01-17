@@ -177,6 +177,7 @@ struct editor {
 #include "trie.h"
 #include "search.h"
 #include "config.h"
+#include "encoding.h"
 
 struct editor* editor_create(const char* base_path, struct screen* screen, int argc, const char** argv);
 void editor_destroy(struct editor* base);

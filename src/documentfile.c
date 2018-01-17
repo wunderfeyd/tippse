@@ -306,8 +306,9 @@ int document_file_save_plain(struct document_file* base, const char* filename) {
     struct range_tree_node* buffer = range_tree_first(base->buffer);
     while (buffer) {
       fragment_cache(buffer->buffer);
-      // TODO: check write lengths
-      write(f, buffer->buffer->buffer+buffer->offset, buffer->length);
+      if (write(f, buffer->buffer->buffer+buffer->offset, buffer->length)!=(ssize_t)buffer->length) {
+        return 0;
+      }
       buffer = range_tree_next(buffer);
     }
   }

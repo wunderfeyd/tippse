@@ -16,6 +16,9 @@ struct range_tree_node;
 #define TIPPSE_INSERTER_LEAF 1
 #define TIPPSE_INSERTER_FILE 2
 #define TIPPSE_INSERTER_MARK 4
+#define TIPPSE_INSERTER_HIGHLIGHT 8
+
+#define TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT 16
 
 #include "visualinfo.h"
 

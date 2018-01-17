@@ -962,7 +962,7 @@ void editor_console_update(struct editor* base, const char* text, size_t length,
   base->console_text = strndup(text, length);
   base->console_color = VISUAL_FLAG_COLOR_CONSOLENORMAL+type;
 
-  base->console_doc->buffer = range_tree_insert_split(base->console_doc->buffer, base->console_doc->buffer?base->console_doc->buffer->length:0, (uint8_t*)text, length, 0);
+  base->console_doc->buffer = range_tree_insert_split(base->console_doc->buffer, base->console_doc->buffer?base->console_doc->buffer->length:0, (uint8_t*)text, length, TIPPSE_INSERTER_HIGHLIGHT|(base->console_color<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT));
   base->console_doc->buffer = range_tree_insert_split(base->console_doc->buffer, base->console_doc->buffer?base->console_doc->buffer->length:0, (uint8_t*)"\n", 1, 0);
   base->console_index++;
 }

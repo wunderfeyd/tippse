@@ -262,6 +262,35 @@ uint64_t decode_based_unsigned(struct encoding_cache* cache, int base, size_t co
   return decode_based_unsigned_offset(cache, base, &offset, count);
 }
 
+int64_t decode_based_signed_offset(struct encoding_cache* cache, int base, size_t* offset, size_t count) {
+  int negate = 1;
+  if (count>0) {
+    codepoint_t codepoints[8];
+    size_t advance = 1;
+    size_t length = 1;
+    unicode_read_combined_sequence(cache, *offset, &codepoints[0], 8, &advance, &length);
+    codepoint_t cp = codepoints[0];
+    *offset = (*offset)+advance;
+    count--;
+    negate = (cp=='-')?1:0;
+  }
+
+  int64_t output;
+  uint64_t abs = decode_based_unsigned_offset(cache, base, offset, count);
+  uint64_t max = ((uint64_t)1)<<(8*sizeof(uint64_t)-1);
+  if (negate) {
+    output = abs>=max?((int64_t)max-1):(int64_t)abs;
+  } else {
+    output = abs>max?(-((int64_t)max-1))-1:-((int64_t)abs);
+  }
+  return output;
+}
+
+int64_t decode_based_signed(struct encoding_cache* cache, int base, size_t count) {
+  size_t offset = 0;
+  return decode_based_signed_offset(cache, base, &offset, count);
+}
+
 // Build directory stream
 struct directory* directory_create(const char* path) {
   struct directory* base = malloc(sizeof(struct directory));

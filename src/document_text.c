@@ -60,6 +60,16 @@ file_offset_t document_text_cursor_position_partial(struct document_text_render_
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
+  position_t* x;
+  position_t* y;
+  if (in->type==VISUAL_SEEK_X_Y) {
+    x = &in->x;
+    y = &in->y;
+  } else {
+    x = &in->column;
+    y = &in->line;
+  }
+
   while (1) {
     while (1) {
       document_text_render_seek(render_info, file->buffer, file->encoding, in);
@@ -72,21 +82,10 @@ file_offset_t document_text_cursor_position_partial(struct document_text_render_
       break;
     }
 
-    position_t* x;
-    position_t* y;
-    if (in->type==VISUAL_SEEK_X_Y) {
-      x = &in->x;
-      y = &in->y;
-    } else {
-      x = &in->column;
-      y = &in->line;
-    }
-
     if (!out->y_drawn) {
       if (*y<0) {
         *y = 0;
         *x = 0;
-        continue;
       } else if (*y>0) {
         if (in->type==VISUAL_SEEK_X_Y) {
           *y = file->buffer?file->buffer->visuals.ys:0;
@@ -95,7 +94,8 @@ file_offset_t document_text_cursor_position_partial(struct document_text_render_
         }
 
         *x = POSITION_T_MAX;
-        continue;
+      } else {
+        break;
       }
     } else {
       if (*x>out->x_max) {
@@ -103,25 +103,21 @@ file_offset_t document_text_cursor_position_partial(struct document_text_render_
           *y = (*y)+1;
           *x = 0;
           wrap = 0;
-          continue;
         } else {
           *x = out->x_max;
-          continue;
         }
       } else if (*x<out->x_min) {
         if (*y>0 && wrap) {
           *y = (*y)-1;
           *x = POSITION_T_MAX;
           wrap = 0;
-          continue;
         } else {
           *x = out->x_min;
-          continue;
         }
+      } else {
+        break;
       }
     }
-
-    break;
   }
 
   return out->offset;
@@ -449,6 +445,10 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 
     if (render_info->buffer) {
       if (screen) {
+        if (render_info->buffer->inserter&TIPPSE_INSERTER_HIGHLIGHT) {
+          color = file->defaults.colors[render_info->buffer->inserter>>TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT];
+        }
+
         if ((debug&DEBUG_PAGERENDERDISPLAY)) {
           color = (intptr_t)render_info->buffer&0xff;
         }
@@ -853,11 +853,9 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
-  if (file->save && file->buffer) {
-    if (file->buffer->length!=view->selection->length) {
-      printf("\r\nSelection area and file length differ %d<>%d\r\n", (int)file->buffer->length, (int)view->selection->length);
-      exit(0);
-    }
+  if (file->save && file->buffer && file->buffer->length!=view->selection->length) {
+    printf("\r\nSelection area and file length differ %d<>%d\r\n", (int)file->buffer->length, (int)view->selection->length);
+    exit(0);
   }
 
   view->address_width = 6;
