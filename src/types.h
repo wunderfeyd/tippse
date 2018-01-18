@@ -18,4 +18,8 @@ typedef int32_t codepoint_t;
 #define POSITION_T_MAX ((position_t)((~(uint64_t)0)>>1))
 #define SIZE_T_MAX (~(size_t)0)
 
+// Unused results
+inline void unused_result(int result) {}
+#define UNUSED(a) unused_result(a?1:0)
+
 #endif /* #ifndef TIPPSE_TYPES_H */

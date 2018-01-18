@@ -1710,7 +1710,7 @@ void search_test(void) {
   if (f!=-1) {
     size_t length = 100*1000*1000;
     uint8_t* buffer = (uint8_t*)malloc(length);
-    read(f, buffer, length);
+    UNUSED(read(f, buffer, length));
     close(f);
 
     printf("hash search...\r\n");

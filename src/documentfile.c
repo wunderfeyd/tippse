@@ -147,7 +147,7 @@ void document_file_create_pipe(struct document_file* base) {
 
   document_file_close_pipe(base);
 
-  pipe(base->pipefd);
+  UNUSED(pipe(base->pipefd));
 
   signal(SIGCHLD, SIG_IGN);
   base->pid = fork();

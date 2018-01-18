@@ -35,8 +35,6 @@ struct encoding {
   size_t (*encode)(struct encoding*, codepoint_t, uint8_t*, size_t);
 };
 
-#include "stream.h"
-
 void encoding_cache_clear(struct encoding_cache* base, struct encoding* encoding, struct stream* stream);
 // Skip code points and rebase absolute offset
 inline void encoding_cache_advance(struct encoding_cache* base, size_t advance) {
@@ -70,5 +68,7 @@ uint16_t* encoding_reverse_table(uint16_t* table, size_t length, size_t max);
 
 struct range_tree_node* encoding_transform_stream(struct stream* stream, struct encoding* from, struct encoding* to);
 uint8_t* encoding_transform_plain(const uint8_t* buffer, size_t length, struct encoding* from, struct encoding* to);
+
+#include "stream.h"
 
 #endif  /* #ifndef TIPPSE_ENCODING_H */

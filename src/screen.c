@@ -72,14 +72,14 @@ struct screen* screen_create(void) {
   cfmakeraw(&raw);
   tcsetattr(STDIN_FILENO, TCSANOW, &raw);
 
-  write(STDOUT_FILENO, screen_ansi_init, strlen(screen_ansi_init));
+  UNUSED(write(STDOUT_FILENO, screen_ansi_init, strlen(screen_ansi_init)));
 
   return base;
 }
 
 // Destroy screen
 void screen_destroy(struct screen* base) {
-  write(STDOUT_FILENO, screen_ansi_restore, strlen(screen_ansi_restore));
+  UNUSED(write(STDOUT_FILENO, screen_ansi_restore, strlen(screen_ansi_restore)));
   tcsetattr(STDIN_FILENO, TCSANOW, &base->termios_original);
 
   free(base->title);
@@ -131,7 +131,7 @@ void screen_character_width_detect(struct screen* base) {
     pos += (*base->encoding->encode)(NULL, cp, (uint8_t*)pos, SIZE_T_MAX);
     pos += sprintf(pos, "\x1b[6n");
   }
-  write(STDOUT_FILENO, output, (size_t)(pos-output));
+  UNUSED(write(STDOUT_FILENO, output, (size_t)(pos-output)));
   free(output);
 
   int width = 0;
@@ -302,7 +302,7 @@ void screen_draw(struct screen* base) {
     pos += sprintf(pos, "\x1b[%d;%dH\x1b[?25h", base->cursor_y+1, base->cursor_x+1);
   }
 
-  write(STDOUT_FILENO, output, (size_t)(pos-output));
+  UNUSED(write(STDOUT_FILENO, output, (size_t)(pos-output)));
   free(output);
 }
 
