@@ -347,6 +347,7 @@ int main(int argc, const char** argv) {
 
   editor_destroy(editor);
   screen_destroy(screen);
+  clipboard_free();
   unicode_free();
   free(base_path);
 

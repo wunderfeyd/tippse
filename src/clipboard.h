@@ -4,6 +4,7 @@
 #include <stdlib.h>
 struct range_tree_node;
 
+void clipboard_free(void);
 void clipboard_set(struct range_tree_node* data, int binary);
 void clipboard_command_set(struct range_tree_node* data, int binary, const char* command);
 void clipboard_windows_set(struct range_tree_node* data, int binary);

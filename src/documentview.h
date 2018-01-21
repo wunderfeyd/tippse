@@ -19,6 +19,8 @@ struct document_view {
   int selection_reset;                  // Selection was changed
   struct range_tree_node* selection;    // information for multiple selections
 
+  int line_cut;                         // Previous action was a line cut
+
   position_t scroll_x;                  // scroll X offset
   position_t scroll_y;                  // scroll Y offset
   position_t scroll_x_old;              // scroll X offset, last renedering

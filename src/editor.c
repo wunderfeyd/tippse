@@ -56,7 +56,7 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"undo", TIPPSE_CMD_UNDO, "Undo last operation"},
   {"redo", TIPPSE_CMD_REDO, "Repeat previous undone operation"},
   {"cut", TIPPSE_CMD_CUT, "Copy to clipboard and delete selection"},
-  {"copy", TIPPSE_CMD_COPY, "Copy to clipboard selection and keep selection alive"},
+  {"copy", TIPPSE_CMD_COPY, "Copy to clipboard and keep selection"},
   {"paste", TIPPSE_CMD_PASTE, "Paste from clipboard"},
   {"tab", TIPPSE_CMD_TAB, "Raise indentation"},
   {"untab", TIPPSE_CMD_UNTAB, "Lower indentation"},
@@ -104,6 +104,7 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"searchcaseignore", TIPPSE_CMD_SEARCH_CASE_IGNORE, "Search while ignoring case"},
   {"searchdirectory", TIPPSE_CMD_SEARCH_DIRECTORY, "Search in current directory"},
   {"console", TIPPSE_CMD_CONSOLE, "Open editor console"},
+  {"cutline", TIPPSE_CMD_CUTLINE, "Copy line to clipboard and delete"},
   {NULL, 0, ""}
 };
 
@@ -328,7 +329,9 @@ void editor_keypress(struct editor* base, int key, codepoint_t cp, int button, i
   }
 
   if (!parent || !parent->end) {
-    editor_intercept(base, TIPPSE_CMD_CHARACTER, NULL, key, cp, button, button_old, x, y);
+    if (cp>0x0) {
+      editor_intercept(base, TIPPSE_CMD_CHARACTER, NULL, key, cp, button, button_old, x, y);
+    }
     return;
   }
 
@@ -455,12 +458,14 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
           parent = config_advance_codepoints(base->focus->file->config, parent, arguments->arguments[1].codepoints, arguments->arguments[1].length);
         }
 
-        // TODO: Use current shell encoding (get it somewhere)
-        struct encoding* utf8 = encoding_utf8_create();
-        char* shell = (char*)config_convert_encoding(parent, utf8);
-        document_file_pipe(base->document->file, shell);
-        free(shell);
-        encoding_utf8_destroy(utf8);
+        if (parent && parent->end) {
+          // TODO: Use current shell encoding (get it somewhere)
+          struct encoding* utf8 = encoding_utf8_create();
+          char* shell = (char*)config_convert_encoding(parent, utf8);
+          document_file_pipe(base->document->file, shell);
+          free(shell);
+          encoding_utf8_destroy(utf8);
+        }
       }
     } else {
       splitter_assign_document_file(base->document, base->compiler_doc);

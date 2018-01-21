@@ -5,6 +5,11 @@
 
 struct range_tree_node* clipboard = NULL;
 
+// Free clipboard data
+void clipboard_free(void) {
+  range_tree_destroy(clipboard, NULL);
+}
+
 // Write text to clipboard
 void clipboard_set(struct range_tree_node* data, int binary) {
 #ifdef __APPLE__

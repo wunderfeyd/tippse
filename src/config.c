@@ -92,6 +92,7 @@ const char* config_default =
       "ctrl+g:goto,"
       "ctrl+r:reload,"
       "ctrl+p:commands,"
+      "ctrl+k:cutline,"
     "},"
     "filetypes:{"
       "C:{"

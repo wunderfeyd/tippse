@@ -1054,6 +1054,10 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->cursor_y = out.y;
   }
 
+  if (command!=TIPPSE_CMD_CUTLINE) {
+    view->line_cut = 0;
+  }
+
   in_x_y.x = view->cursor_x;
   in_x_y.y = view->cursor_y;
 
@@ -1184,6 +1188,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
         view->selection_start = view->offset;
       }
       view->selection_end = view->offset;
+      view->line_cut = 0;
     } else if (button&TIPPSE_MOUSE_WHEEL_DOWN) {
       int page = ((splitter->height-2)/3)+1;
       in_x_y.y += page;
@@ -1192,6 +1197,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       view->cursor_x = out.x;
       view->cursor_y = out.y;
       view->show_scrollbar = 1;
+      view->line_cut = 0;
     } else if (button&TIPPSE_MOUSE_WHEEL_UP) {
       int page = ((splitter->height-2)/3)+1;
       in_x_y.y -= page;
@@ -1200,6 +1206,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       view->cursor_x = out.x;
       view->cursor_y = out.y;
       view->show_scrollbar = 1;
+      view->line_cut = 0;
     }
   } else if (command==TIPPSE_CMD_UPPER) {
     if (view->selection_low!=FILE_OFFSET_T_MAX) {
@@ -1260,6 +1267,29 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->selection_start = 0;
     view->selection_end = file_size;
     selection_keep = 1;
+  } else if (command==TIPPSE_CMD_CUTLINE) {
+    document_undo_chain(file, file->undos);
+
+    position_t line = out.line;
+    in_line_column.line = line;
+    in_line_column.column = 0;
+    file_offset_t from = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    in_line_column.column = POSITION_T_MAX;
+    file_offset_t to = document_text_cursor_position(splitter, &in_line_column, &out, 1, 1);
+
+    struct range_tree_node* clipboard = view->line_cut?clipboard_get():NULL;
+    view->line_cut = 1;
+    struct range_tree_node* rootold = range_tree_copy(clipboard, 0, range_tree_length(clipboard));
+    struct range_tree_node* rootnew = range_tree_copy(file->buffer, from, to-from);
+    rootold = range_tree_paste(rootold, rootnew, range_tree_length(rootold), NULL);
+    range_tree_destroy(rootnew, NULL);
+
+    clipboard_set(rootold, file->binary);
+    document_file_delete(file, from, to-from);
+
+    selection_keep = 1;
+    document_undo_chain(file, file->undos);
+    seek = 1;
   } else if (command==TIPPSE_CMD_COPY || command==TIPPSE_CMD_CUT) {
     document_undo_chain(file, file->undos);
     if (view->selection_low!=FILE_OFFSET_T_MAX) {
