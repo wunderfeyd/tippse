@@ -5,25 +5,25 @@
 #include "native.h"
 
 struct encoding* encoding_native_create(void) {
-  struct encoding_native* this = malloc(sizeof(struct encoding_native));
-  this->vtbl.create = encoding_native_create;
-  this->vtbl.destroy = encoding_native_destroy;
-  this->vtbl.name = encoding_native_name;
-  this->vtbl.character_length = encoding_native_character_length;
-  this->vtbl.encode = encoding_native_encode;
-  this->vtbl.decode = encoding_native_decode;
-  this->vtbl.visual = encoding_native_visual;
-  this->vtbl.next = encoding_native_next;
-  this->vtbl.strnlen = encoding_native_strnlen;
-  this->vtbl.strlen = encoding_native_strlen;
-  this->vtbl.seek = encoding_native_seek;
+  struct encoding_native* self = malloc(sizeof(struct encoding_native));
+  self->vtbl.create = encoding_native_create;
+  self->vtbl.destroy = encoding_native_destroy;
+  self->vtbl.name = encoding_native_name;
+  self->vtbl.character_length = encoding_native_character_length;
+  self->vtbl.encode = encoding_native_encode;
+  self->vtbl.decode = encoding_native_decode;
+  self->vtbl.visual = encoding_native_visual;
+  self->vtbl.next = encoding_native_next;
+  self->vtbl.strnlen = encoding_native_strnlen;
+  self->vtbl.strlen = encoding_native_strlen;
+  self->vtbl.seek = encoding_native_seek;
 
-  return (struct encoding*)this;
+  return (struct encoding*)self;
 }
 
 void encoding_native_destroy(struct encoding* base) {
-  struct encoding_native* this = (struct encoding_native*)base;
-  free(this);
+  struct encoding_native* self = (struct encoding_native*)base;
+  free(self);
 }
 
 const char* encoding_native_name(void) {

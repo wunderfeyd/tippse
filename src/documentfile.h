@@ -45,9 +45,9 @@ struct document_file_defaults {
   int newline;                          // type of newline, e.g. Unix or DOS
 };
 
-struct document_file_type {
-  const char* extension;                // file extension
-  struct file_type* (*constructor)(struct config* config); // file type
+struct document_file_parser {
+  const char* name;                      // parser name
+  struct file_type* (*constructor)(struct config* config, const char* file_type); // file type
 };
 
 struct document_file_cache {
@@ -94,10 +94,8 @@ struct document_file {
 #include "filecache.h"
 #include "filetype.h"
 #include "filetype/c.h"
-#include "filetype/cpp.h"
 #include "filetype/sql.h"
 #include "filetype/text.h"
-#include "filetype/js.h"
 #include "filetype/lua.h"
 #include "filetype/patch.h"
 #include "filetype/php.h"

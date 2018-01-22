@@ -11,13 +11,14 @@ struct trie_node;
 struct file_type_c {
   struct file_type vtbl;
 
+  struct trie_node* syntax;
   struct trie_node* keywords;
   struct trie_node* keywords_preprocessor;
 };
 
 #include "../trie.h"
 
-struct file_type* file_type_c_create(struct config* config);
+struct file_type* file_type_c_create(struct config* config, const char* file_type);
 void file_type_c_destroy(struct file_type* base);
 void file_type_c_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int same_line, int* length, int* flags);
 const char* file_type_c_name(void);

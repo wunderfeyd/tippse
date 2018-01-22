@@ -1010,7 +1010,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   const char* newline[TIPPSE_NEWLINE_MAX] = {"Auto", "Lf", "Cr", "CrLf"};
   const char* tabstop[TIPPSE_TABSTOP_MAX] = {"Auto", "Tab", "Space"};
   char status[1024];
-  sprintf(&status[0], "%s%s%d/%d:%d - %d/%d byte - %s*%d %s %s %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), (int)(cursor.line+1), (int)(cursor.column+1), (int)view->offset, (int)range_tree_length(file->buffer), tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->encoding->name)());
+  sprintf(&status[0], "%s%s%d/%d:%d - %d/%d byte - %s*%d %s %s/%s %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), (int)(cursor.line+1), (int)(cursor.column+1), (int)view->offset, (int)range_tree_length(file->buffer), tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->type->type)(file->type), (*file->encoding->name)());
   splitter_status(splitter, &status[0]);
 
   view->scroll_y_max = file->buffer?file->buffer->visuals.ys:0;

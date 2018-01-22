@@ -2,19 +2,22 @@
 
 #include "xml.h"
 
-struct file_type* file_type_xml_create(struct config* config) {
-  struct file_type_xml* this = malloc(sizeof(struct file_type_xml));
-  this->vtbl.create = file_type_xml_create;
-  this->vtbl.destroy = file_type_xml_destroy;
-  this->vtbl.name = file_type_xml_name;
-  this->vtbl.mark = file_type_xml_mark;
-  this->vtbl.bracket_match = file_type_bracket_match;
-  return (struct file_type*)this;
+struct file_type* file_type_xml_create(struct config* config, const char* file_type) {
+  struct file_type_xml* self = malloc(sizeof(struct file_type_xml));
+  self->vtbl.file_type = strdup(file_type);
+  self->vtbl.create = file_type_xml_create;
+  self->vtbl.destroy = file_type_xml_destroy;
+  self->vtbl.name = file_type_xml_name;
+  self->vtbl.mark = file_type_xml_mark;
+  self->vtbl.bracket_match = file_type_bracket_match;
+  self->vtbl.type = file_type_file_type;
+  return (struct file_type*)self;
 }
 
 void file_type_xml_destroy(struct file_type* base) {
-  struct file_type_xml* this = (struct file_type_xml*)base;
-  free(this);
+  struct file_type_xml* self = (struct file_type_xml*)base;
+  free(base->file_type);
+  free(self);
 }
 
 const char* file_type_xml_name(void) {

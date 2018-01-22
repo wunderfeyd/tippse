@@ -27,30 +27,30 @@ uint16_t translate_cp850_unicode[256] = {
 uint16_t* translate_unicode_cp850 = NULL;
 
 struct encoding* encoding_cp850_create(void) {
-  struct encoding_cp850* this = malloc(sizeof(struct encoding_cp850));
-  this->vtbl.create = encoding_cp850_create;
-  this->vtbl.destroy = encoding_cp850_destroy;
-  this->vtbl.name = encoding_cp850_name;
-  this->vtbl.character_length = encoding_cp850_character_length;
-  this->vtbl.encode = encoding_cp850_encode;
-  this->vtbl.decode = encoding_cp850_decode;
-  this->vtbl.visual = encoding_cp850_visual;
-  this->vtbl.next = encoding_cp850_next;
-  this->vtbl.strnlen = encoding_cp850_strnlen;
-  this->vtbl.strlen = encoding_cp850_strlen;
-  this->vtbl.seek = encoding_cp850_seek;
+  struct encoding_cp850* self = malloc(sizeof(struct encoding_cp850));
+  self->vtbl.create = encoding_cp850_create;
+  self->vtbl.destroy = encoding_cp850_destroy;
+  self->vtbl.name = encoding_cp850_name;
+  self->vtbl.character_length = encoding_cp850_character_length;
+  self->vtbl.encode = encoding_cp850_encode;
+  self->vtbl.decode = encoding_cp850_decode;
+  self->vtbl.visual = encoding_cp850_visual;
+  self->vtbl.next = encoding_cp850_next;
+  self->vtbl.strnlen = encoding_cp850_strnlen;
+  self->vtbl.strlen = encoding_cp850_strlen;
+  self->vtbl.seek = encoding_cp850_seek;
 
   if (!translate_unicode_cp850) {
-    // TODO: this isn't freed at the moment
+    // TODO: self isn't freed at the moment
     translate_unicode_cp850 = encoding_reverse_table(&translate_cp850_unicode[0], 256, CODEPOINT_MAX_CP850);
   }
 
-  return (struct encoding*)this;
+  return (struct encoding*)self;
 }
 
 void encoding_cp850_destroy(struct encoding* base) {
-  struct encoding_cp850* this = (struct encoding_cp850*)base;
-  free(this);
+  struct encoding_cp850* self = (struct encoding_cp850*)base;
+  free(self);
 }
 
 const char* encoding_cp850_name(void) {

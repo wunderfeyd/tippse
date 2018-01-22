@@ -2,24 +2,27 @@
 
 #include "c.h"
 
-struct file_type* file_type_c_create(struct config* config) {
-  struct file_type_c* this = malloc(sizeof(struct file_type_c));
-  this->vtbl.config = config;
-  this->vtbl.create = file_type_c_create;
-  this->vtbl.destroy = file_type_c_destroy;
-  this->vtbl.name = file_type_c_name;
-  this->vtbl.mark = file_type_c_mark;
-  this->vtbl.bracket_match = file_type_bracket_match;
+struct file_type* file_type_c_create(struct config* config, const char* file_type) {
+  struct file_type_c* self = malloc(sizeof(struct file_type_c));
+  self->vtbl.config = config;
+  self->vtbl.file_type = strdup(file_type);
+  self->vtbl.create = file_type_c_create;
+  self->vtbl.destroy = file_type_c_destroy;
+  self->vtbl.name = file_type_c_name;
+  self->vtbl.mark = file_type_c_mark;
+  self->vtbl.bracket_match = file_type_bracket_match;
+  self->vtbl.type = file_type_file_type;
 
-  this->keywords = file_type_config_base((struct file_type*)this, "colors/keywords");
-  this->keywords_preprocessor = file_type_config_base((struct file_type*)this, "colors/preprocessor");
+  self->keywords = file_type_config_base((struct file_type*)self, "colors/keywords");
+  self->keywords_preprocessor = file_type_config_base((struct file_type*)self, "colors/preprocessor");
 
-  return (struct file_type*)this;
+  return (struct file_type*)self;
 }
 
 void file_type_c_destroy(struct file_type* base) {
-  struct file_type_c* this = (struct file_type_c*)base;
-  free(this);
+  struct file_type_c* self = (struct file_type_c*)base;
+  free(base->file_type);
+  free(self);
 }
 
 const char* file_type_c_name(void) {
@@ -27,7 +30,7 @@ const char* file_type_c_name(void) {
 }
 
 void file_type_c_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int same_line, int* length, int* flags) {
-  struct file_type_c* this = (struct file_type_c*)base;
+  struct file_type_c* self = (struct file_type_c*)base;
 
   codepoint_t cp1 = encoding_cache_find_codepoint(cache, 0);
   codepoint_t cp2 = encoding_cache_find_codepoint(cache, 1);
@@ -60,19 +63,19 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct encodin
         after &= ~VISUAL_DETAIL_COMMENT0;
       }
     } else if (cp1=='\\') {
-      if (before_masked==VISUAL_DETAIL_STRING0 || before_masked==VISUAL_DETAIL_STRING1) {
+      if (before_masked&(VISUAL_DETAIL_STRING0|VISUAL_DETAIL_STRING1)) {
         after |= VISUAL_DETAIL_STRINGESCAPE;
       }
     } else if (cp1=='"') {
       if (before_masked==0) {
         after |= VISUAL_DETAIL_STRING0;
-      } else if (before_masked==VISUAL_DETAIL_STRING0) {
+      } else {
         after &= ~VISUAL_DETAIL_STRING0;
       }
     } else if (cp1=='\'') {
       if (before_masked==0) {
         after |= VISUAL_DETAIL_STRING1;
-      } else if (before_masked==VISUAL_DETAIL_STRING1) {
+      } else {
         after &= ~VISUAL_DETAIL_STRING1;
       }
     } else if (cp1=='#') {
@@ -104,7 +107,7 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct encodin
       if (cp1>' ' && (before&VISUAL_DETAIL_PREPROCESSOR)) {
         after &= ~VISUAL_DETAIL_PREPROCESSOR;
         *length = 0;
-        *flags = file_type_keyword_config(base, cache, this->keywords_preprocessor, length, 0);
+        *flags = file_type_keyword_config(base, cache, self->keywords_preprocessor, length, 0);
       }
 
       if (*flags==0) {
@@ -118,7 +121,7 @@ void file_type_c_mark(struct file_type* base, int* visual_detail, struct encodin
     } else {
       if (!(before&VISUAL_DETAIL_WORD) && (after&VISUAL_DETAIL_WORD)) {
         *length = 0;
-        *flags = file_type_keyword_config(base, cache, this->keywords, length, 0);
+        *flags = file_type_keyword_config(base, cache, self->keywords, length, 0);
       }
 
       if (*flags==0) {

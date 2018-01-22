@@ -3,25 +3,25 @@
 #include "ascii.h"
 
 struct encoding* encoding_ascii_create(void) {
-  struct encoding_ascii* this = malloc(sizeof(struct encoding_ascii));
-  this->vtbl.create = encoding_ascii_create;
-  this->vtbl.destroy = encoding_ascii_destroy;
-  this->vtbl.name = encoding_ascii_name;
-  this->vtbl.character_length = encoding_ascii_character_length;
-  this->vtbl.encode = encoding_ascii_encode;
-  this->vtbl.decode = encoding_ascii_decode;
-  this->vtbl.visual = encoding_ascii_visual;
-  this->vtbl.next = encoding_ascii_next;
-  this->vtbl.strnlen = encoding_ascii_strnlen;
-  this->vtbl.strlen = encoding_ascii_strlen;
-  this->vtbl.seek = encoding_ascii_seek;
+  struct encoding_ascii* self = malloc(sizeof(struct encoding_ascii));
+  self->vtbl.create = encoding_ascii_create;
+  self->vtbl.destroy = encoding_ascii_destroy;
+  self->vtbl.name = encoding_ascii_name;
+  self->vtbl.character_length = encoding_ascii_character_length;
+  self->vtbl.encode = encoding_ascii_encode;
+  self->vtbl.decode = encoding_ascii_decode;
+  self->vtbl.visual = encoding_ascii_visual;
+  self->vtbl.next = encoding_ascii_next;
+  self->vtbl.strnlen = encoding_ascii_strnlen;
+  self->vtbl.strlen = encoding_ascii_strlen;
+  self->vtbl.seek = encoding_ascii_seek;
 
-  return (struct encoding*)this;
+  return (struct encoding*)self;
 }
 
 void encoding_ascii_destroy(struct encoding* base) {
-  struct encoding_ascii* this = (struct encoding_ascii*)base;
-  free(this);
+  struct encoding_ascii* self = (struct encoding_ascii*)base;
+  free(self);
 }
 
 const char* encoding_ascii_name(void) {

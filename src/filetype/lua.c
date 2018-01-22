@@ -2,23 +2,26 @@
 
 #include "lua.h"
 
-struct file_type* file_type_lua_create(struct config* config) {
-  struct file_type_lua* this = malloc(sizeof(struct file_type_lua));
-  this->vtbl.config = config;
-  this->vtbl.create = file_type_lua_create;
-  this->vtbl.destroy = file_type_lua_destroy;
-  this->vtbl.name = file_type_lua_name;
-  this->vtbl.mark = file_type_lua_mark;
-  this->vtbl.bracket_match = file_type_bracket_match;
+struct file_type* file_type_lua_create(struct config* config, const char* file_type) {
+  struct file_type_lua* self = malloc(sizeof(struct file_type_lua));
+  self->vtbl.config = config;
+  self->vtbl.file_type = strdup(file_type);
+  self->vtbl.create = file_type_lua_create;
+  self->vtbl.destroy = file_type_lua_destroy;
+  self->vtbl.name = file_type_lua_name;
+  self->vtbl.mark = file_type_lua_mark;
+  self->vtbl.bracket_match = file_type_bracket_match;
+  self->vtbl.type = file_type_file_type;
 
-  this->keywords = file_type_config_base((struct file_type*)this, "colors/keywords");
+  self->keywords = file_type_config_base((struct file_type*)self, "colors/keywords");
 
-  return (struct file_type*)this;
+  return (struct file_type*)self;
 }
 
 void file_type_lua_destroy(struct file_type* base) {
-  struct file_type_lua* this = (struct file_type_lua*)base;
-  free(this);
+  struct file_type_lua* self = (struct file_type_lua*)base;
+  free(base->file_type);
+  free(self);
 }
 
 const char* file_type_lua_name(void) {
@@ -26,7 +29,7 @@ const char* file_type_lua_name(void) {
 }
 
 void file_type_lua_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int same_line, int* length, int* flags) {
-  struct file_type_lua* this = (struct file_type_lua*)base;
+  struct file_type_lua* self = (struct file_type_lua*)base;
 
   // TODO: check for different block comments in future
   codepoint_t cp1 = encoding_cache_find_codepoint(cache, 0);
@@ -108,7 +111,7 @@ void file_type_lua_mark(struct file_type* base, int* visual_detail, struct encod
   } else {
     if (!(before&VISUAL_DETAIL_WORD) && (after&VISUAL_DETAIL_WORD)) {
       *length = 0;
-      *flags = file_type_keyword_config(base, cache, this->keywords, length, 0);
+      *flags = file_type_keyword_config(base, cache, self->keywords, length, 0);
     }
 
     if (*flags==0) {

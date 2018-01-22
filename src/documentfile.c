@@ -6,20 +6,13 @@ extern struct config_cache screen_color_codes[];
 extern struct config_cache visual_color_codes[VISUAL_FLAG_COLOR_MAX+1];
 
 // TODO: this has to be covered by the settings subsystem in future
-struct document_file_type document_file_types[] = {
+struct document_file_parser document_file_parsers[] = {
   {"c", file_type_c_create},
-  {"h", file_type_c_create},
-  {"cpp", file_type_cpp_create},
-  {"hpp", file_type_cpp_create},
-  {"cc", file_type_cpp_create},
-  {"cxx", file_type_cpp_create},
   {"sql", file_type_sql_create},
   {"lua", file_type_lua_create},
   {"php", file_type_php_create},
   {"xml", file_type_xml_create},
-  {"diff", file_type_patch_create},
   {"patch", file_type_patch_create},
-  {"js", file_type_js_create},
   {NULL,  NULL}
 };
 
@@ -43,7 +36,7 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->tabstop_width = 4;
   base->newline = TIPPSE_NEWLINE_AUTO;
   base->config = config?config_create():NULL;
-  base->type = file_type_text_create(base->config);
+  base->type = file_type_text_create(base->config, "");
   base->view = document_view_create();
   base->pipefd[0] = -1;
   base->pipefd[1] = -1;
@@ -108,6 +101,10 @@ void document_file_name(struct document_file* base, const char* filename) {
 
   document_file_reload_config(base);
 
+  if (!base->config) {
+    return;
+  }
+
   const char* search = filename;
   const char* last = filename;
   while (*search) {
@@ -122,12 +119,42 @@ void document_file_name(struct document_file* base, const char* filename) {
     last = search;
   }
 
-  for (size_t n = 0; document_file_types[n].extension; n++) {
-    if (strcasecmp(document_file_types[n].extension, last)==0) {
-      (*base->type->destroy)(base->type);
-      base->type = (*document_file_types[n].constructor)(base->config);
-      break;
+  struct trie_node* node = config_find_ascii(base->config, "/fileextensions/");
+  if (node) {
+    node = config_advance_ascii(base->config, node, last);
+  }
+
+  if (node && node->end) {
+    struct encoding* encoding = encoding_utf8_create();
+    char* file_type = (char*)config_convert_encoding(node, encoding);
+    encoding_utf8_destroy(encoding);
+
+    node = config_find_ascii(base->config, "/filetypes/");
+    if (node) {
+      node = config_advance_ascii(base->config, node, file_type);
     }
+
+    if (node) {
+      node = config_advance_ascii(base->config, node, "/parser");
+    }
+
+    if (node && node->end) {
+      struct encoding* encoding = encoding_utf8_create();
+      char* parser = (char*)config_convert_encoding(node, encoding);
+      encoding_utf8_destroy(encoding);
+
+      for (size_t n = 0; document_file_parsers[n].name; n++) {
+        if (strcmp(document_file_parsers[n].name, parser)==0) {
+          (*base->type->destroy)(base->type);
+          base->type = (*document_file_parsers[n].constructor)(base->config, file_type);
+          break;
+        }
+      }
+
+      free(parser);
+    }
+
+    free(file_type);
   }
 }
 

@@ -2,20 +2,23 @@
 
 #include "text.h"
 
-struct file_type* file_type_text_create(struct config* config) {
-  struct file_type_text* this = malloc(sizeof(struct file_type_text));
-  this->vtbl.create = file_type_text_create;
-  this->vtbl.destroy = file_type_text_destroy;
-  this->vtbl.name = file_type_text_name;
-  this->vtbl.mark = file_type_text_mark;
-  this->vtbl.bracket_match = file_type_bracket_match;
+struct file_type* file_type_text_create(struct config* config, const char* file_type) {
+  struct file_type_text* self = malloc(sizeof(struct file_type_text));
+  self->vtbl.file_type = strdup(file_type);
+  self->vtbl.create = file_type_text_create;
+  self->vtbl.destroy = file_type_text_destroy;
+  self->vtbl.name = file_type_text_name;
+  self->vtbl.mark = file_type_text_mark;
+  self->vtbl.bracket_match = file_type_bracket_match;
+  self->vtbl.type = file_type_file_type;
 
-  return (struct file_type*)this;
+  return (struct file_type*)self;
 }
 
 void file_type_text_destroy(struct file_type* base) {
-  struct file_type_text* this = (struct file_type_text*)base;
-  free(this);
+  struct file_type_text* self = (struct file_type_text*)base;
+  free(base->file_type);
+  free(self);
 }
 
 const char* file_type_text_name(void) {

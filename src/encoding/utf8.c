@@ -3,25 +3,25 @@
 #include "utf8.h"
 
 struct encoding* encoding_utf8_create(void) {
-  struct encoding_utf8* this = malloc(sizeof(struct encoding_utf8));
-  this->vtbl.create = encoding_utf8_create;
-  this->vtbl.destroy = encoding_utf8_destroy;
-  this->vtbl.name = encoding_utf8_name;
-  this->vtbl.character_length = encoding_utf8_character_length;
-  this->vtbl.encode = encoding_utf8_encode;
-  this->vtbl.decode = encoding_utf8_decode;
-  this->vtbl.visual = encoding_utf8_visual;
-  this->vtbl.next = encoding_utf8_next;
-  this->vtbl.strnlen = encoding_utf8_strnlen;
-  this->vtbl.strlen = encoding_utf8_strlen;
-  this->vtbl.seek = encoding_utf8_seek;
+  struct encoding_utf8* self = malloc(sizeof(struct encoding_utf8));
+  self->vtbl.create = encoding_utf8_create;
+  self->vtbl.destroy = encoding_utf8_destroy;
+  self->vtbl.name = encoding_utf8_name;
+  self->vtbl.character_length = encoding_utf8_character_length;
+  self->vtbl.encode = encoding_utf8_encode;
+  self->vtbl.decode = encoding_utf8_decode;
+  self->vtbl.visual = encoding_utf8_visual;
+  self->vtbl.next = encoding_utf8_next;
+  self->vtbl.strnlen = encoding_utf8_strnlen;
+  self->vtbl.strlen = encoding_utf8_strlen;
+  self->vtbl.seek = encoding_utf8_seek;
 
-  return (struct encoding*)this;
+  return (struct encoding*)self;
 }
 
 void encoding_utf8_destroy(struct encoding* base) {
-  struct encoding_utf8* this = (struct encoding_utf8*)base;
-  free(this);
+  struct encoding_utf8* self = (struct encoding_utf8*)base;
+  free(self);
 }
 
 const char* encoding_utf8_name(void) {

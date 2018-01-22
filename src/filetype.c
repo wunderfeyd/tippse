@@ -11,7 +11,7 @@ struct trie_node* file_type_config_base(struct file_type* base, const char* suff
     return NULL;
   }
 
-  node = config_advance_ascii(base->config, node, (base->name)());
+  node = config_advance_ascii(base->config, node, base->file_type);
   if (!node) {
     return NULL;
   }
@@ -88,4 +88,9 @@ int file_type_bracket_match(int visual_detail, codepoint_t* cp, size_t length) {
   }
 
   return 0;
+}
+
+// Return the file type the parser was based on
+const char* file_type_file_type(struct file_type* base) {
+  return base->file_type;
 }
