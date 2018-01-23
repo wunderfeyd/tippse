@@ -93,6 +93,8 @@ const char* config_default =
       "ctrl+r:reload,"
       "ctrl+p:commands,"
       "ctrl+k:cutline,"
+      "ctrl+up:blockup,"
+      "ctrl+down:blockdown,"
     "},"
     "fileextensions:{"
       "c:C,"

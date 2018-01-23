@@ -105,6 +105,8 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"searchdirectory", TIPPSE_CMD_SEARCH_DIRECTORY, "Search in current directory"},
   {"console", TIPPSE_CMD_CONSOLE, "Open editor console"},
   {"cutline", TIPPSE_CMD_CUTLINE, "Copy line to clipboard and delete"},
+  {"blockup", TIPPSE_CMD_BLOCK_UP, "Move block up"},
+  {"blockdown", TIPPSE_CMD_BLOCK_DOWN, "Move block down"},
   {NULL, 0, ""}
 };
 
@@ -361,7 +363,13 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
   if (command==TIPPSE_CMD_DOCUMENTSELECTION) {
     editor_view_tabs(base, NULL, NULL);
   } else if (command==TIPPSE_CMD_BROWSER) {
-    editor_view_browser(base, NULL, NULL, NULL);
+    char* directory = strip_file_name(base->document->file->filename);
+    char* corrected = correct_path(directory);
+    char* relative = relativate_path(base->base_path, corrected);
+    editor_view_browser(base, relative, NULL, NULL);
+    free(relative);
+    free(corrected);
+    free(directory);
   } else if (command==TIPPSE_CMD_COMMANDS) {
     editor_view_commands(base, NULL, NULL);
   }
@@ -796,7 +804,7 @@ void editor_view_browser(struct editor* base, const char* filename, struct strea
 
   editor_panel_assign(base, base->browser_doc);
 
-  if (filename!=NULL) {
+  if (filename) {
     document_file_name(base->panel->file, filename);
   }
 

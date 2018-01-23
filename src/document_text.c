@@ -1259,6 +1259,18 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     document_undo_chain(file, file->undos);
     if (view->selection_low!=FILE_OFFSET_T_MAX) {
       document_text_lower_indentation(base, splitter, view->selection_low, view->selection_high-1);
+    } else {
+      document_text_lower_indentation(base, splitter, view->offset, view->offset);
+    }
+    document_undo_chain(file, file->undos);
+    seek = 1;
+    selection_keep = 1;
+  } else if (command==TIPPSE_CMD_BLOCK_UP || command==TIPPSE_CMD_BLOCK_DOWN) {
+    document_undo_chain(file, file->undos);
+    if (view->selection_low!=FILE_OFFSET_T_MAX) {
+      document_text_move_block(base, splitter, view->selection_low, view->selection_high-1, (command==TIPPSE_CMD_BLOCK_UP)?1:0);
+    } else {
+      document_text_move_block(base, splitter, view->offset, view->offset, (command==TIPPSE_CMD_BLOCK_UP)?1:0);
     }
     document_undo_chain(file, file->undos);
     seek = 1;
@@ -1716,6 +1728,58 @@ void document_text_raise_indentation(struct document* base, struct splitter* spl
     }
 
     out_end.line--;
+  }
+}
+
+// Move given block up or down
+void document_text_move_block(struct document* base, struct splitter* splitter, file_offset_t low, file_offset_t high, int up) {
+  struct document_file* file = splitter->file;
+
+  struct document_text_position in_offset;
+  in_offset.type = VISUAL_SEEK_OFFSET;
+  in_offset.clip = 0;
+
+  struct document_text_position in_line_column;
+  in_line_column.type = VISUAL_SEEK_LINE_COLUMN;
+  in_line_column.clip = 0;
+
+  struct document_text_position out_start;
+  struct document_text_position out_end;
+
+  in_offset.offset = low;
+  document_text_cursor_position(splitter, &in_offset, &out_start, 0, 1);
+  in_offset.offset = high;
+  document_text_cursor_position(splitter, &in_offset, &out_end, 0, 1);
+
+  position_t line_from = up?out_start.line-1:out_end.line+1;
+  position_t line_to = up?out_end.line+1:out_start.line;
+
+  struct document_text_position out_line_start;
+  struct document_text_position out_line_end;
+  struct document_text_position out_insert;
+
+  in_line_column.column = 0;
+  in_line_column.line = line_from;
+  document_text_cursor_position(splitter, &in_line_column, &out_line_start, 0, 1);
+
+  in_line_column.column = POSITION_T_MAX;
+  in_line_column.line = line_from;
+  document_text_cursor_position(splitter, &in_line_column, &out_line_end, 1, 1);
+
+  if (out_line_end.offset<=out_start.offset || out_line_start.offset>=out_end.offset) {
+    in_line_column.column = 0;
+    in_line_column.line = line_to;
+    document_text_cursor_position(splitter, &in_line_column, &out_insert, 0, 1);
+
+    struct range_tree_node* copy = range_tree_copy(file->buffer, out_line_start.offset, out_line_end.offset-out_line_start.offset);
+    if (up) {
+      document_file_insert_buffer(file, out_insert.offset, copy);
+      document_file_delete(file, out_line_start.offset, out_line_end.offset-out_line_start.offset);
+    } else {
+      document_file_delete(file, out_line_start.offset, out_line_end.offset-out_line_start.offset);
+      document_file_insert_buffer(file, out_insert.offset, copy);
+    }
+    range_tree_destroy(copy, NULL);
   }
 }
 
