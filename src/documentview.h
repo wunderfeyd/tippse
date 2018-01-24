@@ -8,6 +8,7 @@ struct range_tree_node;
 
 struct document_view {
   file_offset_t offset;                 // file offset
+  file_offset_t offset_calculated;      // last offset calcuted by renderer
 
   position_t cursor_x;                  // cursor X position, without scroll offset
   position_t cursor_y;                  // cursor Y position, without scroll offset
@@ -32,7 +33,6 @@ struct document_view {
   int show_invisibles;                  // show invisibles?
   int wrapping;                         // show word wrapping?
   int line_select;                      // show whole line selected?
-  int update_offset;                    // offset was changed? try to recalculate current cursor positions
 };
 
 #include "rangetree.h"

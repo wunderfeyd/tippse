@@ -1646,8 +1646,8 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
         }
         base->hit_end = stream;
         hit = 1;
-        hits++;
       }
+      hits++;
       enter = 0;
     }
 
