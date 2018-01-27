@@ -336,4 +336,16 @@ void document_select_all(struct splitter* splitter, int update_offset) {
   view->selection_high = end;
   view->selection_start = 0;
   view->selection_end = end;
+  view->selection_reset = 1;
+}
+
+// Throw away all selections
+void document_select_nothing(struct splitter* splitter) {
+  struct document_view* view = splitter->view;
+
+  view->selection_low = FILE_OFFSET_T_MAX;
+  view->selection_high = FILE_OFFSET_T_MAX;
+  view->selection_start = FILE_OFFSET_T_MAX;
+  view->selection_end = FILE_OFFSET_T_MAX;
+  view->selection_reset = 1;
 }

@@ -1752,35 +1752,56 @@ void document_text_move_block(struct document* base, struct splitter* splitter, 
   in_offset.offset = high;
   document_text_cursor_position(splitter, &in_offset, &out_end, 0, 1);
 
-  position_t line_from = up?out_start.line-1:out_end.line+1;
-  position_t line_to = up?out_end.line+1:out_start.line;
-
   struct document_text_position out_line_start;
   struct document_text_position out_line_end;
+  struct document_text_position out_line_return_start;
+  struct document_text_position out_line_return_end;
   struct document_text_position out_insert;
 
   in_line_column.column = 0;
-  in_line_column.line = line_from;
+  in_line_column.line = out_start.line;
   document_text_cursor_position(splitter, &in_line_column, &out_line_start, 0, 1);
 
   in_line_column.column = POSITION_T_MAX;
-  in_line_column.line = line_from;
-  document_text_cursor_position(splitter, &in_line_column, &out_line_end, 1, 1);
+  in_line_column.line = out_end.line;
+  document_text_cursor_position(splitter, &in_line_column, &out_line_end, 0, 1);
 
-  if (out_line_end.offset<=out_start.offset || out_line_start.offset>=out_end.offset) {
+  in_line_column.column = 0;
+  in_line_column.line = up?out_line_start.line-1:out_line_end.line+2;
+  document_text_cursor_position(splitter, &in_line_column, &out_insert, 0, 1);
+
+  file_offset_t correction = 0;
+  //printf("\r\n\r\n\r\nooo %d- %d\r\n", (int)out_line_end.offset, (int)range_tree_length(file->buffer));
+  if (out_line_end.offset==range_tree_length(file->buffer) || (!up && out_insert.line!=out_line_end.line+2 && out_line_start.line>0)) {
+    in_line_column.column = POSITION_T_MAX;
+    in_line_column.line = out_line_start.line-1;
+    document_text_cursor_position(splitter, &in_line_column, &out_line_return_start, 0, 1);
+    out_line_return_end.offset = out_line_start.offset;
+  } else {
     in_line_column.column = 0;
-    in_line_column.line = line_to;
-    document_text_cursor_position(splitter, &in_line_column, &out_insert, 0, 1);
+    in_line_column.line = out_line_end.line+1;
+    document_text_cursor_position(splitter, &in_line_column, &out_line_return_end, 0, 1);
+    out_line_return_start.offset = out_line_end.offset;
+    correction = out_line_return_end.offset-out_line_return_start.offset;
+  }
 
-    struct range_tree_node* copy = range_tree_copy(file->buffer, out_line_start.offset, out_line_end.offset-out_line_start.offset);
+  if (out_insert.offset<out_line_start.offset || out_insert.offset>out_line_end.offset) {
     if (up) {
-      document_file_insert_buffer(file, out_insert.offset, copy);
-      document_file_delete(file, out_line_start.offset, out_line_end.offset-out_line_start.offset);
+      if (correction) {
+        document_file_move(file, out_line_start.offset, out_insert.offset, out_line_return_end.offset-out_line_start.offset);
+      } else {
+        document_file_move(file, out_line_return_start.offset, out_insert.offset, out_line_return_end.offset-out_line_return_start.offset);
+        document_file_move(file, out_line_start.offset, out_insert.offset, out_line_end.offset-out_line_start.offset);
+      }
     } else {
-      document_file_delete(file, out_line_start.offset, out_line_end.offset-out_line_start.offset);
-      document_file_insert_buffer(file, out_insert.offset, copy);
+      if (correction) {
+        document_file_move(file, out_line_return_start.offset, out_insert.offset, out_line_return_end.offset-out_line_return_start.offset);
+        document_file_move(file, out_line_start.offset, out_insert.offset-(out_line_return_end.offset-out_line_return_start.offset), out_line_end.offset-out_line_start.offset);
+      } else {
+        document_file_move(file, out_line_start.offset, out_insert.offset, out_line_end.offset-out_line_start.offset);
+        document_file_move(file, out_line_return_start.offset, out_insert.offset-(out_line_end.offset-out_line_start.offset), out_line_return_end.offset-out_line_return_start.offset);
+      }
     }
-    range_tree_destroy(copy, NULL);
   }
 }
 
@@ -1868,10 +1889,7 @@ void document_text_goto(struct document* base, struct splitter* splitter, positi
   in_line_column.line = line;
 
   struct document_text_position out;
-
   view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
-  view->cursor_x = out.x;
-  view->cursor_y = out.y;
   view->show_scrollbar = 1;
 }
 
@@ -1885,7 +1903,6 @@ file_offset_t document_text_line_start_offset(struct document* base, struct spli
   in_offset.offset = view->offset;
 
   struct document_text_position out;
-
   document_text_cursor_position(splitter, &in_offset, &out, 0, 1);
 
   struct document_text_position in_line_column;

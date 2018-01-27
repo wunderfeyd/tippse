@@ -434,10 +434,12 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
 
       base->document->view->offset = offset;
       base->document->view->show_scrollbar = 1;
+      document_select_nothing(base->document);
     } else {
       position_t line = (position_t)decode_based_unsigned(&cache, 10, SIZE_T_MAX);
       if (line>0) {
         document_text_goto(base->document->document, base->document, line-1);
+        document_select_nothing(base->document);
       }
     }
 
@@ -653,6 +655,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
           position_t line = (position_t)decode_based_unsigned(&cache, 10, SIZE_T_MAX);
           if (line>0) {
             document_text_goto(node->document, node, line-1);
+            document_select_nothing(node);
           }
         }
         free(name);

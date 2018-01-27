@@ -509,11 +509,12 @@ void document_file_expand(file_offset_t* pos, file_offset_t offset, file_offset_
 
 // Correct all file offsets by expansion offset and length
 void document_file_expand_all(struct document_file* base, file_offset_t offset, file_offset_t length) {
+  base->bookmarks = range_tree_expand(base->bookmarks, offset, length);
+
   struct list_node* views = base->views->first;
   while (views) {
     struct document_view* view = *(struct document_view**)list_object(views);
     view->selection = range_tree_expand(view->selection, offset, length);
-    base->bookmarks = range_tree_expand(base->bookmarks, offset, length);
     document_file_expand(&view->selection_end, offset, length);
     document_file_expand(&view->selection_start, offset, length);
     document_file_expand(&view->selection_low, offset, length);
@@ -571,11 +572,12 @@ void document_file_reduce(file_offset_t* pos, file_offset_t offset, file_offset_
 
 // Correct all file offsets by reduce offset and length
 void document_file_reduce_all(struct document_file* base, file_offset_t offset, file_offset_t length) {
+  base->bookmarks = range_tree_reduce(base->bookmarks, offset, length);
+
   struct list_node* views = base->views->first;
   while (views) {
     struct document_view* view = *(struct document_view**)list_object(views);
     view->selection = range_tree_reduce(view->selection, offset, length);
-    base->bookmarks = range_tree_reduce(base->bookmarks, offset, length);
     document_file_reduce(&view->selection_end, offset, length);
     document_file_reduce(&view->selection_start, offset, length);
     document_file_reduce(&view->selection_low, offset, length);
@@ -627,6 +629,63 @@ int document_file_delete_selection(struct document_file* base, struct document_v
   view->selection_low = FILE_OFFSET_T_MAX;
   view->selection_high = FILE_OFFSET_T_MAX;
   return 1;
+}
+
+// Move offsets from ne range into another
+void document_file_relocate(file_offset_t* pos, file_offset_t from, file_offset_t to, file_offset_t length) {
+  if (*pos>=from && *pos<from+length) {
+    *pos = (*pos-from)+to;
+    if (to>from) {
+      *pos -= length;
+    }
+  } else {
+    if (to<from && *pos>=to && *pos<from) {
+      *pos += length;
+    }
+    if (from>to && *pos>=from && *pos<to) {
+      *pos -= length;
+    }
+  }
+}
+
+// Move block from one position to another, including all metainformation and viewports
+void document_file_move(struct document_file* base, file_offset_t from, file_offset_t to, file_offset_t length) {
+  if (to>=from && to<from+length) {
+    return;
+  }
+
+  file_offset_t corrected = to;
+  if (corrected>=from) {
+    corrected -= length;
+  }
+
+  struct range_tree_node* buffer_file = range_tree_copy(base->buffer, from, length);
+  base->buffer = range_tree_delete(base->buffer, from, length, 0, base);
+  base->buffer = range_tree_paste(base->buffer, buffer_file, corrected, base);
+  range_tree_destroy(buffer_file, NULL);
+
+  struct range_tree_node* buffer_bookmarks = range_tree_copy(base->bookmarks, from, length);
+  base->bookmarks = range_tree_delete(base->bookmarks, from, length, 0, NULL);
+  base->bookmarks = range_tree_paste(base->bookmarks, buffer_bookmarks, corrected, NULL);
+  range_tree_destroy(buffer_bookmarks, NULL);
+
+  struct list_node* views = base->views->first;
+  while (views) {
+    struct document_view* view = *(struct document_view**)list_object(views);
+
+    struct range_tree_node* buffer_selection = range_tree_copy(view->selection, from, length);
+    view->selection = range_tree_delete(view->selection, from, length, 0, NULL);
+    view->selection = range_tree_paste(view->selection, buffer_selection, corrected, base);
+    range_tree_destroy(buffer_selection, NULL);
+
+    document_file_relocate(&view->selection_end, from, to, length);
+    document_file_relocate(&view->selection_start, from, to, length);
+    document_file_relocate(&view->selection_low, from, to, length);
+    document_file_relocate(&view->selection_high, from, to, length);
+    document_file_relocate(&view->offset, from, to, length);
+
+    views = views->next;
+  }
 }
 
 // Change document data structure if not real file
