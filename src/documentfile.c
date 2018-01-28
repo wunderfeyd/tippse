@@ -517,8 +517,6 @@ void document_file_expand_all(struct document_file* base, file_offset_t offset, 
     view->selection = range_tree_expand(view->selection, offset, length);
     document_file_expand(&view->selection_end, offset, length);
     document_file_expand(&view->selection_start, offset, length);
-    document_file_expand(&view->selection_low, offset, length);
-    document_file_expand(&view->selection_high, offset, length);
     document_file_expand(&view->offset, offset, length);
 
     views = views->next;
@@ -580,8 +578,6 @@ void document_file_reduce_all(struct document_file* base, file_offset_t offset, 
     view->selection = range_tree_reduce(view->selection, offset, length);
     document_file_reduce(&view->selection_end, offset, length);
     document_file_reduce(&view->selection_start, offset, length);
-    document_file_reduce(&view->selection_low, offset, length);
-    document_file_reduce(&view->selection_high, offset, length);
     document_file_reduce(&view->offset, offset, length);
 
     views = views->next;
@@ -610,12 +606,14 @@ int document_file_delete_selection(struct document_file* base, struct document_v
     return 0;
   }
 
-  file_offset_t low = view->selection_low;
+  file_offset_t low;
+  file_offset_t high;
+  document_view_select_next(view, 0, &low, &high);
+
   if (low>base->buffer->length) {
     low = base->buffer->length;
   }
 
-  file_offset_t high = view->selection_high;
   if (high>base->buffer->length) {
     high = base->buffer->length;
   }
@@ -626,8 +624,6 @@ int document_file_delete_selection(struct document_file* base, struct document_v
 
   document_file_delete(base, low, high-low);
   view->offset = low;
-  view->selection_low = FILE_OFFSET_T_MAX;
-  view->selection_high = FILE_OFFSET_T_MAX;
   return 1;
 }
 
@@ -680,8 +676,6 @@ void document_file_move(struct document_file* base, file_offset_t from, file_off
 
     document_file_relocate(&view->selection_end, from, to, length);
     document_file_relocate(&view->selection_start, from, to, length);
-    document_file_relocate(&view->selection_low, from, to, length);
-    document_file_relocate(&view->selection_high, from, to, length);
     document_file_relocate(&view->offset, from, to, length);
 
     views = views->next;

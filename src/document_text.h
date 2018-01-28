@@ -43,6 +43,9 @@ struct document_text_render_info {
   int indented;                     // begin of line is indentation only?
   struct stream stream;    // access to byte stream
   struct encoding_cache cache;      // access to Unicode cache
+  struct range_tree_node* selection_root; // root of selection buffer
+  struct range_tree_node* selection; // access to selection buffer, current page in tree
+  file_offset_t selection_displacement; // position in current selection page
   int depth_new[VISUAL_BRACKET_MAX]; //depth of bracket matching at cursor position
   int depth_old[VISUAL_BRACKET_MAX]; //depth of bracket matching at page start
   int depth_line[VISUAL_BRACKET_MAX]; //depth of bracket matching at line
@@ -111,7 +114,7 @@ void document_text_keypress_line_select(struct document* base, struct splitter* 
 
 void document_text_toggle_bookmark(struct document* base, struct splitter* splitter, file_offset_t offset);
 
-void document_text_render_clear(struct document_text_render_info* render_info, position_t width);
+void document_text_render_clear(struct document_text_render_info* render_info, position_t width, struct range_tree_node* selection);
 void document_text_render_seek(struct document_text_render_info* render_info, struct range_tree_node* buffer, struct encoding* encoding, struct document_text_position* in);
 position_t document_text_render_lookahead_word_wrap(struct document_file* file, struct encoding_cache* cache, position_t max);
 int document_text_render_whitespace_scan(struct document_text_render_info* render_info, codepoint_t newline_cp1, codepoint_t newline_cp2);

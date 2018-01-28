@@ -15,8 +15,6 @@ struct document_view {
 
   file_offset_t selection_start;        // start position of selection
   file_offset_t selection_end;          // end position of selection
-  file_offset_t selection_low;          // smallest position of selection
-  file_offset_t selection_high;         // highest position of selection
   int selection_reset;                  // Selection was changed
   struct range_tree_node* selection;    // information for multiple selections
 
@@ -43,5 +41,11 @@ void document_view_destroy(struct document_view* base);
 void document_view_reset(struct document_view* base, struct document_file* file);
 void document_view_clone(struct document_view* dst, struct document_view* src, struct document_file* file);
 void document_view_filechange(struct document_view* base, struct document_file* file);
+
+void document_view_select_all(struct document_view* base, struct document_file* file);
+void document_view_select_nothing(struct document_view* base, struct document_file* file);
+int document_view_select_active(struct document_view* base);
+int document_view_select_next(struct document_view* base, file_offset_t offset, file_offset_t* low, file_offset_t* high);
+void document_view_select_range(struct document_view* base, file_offset_t start, file_offset_t end, int inserter);
 
 #endif /* #ifndef TIPPSE_DOCUMENTVIEW_H */

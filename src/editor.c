@@ -606,8 +606,12 @@ struct splitter* editor_unsplit(struct editor* base, struct splitter* node) {
 int editor_open_selection(struct editor* base, struct splitter* node, struct splitter* destination) {
   int done = 0;
 
-  if (node->view->selection_low!=node->view->selection_high) {
-    char* name = (char*)range_tree_raw(node->file->buffer, node->view->selection_low, node->view->selection_high);
+  if (document_view_select_active(node->view)) {
+    file_offset_t selection_low;
+    file_offset_t selection_high;
+    document_view_select_next(node->view, 0, &selection_low, &selection_high);
+
+    char* name = (char*)range_tree_raw(node->file->buffer, selection_low, selection_high);
     if (*name) {
       editor_focus(base, destination, 1);
       done = 1;
@@ -986,10 +990,14 @@ void editor_console_update(struct editor* base, const char* text, size_t length,
 // Update search dialog
 void editor_search(struct editor* base) {
   editor_panel_assign(base, base->search_doc);
-  if (base->document->view->selection_reset && base->document->view->selection_low!=FILE_OFFSET_T_MAX) {
+  if (base->document->view->selection_reset && document_view_select_active(base->document->view)) {
+    file_offset_t selection_low;
+    file_offset_t selection_high;
+    document_view_select_next(base->document->view, 0, &selection_low, &selection_high);
+
     // TODO: update encoding in search panel? or transform to encoding?
     document_file_delete(base->search_doc, 0, base->search_doc->buffer?base->search_doc->buffer->length:0);
-    struct range_tree_node* buffer = range_tree_copy(base->document->file->buffer, base->document->view->selection_low, base->document->view->selection_high-base->document->view->selection_low);
+    struct range_tree_node* buffer = range_tree_copy(base->document->file->buffer, selection_low, selection_high-selection_low);
     document_file_insert_buffer(base->search_doc, 0, buffer);
     range_tree_destroy(buffer, NULL);
   }

@@ -73,6 +73,10 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   struct encoding_cache text_cache;
   encoding_cache_clear(&text_cache, file->encoding, &text_stream);
 
+  file_offset_t selection_displacement;
+  struct range_tree_node* selection = range_tree_find_offset(view->selection, offset, &selection_displacement);
+
+
   size_t name_length = strlen(file->filename);
   char* title = malloc((name_length+(size_t)document_undo_modified(file)*2+1)*sizeof(char));
   memcpy(title, file->filename, name_length);
@@ -91,7 +95,6 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   size_t char_size = 1;
   int y;
   for (y = 0; y<splitter->client_height; y++) {
-    uint8_t data[16];
     struct document_hex_char chars[16];
     size_t data_size = file_size-offset>16?16:file_size-offset;
     for (int x = 0; x<(int)data_size; x++) {
@@ -105,15 +108,21 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
         chars[x].length = 1;
       }
 
-      data[x] = stream_read_forward(&byte_stream);
+      chars[x].byte = stream_read_forward(&byte_stream);
+      selection_displacement++;
+      while (selection && selection_displacement>selection->length) {
+        selection_displacement -= selection->length;
+        selection = selection->next;
+      }
+      chars[x].selection = (selection && (selection->inserter&TIPPSE_INSERTER_MARK))?1:0;
     }
 
-    document_hex_render(base, screen, splitter, offset, y, data, data_size, chars);
+    document_hex_render(base, screen, splitter, offset, y, data_size, chars);
     offset += data_size;
     if (offset>=file_size) break;
   }
-  if (file_size && file_size%16==0) document_hex_render(base, screen, splitter, offset, y+1, NULL, 0, NULL);
-  if (view->selection_low!=view->selection_high) {
+  if (file_size && file_size%16==0) document_hex_render(base, screen, splitter, offset, y+1, 0, NULL);
+  if (document_view_select_active(view)) {
     splitter_cursor(splitter, screen, -1, -1);
   } else {
     splitter_cursor(splitter, screen, (int)(10+(3*view->cursor_x)+(document->cp_first!=0)), (int)(view->cursor_y-view->scroll_y));
@@ -122,7 +131,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
 }
 
 // Render one line of data
-void document_hex_render(struct document* base, struct screen* screen, struct splitter* splitter, file_offset_t offset, position_t y, const uint8_t* data, size_t data_size, struct document_hex_char* chars) {
+void document_hex_render(struct document* base, struct screen* screen, struct splitter* splitter, file_offset_t offset, position_t y, size_t data_size, struct document_hex_char* chars) {
   struct document_hex* document = (struct document_hex*)base;
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
@@ -138,8 +147,8 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
   x = 10;
   size_t data_pos;
   for (data_pos = 0; data_pos<data_size; data_pos++) {
-    sprintf(line, "%02x ", data[data_pos]);
-    if (offset+data_pos<view->selection_low || offset+data_pos>=view->selection_high) {
+    sprintf(line, "%02x ", chars[data_pos].byte);
+    if (!chars[data_pos].selection) {
       splitter_drawtext(splitter, screen, x, (int)y, line, 2, foreground, background);
     } else {
       splitter_drawtext(splitter, screen, x, (int)y, line, data_pos==15?2:3, foreground, selection);
@@ -156,7 +165,7 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
       chars[data_pos].visuals[n] = (file->encoding->visual)(file->encoding, chars[data_pos].codepoints[n]);
     }
     document_hex_convert(&chars[data_pos], view->show_invisibles, '.');
-    if (offset+data_pos<view->selection_low || offset+data_pos>=view->selection_high) {
+    if (!chars[data_pos].selection) {
       splitter_drawchar(splitter, screen, x, (int)y, chars[data_pos].visuals, chars[data_pos].length, foreground, background);
     } else {
       splitter_drawchar(splitter, screen, x, (int)y, chars[data_pos].visuals, chars[data_pos].length, foreground, selection);
@@ -174,6 +183,9 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   file_offset_t file_size = range_tree_length(file->buffer);
   file_offset_t offset_old = view->offset;
   int selection_keep = 0;
+  file_offset_t selection_low;
+  file_offset_t selection_high;
+  document_view_select_next(view, 0, &selection_low, &selection_high);
 
   if (command==TIPPSE_CMD_UP || command==TIPPSE_CMD_SELECT_UP) {
     view->offset-=16;
@@ -220,8 +232,8 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     view->selection_end = file_size;
     selection_keep = 1;
   } else if (command==TIPPSE_CMD_COPY || command==TIPPSE_CMD_CUT) {
-    if (view->selection_low!=FILE_OFFSET_T_MAX) {
-      clipboard_set(range_tree_copy(file->buffer, view->selection_low, view->selection_high-view->selection_low), 1);
+    if (selection_low!=FILE_OFFSET_T_MAX) {
+      clipboard_set(range_tree_copy(file->buffer, selection_low, selection_high-selection_low), 1);
       if (command==TIPPSE_CMD_CUT) {
         document_undo_chain(file, file->undos);
         document_file_delete_selection(file, view);
@@ -244,14 +256,14 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   } else if (command==TIPPSE_CMD_REDO) {
     document_undo_execute_chain(file, view, file->redos, file->undos, 1);
   } else if (command==TIPPSE_CMD_BACKSPACE) {
-    if (view->selection_low!=FILE_OFFSET_T_MAX || document->cp_first!=0) {
+    if (selection_low!=FILE_OFFSET_T_MAX || document->cp_first!=0) {
       document_file_delete_selection(file, view);
     } else {
       view->offset--;
       document_file_delete(file, view->offset, 1);
     }
   } else if (command==TIPPSE_CMD_DELETE) {
-    if (view->selection_low!=FILE_OFFSET_T_MAX || document->cp_first!=0) {
+    if (selection_low!=FILE_OFFSET_T_MAX || document->cp_first!=0) {
       document_file_delete_selection(file, view);
     } else {
       document_file_delete(file, view->offset, 1);
@@ -270,7 +282,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
       document_file_delete(file, view->offset, 1);
       document->cp_first = 0;
     } else {
-      if (view->selection_low!=FILE_OFFSET_T_MAX) {
+      if (selection_low!=FILE_OFFSET_T_MAX) {
         uint8_t text = file->binary?0:32;
         document_file_delete_selection(file, view);
         document_file_insert(file, view->offset, &text, 1);
@@ -315,18 +327,9 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     view->selection_start = FILE_OFFSET_T_MAX;
     view->selection_end = FILE_OFFSET_T_MAX;
   }
-  if (view->selection_start!=view->selection_end) {
-    if (view->selection_start<view->selection_end) {
-      view->selection_low = view->selection_start;
-      view->selection_high = view->selection_end;
-    } else {
-      view->selection_low = view->selection_end;
-      view->selection_high = view->selection_start;
-    }
-  } else {
-    view->selection_low = FILE_OFFSET_T_MAX;
-    view->selection_high = FILE_OFFSET_T_MAX;
-  }
+
+  document_view_select_nothing(view, file);
+  document_view_select_range(view, view->selection_start, view->selection_end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
 }
 
 // Return cursor position from point

@@ -35,8 +35,6 @@ void document_view_reset(struct document_view* base, struct document_file* file)
   base->show_scrollbar = 0;
   base->selection_start = FILE_OFFSET_T_MAX;
   base->selection_end = FILE_OFFSET_T_MAX;
-  base->selection_low = FILE_OFFSET_T_MAX;
-  base->selection_high = FILE_OFFSET_T_MAX;
   document_view_filechange(base, file);
 }
 
@@ -58,4 +56,62 @@ void document_view_filechange(struct document_view* base, struct document_file* 
   base->line_select = file->line_select;
   base->bracket_indentation = 0;
   base->selection = range_tree_resize(base->selection, range_tree_length(file->buffer), 0);
+}
+
+// Select all
+void document_view_select_all(struct document_view* base, struct document_file* file) {
+  base->selection = range_tree_static(base->selection, range_tree_length(file->buffer), TIPPSE_INSERTER_MARK);
+  base->selection_reset = 1;
+}
+
+// Select nothing
+void document_view_select_nothing(struct document_view* base, struct document_file* file) {
+  base->selection = range_tree_static(base->selection, range_tree_length(file->buffer), 0);
+  base->selection_reset = 1;
+}
+
+// Active selection?
+int document_view_select_active(struct document_view* base) {
+  if (base->selection) {
+    struct range_tree_node* node = range_tree_first(base->selection);
+    if (node->next || (node->inserter&TIPPSE_INSERTER_MARK)) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+// Retrieve next active selection
+int document_view_select_next(struct document_view* base, file_offset_t offset, file_offset_t* low, file_offset_t* high) {
+  if (base->selection) {
+    file_offset_t displacement;
+    struct range_tree_node* node = range_tree_find_offset(base->selection, offset, &displacement);
+    while (node) {
+      if (node->inserter&TIPPSE_INSERTER_MARK) {
+        *low = offset;
+        *high = offset+node->length-displacement;
+        return 1;
+      }
+      offset += node->length-displacement;
+      displacement = 0;
+      node = node->next;
+    }
+  }
+
+  *low = FILE_OFFSET_T_MAX;
+  *high = FILE_OFFSET_T_MAX;
+  return 0;
+}
+
+// Activate or deactivate selection for specified range
+void document_view_select_range(struct document_view* base, file_offset_t start, file_offset_t end, int inserter) {
+  if (start==end) {
+    return;
+  }
+
+  if (start<end) {
+    base->selection = range_tree_mark(base->selection, start, end-start, inserter);
+  } else {
+    base->selection = range_tree_mark(base->selection, end, start-end, inserter);
+  }
 }

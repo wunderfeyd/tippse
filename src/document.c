@@ -24,21 +24,26 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
   file_offset_t offset = view->offset;
   file_offset_t begin = 0;
   file_offset_t replacements = 0;
-  file_offset_t low_first = view->selection_low;
-  file_offset_t high_first = view->selection_high;
+  file_offset_t first_low;
+  file_offset_t first_high;
+  file_offset_t selection_low;
+  file_offset_t selection_high;
+  document_view_select_next(view, 0, &selection_low, &selection_high);
+  first_low = selection_low;
+  first_high = selection_high;
 
   int first = 1;
   int found = 1;
   int wrapped = 0;
   while (1) {
-    if (replace && view->selection_low!=FILE_OFFSET_T_MAX && found && !first) {
+    if (replace && selection_low!=FILE_OFFSET_T_MAX && found && !first) {
       if (replacements==0) {
         document_undo_chain(file, file->undos);
       }
 
       replacements++;
       struct range_tree_node* replacement = regex?search_replacement(search, replace_text, replace_encoding, file->buffer):replace_text;
-      document_file_reduce(&begin, view->selection_low, view->selection_high-view->selection_low);
+      document_file_reduce(&begin, selection_low, selection_high-selection_low);
       document_file_delete_selection(splitter->file, splitter->view);
 
       file_offset_t start = view->offset;
@@ -55,10 +60,10 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
         }
       }
 
-      view->selection_low = start;
-      view->selection_high = end;
-      view->selection_start = start;
-      view->selection_end = end;
+      document_view_select_nothing(view, file);
+      document_view_select_range(view, start, end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
+      selection_low = start;
+      selection_high = end;
     }
 
     if (!file->buffer) {
@@ -66,15 +71,14 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
       break;
     }
 
-
     if (found) {
       if (!reverse) {
-        if (view->selection_low!=FILE_OFFSET_T_MAX) {
-          offset = (first && replace)?view->selection_low:view->selection_high;
+        if (selection_low!=FILE_OFFSET_T_MAX) {
+          offset = (first && replace)?selection_low:selection_high;
         }
       } else {
-        if (view->selection_low!=FILE_OFFSET_T_MAX) {
-          offset = (first && replace)?view->selection_high:view->selection_low;
+        if (selection_low!=FILE_OFFSET_T_MAX) {
+          offset = (first && replace)?selection_high:selection_low;
           if (offset==0) {
             offset = file->buffer->length;
           }
@@ -125,17 +129,18 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
         file_offset_t end = stream_offset_page(&search->hit_end);
         if (((!reverse && start>=offset) || (reverse && end<=offset)) && end-start<=left) {
           view->offset = reverse?start:end;
-          view->selection_low = start;
-          view->selection_high = end;
-          view->selection_start = start;
-          view->selection_end = end;
+
+          document_view_select_nothing(view, file);
+          document_view_select_range(view, start, end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
+          selection_low = start;
+          selection_high = end;
           found = 1;
           break;
         }
       }
     }
 
-    if ((left==0 && wrapped) || (found && !all && (!replace || !first || low_first!=view->selection_low || high_first!=view->selection_high))) {
+    if ((left==0 && wrapped) || (found && !all && (!replace || !first || first_low!=selection_low || first_high!=selection_high))) {
       break;
     }
     first = 0;
@@ -332,20 +337,13 @@ void document_select_all(struct splitter* splitter, int update_offset) {
   if (update_offset) {
     view->offset = end;
   }
-  view->selection_low = 0;
-  view->selection_high = end;
-  view->selection_start = 0;
-  view->selection_end = end;
-  view->selection_reset = 1;
+  document_view_select_all(view, file);
 }
 
 // Throw away all selections
 void document_select_nothing(struct splitter* splitter) {
+  struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
-  view->selection_low = FILE_OFFSET_T_MAX;
-  view->selection_high = FILE_OFFSET_T_MAX;
-  view->selection_start = FILE_OFFSET_T_MAX;
-  view->selection_end = FILE_OFFSET_T_MAX;
-  view->selection_reset = 1;
+  document_view_select_nothing(view, file);
 }

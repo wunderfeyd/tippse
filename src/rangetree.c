@@ -720,7 +720,7 @@ struct range_tree_node* range_tree_fuse(struct range_tree_node* root, struct ran
   while (first!=last) {
     struct range_tree_node* next = range_tree_next(first);
 
-    if (first->inserter==next->inserter) {
+    if (first->inserter==next->inserter && !(first->inserter&TIPPSE_INSERTER_NOFUSE)) {
       if (!first->buffer && !next->buffer) {
         next->length = first->length+next->length;
         range_tree_update(next);

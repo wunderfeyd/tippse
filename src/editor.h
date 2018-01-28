@@ -174,6 +174,7 @@ struct editor {
 
 #include "misc.h"
 #include "documentfile.h"
+#include "documentview.h"
 #include "screen.h"
 #include "splitter.h"
 #include "list.h"
