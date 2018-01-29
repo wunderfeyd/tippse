@@ -322,14 +322,16 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
       selection_reset = selection_keep?0:1;
     }
   }
-  if (selection_reset) {
-    view->selection_reset = 1;
-    view->selection_start = FILE_OFFSET_T_MAX;
-    view->selection_end = FILE_OFFSET_T_MAX;
-  }
+  if (!selection_keep) {
+    if (selection_reset) {
+      view->selection_reset = 1;
+      view->selection_start = FILE_OFFSET_T_MAX;
+      view->selection_end = FILE_OFFSET_T_MAX;
+    }
 
-  document_view_select_nothing(view, file);
-  document_view_select_range(view, view->selection_start, view->selection_end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
+    document_view_select_nothing(view, file);
+    document_view_select_range(view, view->selection_start, view->selection_end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
+  }
 }
 
 // Return cursor position from point

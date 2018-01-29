@@ -638,7 +638,7 @@ void document_file_relocate(file_offset_t* pos, file_offset_t from, file_offset_
     if (to<from && *pos>=to && *pos<from) {
       *pos += length;
     }
-    if (from>to && *pos>=from && *pos<to) {
+    if (to>from && *pos>=from && *pos<to) {
       *pos -= length;
     }
   }
@@ -646,7 +646,7 @@ void document_file_relocate(file_offset_t* pos, file_offset_t from, file_offset_
 
 // Move block from one position to another, including all metainformation and viewports
 void document_file_move(struct document_file* base, file_offset_t from, file_offset_t to, file_offset_t length) {
-  if (to>=from && to<from+length) {
+  if (length==0 || (to>=from && to<from+length)) {
     return;
   }
 
@@ -656,8 +656,10 @@ void document_file_move(struct document_file* base, file_offset_t from, file_off
   }
 
   struct range_tree_node* buffer_file = range_tree_copy(base->buffer, from, length);
+  document_undo_add(base, NULL, from, length, TIPPSE_UNDO_TYPE_DELETE);
   base->buffer = range_tree_delete(base->buffer, from, length, 0, base);
   base->buffer = range_tree_paste(base->buffer, buffer_file, corrected, base);
+  document_undo_add(base, NULL, corrected, length, TIPPSE_UNDO_TYPE_INSERT);
   range_tree_destroy(buffer_file, NULL);
 
   struct range_tree_node* buffer_bookmarks = range_tree_copy(base->bookmarks, from, length);
@@ -680,6 +682,8 @@ void document_file_move(struct document_file* base, file_offset_t from, file_off
 
     views = views->next;
   }
+
+  document_undo_empty(base, base->redos);
 }
 
 // Change document data structure if not real file

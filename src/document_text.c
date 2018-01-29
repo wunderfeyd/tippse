@@ -1278,7 +1278,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   } else if (command==TIPPSE_CMD_BLOCK_UP || command==TIPPSE_CMD_BLOCK_DOWN) {
     document_undo_chain(file, file->undos);
     if (selection_low!=FILE_OFFSET_T_MAX) {
-      document_text_move_block(base, splitter, selection_low, selection_high-1, (command==TIPPSE_CMD_BLOCK_UP)?1:0);
+      document_text_move_block(base, splitter, selection_low, selection_high>selection_low?selection_high-1:selection_high, (command==TIPPSE_CMD_BLOCK_UP)?1:0);
     } else {
       document_text_move_block(base, splitter, view->offset, view->offset, (command==TIPPSE_CMD_BLOCK_UP)?1:0);
     }
@@ -1468,14 +1468,16 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       selection_reset = selection_keep?0:1;
     }
   }
-  if (selection_reset) {
-    view->selection_reset = 1;
-    view->selection_start = FILE_OFFSET_T_MAX;
-    view->selection_end = FILE_OFFSET_T_MAX;
-  }
+  if (!selection_keep) {
+    if (selection_reset) {
+      view->selection_reset = 1;
+      view->selection_start = FILE_OFFSET_T_MAX;
+      view->selection_end = FILE_OFFSET_T_MAX;
+    }
 
-  document_view_select_nothing(view, file);
-  document_view_select_range(view, view->selection_start, view->selection_end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
+    document_view_select_nothing(view, file);
+    document_view_select_range(view, view->selection_start, view->selection_end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
+  }
   view->offset_calculated = view->offset;
 }
 
@@ -1743,6 +1745,7 @@ void document_text_raise_indentation(struct document* base, struct splitter* spl
 // Move given block up or down
 void document_text_move_block(struct document* base, struct splitter* splitter, file_offset_t low, file_offset_t high, int up) {
   struct document_file* file = splitter->file;
+  struct document_view* view = splitter->view;
 
   struct document_text_position in_offset;
   in_offset.type = VISUAL_SEEK_OFFSET;
@@ -1774,41 +1777,52 @@ void document_text_move_block(struct document* base, struct splitter* splitter, 
   in_line_column.line = out_end.line;
   document_text_cursor_position(splitter, &in_line_column, &out_line_end, 0, 1);
 
+  if (out_line_end.offset<out_line_start.offset) {
+    return;
+  }
+
+  document_view_select_range(view, 0, out_line_start.offset, 0);
+  document_view_select_range(view, out_line_end.offset, range_tree_length(file->buffer), 0);
+
   in_line_column.column = 0;
   in_line_column.line = up?out_line_start.line-1:out_line_end.line+2;
   document_text_cursor_position(splitter, &in_line_column, &out_insert, 0, 1);
 
-  file_offset_t correction = 0;
-  //printf("\r\n\r\n\r\nooo %d- %d\r\n", (int)out_line_end.offset, (int)range_tree_length(file->buffer));
-  if (out_line_end.offset==range_tree_length(file->buffer) || (!up && out_insert.line!=out_line_end.line+2 && out_line_start.line>0)) {
-    in_line_column.column = POSITION_T_MAX;
-    in_line_column.line = out_line_start.line-1;
-    document_text_cursor_position(splitter, &in_line_column, &out_line_return_start, 0, 1);
-    out_line_return_end.offset = out_line_start.offset;
-  } else {
+  if (out_line_end.offset!=range_tree_length(file->buffer)) {
     in_line_column.column = 0;
     in_line_column.line = out_line_end.line+1;
     document_text_cursor_position(splitter, &in_line_column, &out_line_return_end, 0, 1);
     out_line_return_start.offset = out_line_end.offset;
-    correction = out_line_return_end.offset-out_line_return_start.offset;
+  } else {
+    in_line_column.column = POSITION_T_MAX;
+    in_line_column.line = out_line_start.line-1;
+    document_text_cursor_position(splitter, &in_line_column, &out_line_return_start, 0, 1);
+    out_line_return_end.offset = out_line_start.offset;
   }
 
+  int exchange = (out_insert.offset==range_tree_length(file->buffer))?1:0;
+
   if (out_insert.offset<out_line_start.offset || out_insert.offset>out_line_end.offset) {
-    if (up) {
-      if (correction) {
-        document_file_move(file, out_line_start.offset, out_insert.offset, out_line_return_end.offset-out_line_start.offset);
-      } else {
-        document_file_move(file, out_line_return_start.offset, out_insert.offset, out_line_return_end.offset-out_line_return_start.offset);
-        document_file_move(file, out_line_start.offset, out_insert.offset, out_line_end.offset-out_line_start.offset);
+    file_offset_t length_text = out_line_end.offset-out_line_start.offset;
+    file_offset_t length_return = out_line_return_end.offset-out_line_return_start.offset;
+    file_offset_t offset_text = out_line_start.offset;
+    file_offset_t offset_return = out_line_return_start.offset;
+    file_offset_t offset_insert = out_insert.offset;
+    file_offset_t offset_insert_base = out_insert.offset;
+    if (!exchange) {
+      document_file_move(file, offset_return, offset_insert, length_return);
+      if (offset_insert>offset_return) {
+        offset_insert -= length_return;
       }
+      document_file_relocate(&offset_text, offset_return, offset_insert_base, length_return);
+      document_file_move(file, offset_text, offset_insert, length_text);
     } else {
-      if (correction) {
-        document_file_move(file, out_line_return_start.offset, out_insert.offset, out_line_return_end.offset-out_line_return_start.offset);
-        document_file_move(file, out_line_start.offset, out_insert.offset-(out_line_return_end.offset-out_line_return_start.offset), out_line_end.offset-out_line_start.offset);
-      } else {
-        document_file_move(file, out_line_start.offset, out_insert.offset, out_line_end.offset-out_line_start.offset);
-        document_file_move(file, out_line_return_start.offset, out_insert.offset-(out_line_end.offset-out_line_start.offset), out_line_return_end.offset-out_line_return_start.offset);
+      document_file_move(file, offset_text, offset_insert, length_text);
+      if (offset_insert>offset_text) {
+        offset_insert -= length_text;
       }
+      document_file_relocate(&offset_return, offset_text, offset_insert_base, length_text);
+      document_file_move(file, offset_return, offset_insert, length_return);
     }
   }
 }

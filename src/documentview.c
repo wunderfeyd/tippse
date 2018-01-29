@@ -94,7 +94,7 @@ int document_view_select_next(struct document_view* base, file_offset_t offset, 
       }
       offset += node->length-displacement;
       displacement = 0;
-      node = node->next;
+      node = range_tree_next(node);
     }
   }
 

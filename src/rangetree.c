@@ -935,10 +935,12 @@ struct range_tree_node* range_tree_delete(struct range_tree_node* root, file_off
 
     range_tree_shrink(node);
 
-    if (node->length<=0 && node->buffer) {
-      fragment_dereference(node->buffer, file);
+    if (node->length<=0) {
+      if (node->buffer) {
+        fragment_dereference(node->buffer, file);
+        node->buffer = NULL;
+      }
       node->inserter &= ~TIPPSE_INSERTER_LEAF;
-      node->buffer = NULL;
     }
 
     root = range_tree_update(node);
@@ -995,7 +997,7 @@ struct range_tree_node* range_tree_copy(struct range_tree_node* root, file_offse
 struct range_tree_node* range_tree_paste(struct range_tree_node* root, struct range_tree_node* copy, file_offset_t offset, struct document_file* file) {
   copy = range_tree_first(copy);
   while (copy) {
-    root = range_tree_insert(root, offset, copy->buffer, copy->offset, copy->length, 0, file);
+    root = range_tree_insert(root, offset, copy->buffer, copy->offset, copy->length, copy->inserter, file);
     offset += copy->length;
     copy = range_tree_next(copy);
   }
