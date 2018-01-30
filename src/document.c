@@ -44,7 +44,7 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
       replacements++;
       struct range_tree_node* replacement = regex?search_replacement(search, replace_text, replace_encoding, file->buffer):replace_text;
       document_file_reduce(&begin, selection_low, selection_high-selection_low);
-      document_file_delete_selection(splitter->file, splitter->view);
+      document_select_delete(splitter);
 
       file_offset_t start = view->offset;
       file_offset_t end = start;
@@ -346,4 +346,45 @@ void document_select_nothing(struct splitter* splitter) {
   struct document_view* view = splitter->view;
 
   document_view_select_nothing(view, file);
+}
+
+// Delete selection
+int document_select_delete(struct splitter* splitter) {
+  struct document_file* file = splitter->file;
+  struct document_view* view = splitter->view;
+
+  file_offset_t low;
+  file_offset_t high;
+  int removed = 0;
+  while (document_view_select_next(view, 0, &low, &high)) {
+    document_file_delete(file, low, high-low);
+    removed = 1;
+  }
+
+  return removed;
+}
+
+// Copy selection
+void document_clipboard_copy(struct splitter* splitter) {
+  struct document_file* file = splitter->file;
+  struct document_view* view = splitter->view;
+
+  file_offset_t low;
+  file_offset_t high = 0;
+  struct range_tree_node* copy = NULL;
+  while (document_view_select_next(view, high, &low, &high)) {
+    copy = range_tree_copy_insert(file->buffer, low, copy, range_tree_length(copy), high-low, NULL);
+  }
+  clipboard_set(copy, file->binary);
+}
+
+// Paste selection
+void document_clipboard_paste(struct splitter* splitter) {
+  struct document_file* file = splitter->file;
+  struct document_view* view = splitter->view;
+
+  struct range_tree_node* buffer = clipboard_get();
+  if (buffer) {
+    document_file_insert_buffer(file, view->offset, buffer);
+  }
 }

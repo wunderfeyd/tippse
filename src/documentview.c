@@ -72,13 +72,7 @@ void document_view_select_nothing(struct document_view* base, struct document_fi
 
 // Active selection?
 int document_view_select_active(struct document_view* base) {
-  if (base->selection) {
-    struct range_tree_node* node = range_tree_first(base->selection);
-    if (node->next || (node->inserter&TIPPSE_INSERTER_MARK)) {
-      return 1;
-    }
-  }
-  return 0;
+  return (base->selection && (base->selection->inserter&TIPPSE_INSERTER_MARK))?1:0;
 }
 
 // Retrieve next active selection

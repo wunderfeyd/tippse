@@ -952,45 +952,36 @@ struct range_tree_node* range_tree_delete(struct range_tree_node* root, file_off
   return root;
 }
 
-// Create copy of a specific range and keep fragments untouched (referenced copy)
-struct range_tree_node* range_tree_copy(struct range_tree_node* root, file_offset_t offset, file_offset_t length) {
-  struct range_tree_node* build0;
-  struct range_tree_node* build1;
-  struct range_tree_node* copy = NULL;
+// Create copy of a specific range and insert into another or same tree
+struct range_tree_node* range_tree_copy_insert(struct range_tree_node* root_from, file_offset_t offset_from, struct range_tree_node* root_to, file_offset_t offset_to, file_offset_t length, struct document_file* file) {
   file_offset_t split = 0;
   file_offset_t split2 = 0;
-  struct range_tree_node* node = range_tree_find_offset(root, offset, &split);
-  struct range_tree_node* last = NULL;
+  int same = (root_from==root_to)?1:0;
+  struct range_tree_node* node = range_tree_find_offset(root_from, offset_from, &split);
   while (node && length>0) {
     split2 = node->length-split;
     if (split2>length) {
       split2 = length;
     }
 
-    build1 = range_tree_create(NULL, NULL, NULL, node->buffer, node->offset+split, split2, node->inserter|TIPPSE_INSERTER_LEAF, NULL);
-    split = 0;
-    if (last) {
-      build0 = range_tree_create(last->parent, last, build1, NULL, 0, 0, 0, NULL);
-      build1->parent = build0;
-      last->parent = build0;
-
-      build1->next = last->next;
-      last->next = build1;
-      build1->prev = last;
-
-      range_tree_exchange(build0->parent, last, build0);
-      copy = range_tree_update(last);
+    root_to = range_tree_insert(root_to, offset_to, node->buffer, node->offset+split, split2, node->inserter, file);
+    offset_to += split2;
+    offset_from += split2;
+    length -= split2;
+    if (same) {
+      node = range_tree_find_offset(root_to, offset_from, &split);
     } else {
-      copy = build1;
+      split = 0;
+      node = range_tree_next(node);
     }
-    last = build1;
-    range_tree_update(build1);
-
-    length -= build1->length;
-    node = range_tree_next(node);
   }
 
-  return copy;
+  return root_to;
+}
+
+// Create copy of a specific range
+struct range_tree_node* range_tree_copy(struct range_tree_node* root, file_offset_t offset, file_offset_t length) {
+  return range_tree_copy_insert(root, offset, NULL, 0, length, NULL);
 }
 
 // Insert already built nodes
@@ -1041,6 +1032,10 @@ uint8_t* range_tree_raw(struct range_tree_node* root, file_offset_t start, file_
 struct range_tree_node* range_tree_static(struct range_tree_node* root, file_offset_t length, int inserter) {
   if (root) {
     range_tree_destroy(root, NULL);
+  }
+
+  if (length==0) {
+    return NULL;
   }
 
   root = range_tree_create(NULL, NULL, NULL, NULL, 0, length, inserter|TIPPSE_INSERTER_LEAF, NULL);

@@ -133,7 +133,6 @@ void document_file_insert_buffer(struct document_file* base, file_offset_t offse
 void document_file_reduce_all(struct document_file* base, file_offset_t offset, file_offset_t length);
 void document_file_reduce(file_offset_t* pos, file_offset_t offset, file_offset_t length);
 void document_file_delete(struct document_file* base, file_offset_t offset, file_offset_t length);
-int document_file_delete_selection(struct document_file* base, struct document_view* view);
 
 void document_file_relocate(file_offset_t* pos, file_offset_t from, file_offset_t to, file_offset_t length);
 void document_file_move(struct document_file* base, file_offset_t from, file_offset_t to, file_offset_t length);

@@ -600,33 +600,6 @@ void document_file_delete(struct document_file* base, file_offset_t offset, file
   document_undo_empty(base, base->redos);
 }
 
-// Delete file buffer selection
-int document_file_delete_selection(struct document_file* base, struct document_view* view) {
-  if (!base->buffer) {
-    return 0;
-  }
-
-  file_offset_t low;
-  file_offset_t high;
-  document_view_select_next(view, 0, &low, &high);
-
-  if (low>base->buffer->length) {
-    low = base->buffer->length;
-  }
-
-  if (high>base->buffer->length) {
-    high = base->buffer->length;
-  }
-
-  if (high-low==0) {
-    return 0;
-  }
-
-  document_file_delete(base, low, high-low);
-  view->offset = low;
-  return 1;
-}
-
 // Move offsets from ne range into another
 void document_file_relocate(file_offset_t* pos, file_offset_t from, file_offset_t to, file_offset_t length) {
   if (*pos>=from && *pos<from+length) {

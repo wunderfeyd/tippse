@@ -39,5 +39,8 @@ void document_search_directory(const char* path, struct range_tree_node* search_
 void document_directory(struct document_file* file, struct stream* filter_stream, struct encoding* filter_encoding);
 void document_select_all(struct splitter* splitter, int update_offset);
 void document_select_nothing(struct splitter* splitter);
+int document_select_delete(struct splitter* splitter);
+void document_clipboard_copy(struct splitter* splitter);
+void document_clipboard_paste(struct splitter* splitter);
 
 #endif /* #ifndef TIPPSE_DOCUMENT_H */
