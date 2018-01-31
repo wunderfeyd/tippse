@@ -33,6 +33,7 @@ struct range_tree_node {
   int inserter;
 
   // TODO: shrink structure dynamically depending on type of tree
+  int64_t fuse_id;
   struct fragment* buffer;
   file_offset_t offset;
   struct visual_info visuals;
@@ -46,7 +47,7 @@ void range_tree_print_root(struct range_tree_node* node, int depth, int side);
 void range_tree_update_calc(struct range_tree_node* node);
 void range_tree_update_calc_all(struct range_tree_node* node);
 void range_tree_destroy(struct range_tree_node* node, struct document_file* file);
-struct range_tree_node* range_tree_create(struct range_tree_node* parent, struct range_tree_node* side0, struct range_tree_node* side1, struct fragment* buffer, file_offset_t offset, file_offset_t length, int inserter, struct document_file* file);
+struct range_tree_node* range_tree_create(struct range_tree_node* parent, struct range_tree_node* side0, struct range_tree_node* side1, struct fragment* buffer, file_offset_t offset, file_offset_t length, int inserter, int64_t fuse_id, struct document_file* file);
 struct range_tree_node* range_tree_first(struct range_tree_node* node);
 struct range_tree_node* range_tree_last(struct range_tree_node* node);
 inline struct range_tree_node* range_tree_next(struct range_tree_node* node) {return node->next;}
