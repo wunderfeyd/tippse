@@ -1186,6 +1186,38 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   } else if (command==TIPPSE_CMD_BOOKMARK) {
     document_text_toggle_bookmark(base, splitter, view->offset);
     return;
+  } else if (command==TIPPSE_CMD_BOOKMARK_NEXT) {
+    file_offset_t offset = view->offset;
+    while (1) {
+      file_offset_t low;
+      file_offset_t high;
+      if (range_tree_marked_next(file->bookmarks, offset, &low, &high, 1)) {
+        view->offset = low;
+        break;
+      }
+      if (offset==0) {
+        editor_console_update(file->editor, "No bookmark found!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
+        break;
+      }
+      offset = 0;
+    }
+    seek = 1;
+  } else if (command==TIPPSE_CMD_BOOKMARK_PREV) {
+    file_offset_t offset = view->offset;
+    while (1) {
+      file_offset_t low;
+      file_offset_t high;
+      if (range_tree_marked_prev(file->bookmarks, offset, &low, &high, 1)) {
+        view->offset = low;
+        break;
+      }
+      if (offset==range_tree_length(file->buffer)) {
+        editor_console_update(file->editor, "No bookmark found!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
+        break;
+      }
+      offset = range_tree_length(file->buffer);
+    }
+    seek = 1;
   } else if (command==TIPPSE_CMD_MOUSE) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
       in_x_y.x = x+view->scroll_x-view->address_width;
@@ -1622,8 +1654,7 @@ void document_text_toggle_bookmark(struct document* base, struct splitter* split
 
   if (file->bookmarks) {
     int marked = range_tree_marked(file->bookmarks, start, end-start, TIPPSE_INSERTER_MARK);
-    file->bookmarks = range_tree_mark(file->bookmarks, start, end-start, marked?0:TIPPSE_INSERTER_MARK);
-    // range_tree_print(file->bookmarks, 0, 0);
+    file->bookmarks = range_tree_mark(file->bookmarks, start, end-start, marked?0:TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
   }
 }
 

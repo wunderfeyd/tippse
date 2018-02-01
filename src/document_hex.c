@@ -271,7 +271,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     view->offset--;
   }
 
-  if (command==TIPPSE_CMD_CHARACTER && ((cp>='0' && cp<='9') || (cp>='a' && cp<='f') || (cp>='A' && cp<='F'))){
+  if (command==TIPPSE_CMD_CHARACTER && ((cp>='0' && cp<='9') || (cp>='a' && cp<='f') || (cp>='A' && cp<='F'))) {
     if (document->cp_first!=0) {
       uint8_t text = (uint8_t)((document_hex_value(document->cp_first)<<4)+document_hex_value(cp));
       document_file_insert(file, view->offset, &text, 1);

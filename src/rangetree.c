@@ -1190,3 +1190,51 @@ struct range_tree_node* range_tree_invert_mark(struct range_tree_node* node, int
   range_tree_update_calc(node);
   return node;
 }
+
+// Return next marked block after/at offset given
+int range_tree_marked_next(struct range_tree_node* root, file_offset_t offset, file_offset_t* low, file_offset_t* high, int skip_first) {
+  if (root) {
+    file_offset_t displacement;
+    struct range_tree_node* node = range_tree_find_offset(root, offset, &displacement);
+    while (node && displacement<node->length) {
+      if (node->inserter&TIPPSE_INSERTER_MARK && !skip_first) {
+        *low = offset;
+        *high = offset+node->length-displacement;
+        return 1;
+      }
+      skip_first = 0;
+      offset += node->length-displacement;
+      displacement = 0;
+      node = range_tree_next(node);
+    }
+  }
+
+  *low = FILE_OFFSET_T_MAX;
+  *high = FILE_OFFSET_T_MAX;
+  return 0;
+}
+
+// Return previous marked block before/at offset given
+int range_tree_marked_prev(struct range_tree_node* root, file_offset_t offset, file_offset_t* low, file_offset_t* high, int skip_first) {
+  if (root) {
+    file_offset_t displacement;
+    struct range_tree_node* node = range_tree_find_offset(root, offset, &displacement);
+    while (node && offset>0) {
+      if (node->inserter&TIPPSE_INSERTER_MARK && !skip_first) {
+        *low = offset;
+        *high = offset+node->length-displacement;
+        return 1;
+      }
+      skip_first = 0;
+      node = range_tree_prev(node);
+      if (node) {
+        offset -= node->length+displacement;
+      }
+      displacement = 0;
+    }
+  }
+
+  *low = FILE_OFFSET_T_MAX;
+  *high = FILE_OFFSET_T_MAX;
+  return 0;
+}

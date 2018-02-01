@@ -77,24 +77,7 @@ int document_view_select_active(struct document_view* base) {
 
 // Retrieve next active selection
 int document_view_select_next(struct document_view* base, file_offset_t offset, file_offset_t* low, file_offset_t* high) {
-  if (base->selection) {
-    file_offset_t displacement;
-    struct range_tree_node* node = range_tree_find_offset(base->selection, offset, &displacement);
-    while (node) {
-      if (node->inserter&TIPPSE_INSERTER_MARK) {
-        *low = offset;
-        *high = offset+node->length-displacement;
-        return 1;
-      }
-      offset += node->length-displacement;
-      displacement = 0;
-      node = range_tree_next(node);
-    }
-  }
-
-  *low = FILE_OFFSET_T_MAX;
-  *high = FILE_OFFSET_T_MAX;
-  return 0;
+  return range_tree_marked_next(base->selection, offset, low, high, 0);
 }
 
 // Activate or deactivate selection for specified range

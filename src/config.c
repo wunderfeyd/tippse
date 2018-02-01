@@ -95,6 +95,8 @@ const char* config_default =
       "ctrl+k:cutline,"
       "ctrl+up:blockup,"
       "ctrl+down:blockdown,"
+      "ctrl+pageup:bookmarkprev,"
+      "ctrl+pagedown:bookmarknext,"
     "},"
     "fileextensions:{"
       "c:C,"

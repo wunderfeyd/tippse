@@ -85,4 +85,6 @@ struct range_tree_node* range_tree_static(struct range_tree_node* root, file_off
 struct range_tree_node* range_tree_resize(struct range_tree_node* root, file_offset_t length, int inserter);
 struct range_tree_node* range_tree_expand(struct range_tree_node* root, file_offset_t offset, file_offset_t length);
 struct range_tree_node* range_tree_reduce(struct range_tree_node* root, file_offset_t offset, file_offset_t length);
+int range_tree_marked_next(struct range_tree_node* root, file_offset_t offset, file_offset_t* low, file_offset_t* high, int skip_first);
+int range_tree_marked_prev(struct range_tree_node* root, file_offset_t offset, file_offset_t* low, file_offset_t* high, int skip_first);
 #endif /* #ifndef TIPPSE_RANGETREE_H */
