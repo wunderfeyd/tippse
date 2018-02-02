@@ -306,6 +306,7 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
       if (cp=='?') {
         if (!(last->type&SEARCH_NODE_TYPE_MATCHING_TYPE)) {
           last->min = 0;
+          last->max = 1;
           last->type |= SEARCH_NODE_TYPE_GREEDY|SEARCH_NODE_TYPE_MATCHING_TYPE;
         } else {
           last->type &= ~(SEARCH_NODE_TYPE_GREEDY|SEARCH_NODE_TYPE_MATCHING_TYPE);
@@ -1258,7 +1259,7 @@ void search_prepare_skip(struct search* base, struct search_node* node) {
         struct range_tree_node* range = range_tree_first(node->set);
         while (range) {
           if (range->inserter&TIPPSE_INSERTER_MARK) {
-            for (size_t index = codepoint; n<codepoint+range->length; n++) {
+            for (size_t index = codepoint; index<codepoint+range->length; index++) {
               references[nodes].index[index] = 1;
             }
           }
@@ -1530,7 +1531,6 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
           }
         } else {
           struct search_stack* index = node->stack;
-          index->loop++;
           enter = (index->loop<=node->max && ((node->type&SEARCH_NODE_TYPE_GREEDY) || load->hits==hits))?1:0;
           if (index->loop<node->max) {
             if ((node->type&SEARCH_NODE_TYPE_BYTE)) {
@@ -1549,6 +1549,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
             node->stack = load->previous;
             search_find_loop_leave(base, &load, &start, &end, &frame);
           } else {
+            index->loop++;
             stream = load->stream;
           }
         }
