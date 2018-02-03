@@ -27,6 +27,7 @@ const char* config_default =
       "consolenormal:grey,"
       "consolewarning:yellow,"
       "consoleerror:red,"
+      "bookmark:aqua,"
     "},"
     "wrapping:1,"
     "invisibles:0,"

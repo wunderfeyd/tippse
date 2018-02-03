@@ -13,6 +13,7 @@ struct document_hex_char {
   size_t length;            // number of code points
   uint8_t byte;             // byte at current position
   int selection;            // selection active for current position
+  int bookmark;             // bookmark range at current position
 };
 
 struct document_hex {

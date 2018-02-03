@@ -43,4 +43,11 @@ int document_select_delete(struct splitter* splitter);
 void document_clipboard_copy(struct splitter* splitter);
 void document_clipboard_paste(struct splitter* splitter);
 
+void document_bookmark_toggle_range(struct splitter* splitter, file_offset_t low, file_offset_t high);
+void document_bookmark_range(struct splitter* splitter, file_offset_t low, file_offset_t high, int marked);
+void document_bookmark_selection(struct splitter* splitter, int marked);
+void document_bookmark_toggle_selection(struct splitter* splitter);
+void document_bookmark_next(struct splitter* splitter);
+void document_bookmark_prev(struct splitter* splitter);
+
 #endif /* #ifndef TIPPSE_DOCUMENT_H */

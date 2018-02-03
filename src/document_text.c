@@ -969,7 +969,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
         size = sprintf(line, "     ");
       }
 
-      splitter_drawtext(splitter, screen, 0, (int)y, line, (size_t)size, file->defaults.colors[VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[marked?VISUAL_FLAG_COLOR_PREPROCESSOR:VISUAL_FLAG_COLOR_BACKGROUND]);
+      splitter_drawtext(splitter, screen, 0, (int)y, line, (size_t)size, file->defaults.colors[marked?VISUAL_FLAG_COLOR_BOOKMARK:VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
     }
   }
 
@@ -1184,39 +1184,17 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     document_undo_execute_chain(file, view, file->redos, file->undos, 1);
     return;
   } else if (command==TIPPSE_CMD_BOOKMARK) {
-    document_text_toggle_bookmark(base, splitter, view->offset);
-    return;
-  } else if (command==TIPPSE_CMD_BOOKMARK_NEXT) {
-    file_offset_t offset = view->offset;
-    while (1) {
-      file_offset_t low;
-      file_offset_t high;
-      if (range_tree_marked_next(file->bookmarks, offset, &low, &high, 1)) {
-        view->offset = low;
-        break;
-      }
-      if (offset==0) {
-        editor_console_update(file->editor, "No bookmark found!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
-        break;
-      }
-      offset = 0;
+    if (document_view_select_active(view)) {
+      document_bookmark_toggle_selection(splitter);
+      document_view_select_nothing(view, file);
+    } else {
+      document_text_toggle_bookmark(base, splitter, view->offset);
     }
+  } else if (command==TIPPSE_CMD_BOOKMARK_NEXT) {
+    document_bookmark_next(splitter);
     seek = 1;
   } else if (command==TIPPSE_CMD_BOOKMARK_PREV) {
-    file_offset_t offset = view->offset;
-    while (1) {
-      file_offset_t low;
-      file_offset_t high;
-      if (range_tree_marked_prev(file->bookmarks, offset, &low, &high, 1)) {
-        view->offset = low;
-        break;
-      }
-      if (offset==range_tree_length(file->buffer)) {
-        editor_console_update(file->editor, "No bookmark found!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
-        break;
-      }
-      offset = range_tree_length(file->buffer);
-    }
+    document_bookmark_prev(splitter);
     seek = 1;
   } else if (command==TIPPSE_CMD_MOUSE) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
@@ -1628,8 +1606,6 @@ void document_text_keypress_line_select(struct document* base, struct splitter* 
 
 // Set or clear bookmark range
 void document_text_toggle_bookmark(struct document* base, struct splitter* splitter, file_offset_t offset) {
-  //struct document_text* document = (struct document_text*)base;
-  struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
   struct document_text_position out;
@@ -1652,10 +1628,7 @@ void document_text_toggle_bookmark(struct document* base, struct splitter* split
   document_text_cursor_position(splitter, &in_line_column, &out, 1, 1);
   file_offset_t end = out.offset;
 
-  if (file->bookmarks) {
-    int marked = range_tree_marked(file->bookmarks, start, end-start, TIPPSE_INSERTER_MARK);
-    file->bookmarks = range_tree_mark(file->bookmarks, start, end-start, marked?0:TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
-  }
+  document_bookmark_toggle_range(splitter, start, end);
 }
 
 // Lower indentation for selected range (if possible)

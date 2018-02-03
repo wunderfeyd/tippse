@@ -388,3 +388,82 @@ void document_clipboard_paste(struct splitter* splitter) {
     document_file_insert_buffer(file, view->offset, buffer);
   }
 }
+
+// Toggle bookmark
+void document_bookmark_toggle_range(struct splitter* splitter, file_offset_t low, file_offset_t high) {
+  struct document_file* file = splitter->file;
+
+  int marked = range_tree_marked(file->bookmarks, low, high-low, TIPPSE_INSERTER_MARK);
+  document_bookmark_range(splitter, low, high, marked);
+}
+
+// Add range to bookmark list
+void document_bookmark_range(struct splitter* splitter, file_offset_t low, file_offset_t high, int marked) {
+  struct document_file* file = splitter->file;
+
+  file->bookmarks = range_tree_mark(file->bookmarks, low, high-low, marked?0:TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
+}
+
+// Bookmark selection
+void document_bookmark_selection(struct splitter* splitter, int marked) {
+  struct document_view* view = splitter->view;
+
+  file_offset_t low;
+  file_offset_t high = 0;
+  while (document_view_select_next(view, high, &low, &high)) {
+    document_bookmark_range(splitter, low, high, marked);
+  }
+}
+
+// Bookmark selection (invert)
+void document_bookmark_toggle_selection(struct splitter* splitter) {
+  struct document_view* view = splitter->view;
+
+  file_offset_t low;
+  file_offset_t high = 0;
+  while (document_view_select_next(view, high, &low, &high)) {
+    document_bookmark_toggle_range(splitter, low, high);
+  }
+}
+
+// Goto next bookmark
+void document_bookmark_next(struct splitter* splitter) {
+  struct document_file* file = splitter->file;
+  struct document_view* view = splitter->view;
+
+  file_offset_t offset = view->offset;
+  while (1) {
+    file_offset_t low;
+    file_offset_t high;
+    if (range_tree_marked_next(file->bookmarks, offset, &low, &high, 1)) {
+      view->offset = low;
+      break;
+    }
+    if (offset==0) {
+      editor_console_update(file->editor, "No bookmark found!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
+      break;
+    }
+    offset = 0;
+  }
+}
+
+// Goto previous bookmark
+void document_bookmark_prev(struct splitter* splitter) {
+  struct document_file* file = splitter->file;
+  struct document_view* view = splitter->view;
+
+  file_offset_t offset = view->offset;
+  while (1) {
+    file_offset_t low;
+    file_offset_t high;
+    if (range_tree_marked_prev(file->bookmarks, offset, &low, &high, 1)) {
+      view->offset = low;
+      break;
+    }
+    if (offset==range_tree_length(file->buffer)) {
+      editor_console_update(file->editor, "No bookmark found!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
+      break;
+    }
+    offset = range_tree_length(file->buffer);
+  }
+}

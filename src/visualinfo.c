@@ -23,6 +23,7 @@ struct config_cache visual_color_codes[VISUAL_FLAG_COLOR_MAX+1] = {
   {"consolenormal", VISUAL_FLAG_COLOR_CONSOLENORMAL, NULL},
   {"consolewarning", VISUAL_FLAG_COLOR_CONSOLEWARNING, NULL},
   {"consoleerror", VISUAL_FLAG_COLOR_CONSOLEERROR, NULL},
+  {"bookmark", VISUAL_FLAG_COLOR_BOOKMARK, NULL},
   {NULL, 0, NULL}
 };
 

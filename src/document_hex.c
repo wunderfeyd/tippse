@@ -76,6 +76,8 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   file_offset_t selection_displacement;
   struct range_tree_node* selection = range_tree_find_offset(view->selection, offset, &selection_displacement);
 
+  file_offset_t bookmark_displacement;
+  struct range_tree_node* bookmark = range_tree_find_offset(file->bookmarks, offset, &bookmark_displacement);
 
   size_t name_length = strlen(file->filename);
   char* title = malloc((name_length+(size_t)document_undo_modified(file)*2+1)*sizeof(char));
@@ -115,6 +117,13 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
         selection = selection->next;
       }
       chars[x].selection = (selection && (selection->inserter&TIPPSE_INSERTER_MARK))?1:0;
+
+      bookmark_displacement++;
+      while (bookmark && bookmark_displacement>bookmark->length) {
+        bookmark_displacement -= bookmark->length;
+        bookmark = bookmark->next;
+      }
+      chars[x].bookmark = (bookmark && (bookmark->inserter&TIPPSE_INSERTER_MARK))?1:0;
     }
 
     document_hex_render(base, screen, splitter, offset, y, data_size, chars);
@@ -140,6 +149,7 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
   int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
   int selection = file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
   int linenumber = file->defaults.colors[VISUAL_FLAG_COLOR_LINENUMBER];
+  int bookmark = file->defaults.colors[VISUAL_FLAG_COLOR_BOOKMARK];
   int x = 0;
   char line[1024];
   sprintf(line, "%08lx", (unsigned long)offset);
@@ -149,7 +159,7 @@ void document_hex_render(struct document* base, struct screen* screen, struct sp
   for (data_pos = 0; data_pos<data_size; data_pos++) {
     sprintf(line, "%02x ", chars[data_pos].byte);
     if (!chars[data_pos].selection) {
-      splitter_drawtext(splitter, screen, x, (int)y, line, 2, foreground, background);
+      splitter_drawtext(splitter, screen, x, (int)y, line, 2, chars[data_pos].bookmark?bookmark:foreground, background);
     } else {
       splitter_drawtext(splitter, screen, x, (int)y, line, data_pos==15?2:3, foreground, selection);
     }
@@ -251,6 +261,19 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     document_undo_execute_chain(file, view, file->undos, file->redos, 0);
   } else if (command==TIPPSE_CMD_REDO) {
     document_undo_execute_chain(file, view, file->redos, file->undos, 1);
+  } else if (command==TIPPSE_CMD_BOOKMARK) {
+    if (document_view_select_active(view)) {
+      document_bookmark_toggle_selection(splitter);
+      document_view_select_nothing(view, file);
+    } else {
+      if (view->offset<range_tree_length(file->buffer)) {
+        document_bookmark_toggle_range(splitter, view->offset, view->offset+1);
+      }
+    }
+  } else if (command==TIPPSE_CMD_BOOKMARK_NEXT) {
+    document_bookmark_next(splitter);
+  } else if (command==TIPPSE_CMD_BOOKMARK_PREV) {
+    document_bookmark_prev(splitter);
   } else if (command==TIPPSE_CMD_BACKSPACE) {
     if (selection_low!=FILE_OFFSET_T_MAX || document->cp_first!=0) {
       document_select_delete(splitter);
