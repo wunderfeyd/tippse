@@ -219,7 +219,7 @@ void document_file_fill_pipe(struct document_file* base, uint8_t* buffer, size_t
     memcpy(copy, buffer, length);
     file_offset_t offset = range_tree_length(base->buffer);
     struct fragment* fragment = fragment_create_memory(copy, length);
-    base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, length, 0, base);
+    base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, length, 0, 0, base);
     fragment_dereference(fragment, base);
 
     document_file_expand_all(base, offset, length);
@@ -272,7 +272,7 @@ void document_file_load(struct document_file* base, const char* filename, int re
           break;
         }
 
-        base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, fragment->length, 0, base);
+        base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, fragment->length, 0, 0, base);
         fragment_dereference(fragment, base);
         offset += block;
       }
@@ -307,7 +307,7 @@ void document_file_load_memory(struct document_file* base, const uint8_t* buffer
     uint8_t* copy = (uint8_t*)malloc(max);
     memcpy(copy, buffer, max);
     struct fragment* fragment = fragment_create_memory(copy, max);
-    base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, max, 0, base);
+    base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, max, 0, 0, base);
     fragment_dereference(fragment, base);
     offset += max;
     length -= max;

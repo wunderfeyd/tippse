@@ -311,10 +311,13 @@ void document_directory(struct document_file* file, struct stream* filter_stream
 
   for (size_t n = 0; n<files->count; n++) {
     if (file->buffer) {
-      file->buffer = range_tree_insert_split(file->buffer, range_tree_length(file->buffer), (uint8_t*)"\n", 1, 0);
+      file->buffer = range_tree_insert_split(file->buffer, range_tree_length(file->buffer), (uint8_t*)"\n", 1, TIPPSE_INSERTER_NOFUSE);
     }
 
-    file->buffer = range_tree_insert_split(file->buffer, range_tree_length(file->buffer), (uint8_t*)sort[n], strlen(sort[n]), 0);
+    char* combined = combine_path_file(file->filename, sort[n]);
+    int highlight = is_directory(combined)?TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_CONSOLEWARNING<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT):0;
+    free(combined);
+    file->buffer = range_tree_insert_split(file->buffer, range_tree_length(file->buffer), (uint8_t*)sort[n], strlen(sort[n]), TIPPSE_INSERTER_NOFUSE|highlight);
     free(sort[n]);
   }
 

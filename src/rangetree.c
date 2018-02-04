@@ -764,7 +764,7 @@ struct range_tree_node* range_tree_fuse(struct range_tree_node* root, struct ran
 }
 
 // Insert fragment into specific offset and eventually break older nodes into parts
-struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_offset_t offset, struct fragment* buffer, file_offset_t buffer_offset, file_offset_t buffer_length, int inserter, struct document_file* file) {
+struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_offset_t offset, struct fragment* buffer, file_offset_t buffer_offset, file_offset_t buffer_length, int inserter, int64_t fuse_id, struct document_file* file) {
   struct range_tree_node* node;
   struct range_tree_node* build0;
   struct range_tree_node* build1;
@@ -782,7 +782,7 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
     struct range_tree_node* before = NULL;
     struct range_tree_node* after = NULL;
 
-    build1 = range_tree_create(NULL, NULL, NULL, buffer, buffer_offset, buffer_length, inserter|TIPPSE_INSERTER_LEAF, 0, file);
+    build1 = range_tree_create(NULL, NULL, NULL, buffer, buffer_offset, buffer_length, inserter|TIPPSE_INSERTER_LEAF, fuse_id, file);
 
     if (split==node->length) {
       build0 = range_tree_create(node->parent, node, build1, NULL, 0, 0, 0, 0, NULL);
@@ -827,7 +827,7 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
       before = range_tree_prev(build1);
       after = range_tree_next(node);
     } else {
-      build2 = range_tree_create(NULL, NULL, NULL, node->buffer, node->offset, split, node->inserter|TIPPSE_INSERTER_LEAF, 0, file);
+      build2 = range_tree_create(NULL, NULL, NULL, node->buffer, node->offset, split, node->inserter|TIPPSE_INSERTER_LEAF, fuse_id, file);
       build0 = range_tree_create(NULL, build2, build1, NULL, 0, 0, 0, 0, NULL);
       build3 = range_tree_create(node->parent, build0, node, NULL, 0, 0, 0, 0, NULL);
       build2->parent = build0;
@@ -865,7 +865,7 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
 
     root = range_tree_fuse(root, before, after, file);
   } else {
-    root = range_tree_create(NULL, NULL, NULL, buffer, buffer_offset, buffer_length, inserter|TIPPSE_INSERTER_LEAF, 0, file);
+    root = range_tree_create(NULL, NULL, NULL, buffer, buffer_offset, buffer_length, inserter|TIPPSE_INSERTER_LEAF, fuse_id, file);
     range_tree_shrink(root);
     range_tree_update_calc(root);
   }
@@ -884,7 +884,8 @@ struct range_tree_node* range_tree_insert_split(struct range_tree_node* root, fi
     uint8_t* copy = (uint8_t*)malloc(size);
     memcpy(copy, text+pos, size);
     struct fragment* buffer = fragment_create_memory(copy, size);
-    root = range_tree_insert(root, offset, buffer, 0, buffer->length, inserter, NULL);
+    range_tree_fuse_id++;
+    root = range_tree_insert(root, offset, buffer, 0, buffer->length, inserter, range_tree_fuse_id, NULL);
     fragment_dereference(buffer, NULL);
 
     offset += TREE_BLOCK_LENGTH_MAX;
@@ -967,7 +968,7 @@ struct range_tree_node* range_tree_copy_insert(struct range_tree_node* root_from
       split2 = length;
     }
 
-    root_to = range_tree_insert(root_to, offset_to, node->buffer, node->offset+split, split2, node->inserter, file);
+    root_to = range_tree_insert(root_to, offset_to, node->buffer, node->offset+split, split2, node->inserter, node->fuse_id, file);
     offset_to += split2;
     offset_from += split2;
     length -= split2;
@@ -991,7 +992,7 @@ struct range_tree_node* range_tree_copy(struct range_tree_node* root, file_offse
 struct range_tree_node* range_tree_paste(struct range_tree_node* root, struct range_tree_node* copy, file_offset_t offset, struct document_file* file) {
   copy = range_tree_first(copy);
   while (copy) {
-    root = range_tree_insert(root, offset, copy->buffer, copy->offset, copy->length, copy->inserter, file);
+    root = range_tree_insert(root, offset, copy->buffer, copy->offset, copy->length, copy->inserter, copy->fuse_id, file);
     offset += copy->length;
     copy = range_tree_next(copy);
   }
