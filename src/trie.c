@@ -124,3 +124,41 @@ struct trie_node* trie_find_codepoint_recursive(struct trie* base, struct trie_n
 
   return node;
 }
+
+// Find next single codepoint
+codepoint_t trie_find_codepoint_single(struct trie* base, struct trie_node* parent) {
+  if (!parent) {
+    parent = base->root;
+    if (!parent) {
+      return -1;
+    }
+  }
+
+  codepoint_t cp = 0;
+  for (int bit = TRIE_CODEPOINT_BIT-4; bit>=0; bit-=4) {
+    size_t found = 16;
+    for (size_t set = 0; set<16; set++) {
+      if (parent->side[set]) {
+        if (found!=16) {
+          return -2;
+        }
+        found = set;
+      }
+    }
+
+    if (found==16) {
+      return -1;
+    }
+
+    struct trie_node* node = parent->side[found];
+    if (!node) {
+      return -1;
+    }
+
+    parent = node;
+    cp <<= 4;
+    cp |= (codepoint_t)found;
+  }
+
+  return cp;
+}

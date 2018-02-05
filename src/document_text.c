@@ -851,6 +851,45 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
     document_text_render_span(&render_info, NULL, NULL, view, file, &in, NULL, 16, 1);
   }
 
+  if (file->buffer && file->autocomplete_offset<range_tree_length(file->buffer)) {
+    file_offset_t displacement;
+    struct range_tree_node* buffer = range_tree_find_offset(file->buffer, file->autocomplete_offset, &displacement);
+    struct stream stream;
+    stream_from_page(&stream, buffer, displacement);
+    struct encoding_cache cache;
+    encoding_cache_clear(&cache, file->encoding, &stream);
+    size_t count = 0;
+
+    if (!file->autocomplete_build) {
+      file->autocomplete_build = trie_create(0);
+    }
+
+    struct trie_node* parent = NULL;
+    while (1) {
+      codepoint_t cp = encoding_cache_find_codepoint(&cache, 0);
+      if (cp<=0) {
+        break;
+      }
+
+      int literal = ((cp>='A' && cp<='Z') || (cp>='a' && cp<='z') || (cp>='0' && cp<='9') || (cp=='_'))?1:0;
+      if (count>1000 && (!literal || !parent)) {
+        break;
+      }
+
+      if (!literal) {
+        if (parent) {
+          parent->end = 1;
+          parent = NULL;
+        }
+      } else {
+        parent = trie_append_codepoint(file->autocomplete_build, parent, cp, 0);
+      }
+      encoding_cache_advance(&cache, 1);
+      count++;
+    }
+    file->autocomplete_offset = stream_offset(&stream);
+  }
+
   return file->buffer?file->buffer->visuals.dirty:0;
 }
 
@@ -1015,6 +1054,74 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     }
   }
 
+  // Auto complete hint
+  if (file->autocomplete_build && range_tree_length(file->buffer)>0) {
+    char text[1024];
+    size_t length = 0;
+
+    file_offset_t displacement;
+    struct range_tree_node* buffer = range_tree_find_offset(file->buffer, view->offset, &displacement);
+    struct stream stream;
+    stream_from_page(&stream, buffer, displacement);
+    struct encoding_cache cache;
+    encoding_cache_clear(&cache, file->encoding, &stream);
+    codepoint_t cp = encoding_cache_find_codepoint(&cache, 0);
+    if (!((cp>='A' && cp<='Z') || (cp>='a' && cp<='z') || (cp>='0' && cp<='9') || (cp=='_'))) {
+      stream_from_page(&stream, buffer, displacement);
+      while (!stream_start(&stream)) {
+        uint8_t index = stream_read_reverse(&stream);
+        if (!((index>='A' && index<='Z') || (index>='a' && index<='z') || (cp>='0' && cp<='9') || (index=='_'))) {
+          stream_forward(&stream, 1);
+          break;
+        }
+      }
+
+      encoding_cache_clear(&cache, file->encoding, &stream);
+      int prefix = 0;
+      struct trie_node* parent = NULL;
+      while (stream_offset(&stream)<view->offset) {
+        codepoint_t cp = encoding_cache_find_codepoint(&cache, 0);
+        length += encoding_utf8_encode(NULL, cp, (uint8_t*)&text[length], sizeof(text)-length);
+        parent = trie_find_codepoint(file->autocomplete_build, parent, cp);
+        if (!parent) {
+          break;
+        }
+
+        encoding_cache_advance(&cache, 1);
+        prefix++;
+      }
+
+      if (parent && trie_find_codepoint_single(file->autocomplete_build, parent)!=-1) {
+        splitter_drawtext(splitter, screen, (int)(cursor.x-view->scroll_x+view->address_width)-prefix, (int)(cursor.y-view->scroll_y)-1, &text[0], length, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[VISUAL_FLAG_COLOR_BRACKETERROR]);
+
+        length = 0;
+        while (parent) {
+          codepoint_t cp = trie_find_codepoint_single(file->autocomplete_build, parent);
+          if (cp<=0) {
+            if (cp==-2) {
+              text[length++] = '[';
+              codepoint_t min = 0;
+              while (1) {
+                if (!trie_find_codepoint_min(file->autocomplete_build, parent, min, &cp)) {
+                  break;
+                }
+                min = cp;
+                length += encoding_utf8_encode(NULL, cp, (uint8_t*)&text[length], sizeof(text)-length-2);
+              }
+              text[length++] = ']';
+            }
+            break;
+          }
+          length += encoding_utf8_encode(NULL, cp, (uint8_t*)&text[length], sizeof(text)-length-2);
+          parent = trie_find_codepoint(file->autocomplete_build, parent, cp);
+          if (!parent || parent->end) {
+            break;
+          }
+        }
+        splitter_drawtext(splitter, screen, (int)(cursor.x-view->scroll_x+view->address_width), (int)(cursor.y-view->scroll_y)-1, &text[0], length, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
+      }
+    }
+  }
   const char* newline[TIPPSE_NEWLINE_MAX] = {"Auto", "Lf", "Cr", "CrLf"};
   const char* tabstop[TIPPSE_TABSTOP_MAX] = {"Auto", "Tab", "Space"};
   char status[1024];
@@ -1296,9 +1403,8 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     seek = 1;
     selection_keep = 1;
   } else if (command==TIPPSE_CMD_SELECT_ALL) {
-    view->selection_start = 0;
-    view->selection_end = file_size;
-    selection_keep = 1;
+    offset_old = view->selection_start = 0;
+    view->offset = view->selection_end = file_size;
   } else if (command==TIPPSE_CMD_CUTLINE) {
     document_undo_chain(file, file->undos);
 
@@ -1463,7 +1569,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       view->selection_end = view->offset;
     }
   } else {
-    if (command==TIPPSE_CMD_SELECT_UP || command==TIPPSE_CMD_SELECT_DOWN || command==TIPPSE_CMD_SELECT_LEFT || command==TIPPSE_CMD_SELECT_RIGHT || command==TIPPSE_CMD_SELECT_PAGEUP || command==TIPPSE_CMD_SELECT_PAGEDOWN || command==TIPPSE_CMD_SELECT_FIRST || command==TIPPSE_CMD_SELECT_LAST || command==TIPPSE_CMD_SELECT_HOME || command==TIPPSE_CMD_SELECT_END) {
+    if (command==TIPPSE_CMD_SELECT_UP || command==TIPPSE_CMD_SELECT_DOWN || command==TIPPSE_CMD_SELECT_LEFT || command==TIPPSE_CMD_SELECT_RIGHT || command==TIPPSE_CMD_SELECT_PAGEUP || command==TIPPSE_CMD_SELECT_PAGEDOWN || command==TIPPSE_CMD_SELECT_FIRST || command==TIPPSE_CMD_SELECT_LAST || command==TIPPSE_CMD_SELECT_HOME || command==TIPPSE_CMD_SELECT_END || command==TIPPSE_CMD_SELECT_ALL) {
       if (view->selection_start==FILE_OFFSET_T_MAX) {
         view->selection_reset = 1;
         view->selection_start = offset_old;

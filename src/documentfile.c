@@ -40,6 +40,9 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->view = document_view_create();
   base->pipefd[0] = -1;
   base->pipefd[1] = -1;
+  base->autocomplete_offset = 0;
+  base->autocomplete_last = NULL;
+  base->autocomplete_build = NULL;
   document_file_reset_views(base);
   document_undo_mark_save_point(base);
   document_file_reload_config(base);
@@ -85,6 +88,12 @@ void document_file_destroy(struct document_file* base) {
   (*base->type->destroy)(base->type);
   (*base->encoding->destroy)(base->encoding);
   document_view_destroy(base->view);
+  if (base->autocomplete_build) {
+    trie_destroy(base->autocomplete_build);
+  }
+  if (base->autocomplete_last) {
+    trie_destroy(base->autocomplete_last);
+  }
   if (base->config) {
     config_destroy(base->config);
   }
@@ -511,6 +520,8 @@ void document_file_expand(file_offset_t* pos, file_offset_t offset, file_offset_
 void document_file_expand_all(struct document_file* base, file_offset_t offset, file_offset_t length) {
   base->bookmarks = range_tree_expand(base->bookmarks, offset, length);
 
+  document_file_expand(&base->autocomplete_offset, offset, length);
+
   struct list_node* views = base->views->first;
   while (views) {
     struct document_view* view = *(struct document_view**)list_object(views);
@@ -571,6 +582,8 @@ void document_file_reduce(file_offset_t* pos, file_offset_t offset, file_offset_
 // Correct all file offsets by reduce offset and length
 void document_file_reduce_all(struct document_file* base, file_offset_t offset, file_offset_t length) {
   base->bookmarks = range_tree_reduce(base->bookmarks, offset, length);
+
+  document_file_reduce(&base->autocomplete_offset, offset, length);
 
   struct list_node* views = base->views->first;
   while (views) {

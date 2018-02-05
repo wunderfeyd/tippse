@@ -238,9 +238,8 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
       view->show_scrollbar = 1;
     }
   } else if (command==TIPPSE_CMD_SELECT_ALL) {
-    view->selection_start = 0;
-    view->selection_end = file_size;
-    selection_keep = 1;
+    offset_old = view->selection_start = 0;
+    view->offset = view->selection_end = file_size;
   } else if (command==TIPPSE_CMD_COPY || command==TIPPSE_CMD_CUT) {
     document_undo_chain(file, file->undos);
     if (selection_low!=FILE_OFFSET_T_MAX) {
@@ -331,7 +330,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
       view->selection_end = view->offset;
     }
   } else {
-    if (command==TIPPSE_CMD_SELECT_UP || command==TIPPSE_CMD_SELECT_DOWN || command==TIPPSE_CMD_SELECT_LEFT || command==TIPPSE_CMD_SELECT_RIGHT || command==TIPPSE_CMD_SELECT_PAGEUP || command==TIPPSE_CMD_SELECT_PAGEDOWN || command==TIPPSE_CMD_SELECT_FIRST || command==TIPPSE_CMD_SELECT_LAST || command==TIPPSE_CMD_SELECT_HOME || command==TIPPSE_CMD_SELECT_END) {
+    if (command==TIPPSE_CMD_SELECT_UP || command==TIPPSE_CMD_SELECT_DOWN || command==TIPPSE_CMD_SELECT_LEFT || command==TIPPSE_CMD_SELECT_RIGHT || command==TIPPSE_CMD_SELECT_PAGEUP || command==TIPPSE_CMD_SELECT_PAGEDOWN || command==TIPPSE_CMD_SELECT_FIRST || command==TIPPSE_CMD_SELECT_LAST || command==TIPPSE_CMD_SELECT_HOME || command==TIPPSE_CMD_SELECT_END || command==TIPPSE_CMD_SELECT_ALL) {
       if (view->selection_start==FILE_OFFSET_T_MAX) {
         view->selection_reset = 1;
         view->selection_start = offset_old;
