@@ -8,6 +8,10 @@ void document_undo_add(struct document_file* file, struct document_view* view, f
     return;
   }
 
+  if ((type==TIPPSE_UNDO_TYPE_INSERT || type==TIPPSE_UNDO_TYPE_DELETE) && !file->autocomplete_rescan) {
+    file->autocomplete_rescan = 1;
+  }
+
   while (file->undos->count>TIPPSE_UNDO_MAX) {
     struct document_undo* undo = (struct document_undo*)list_object(file->undos->last);
     if (undo->buffer) {

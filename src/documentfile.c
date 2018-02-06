@@ -43,6 +43,7 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->autocomplete_offset = 0;
   base->autocomplete_last = NULL;
   base->autocomplete_build = NULL;
+  base->autocomplete_rescan = 0;
   document_file_reset_views(base);
   document_undo_mark_save_point(base);
   document_file_reload_config(base);

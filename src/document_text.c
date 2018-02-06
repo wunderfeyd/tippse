@@ -864,7 +864,12 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
       file->autocomplete_build = trie_create(0);
     }
 
-    struct trie_node* parent = NULL;
+    if (!file->autocomplete_last) {
+      file->autocomplete_last = trie_create(0);
+    }
+
+    struct trie_node* parent_build = NULL;
+    struct trie_node* parent_last = NULL;
     while (1) {
       codepoint_t cp = encoding_cache_find_codepoint(&cache, 0);
       if (cp<=0) {
@@ -872,22 +877,37 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
       }
 
       int literal = ((cp>='A' && cp<='Z') || (cp>='a' && cp<='z') || (cp>='0' && cp<='9') || (cp=='_'))?1:0;
-      if (count>1000 && (!literal || !parent)) {
+      if (count>10000 && (!literal || (!parent_last && !parent_build))) {
         break;
       }
 
       if (!literal) {
-        if (parent) {
-          parent->end = 1;
-          parent = NULL;
+        if (parent_last) {
+          parent_last->end = 1;
+          parent_last = NULL;
+        }
+        if (parent_build) {
+          parent_build->end = 1;
+          parent_build = NULL;
         }
       } else {
-        parent = trie_append_codepoint(file->autocomplete_build, parent, cp, 0);
+        parent_last = trie_append_codepoint(file->autocomplete_last, parent_last, cp, 0);
+        parent_build = trie_append_codepoint(file->autocomplete_build, parent_build, cp, 0);
       }
       encoding_cache_advance(&cache, 1);
       count++;
     }
     file->autocomplete_offset = stream_offset(&stream);
+    if (file->autocomplete_offset==range_tree_length(file->buffer)) {
+      trie_destroy(file->autocomplete_last);
+      file->autocomplete_last = file->autocomplete_build;
+      file->autocomplete_build = NULL;
+    }
+  }
+
+  if (file->autocomplete_offset>=range_tree_length(file->buffer) && file->autocomplete_rescan>1) {
+    file->autocomplete_rescan = 0;
+    file->autocomplete_offset = 0;
   }
 
   return file->buffer?file->buffer->visuals.dirty:0;
@@ -915,6 +935,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   in.clip = 0;
   in.offset = view->offset;
 
+  // TODO: cursor position is already known by seek flag in keypress function? Test me.
   document_text_cursor_position(splitter, &in, &cursor, 0, 1);
 
   struct document_text_render_info render_info;
@@ -1055,7 +1076,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   }
 
   // Auto complete hint
-  if (file->autocomplete_build && range_tree_length(file->buffer)>0) {
+  if (file->autocomplete_last && range_tree_length(file->buffer)>0) {
     char text[1024];
     size_t length = 0;
 
@@ -1082,7 +1103,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
       while (stream_offset(&stream)<view->offset) {
         codepoint_t cp = encoding_cache_find_codepoint(&cache, 0);
         length += encoding_utf8_encode(NULL, cp, (uint8_t*)&text[length], sizeof(text)-length);
-        parent = trie_find_codepoint(file->autocomplete_build, parent, cp);
+        parent = trie_find_codepoint(file->autocomplete_last, parent, cp);
         if (!parent) {
           break;
         }
@@ -1091,18 +1112,18 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
         prefix++;
       }
 
-      if (parent && trie_find_codepoint_single(file->autocomplete_build, parent)!=-1) {
+      if (parent && trie_find_codepoint_single(file->autocomplete_last, parent)!=-1) {
         splitter_drawtext(splitter, screen, (int)(cursor.x-view->scroll_x+view->address_width)-prefix, (int)(cursor.y-view->scroll_y)-1, &text[0], length, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[VISUAL_FLAG_COLOR_BRACKETERROR]);
 
         length = 0;
         while (parent) {
-          codepoint_t cp = trie_find_codepoint_single(file->autocomplete_build, parent);
+          codepoint_t cp = trie_find_codepoint_single(file->autocomplete_last, parent);
           if (cp<=0) {
-            if (cp==-2) {
+            if (cp==-2 && (length==0 || !parent->end)) {
               text[length++] = '[';
               codepoint_t min = 0;
               while (1) {
-                if (!trie_find_codepoint_min(file->autocomplete_build, parent, min, &cp)) {
+                if (!trie_find_codepoint_min(file->autocomplete_last, parent, min, &cp)) {
                   break;
                 }
                 min = cp;
@@ -1113,7 +1134,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
             break;
           }
           length += encoding_utf8_encode(NULL, cp, (uint8_t*)&text[length], sizeof(text)-length-2);
-          parent = trie_find_codepoint(file->autocomplete_build, parent, cp);
+          parent = trie_find_codepoint(file->autocomplete_last, parent, cp);
           if (!parent || parent->end) {
             break;
           }
@@ -1555,6 +1576,9 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     document_text_cursor_position(splitter, &in_offset, &out, 1, 1);
     view->offset = out.offset;
     view->cursor_x = out.x;
+    if (view->cursor_y!=out.y && file->autocomplete_rescan==1) {
+      file->autocomplete_rescan = 2;
+    }
     view->cursor_y = out.y;
   }
 

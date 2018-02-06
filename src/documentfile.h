@@ -84,6 +84,7 @@ struct document_file {
   file_offset_t autocomplete_offset;    // current auto complete scan offset
   struct trie* autocomplete_last;       // last auto complete full tree
   struct trie* autocomplete_build;      // auto complete build tree
+  int autocomplete_rescan;              // file was changed rescan entire document
 
   int pipefd[2];                        // Pipe to child process
   pid_t pid;                            // Child process id
