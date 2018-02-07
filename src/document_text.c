@@ -1091,7 +1091,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
       stream_from_page(&stream, buffer, displacement);
       while (!stream_start(&stream)) {
         uint8_t index = stream_read_reverse(&stream);
-        if (!((index>='A' && index<='Z') || (index>='a' && index<='z') || (cp>='0' && cp<='9') || (index=='_'))) {
+        if (!((index>='A' && index<='Z') || (index>='a' && index<='z') || (index>='0' && index<='9') || (index=='_'))) {
           stream_forward(&stream, 1);
           break;
         }

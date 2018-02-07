@@ -1279,36 +1279,33 @@ void search_prepare_skip(struct search* base, struct search_node* node) {
     base->skip_rescan = (node || base->groups>0)?1:0;
     base->skip_length = nodes;
     for (size_t pos = 0; pos<nodes; pos++) {
-      size_t skip_min = nodes;
-      size_t check = nodes-pos;
-      while (check<nodes) {
-        size_t index;
-        for (index = 0; index<256; index++) {
-          if (references[check].index[index] && references[nodes-pos-1].index[index]) {
-            break;
-          }
-        }
-        if (index<256) {
-          skip_min = check-(nodes-pos-1);
-        }
-        check++;
-      }
+      size_t current = nodes-pos-1;
       for (size_t index = 0; index<256; index++) {
-        size_t check = nodes-pos-1;
-        size_t skip_start = nodes-pos-1;
-        size_t skip = skip_min;
-        while (check>0) {
-          check--;
+        size_t skip_min = nodes+1;
+        size_t skip_rel = 0;
+        size_t last = SIZE_T_MAX;
+        for (size_t check = 0; check<current; check++) {
           if (references[check].index[index]) {
-            size_t combine = skip_start-check;
-            if (combine<skip) {
-              skip = combine;
+            size_t skip = (nodes-check);
+            if (skip<skip_min) {
+              skip_min = skip;
+              skip_rel = 0;
             }
-            skip_start = check;
           }
         }
-        base->skip[pos].index[index] = references[nodes-pos-1].index[index]?0:skip;
-        //printf("%d '%c': %d\r\n", (int)(nodes-pos-1), (int)index, (int)build->index[index].hit);
+        for (size_t check = 0; check<current; check++) {
+          if (references[check].index[index]) {
+            if (last!=SIZE_T_MAX) {
+              size_t skip = check-last;
+              if (skip<skip_min) {
+                skip_min = skip;
+                skip_rel = pos;
+              }
+            }
+            last = check;
+          }
+        }
+        base->skip[pos].index[index] = references[current].index[index]?0:(skip_min+skip_rel);
       }
     }
   }
@@ -1335,6 +1332,7 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
       size_t size = 0;
       while (1) {
         uint8_t index = stream_read_reverse(text);
+        // printf("%02x '%c' %d/%d @ %d\r\n", index, index, (int)size, (int)base->skip[size].index[index], (int)stream_offset(text));
         hit = base->skip[size++].index[index];
         if (hit) {
           break;
@@ -1350,7 +1348,7 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
             stream_forward(text, 1);
             return 1;
           }
-          hit = 1;
+          hit = 2;
           break;
         }
       }
@@ -1359,9 +1357,9 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
         count = 0;
         break;
       }
-      count-=hit;
+      count-=hit-1;
 
-      stream_forward(text, size+hit);
+      stream_forward(text, hit);
     }
   } else {
     if (!base->reverse) {
@@ -1664,6 +1662,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
 // Some small manual unittests (TODO: remove or expand as soon the search is feature complete and optimized)
 void search_test(void) {
   //const char* needle_text = "[^\n]*";
+  //const char* needle_text = "remove_ticket_number";
   const char* needle_text = "sIBM";
   //const char* needle_text = "Recently, Standard Japanese has ";
   //const char* needle_text = "Hallo äÖÜ ß Test Ú ń ǹ";
@@ -1682,7 +1681,7 @@ void search_test(void) {
   search_debug_tree(search, search->root, 0, 0, 0);
 
   struct stream text;
-  const char* text_text = "Dies ist ein l TesstTeßt, HaLLo schschschSchlappiSchlappi ppi! 999 make_debug.sh abc #include bla";
+  const char* text_text = "Dies ist ein l TesstTeßt, HaLLo schschschSchlappiSchlappi ppi! 999 make_debug.sh abc #include bla"; //"void et_container::remove_ticket_number(";
   stream_from_plain(&text, (uint8_t*)text_text, strlen(text_text));
   int found = search_find(search, &text, NULL);
   printf("%d\r\n", found);
