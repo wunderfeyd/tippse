@@ -150,7 +150,7 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
   struct range_tree_node* buffer_new;
 
   int type = in->type;
-  if (type==VISUAL_SEEK_BRACKET_NEXT || type==VISUAL_SEEK_BRACKET_PREV || type==VISUAL_SEEK_INDENTATION_LAST) {
+  if (type==VISUAL_SEEK_BRACKET_NEXT || type==VISUAL_SEEK_BRACKET_PREV || type==VISUAL_SEEK_INDENTATION_LAST || type==VISUAL_SEEK_WORD_TRANSITION_NEXT || type==VISUAL_SEEK_WORD_TRANSITION_PREV) {
     type = VISUAL_SEEK_OFFSET;
   }
 
@@ -442,6 +442,8 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       render_info->visual_detail |= VISUAL_DETAIL_CONTROLCHARACTER;
     }
 
+    int visual_detail_before = render_info->visual_detail;
+
     int color = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
     int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
 
@@ -525,12 +527,22 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         } else if (render_info->line>in->line) {
           drawn = 4;
         }
+      } else if (in->type==VISUAL_SEEK_WORD_TRANSITION_NEXT) {
+        drawn = (render_info->offset>=in->offset && ((render_info->visual_detail^visual_detail_before)&VISUAL_DETAIL_WORD))?(4|2|1):0;
+        rendered = (render_info->offset>=in->offset && (out->type!=VISUAL_SEEK_NONE || (drawn&4)))?1:-1;
+      } else if (in->type==VISUAL_SEEK_WORD_TRANSITION_PREV) {
+        drawn = (render_info->offset<=in->offset && ((render_info->visual_detail^visual_detail_before)&VISUAL_DETAIL_WORD))?1:0;
+        if (render_info->offset>=in->offset) {
+          rendered = (out->type!=VISUAL_SEEK_NONE || drawn)?1:-1;
+        } else {
+          rendered = 0;
+        }
       }
 
       if (out && stop!=1) {
         out->y_drawn |= (drawn&1);
 
-        if (!(drawn&1) && out->y_drawn && in->type!=VISUAL_SEEK_BRACKET_PREV && in->type!=VISUAL_SEEK_BRACKET_NEXT && in->type!=VISUAL_SEEK_INDENTATION_LAST) {
+        if (!(drawn&1) && out->y_drawn && in->type!=VISUAL_SEEK_BRACKET_PREV && in->type!=VISUAL_SEEK_BRACKET_NEXT && in->type!=VISUAL_SEEK_INDENTATION_LAST && in->type!=VISUAL_SEEK_WORD_TRANSITION_NEXT && in->type!=VISUAL_SEEK_WORD_TRANSITION_PREV) {
           stop = 1;
         }
 
@@ -583,7 +595,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       }
 
       if (boundary && page_count>1 && drawn<2 && !stop) {
-        if (in->type!=VISUAL_SEEK_BRACKET_NEXT && in->type!=VISUAL_SEEK_BRACKET_PREV && in->type!=VISUAL_SEEK_INDENTATION_LAST) {
+        if (in->type!=VISUAL_SEEK_BRACKET_NEXT && in->type!=VISUAL_SEEK_BRACKET_PREV && in->type!=VISUAL_SEEK_INDENTATION_LAST && in->type!=VISUAL_SEEK_WORD_TRANSITION_NEXT && in->type!=VISUAL_SEEK_WORD_TRANSITION_PREV) {
           rendered = 0;
         }
 
@@ -1423,6 +1435,12 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     document_undo_chain(file, file->undos);
     seek = 1;
     selection_keep = 1;
+  } else if (command==TIPPSE_CMD_WORD_NEXT) {
+    view->offset = document_text_word_transition_next(base, splitter, view->offset);
+    seek = 1;
+  } else if (command==TIPPSE_CMD_WORD_PREV) {
+    view->offset = document_text_word_transition_prev(base, splitter, view->offset);
+    seek = 1;
   } else if (command==TIPPSE_CMD_SELECT_ALL) {
     offset_old = view->selection_start = 0;
     view->offset = view->selection_end = file_size;
@@ -2063,6 +2081,79 @@ file_offset_t document_text_line_start_offset(struct document* base, struct spli
   in_line_column.line = out.line;
 
   return document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+}
+
+// Move to next word
+file_offset_t document_text_word_transition_next(struct document* base, struct splitter* splitter, file_offset_t offset) {
+  struct document_file* file = splitter->file;
+  struct document_view* view = splitter->view;
+
+  if (offset<range_tree_length(file->buffer)) {
+    offset++;
+  }
+
+  while (offset<range_tree_length(file->buffer)) {
+    struct document_text_position out;
+    struct document_text_position in;
+    in.type = VISUAL_SEEK_WORD_TRANSITION_NEXT;
+    in.clip = 0;
+    in.offset = offset;
+
+    struct document_text_render_info render_info;
+    document_text_render_clear(&render_info, splitter->client_width-view->address_width, view->selection);
+    document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
+    int rendered = document_text_render_span(&render_info, NULL, splitter, view, file, &in, &out, ~0, 1);
+    offset = render_info.offset;
+    if (rendered==1) {
+      return out.offset;
+    }
+  }
+
+  return offset;
+}
+
+// Move to previous word
+file_offset_t document_text_word_transition_prev(struct document* base, struct splitter* splitter, file_offset_t offset) {
+  struct document_file* file = splitter->file;
+  struct document_view* view = splitter->view;
+
+  if (offset>0) {
+    offset--;
+  }
+
+  while (offset>0) {
+    struct document_text_position out;
+    struct document_text_position in;
+    in.type = VISUAL_SEEK_WORD_TRANSITION_PREV;
+    in.clip = 0;
+    in.offset = offset;
+
+    struct document_text_render_info render_info;
+    document_text_render_clear(&render_info, splitter->client_width-view->address_width, view->selection);
+    document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
+    int rendered = document_text_render_span(&render_info, NULL, splitter, view, file, &in, &out, ~0, 1);
+
+    if (rendered==1) {
+      return out.offset;
+    } else if (rendered==0) {
+      offset = render_info.offset;
+    } else if (rendered==-1) {
+      file_offset_t diff;
+      struct range_tree_node* node = range_tree_find_offset(file->buffer, offset, &diff);
+      if (!node) {
+        return 0;
+      }
+
+      node = range_tree_prev(node);
+      if (!node) {
+        return 0;
+      }
+
+      offset = range_tree_offset(node)+node->length-1;
+    }
+  }
+
+  return offset;
 }
 
 // Transform text // TODO: move to encoding.c

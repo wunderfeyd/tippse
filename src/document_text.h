@@ -133,6 +133,9 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
 void document_text_goto(struct document* base, struct splitter* splitter, position_t line);
 file_offset_t document_text_line_start_offset(struct document* base, struct splitter* splitter);
 
+file_offset_t document_text_word_transition_next(struct document* base, struct splitter* splitter, file_offset_t offset);
+file_offset_t document_text_word_transition_prev(struct document* base, struct splitter* splitter, file_offset_t offset);
+
 void document_text_transform(struct document* base, struct trie* transformation, struct document_file* file, file_offset_t from, file_offset_t to);
 
 #endif /* #ifndef TIPPSE_DOCUMENT_TEXT_H */

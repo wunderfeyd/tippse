@@ -1296,7 +1296,7 @@ void search_prepare_skip(struct search* base, struct search_node* node) {
         for (size_t check = 0; check<current; check++) {
           if (references[check].index[index]) {
             if (last!=SIZE_T_MAX) {
-              size_t skip = check-last;
+              size_t skip = check-last+1;
               if (skip<skip_min) {
                 skip_min = skip;
                 skip_rel = pos;
@@ -1348,7 +1348,7 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
             stream_forward(text, 1);
             return 1;
           }
-          hit = 2;
+          hit = size+1;
           break;
         }
       }

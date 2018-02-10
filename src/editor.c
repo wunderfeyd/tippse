@@ -109,6 +109,8 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"blockdown", TIPPSE_CMD_BLOCK_DOWN, "Move block down"},
   {"bookmarknext", TIPPSE_CMD_BOOKMARK_NEXT, "Goto next bookmark"},
   {"bookmarkprev", TIPPSE_CMD_BOOKMARK_PREV, "Goto prev bookmark"},
+  {"wordnext", TIPPSE_CMD_WORD_NEXT, "Goto next word"},
+  {"wordprev", TIPPSE_CMD_WORD_PREV, "Goto prev word"},
   {NULL, 0, ""}
 };
 
