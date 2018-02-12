@@ -119,6 +119,7 @@ struct tippse_ansi_key ansi_keys[] = {
   {"\x1bOQ", TIPPSE_KEY_F2, 0},
   {"\x1bOR", TIPPSE_KEY_F3, 0},
   {"\x1bOS", TIPPSE_KEY_F4, 0},
+  {"\x1b\x1b", TIPPSE_KEY_ESCAPE, 0},
   {"\x1c", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '#'},
   {"\x1d", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '~'},
   {"\x1e", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '^'},
@@ -197,11 +198,15 @@ int main(int argc, const char** argv) {
 
   unsigned char input_buffer[1024];
   size_t input_pos = 0;
+  int64_t ansi_timeout = 0;
   while (!editor->close) {
     editor_draw(editor);
     ssize_t in = 0;
     int stop = 0;
     int64_t start = 0;
+    if (input_pos==0) {
+      ansi_timeout = 0;
+    }
     while (in==0) {
       int64_t tick = tick_count();
       if (!stop) {
@@ -229,8 +234,20 @@ int main(int argc, const char** argv) {
         in = read(STDIN_FILENO, &input_buffer[input_pos], sizeof(input_buffer)-input_pos);
         if (in>0) {
           input_pos += (size_t)in;
+          ansi_timeout = tick_count()+25000;
         }
       }
+
+      if (ansi_timeout && tick_count()>ansi_timeout) {
+        if (input_pos>0 && input_buffer[input_pos-1]=='\x1b') {
+          input_buffer[input_pos++] = '\x1b';
+          in++;
+        } else {
+          input_pos = 0;
+        }
+        ansi_timeout = 0;
+      }
+
 
       editor_tick(editor);
 
@@ -336,8 +353,8 @@ int main(int argc, const char** argv) {
       check += used;
     }
 
-    memcpy(&input_buffer[0], &input_buffer[input_pos], input_pos-check);
     input_pos -= check;
+    memcpy(&input_buffer[0], &input_buffer[check], input_pos);
   }
 
   editor_destroy(editor);

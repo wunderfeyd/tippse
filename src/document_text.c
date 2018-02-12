@@ -1435,10 +1435,10 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     document_undo_chain(file, file->undos);
     seek = 1;
     selection_keep = 1;
-  } else if (command==TIPPSE_CMD_WORD_NEXT) {
+  } else if (command==TIPPSE_CMD_WORD_NEXT || command==TIPPSE_CMD_SELECT_WORD_NEXT) {
     view->offset = document_text_word_transition_next(base, splitter, view->offset);
     seek = 1;
-  } else if (command==TIPPSE_CMD_WORD_PREV) {
+  } else if (command==TIPPSE_CMD_WORD_PREV || command==TIPPSE_CMD_SELECT_WORD_PREV) {
     view->offset = document_text_word_transition_prev(base, splitter, view->offset);
     seek = 1;
   } else if (command==TIPPSE_CMD_SELECT_ALL) {
@@ -1611,7 +1611,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       view->selection_end = view->offset;
     }
   } else {
-    if (command==TIPPSE_CMD_SELECT_UP || command==TIPPSE_CMD_SELECT_DOWN || command==TIPPSE_CMD_SELECT_LEFT || command==TIPPSE_CMD_SELECT_RIGHT || command==TIPPSE_CMD_SELECT_PAGEUP || command==TIPPSE_CMD_SELECT_PAGEDOWN || command==TIPPSE_CMD_SELECT_FIRST || command==TIPPSE_CMD_SELECT_LAST || command==TIPPSE_CMD_SELECT_HOME || command==TIPPSE_CMD_SELECT_END || command==TIPPSE_CMD_SELECT_ALL) {
+    if (command==TIPPSE_CMD_SELECT_UP || command==TIPPSE_CMD_SELECT_DOWN || command==TIPPSE_CMD_SELECT_LEFT || command==TIPPSE_CMD_SELECT_RIGHT || command==TIPPSE_CMD_SELECT_PAGEUP || command==TIPPSE_CMD_SELECT_PAGEDOWN || command==TIPPSE_CMD_SELECT_FIRST || command==TIPPSE_CMD_SELECT_LAST || command==TIPPSE_CMD_SELECT_HOME || command==TIPPSE_CMD_SELECT_END || command==TIPPSE_CMD_SELECT_ALL || command==TIPPSE_CMD_SELECT_WORD_NEXT || command==TIPPSE_CMD_SELECT_WORD_PREV) {
       if (view->selection_start==FILE_OFFSET_T_MAX) {
         view->selection_reset = 1;
         view->selection_start = offset_old;

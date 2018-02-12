@@ -108,9 +108,12 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"blockup", TIPPSE_CMD_BLOCK_UP, "Move block up"},
   {"blockdown", TIPPSE_CMD_BLOCK_DOWN, "Move block down"},
   {"bookmarknext", TIPPSE_CMD_BOOKMARK_NEXT, "Goto next bookmark"},
-  {"bookmarkprev", TIPPSE_CMD_BOOKMARK_PREV, "Goto prev bookmark"},
+  {"bookmarkprev", TIPPSE_CMD_BOOKMARK_PREV, "Goto previous bookmark"},
   {"wordnext", TIPPSE_CMD_WORD_NEXT, "Goto next word"},
-  {"wordprev", TIPPSE_CMD_WORD_PREV, "Goto prev word"},
+  {"wordprev", TIPPSE_CMD_WORD_PREV, "Goto previous word"},
+  {"selectwordnext", TIPPSE_CMD_SELECT_WORD_NEXT, "Extend selection to the next word"},
+  {"selectwordprev", TIPPSE_CMD_SELECT_WORD_PREV, "Extend selection to the previous word"},
+  {"escape", TIPPSE_CMD_ESCAPE, "Quit dialog or cancel operation"},
   {NULL, 0, ""}
 };
 
@@ -421,6 +424,8 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     } else {
       base->focus->document = base->focus->document_hex;
     }
+  } else if (command==TIPPSE_CMD_ESCAPE) {
+    editor_focus(base, base->document, 1);
   } else if (command==TIPPSE_CMD_CLOSE) {
     editor_close_document(base, base->focus->file);
   } else if (command==TIPPSE_CMD_RETURN && base->focus->file==base->goto_doc) {

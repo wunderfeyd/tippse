@@ -1346,19 +1346,20 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
               base->hit_end = *text;
             }
             stream_forward(text, 1);
+            if (left) {
+              *left = count;
+            }
             return 1;
           }
           hit = size+1;
           break;
         }
       }
-
-      if (count<hit) {
+      if (count<hit-size) {
         count = 0;
         break;
       }
-      count-=hit-1;
-
+      count-=hit-size;
       stream_forward(text, hit);
     }
   } else {
