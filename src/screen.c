@@ -162,7 +162,7 @@ void screen_draw_char(struct screen* base, char** pos, int n, int* w, int* foreg
   struct screen_char* c = &base->buffer[n];
   int reversed = (c->background==-1 || c->foreground==-2)?1:0;
   int background = reversed?-1:c->background;
-  int foreground = reversed?-1:c->foreground;
+  int foreground = c->foreground;
 
   if (foreground!=*foreground_old || background!=*background_old) {
     if (*background_old==-1 || *foreground_old==-2 || *foreground_old==-3) {

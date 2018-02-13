@@ -21,9 +21,14 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
     search = search_create_plain(ignore_case, reverse, needle_stream, search_encoding, file->encoding);
   }
 
+  if (!replace && all) {
+    document_view_select_nothing(view, file);
+  }
+
   file_offset_t offset = view->offset;
   file_offset_t begin = 0;
   file_offset_t replacements = 0;
+  file_offset_t matches = 0;
   file_offset_t first_low;
   file_offset_t first_high;
   file_offset_t selection_low;
@@ -60,7 +65,6 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
         }
       }
 
-      document_view_select_nothing(view, file);
       document_view_select_range(view, start, end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
       selection_low = start;
       selection_high = end;
@@ -130,7 +134,9 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
         if (((!reverse && start>=offset) || (reverse && end<=offset)) && end-start<=left) {
           view->offset = reverse?start:end;
 
-          document_view_select_nothing(view, file);
+          if (replace || !all) {
+            document_view_select_nothing(view, file);
+          }
           document_view_select_range(view, start, end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
           selection_low = start;
           selection_high = end;
@@ -138,6 +144,10 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
           break;
         }
       }
+    }
+
+    if (found) {
+      matches++;
     }
 
     if ((left==0 && wrapped) || (found && !all && (!replace || !first || first_low!=selection_low || first_high!=selection_high))) {
@@ -172,7 +182,14 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
 
   if (replace) {
     char status[1024];
-    sprintf(&status[0], "%d replacements", (int)replacements);
+    sprintf(&status[0], "%d replacement(s)", (int)replacements);
+    editor_console_update(file->editor, &status[0], SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
+    return 1;
+  }
+
+  if (!replace && all) {
+    char status[1024];
+    sprintf(&status[0], "%d match(es)", (int)matches);
     editor_console_update(file->editor, &status[0], SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
     return 1;
   }
@@ -315,7 +332,7 @@ void document_directory(struct document_file* file, struct stream* filter_stream
     }
 
     char* combined = combine_path_file(file->filename, sort[n]);
-    int highlight = is_directory(combined)?TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_CONSOLEWARNING<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT):0;
+    int highlight = is_directory(combined)?TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_DIRECTORY<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT):0;
     free(combined);
     file->buffer = range_tree_insert_split(file->buffer, range_tree_length(file->buffer), (uint8_t*)sort[n], strlen(sort[n]), TIPPSE_INSERTER_NOFUSE|highlight);
     free(sort[n]);

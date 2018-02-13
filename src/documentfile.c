@@ -204,6 +204,9 @@ void document_file_create_pipe(struct document_file* base) {
     document_file_detect_properties(base);
     base->bookmarks = range_tree_static(base->bookmarks, range_tree_length(base->buffer), 0);
     document_file_reset_views(base);
+
+    (*base->type->destroy)(base->type);
+    base->type = file_type_c_create(base->config, "compiler_output");
   }
 }
 

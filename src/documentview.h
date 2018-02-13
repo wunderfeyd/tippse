@@ -47,5 +47,6 @@ void document_view_select_nothing(struct document_view* base, struct document_fi
 int document_view_select_active(struct document_view* base);
 int document_view_select_next(struct document_view* base, file_offset_t offset, file_offset_t* low, file_offset_t* high);
 void document_view_select_range(struct document_view* base, file_offset_t start, file_offset_t end, int inserter);
+void document_view_select_invert(struct document_view* base);
 
 #endif /* #ifndef TIPPSE_DOCUMENTVIEW_H */

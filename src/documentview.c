@@ -92,3 +92,8 @@ void document_view_select_range(struct document_view* base, file_offset_t start,
     base->selection = range_tree_mark(base->selection, end, start-end, inserter);
   }
 }
+
+// Invert selection
+void document_view_select_invert(struct document_view* base) {
+  base->selection = range_tree_invert_mark(base->selection, TIPPSE_INSERTER_MARK);
+}

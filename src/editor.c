@@ -114,6 +114,8 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"selectwordnext", TIPPSE_CMD_SELECT_WORD_NEXT, "Extend selection to the next word"},
   {"selectwordprev", TIPPSE_CMD_SELECT_WORD_PREV, "Extend selection to the previous word"},
   {"escape", TIPPSE_CMD_ESCAPE, "Quit dialog or cancel operation"},
+  {"selectinvert", TIPPSE_CMD_SELECT_INVERT, "Invert selection"},
+  {"searchall", TIPPSE_CMD_SEARCH_ALL, "Search and select all matches"},
   {NULL, 0, ""}
 };
 
@@ -391,6 +393,9 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
   } else if (command==TIPPSE_CMD_SEARCH_PREV) {
     editor_focus(base, base->document, 1);
     document_search(base->last_document, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 1, base->search_ignore_case, base->search_regex, 0, 0);
+  } else if (command==TIPPSE_CMD_SEARCH_ALL) {
+    editor_focus(base, base->document, 1);
+    document_search(base->last_document, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 1, base->search_ignore_case, base->search_regex, 1, 0);
   } else if (command==TIPPSE_CMD_SEARCH_DIRECTORY) {
     if (base->document->file->pipefd[1]==-1 && base->document->file==base->search_results_doc) {
       document_file_create_pipe(base->document->file);
@@ -501,6 +506,8 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
   } else if (command==TIPPSE_CMD_SEARCH_CASE_IGNORE) {
     base->search_ignore_case = 1;
     editor_update_search_title(base);
+  } else if (command==TIPPSE_CMD_SELECT_INVERT) {
+    document_view_select_invert(base->document->view);
   } else {
     if (base->focus->file==base->tabs_doc || base->focus->file==base->browser_doc || base->focus->file==base->commands_doc || base->focus->file==base->filter_doc) {
       file_offset_t before = base->filter->file->buffer?base->filter->file->buffer->length:0;
@@ -853,7 +860,7 @@ void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct 
         base->tabs_doc->buffer = range_tree_insert_split(base->tabs_doc->buffer, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, (uint8_t*)"\n", 1, 0);
       }
 
-      int highlight = document_undo_modified(file)?TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_CONSOLEWARNING<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT):0;
+      int highlight = document_undo_modified(file)?TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_MODIFIED<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT):0;
       base->tabs_doc->buffer = range_tree_insert_split(base->tabs_doc->buffer, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, (uint8_t*)file->filename, strlen(file->filename), TIPPSE_INSERTER_NOFUSE|highlight);
     }
 
