@@ -5,6 +5,23 @@
 extern struct config_cache screen_color_codes[];
 extern struct config_cache visual_color_codes[VISUAL_FLAG_COLOR_MAX+1];
 
+// Tabstop types
+struct config_cache document_file_tabstop[TIPPSE_TABSTOP_MAX+1] = {
+  {"auto", TIPPSE_TABSTOP_AUTO, NULL},
+  {"tab", TIPPSE_TABSTOP_TAB, NULL},
+  {"space", TIPPSE_TABSTOP_SPACE, NULL},
+  {NULL, 0, NULL}
+};
+
+// Newline types
+struct config_cache document_file_newline[TIPPSE_NEWLINE_MAX+1] = {
+  {"auto", TIPPSE_NEWLINE_AUTO, NULL},
+  {"lf", TIPPSE_NEWLINE_LF, NULL},
+  {"cr", TIPPSE_NEWLINE_CR, NULL},
+  {"crlf", TIPPSE_NEWLINE_CRLF, NULL},
+  {NULL, 0, NULL}
+};
+
 // TODO: this has to be covered by the settings subsystem in future
 struct document_file_parser document_file_parsers[] = {
   {"c", file_type_c_create},
@@ -44,6 +61,11 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->autocomplete_last = NULL;
   base->autocomplete_build = NULL;
   base->autocomplete_rescan = 0;
+  base->defaults.newline = TIPPSE_NEWLINE_AUTO;
+  base->defaults.tabstop = TIPPSE_TABSTOP_AUTO;
+  base->defaults.tabstop_width = 0;
+  base->defaults.invisibles = 0;
+  base->defaults.wrapping = 0;
   document_file_reset_views(base);
   document_undo_mark_save_point(base);
   document_file_reload_config(base);
@@ -110,62 +132,6 @@ void document_file_name(struct document_file* base, const char* filename) {
   }
 
   document_file_reload_config(base);
-
-  if (!base->config) {
-    return;
-  }
-
-  const char* search = filename;
-  const char* last = filename;
-  while (*search) {
-    if (*search=='.') {
-      last = search+1;
-    }
-
-    search++;
-  }
-
-  if (last==filename) {
-    last = search;
-  }
-
-  struct trie_node* node = config_find_ascii(base->config, "/fileextensions/");
-  if (node) {
-    node = config_advance_ascii(base->config, node, last);
-  }
-
-  if (node && node->end) {
-    struct encoding* encoding = encoding_utf8_create();
-    char* file_type = (char*)config_convert_encoding(node, encoding);
-    encoding_utf8_destroy(encoding);
-
-    node = config_find_ascii(base->config, "/filetypes/");
-    if (node) {
-      node = config_advance_ascii(base->config, node, file_type);
-    }
-
-    if (node) {
-      node = config_advance_ascii(base->config, node, "/parser");
-    }
-
-    if (node && node->end) {
-      struct encoding* encoding = encoding_utf8_create();
-      char* parser = (char*)config_convert_encoding(node, encoding);
-      encoding_utf8_destroy(encoding);
-
-      for (size_t n = 0; document_file_parsers[n].name; n++) {
-        if (strcmp(document_file_parsers[n].name, parser)==0) {
-          (*base->type->destroy)(base->type);
-          base->type = (*document_file_parsers[n].constructor)(base->config, file_type);
-          break;
-        }
-      }
-
-      free(parser);
-    }
-
-    free(file_type);
-  }
 }
 
 // Change encoding
@@ -502,6 +468,11 @@ void document_file_detect_properties_stream(struct document_file* base, struct s
     base->newline = TIPPSE_NEWLINE_AUTO;
   }
 
+  // But respect users decision
+  if (base->defaults.newline!=TIPPSE_NEWLINE_AUTO) {
+    base->newline = base->defaults.newline;
+  }
+
   // Try to guess the tab style
   if (tabstop_tab>tabstop_space*3) {
     base->tabstop = TIPPSE_TABSTOP_TAB;
@@ -510,6 +481,15 @@ void document_file_detect_properties_stream(struct document_file* base, struct s
     base->tabstop_width = tabstop_width;
   } else {
     base->tabstop = TIPPSE_TABSTOP_AUTO;
+  }
+
+  // But respect users decision
+  if (base->defaults.tabstop!=TIPPSE_TABSTOP_AUTO) {
+    base->tabstop = base->defaults.tabstop;
+  }
+
+  if (base->defaults.tabstop_width!=0) {
+    base->tabstop_width = base->defaults.tabstop_width;
   }
 }
 
@@ -724,8 +704,80 @@ void document_file_reload_config(struct document_file* base) {
     }
   }
 
+  base->defaults.newline = (int)config_convert_int64_cache(config_find_ascii(base->config, "/newline"), &document_file_newline[0]);
+  base->defaults.tabstop = (int)config_convert_int64_cache(config_find_ascii(base->config, "/tabstop"), &document_file_tabstop[0]);
+  base->defaults.tabstop_width = (int)config_convert_int64(config_find_ascii(base->config, "/tabstop_width"));
   base->defaults.wrapping = (int)config_convert_int64(config_find_ascii(base->config, "/wrapping"));
   base->defaults.invisibles = (int)config_convert_int64(config_find_ascii(base->config, "/invisibles"));
+
+  const char* search = base->filename;
+  const char* last = base->filename;
+  while (*search) {
+    if (*search=='.') {
+      last = search+1;
+    }
+
+    search++;
+  }
+
+  if (last==base->filename) {
+    last = search;
+  }
+
+  struct trie_node* node = config_find_ascii(base->config, "/fileextensions/");
+  if (node) {
+    node = config_advance_ascii(base->config, node, last);
+  }
+
+  if (node && node->end) {
+    struct encoding* encoding = encoding_utf8_create();
+    char* file_type = (char*)config_convert_encoding(node, encoding);
+    encoding_utf8_destroy(encoding);
+
+    node = config_find_ascii(base->config, "/filetypes/");
+    if (node) {
+      node = config_advance_ascii(base->config, node, file_type);
+    }
+
+    if (node) {
+      struct trie_node* node_file_type = node;
+
+      node = config_advance_ascii(base->config, node_file_type, "/parser");
+
+      if (node && node->end) {
+        struct encoding* encoding = encoding_utf8_create();
+        char* parser = (char*)config_convert_encoding(node, encoding);
+        encoding_utf8_destroy(encoding);
+
+        for (size_t n = 0; document_file_parsers[n].name; n++) {
+          if (strcmp(document_file_parsers[n].name, parser)==0) {
+            (*base->type->destroy)(base->type);
+            base->type = (*document_file_parsers[n].constructor)(base->config, file_type);
+            break;
+          }
+        }
+
+        free(parser);
+      }
+
+      int newline = (int)config_convert_int64_cache(config_advance_ascii(base->config, node_file_type, "/newline"), &document_file_newline[0]);
+      if (newline!=TIPPSE_NEWLINE_AUTO) {
+        base->defaults.newline = newline;
+      }
+
+      int tabstop = (int)config_convert_int64_cache(config_advance_ascii(base->config, node_file_type, "/tabstop"), &document_file_tabstop[0]);
+      if (tabstop!=TIPPSE_TABSTOP_AUTO) {
+        base->defaults.tabstop = tabstop;
+      }
+
+      int tabstop_width = (int)config_convert_int64(config_advance_ascii(base->config, node_file_type, "/tabstop_width"));
+      if (tabstop_width!=0) {
+        base->defaults.tabstop_width = tabstop_width;
+      }
+    }
+
+    free(file_type);
+  }
 }
 
 // Link a cache to the current document and count how often it is referenced
