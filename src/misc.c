@@ -218,6 +218,11 @@ int64_t tick_count(void) {
   return (int64_t)t.tv_sec*1000000+(int64_t)t.tv_usec;
 }
 
+// Return tick count from milliseconds
+int64_t tick_ms(int64_t ms) {
+  return ms*(int64_t)1000;
+}
+
 // Convert human readable number into internal reprensentation
 uint64_t decode_based_unsigned_offset(struct encoding_cache* cache, int base, size_t* offset, size_t count) {
   uint64_t output = 0;

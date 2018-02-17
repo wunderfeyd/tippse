@@ -77,3 +77,60 @@ uint8_t* encoding_transform_plain(const uint8_t* buffer, size_t length, struct e
   range_tree_destroy(root, NULL);
   return raw;
 }
+
+// Check string length (within maximum)
+size_t encoding_strnlen(struct encoding* base, struct stream* stream, size_t size) {
+  return encoding_strnlen_based(base, base->next, stream, size);
+}
+
+size_t encoding_strnlen_based(struct encoding* base, size_t (*next)(struct encoding*, struct stream*), struct stream* stream, size_t size) {
+  size_t length = 0;
+  while (size!=0) {
+    size_t skip = (*next)(base, stream);
+    if (skip>size) {
+      size = 0;
+    } else {
+      size -= skip;
+    }
+
+    length++;
+  }
+
+  return length;
+}
+
+// Check string length (to NUL terminator)
+size_t encoding_strlen(struct encoding* base, struct stream* stream) {
+  return encoding_strlen_based(base, base->decode, stream);
+}
+
+size_t encoding_strlen_based(struct encoding* base, codepoint_t (*decode)(struct encoding*, struct stream*, size_t*), struct stream* stream) {
+  size_t length = 0;
+  while (1) {
+    size_t skip;
+    codepoint_t cp = encoding_utf8_decode(base, stream, &skip);
+    if (cp==0) {
+      break;
+    }
+
+    length++;
+  }
+
+  return length;
+}
+
+// Skip to character position
+size_t encoding_seek(struct encoding* base, struct stream* stream, size_t pos) {
+  return encoding_seek_based(base, base->next, stream, pos);
+}
+
+size_t encoding_seek_based(struct encoding* base, size_t (*next)(struct encoding*, struct stream*), struct stream* stream, size_t pos) {
+  size_t current = 0;
+  while (pos!=0) {
+    size_t skip = encoding_utf8_next(base, stream);
+    current += skip;
+    pos--;
+  }
+
+  return current;
+}

@@ -29,6 +29,8 @@ struct splitter {
   int cursor_x;
   int cursor_y;
 
+  int64_t timeout;
+
   int active;
   char* name;
   char* status;
@@ -55,7 +57,7 @@ void splitter_drawtext(const struct splitter* base, struct screen* screen, int x
 void splitter_name(struct splitter* base, const char* name);
 void splitter_status(struct splitter* base, const char* status);
 void splitter_cursor(struct splitter* base, struct screen* screen, int x, int y);
-void splitter_scrollbar(const struct splitter* base, struct screen* screen);
+void splitter_scrollbar(struct splitter* base, struct screen* screen);
 void splitter_hilight(const struct splitter* base, struct screen* screen, int x, int y, int color);
 void splitter_unassign_document_file(struct splitter* base);
 void splitter_assign_document_file(struct splitter* base, struct document_file* file);

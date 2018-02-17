@@ -207,13 +207,14 @@ int main(int argc, const char** argv) {
     if (input_pos==0) {
       ansi_timeout = 0;
     }
+
     while (in==0) {
       int64_t tick = tick_count();
       if (!stop) {
         start = tick;
       }
 
-      int64_t left = 100000-(tick-start);
+      int64_t left = tick_ms(100)-(tick-start);
       if (left<=0) {
         break;
       }
@@ -234,7 +235,7 @@ int main(int argc, const char** argv) {
         in = read(STDIN_FILENO, &input_buffer[input_pos], sizeof(input_buffer)-input_pos);
         if (in>0) {
           input_pos += (size_t)in;
-          ansi_timeout = tick_count()+25000;
+          ansi_timeout = tick_count()+tick_ms(25);
         }
       }
 

@@ -36,9 +36,6 @@ struct encoding* encoding_cp850_create(void) {
   self->vtbl.decode = encoding_cp850_decode;
   self->vtbl.visual = encoding_cp850_visual;
   self->vtbl.next = encoding_cp850_next;
-  self->vtbl.strnlen = encoding_cp850_strnlen;
-  self->vtbl.strlen = encoding_cp850_strlen;
-  self->vtbl.seek = encoding_cp850_seek;
 
   if (!translate_unicode_cp850) {
     // TODO: self isn't freed at the moment
@@ -93,35 +90,4 @@ size_t encoding_cp850_encode(struct encoding* base, codepoint_t cp, uint8_t* tex
 
 size_t encoding_cp850_next(struct encoding* base, struct stream* stream) {
   return 1;
-}
-
-size_t encoding_cp850_strnlen(struct encoding* base, struct stream* stream, size_t size) {
-  return size;
-}
-
-size_t encoding_cp850_strlen(struct encoding* base, struct stream* stream) {
-  size_t length = 0;
-  while (1) {
-    size_t next;
-    codepoint_t cp = encoding_cp850_decode(base, stream, &next);
-    if (cp==0) {
-      break;
-    }
-
-    length++;
-  }
-
-  return length;
-}
-
-size_t encoding_cp850_seek(struct encoding* base, struct stream* stream, size_t pos) {
-  size_t current = 0;
-  while (pos!=0) {
-    size_t next = encoding_cp850_next(base, stream);
-    current += next;
-    stream_forward(stream, next);
-    pos--;
-  }
-
-  return current;
 }

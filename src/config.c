@@ -105,6 +105,8 @@ const char* config_default =
       "shift+ctrl+left:selectwordprev,"
       "shift+ctrl+right:selectwordnext,"
       "escape:escape,"
+      "ctrl+f3:searchall,"
+      "shift+ctrl+f3:searchdirectory,"
     "},"
     "fileextensions:{"
       "c:C,"
@@ -500,11 +502,13 @@ void config_value_parse_command(struct config_value* base) {
           list_insert_empty(&base->commands, base->commands.last);
           config_command_create((struct config_command*)list_object(base->commands.last));
         }
-        struct config_command* command = (struct config_command*)list_object(base->commands.last);
-        command->length = argument;
-        size_t length = sizeof(struct config_argument)*argument;
-        command->arguments = malloc(length);
-        memcpy(command->arguments, &arguments[0], length);
+        if (base->commands.last) {
+          struct config_command* command = (struct config_command*)list_object(base->commands.last);
+          command->length = argument;
+          size_t length = sizeof(struct config_argument)*argument;
+          command->arguments = malloc(length);
+          memcpy(command->arguments, &arguments[0], length);
+        }
       }
       if (cp==0) {
         break;

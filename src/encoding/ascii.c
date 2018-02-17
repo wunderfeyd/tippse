@@ -12,9 +12,6 @@ struct encoding* encoding_ascii_create(void) {
   self->vtbl.decode = encoding_ascii_decode;
   self->vtbl.visual = encoding_ascii_visual;
   self->vtbl.next = encoding_ascii_next;
-  self->vtbl.strnlen = encoding_ascii_strnlen;
-  self->vtbl.strlen = encoding_ascii_strlen;
-  self->vtbl.seek = encoding_ascii_seek;
 
   return (struct encoding*)self;
 }
@@ -59,35 +56,4 @@ size_t encoding_ascii_encode(struct encoding* base, codepoint_t cp, uint8_t* tex
 
 size_t encoding_ascii_next(struct encoding* base, struct stream* stream) {
   return 1;
-}
-
-size_t encoding_ascii_strnlen(struct encoding* base, struct stream* stream, size_t size) {
-  return size;
-}
-
-size_t encoding_ascii_strlen(struct encoding* base, struct stream* stream) {
-  size_t length = 0;
-  while (1) {
-    size_t next;
-    codepoint_t cp = encoding_ascii_decode(base, stream, &next);
-    if (cp==0) {
-      break;
-    }
-
-    length++;
-  }
-
-  return length;
-}
-
-size_t encoding_ascii_seek(struct encoding* base, struct stream* stream, size_t pos) {
-  size_t current = 0;
-  while (pos!=0) {
-    size_t next = encoding_ascii_next(base, stream);
-    current += next;
-    stream_forward(stream, next);
-    pos--;
-  }
-
-  return current;
 }

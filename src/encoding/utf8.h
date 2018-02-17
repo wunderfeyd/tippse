@@ -20,8 +20,5 @@ codepoint_t encoding_utf8_visual(struct encoding* base, codepoint_t cp);
 codepoint_t encoding_utf8_decode(struct encoding* base, struct stream* stream, size_t* used);
 size_t encoding_utf8_encode(struct encoding* base, codepoint_t cp, uint8_t* text, size_t size);
 size_t encoding_utf8_next(struct encoding* base, struct stream* stream);
-size_t encoding_utf8_strnlen(struct encoding* base, struct stream* stream, size_t size);
-size_t encoding_utf8_strlen(struct encoding* base, struct stream* stream);
-size_t encoding_utf8_seek(struct encoding* base, struct stream* stream, size_t pos);
 
 #endif  /* #ifndef TIPPSE_ENCODING_UTF8_H */

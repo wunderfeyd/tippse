@@ -29,9 +29,6 @@ struct encoding {
   codepoint_t (*visual)(struct encoding*, codepoint_t);
   codepoint_t (*decode)(struct encoding*, struct stream*, size_t*);
   size_t (*next)(struct encoding*, struct stream*);
-  size_t (*strnlen)(struct encoding*, struct stream*, size_t);
-  size_t (*strlen)(struct encoding*, struct stream*);
-  size_t (*seek)(struct encoding*, struct stream*, size_t);
   size_t (*encode)(struct encoding*, codepoint_t, uint8_t*, size_t);
 };
 
@@ -68,6 +65,13 @@ uint16_t* encoding_reverse_table(uint16_t* table, size_t length, size_t max);
 
 struct range_tree_node* encoding_transform_stream(struct stream* stream, struct encoding* from, struct encoding* to);
 uint8_t* encoding_transform_plain(const uint8_t* buffer, size_t length, struct encoding* from, struct encoding* to);
+
+size_t encoding_strnlen(struct encoding* base, struct stream* stream, size_t size);
+size_t encoding_strnlen_based(struct encoding* base, size_t (*next)(struct encoding*, struct stream*), struct stream* stream, size_t size);
+size_t encoding_strlen(struct encoding* base, struct stream* stream);
+size_t encoding_strlen_based(struct encoding* base, codepoint_t (*decode)(struct encoding*, struct stream*, size_t*), struct stream* stream);
+size_t encoding_seek(struct encoding* base, struct stream* stream, size_t pos);
+size_t encoding_seek_based(struct encoding* base, size_t (*next)(struct encoding*, struct stream*), struct stream* stream, size_t pos);
 
 #include "stream.h"
 

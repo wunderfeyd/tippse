@@ -34,6 +34,7 @@ char* home_path(void);
 int is_directory(const char* path);
 
 int64_t tick_count(void);
+int64_t tick_ms(int64_t ms);
 
 uint64_t decode_based_unsigned_offset(struct encoding_cache* cache, int base, size_t* offset, size_t count);
 uint64_t decode_based_unsigned(struct encoding_cache* cache, int base, size_t count);

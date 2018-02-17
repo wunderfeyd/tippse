@@ -22,6 +22,7 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
   base->client_height = 0;
   base->x = 0;
   base->y = 0;
+  base->timeout = 0;
 
   if (!side0 || !side1) {
     base->side[0] = NULL;
@@ -94,38 +95,53 @@ void splitter_cursor(struct splitter* base, struct screen* screen, int x, int y)
 }
 
 // Set scrollbar
-void splitter_scrollbar(const struct splitter* base, struct screen* screen) {
+void splitter_scrollbar(struct splitter* base, struct screen* screen) {
   struct document_view* view = base->view;
 
-  if (view->show_scrollbar && base->client_height>0) {
-    position_t start = view->scroll_y;
-    position_t end = view->scroll_y+base->client_height;
-    position_t length = view->scroll_y_max+1;
-    if (end>length) {
-      end = length;
-    }
+  if ((!view->show_scrollbar && view->scrollbar_timeout==0) || base->client_height<=0) {
+    return;
+  }
 
-    int size = (int)(((end-start)*(base->client_height-((base->client_height>=length)?0:1)))/length);
-    if (size<1) {
-      size = 1;
-    }
-
-    int pos_start = 0;
-    if (start>0) {
-      pos_start = (int)((start*(base->client_height-1-size))/(length-(end-start)))+1;
-    }
-
-    int pos_end = pos_start+size;
-    codepoint_t cp = 0x20;
-    for (int y = 0; y<base->client_height; y++) {
-      if (y>=pos_start && y<pos_end) {
-        splitter_drawchar(base, screen, base->client_width-1, y, &cp, 1, 17, 231);
-      } else {
-        splitter_drawchar(base, screen, base->client_width-1, y, &cp, 1, 17, 102);
-      }
-    }
-
+  int64_t tick = tick_count();
+  if (view->show_scrollbar) {
+    view->scrollbar_timeout = tick+tick_ms(500);
     view->show_scrollbar = 0;
+  }
+
+  if (view->scrollbar_timeout<tick) {
+    view->scrollbar_timeout = 0;
+    return;
+  }
+
+  if (view->scrollbar_timeout<base->timeout || base->timeout==0) {
+    base->timeout = view->scrollbar_timeout;
+  }
+
+  position_t start = view->scroll_y;
+  position_t end = view->scroll_y+base->client_height;
+  position_t length = view->scroll_y_max+1;
+  if (end>length) {
+    end = length;
+  }
+
+  int size = (int)(((end-start)*(base->client_height-((base->client_height>=length)?0:1)))/length);
+  if (size<1) {
+    size = 1;
+  }
+
+  int pos_start = 0;
+  if (start>0) {
+    pos_start = (int)((start*(base->client_height-1-size))/(length-(end-start)))+1;
+  }
+
+  int pos_end = pos_start+size;
+  codepoint_t cp = 0x20;
+  for (int y = 0; y<base->client_height; y++) {
+    if (y>=pos_start && y<pos_end) {
+      splitter_drawchar(base, screen, base->client_width-1, y, &cp, 1, 17, 231);
+    } else {
+      splitter_drawchar(base, screen, base->client_width-1, y, &cp, 1, 17, 102);
+    }
   }
 }
 
@@ -312,6 +328,12 @@ void splitter_draw_multiple_recursive(struct splitter* base, struct screen* scre
       splitter_draw_multiple_recursive(base->side[0], screen, x, y, width, size0, incremental);
       splitter_draw_multiple_recursive(base->side[1], screen, x, y+base0, width, size1, incremental);
     }
+    if (!incremental) {
+      base->timeout = base->side[0]->timeout;
+      if (base->timeout==0 || (base->side[1]->timeout!=0 && base->side[1]->timeout<base->timeout)) {
+        base->timeout = base->side[1]->timeout;
+      }
+    }
   } else {
     base->x = x;
     base->y = y;
@@ -320,6 +342,7 @@ void splitter_draw_multiple_recursive(struct splitter* base, struct screen* scre
     base->client_width = base->width;
     base->client_height = base->height;
     if (!incremental) {
+      base->timeout = 0;
       splitter_draw(base, screen);
     } else {
       (*base->document->incremental_update)(base->document, base);

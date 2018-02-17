@@ -28,6 +28,7 @@ struct document_view {
   position_t address_width;             // width of address column, used for line number too
   int bracket_indentation;              // the next closing bracket could modify identation
   int show_scrollbar;                   // show scrollbar?
+  int64_t scrollbar_timeout;            // time of scrollbar removal
   int show_invisibles;                  // show invisibles?
   int wrapping;                         // show word wrapping?
   int line_select;                      // show whole line selected?

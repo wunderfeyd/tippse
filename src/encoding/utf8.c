@@ -12,9 +12,6 @@ struct encoding* encoding_utf8_create(void) {
   self->vtbl.decode = encoding_utf8_decode;
   self->vtbl.visual = encoding_utf8_visual;
   self->vtbl.next = encoding_utf8_next;
-  self->vtbl.strnlen = encoding_utf8_strnlen;
-  self->vtbl.strlen = encoding_utf8_strlen;
-  self->vtbl.seek = encoding_utf8_seek;
 
   return (struct encoding*)self;
 }
@@ -258,46 +255,4 @@ size_t encoding_utf8_next(struct encoding* base, struct stream* stream) {
   }
 
   return 1;
-}
-
-size_t encoding_utf8_strnlen(struct encoding* base, struct stream* stream, size_t size) {
-  size_t length = 0;
-  while (size!=0) {
-    size_t next = encoding_utf8_next(base, stream);
-    if (next>size) {
-      size = 0;
-    } else {
-      size -= next;
-    }
-
-    length++;
-  }
-
-  return length;
-}
-
-size_t encoding_utf8_strlen(struct encoding* base, struct stream* stream) {
-  size_t length = 0;
-  while (1) {
-    size_t next;
-    codepoint_t cp = encoding_utf8_decode(base, stream, &next);
-    if (cp==0) {
-      break;
-    }
-
-    length++;
-  }
-
-  return length;
-}
-
-size_t encoding_utf8_seek(struct encoding* base, struct stream* stream, size_t pos) {
-  size_t current = 0;
-  while (pos!=0) {
-    size_t next = encoding_utf8_next(base, stream);
-    current += next;
-    pos--;
-  }
-
-  return current;
 }

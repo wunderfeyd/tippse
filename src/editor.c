@@ -301,7 +301,7 @@ void editor_draw(struct editor* base) {
 
   struct stream stream;
   stream_from_plain(&stream, (uint8_t*)status, SIZE_T_MAX);
-  size_t length = encoding_utf8_strlen(NULL, &stream);
+  size_t length = encoding_strlen_based(NULL, encoding_utf8_decode, &stream);
   screen_drawtext(base->screen, base->screen->width-(int)length, 0, 0, 0, base->screen->width, base->screen->height, status, length, foreground, background);
 
   screen_draw(base->screen);
@@ -311,7 +311,7 @@ void editor_draw(struct editor* base) {
 void editor_tick(struct editor* base) {
   int64_t tick = tick_count();
   if (tick>base->tick_undo) {
-    base->tick_undo = tick+500000;
+    base->tick_undo = tick+tick_ms(500);
     struct list_node* doc = base->documents->first;
     while (doc) {
       struct document_file* file = *(struct document_file**)list_object(doc);
@@ -320,8 +320,12 @@ void editor_tick(struct editor* base) {
     }
   }
 
+  if (base->splitters->timeout && base->splitters->timeout<tick) {
+    editor_draw(base);
+  }
+
   if (tick>base->tick_incremental) {
-    base->tick_incremental = tick+100000;
+    base->tick_incremental = tick+tick_ms(100);
     splitter_draw_multiple(base->splitters, base->screen, 1);
   }
 }

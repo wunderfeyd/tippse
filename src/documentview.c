@@ -33,6 +33,7 @@ void document_view_reset(struct document_view* base, struct document_file* file)
   base->scroll_y_max = 0;
   base->address_width = 0;
   base->show_scrollbar = 0;
+  base->scrollbar_timeout = 0;
   base->selection_start = FILE_OFFSET_T_MAX;
   base->selection_end = FILE_OFFSET_T_MAX;
   document_view_filechange(base, file);

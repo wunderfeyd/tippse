@@ -107,6 +107,8 @@ struct document_file {
 #include "filetype/xml.h"
 #include "encoding.h"
 #include "encoding/utf8.h"
+#include "encoding/utf16le.h"
+#include "encoding/utf16be.h"
 #include "encoding/cp850.h"
 #include "encoding/ascii.h"
 #include "editor.h"
