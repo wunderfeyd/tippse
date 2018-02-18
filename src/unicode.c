@@ -15,6 +15,9 @@ unsigned int unicode_nonspacing_marks[UNICODE_BITFIELD_MAX];
 unsigned int unicode_spacing_marks[UNICODE_BITFIELD_MAX];
 unsigned int unicode_invisibles[UNICODE_BITFIELD_MAX];
 unsigned int unicode_widths[UNICODE_BITFIELD_MAX];
+unsigned int unicode_letters[UNICODE_BITFIELD_MAX];
+unsigned int unicode_whitespaces[UNICODE_BITFIELD_MAX];
+unsigned int unicode_digits[UNICODE_BITFIELD_MAX];
 struct trie* unicode_transform_lower;
 struct trie* unicode_transform_upper;
 struct trie* unicode_transform_nfd_nfc;
@@ -26,6 +29,9 @@ void unicode_init(void) {
   unicode_decode_rle(&unicode_spacing_marks[0], &unicode_spacing_marks_rle[0]);
   unicode_decode_rle(&unicode_invisibles[0], &unicode_invisibles_rle[0]);
   unicode_decode_rle(&unicode_widths[0], &unicode_widths_rle[0]);
+  unicode_decode_rle(&unicode_letters[0], &unicode_letters_rle[0]);
+  unicode_decode_rle(&unicode_whitespaces[0], &unicode_whitespace_rle[0]);
+  unicode_decode_rle(&unicode_digits[0], &unicode_digits_rle[0]);
   unicode_decode_transform(&unicode_case_folding[0], &unicode_transform_lower, &unicode_transform_upper);
   unicode_decode_transform(&unicode_normalization[0], &unicode_transform_nfc_nfd, &unicode_transform_nfd_nfc);
 }
@@ -275,4 +281,19 @@ struct unicode_transform_node* unicode_transform(struct trie* transformation, st
 
   *advance = read;
   return (struct unicode_transform_node*)trie_object(parent);
+}
+
+// Test if codepoint is a letter
+int unicode_letter(codepoint_t codepoint) {
+  return unicode_bitfield_check(&unicode_letters[0], codepoint);
+}
+
+// Test if codepoint is a sigit
+int unicode_digit(codepoint_t codepoint) {
+  return unicode_bitfield_check(&unicode_digits[0], codepoint);
+}
+
+// Test if codepoint is a whitespace
+int unicode_whitespace(codepoint_t codepoint) {
+  return unicode_bitfield_check(&unicode_whitespaces[0], codepoint);
 }

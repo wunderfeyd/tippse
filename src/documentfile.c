@@ -370,25 +370,93 @@ void document_file_detect_properties(struct document_file* base) {
 }
 
 void document_file_detect_properties_stream(struct document_file* base, struct stream* document_stream) {
-  struct stream stream = *document_stream;
-  // Binary detection ... TODO: Recheck when UTF-16 as encoding is available
   file_offset_t offset = 0;
+  struct stream stream = *document_stream;
 
-  int zeros = 0;
-  while (offset<TIPPSE_DOCUMENT_MEMORY_LOADMAX && !stream_end(&stream)) {
-    uint8_t byte = stream_read_forward(&stream);
-    if (byte==0x00) {
-      zeros++;
+  struct encodings {
+    struct encoding* (*create)(void);
+    int scan_binary;
+  };
+
+  struct encoding_stats {
+    size_t good;
+    size_t bad;
+    size_t chars;
+  };
+
+  struct encodings encodings[] = {{encoding_ascii_create, 1}, {encoding_cp850_create, 1}, {encoding_utf8_create, 1}, {encoding_utf16le_create, 0}, {encoding_utf16be_create, 0}};
+  struct encoding_stats stats[sizeof(encodings)/sizeof(struct encodings)];
+
+  size_t max_chars = 0;
+  for (size_t n = 0; n<sizeof(encodings)/sizeof(struct encodings); n++) {
+    stats[n].good = 0;
+    stats[n].bad = 0;
+    stats[n].chars = 0;
+
+    struct encoding* encoding = (*(encodings[n].create))();
+    stream = *document_stream;
+    offset = 0;
+    while (offset<TIPPSE_DOCUMENT_AUTO_LOADMAX && !stream_end(&stream)) {
+      size_t length = 1;
+      codepoint_t cp = (*encoding->decode)(encoding, &stream, &length);
+      codepoint_t visual = (*encoding->visual)(encoding, cp);
+
+      stats[n].chars++;
+      if (cp==-1 || visual<0 || visual==0xfffd || visual==0xfffe || (!unicode_letter(visual) && !unicode_digit(visual) && !unicode_whitespace(visual))) {
+        stats[n].bad++;
+      } else {
+        stats[n].good++;
+      }
+      offset += length;
     }
-
-    offset++;
+    if (stats[n].chars>max_chars) {
+      max_chars = stats[n].chars;
+    }
+    encoding->destroy(encoding);
   }
 
-  if (zeros>=(int)(offset/512+1)) {
-    base->binary = 1;
-    document_file_encoding(base, encoding_ascii_create());
+  size_t max_bad = SIZE_T_MAX;
+  size_t best = 0;
+  size_t bests = 1;
+  for (size_t n = 0; n<sizeof(encodings)/sizeof(struct encodings); n++) {
+    if (stats[n].chars==0) {
+      continue;
+    }
+    stats[n].bad = (stats[n].bad*max_chars)/stats[n].chars;
+    if (stats[n].bad<max_bad) {
+      max_bad = stats[n].bad;
+      best = n;
+      bests = 1;
+    } else if (stats[n].bad==max_bad) {
+      bests++;
+    }
+  }
+
+  if (bests>1 && best==0) { // Default to UTF-8 if ASCII was detected // hacky hack for testing
+    document_file_encoding(base, encoding_utf8_create());
   } else {
-    base->binary = 0;
+    document_file_encoding(base, (*(encodings[best].create))());
+  }
+
+  base->binary = 0;
+
+  if (encodings[best].scan_binary) {
+    stream = *document_stream;
+    int zeros = 0;
+    offset = 0;
+    while (offset<TIPPSE_DOCUMENT_AUTO_LOADMAX && !stream_end(&stream)) {
+      uint8_t byte = stream_read_forward(&stream);
+      if (byte==0x00) {
+        zeros++;
+      }
+
+      offset++;
+    }
+
+    if (zeros>=(int)(offset/512+1)) {
+      base->binary = 1;
+      document_file_encoding(base, encoding_ascii_create());
+    }
   }
 
   stream = *document_stream;
@@ -403,7 +471,7 @@ void document_file_detect_properties_stream(struct document_file* base, struct s
   codepoint_t last = 0;
   int start = 1;
   int spaces = 0;
-  while (offset<TIPPSE_DOCUMENT_MEMORY_LOADMAX && !stream_end(&stream)) {
+  while (offset<TIPPSE_DOCUMENT_AUTO_LOADMAX && !stream_end(&stream)) {
     size_t length = 1;
     codepoint_t cp = (*base->encoding->decode)(base->encoding, &stream, &length);
 

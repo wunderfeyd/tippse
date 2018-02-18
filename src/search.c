@@ -1315,6 +1315,9 @@ void search_prepare_skip(struct search* base, struct search_node* node) {
 // Find next occurence of the compiled pattern until the stream ends or "left" has been count down
 int search_find(struct search* base, struct stream* text, file_offset_t* left) {
   if (!base->root) {
+    if (left) {
+      *left = 0;
+    }
     return 0;
   }
 

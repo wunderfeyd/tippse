@@ -248,33 +248,34 @@ void document_search_directory(const char* path, struct range_tree_node* search_
       while (!stream_end(&stream)) {
         stream_forward_oob(&stream, 0);
         int found = search_find(search, &stream, NULL);
-        if (found) {
-          file_offset_t hit = stream_offset_file(&search->hit_start);
-          stream_forward_oob(&newlines, 0);
-          while (stream_offset(&newlines)<=hit) {
-            line_hit = line;
-            line_start = newlines;
-            while (!stream_end(&newlines) && stream_read_forward(&newlines)!='\n') {
-            }
-            line++;
-          }
-          printf("%s:%d: ", scan, (int)line_hit);
-
-          int columns = 80;
-          struct stream line_copy = line_start;
-          stream_forward_oob(&line_copy, 0);
-          while (!stream_end(&line_copy) && columns>0) {
-            columns--;
-            uint8_t index = stream_read_forward(&line_copy);
-            if (index=='\n') {
-              break;
-            }
-            if (index>=0x20 || index=='\t') {
-              printf("%c", index);
-            }
-          }
-          printf("\n");
+        if (!found) {
+          break;
         }
+        file_offset_t hit = stream_offset_file(&search->hit_start);
+        stream_forward_oob(&newlines, 0);
+        while (stream_offset(&newlines)<=hit) {
+          line_hit = line;
+          line_start = newlines;
+          while (!stream_end(&newlines) && stream_read_forward(&newlines)!='\n') {
+          }
+          line++;
+        }
+        printf("%s:%d: ", scan, (int)line_hit);
+
+        int columns = 80;
+        struct stream line_copy = line_start;
+        stream_forward_oob(&line_copy, 0);
+        while (!stream_end(&line_copy) && columns>0) {
+          columns--;
+          uint8_t index = stream_read_forward(&line_copy);
+          if (index=='\n') {
+            break;
+          }
+          if (index>=0x20 || index=='\t') {
+            printf("%c", index);
+          }
+        }
+        printf("\n");
       }
 
       search_destroy(search);

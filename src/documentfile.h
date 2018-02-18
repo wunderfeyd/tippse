@@ -22,6 +22,7 @@ struct editor;
 #include "visualinfo.h"
 
 #define TIPPSE_DOCUMENT_MEMORY_LOADMAX 1024*1024
+#define TIPPSE_DOCUMENT_AUTO_LOADMAX 1024*16
 
 #define TIPPSE_TABSTOP_AUTO 0
 #define TIPPSE_TABSTOP_TAB 1
@@ -112,6 +113,7 @@ struct document_file {
 #include "encoding/cp850.h"
 #include "encoding/ascii.h"
 #include "editor.h"
+#include "unicode.h"
 
 struct document_file* document_file_create(int save, int config, struct editor* editor);
 void document_file_clear(struct document_file* base, int all);
