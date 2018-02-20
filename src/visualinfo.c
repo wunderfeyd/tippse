@@ -26,6 +26,7 @@ struct config_cache visual_color_codes[VISUAL_FLAG_COLOR_MAX+1] = {
   {"bookmark", VISUAL_FLAG_COLOR_BOOKMARK, NULL},
   {"directory", VISUAL_FLAG_COLOR_DIRECTORY, NULL},
   {"modified", VISUAL_FLAG_COLOR_MODIFIED, NULL},
+  {"removed", VISUAL_FLAG_COLOR_REMOVED, NULL},
   {NULL, 0, NULL}
 };
 

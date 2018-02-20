@@ -289,8 +289,17 @@ void document_search_directory(const char* path, struct range_tree_node* search_
   printf("... done\n");
 }
 
+// Check file properties and return highlight information
+inline int document_directory_highlight(const char* path) {
+  if (is_directory(path)) {
+    return TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_DIRECTORY<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT);
+  } else if (access(path, F_OK)==-1) {
+    return TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_REMOVED<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT);
+  }
+  return 0;
+}
 // Read directory into document, sort by file name
-void document_directory(struct document_file* file, struct stream* filter_stream, struct encoding* filter_encoding) {
+void document_directory(struct document_file* file, struct stream* filter_stream, struct encoding* filter_encoding, const char* predefined) {
   struct directory* directory = directory_create(file->filename);
   struct search* search = filter_stream?search_create_plain(1, 0, *filter_stream, filter_encoding, file->encoding):NULL;
 
@@ -327,15 +336,20 @@ void document_directory(struct document_file* file, struct stream* filter_stream
 
   file->buffer = range_tree_delete(file->buffer, 0, range_tree_length(file->buffer), 0, file);
 
+  if (predefined && *predefined) {
+    char* combined = combine_path_file(file->filename, predefined);
+    file->buffer = range_tree_insert_split(file->buffer, range_tree_length(file->buffer), (uint8_t*)predefined, strlen(predefined), TIPPSE_INSERTER_NOFUSE|document_directory_highlight(combined));
+    free(combined);
+  }
+
   for (size_t n = 0; n<files->count; n++) {
     if (file->buffer) {
       file->buffer = range_tree_insert_split(file->buffer, range_tree_length(file->buffer), (uint8_t*)"\n", 1, TIPPSE_INSERTER_NOFUSE);
     }
 
     char* combined = combine_path_file(file->filename, sort[n]);
-    int highlight = is_directory(combined)?TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_DIRECTORY<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT):0;
+    file->buffer = range_tree_insert_split(file->buffer, range_tree_length(file->buffer), (uint8_t*)sort[n], strlen(sort[n]), TIPPSE_INSERTER_NOFUSE|document_directory_highlight(combined));
     free(combined);
-    file->buffer = range_tree_insert_split(file->buffer, range_tree_length(file->buffer), (uint8_t*)sort[n], strlen(sort[n]), TIPPSE_INSERTER_NOFUSE|highlight);
     free(sort[n]);
   }
 

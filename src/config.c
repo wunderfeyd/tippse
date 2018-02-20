@@ -30,6 +30,7 @@ const char* config_default =
       "bookmark:aqua,"
       "directory:aqua,"
       "modified:red,"
+      "removed:red,"
     "},"
     "wrapping:1,"
     "invisibles:0,"

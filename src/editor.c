@@ -116,6 +116,7 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"escape", TIPPSE_CMD_ESCAPE, "Quit dialog or cancel operation"},
   {"selectinvert", TIPPSE_CMD_SELECT_INVERT, "Invert selection"},
   {"searchall", TIPPSE_CMD_SEARCH_ALL, "Search and select all matches"},
+  {"saveas", TIPPSE_CMD_SAVEAS, "Save current document with another name"},
   {NULL, 0, ""}
 };
 
@@ -135,6 +136,8 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->console_status = 0;
   base->console_timeout = 0;
   base->console_text = NULL;
+  base->browser_type = TIPPSE_BROWSERTYPE_OPEN;
+  base->browser_preset = NULL;
 
   editor_command_map_create(base);
 
@@ -194,7 +197,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   list_insert(base->documents, NULL, &base->console_doc);
 
   for (int n = argc-1; n>=1; n--) {
-    editor_open_document(base, argv[n], NULL, base->document);
+    editor_open_document(base, argv[n], NULL, base->document, TIPPSE_BROWSERTYPE_OPEN);
   }
 
   if (!base->document->file) {
@@ -375,19 +378,19 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
 
   if (command==TIPPSE_CMD_DOCUMENTSELECTION) {
     editor_view_tabs(base, NULL, NULL);
-  } else if (command==TIPPSE_CMD_BROWSER) {
+  } else if (command==TIPPSE_CMD_BROWSER || command==TIPPSE_CMD_SAVEAS) {
+    char* filename = extract_file_name(base->document->file->filename);
     char* directory = strip_file_name(base->document->file->filename);
     char* corrected = correct_path(directory);
     char* relative = relativate_path(base->base_path, corrected);
-    editor_view_browser(base, relative, NULL, NULL);
+    editor_view_browser(base, relative, NULL, NULL, (command==TIPPSE_CMD_BROWSER)?TIPPSE_BROWSERTYPE_OPEN:TIPPSE_BROWSERTYPE_SAVE, filename, NULL);
     free(relative);
     free(corrected);
     free(directory);
+    free(filename);
   } else if (command==TIPPSE_CMD_COMMANDS) {
     editor_view_commands(base, NULL, NULL);
-  }
-
-  if (command==TIPPSE_CMD_QUIT) {
+  } else if (command==TIPPSE_CMD_QUIT) {
     base->close = 1;
   } else if (command==TIPPSE_CMD_SEARCH) {
     editor_search(base);
@@ -475,7 +478,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
   } else if (command==TIPPSE_CMD_RELOAD) {
     editor_reload_document(base, base->document->file);
   } else if (command==TIPPSE_CMD_SAVE) {
-    editor_save_document(base, base->document->file);
+    editor_save_document(base, base->document->file, 0);
   } else if (command==TIPPSE_CMD_SAVEALL) {
     editor_save_documents(base);
   } else if (command==TIPPSE_CMD_SHELL) {
@@ -527,7 +530,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
       }
 
       if (!selected) {
-        file_offset_t now = base->filter_doc->buffer?base->filter_doc->buffer->length:0;
+        file_offset_t now = range_tree_length(base->filter_doc->buffer);
         if (before!=now) {
           struct stream* filter_stream = NULL;
           struct stream stream;
@@ -536,7 +539,9 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
             filter_stream = &stream;
           }
           if (base->panel->file==base->browser_doc) {
-            editor_view_browser(base, NULL, filter_stream, base->filter_doc->encoding);
+            char* raw = (char*)range_tree_raw(base->filter_doc->buffer, 0, now);
+            editor_view_browser(base, NULL, filter_stream, base->filter_doc->encoding, base->browser_type, NULL, raw);
+            free(raw);
           } else if (base->panel->file==base->tabs_doc) {
             editor_view_tabs(base, filter_stream, base->filter_doc->encoding);
           } else if (base->panel->file==base->commands_doc) {
@@ -636,7 +641,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
       editor_focus(base, destination, 1);
       done = 1;
       if (base->panel->file!=base->commands_doc) {
-        editor_open_document(base, name, node, destination);
+        editor_open_document(base, name, node, destination, base->browser_type);
       } else {
         for (size_t n = 0; editor_commands[n].text; n++) {
           const char* compare1 = name;
@@ -673,7 +678,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
         if (name) {
           editor_focus(base, destination, 1);
           done = 1;
-          editor_open_document(base, name, NULL, destination);
+          editor_open_document(base, name, NULL, destination, TIPPSE_BROWSERTYPE_OPEN);
           struct encoding_cache cache;
           encoding_cache_clear(&cache, base->focus->file->encoding, &search->group_hits[1].start);
           position_t line = (position_t)decode_based_unsigned(&cache, 10, SIZE_T_MAX);
@@ -692,7 +697,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
 }
 
 // Open file into destination splitter
-void editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination) {
+void editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination, int type) {
   char* path_only;
   if (node) {
     if (node->file==base->browser_doc) {
@@ -724,11 +729,16 @@ void editor_open_document(struct editor* base, const char* name, struct splitter
   if (!new_document_doc) {
     if (is_directory(relative)) {
       if (destination) {
-        editor_view_browser(base, relative, NULL, NULL);
+        editor_view_browser(base, relative, NULL, NULL, type, NULL, NULL);
       }
     } else {
-      new_document_doc = document_file_create(1, 1, base);
-      document_file_load(new_document_doc, relative, 0, 1);
+      if (type==TIPPSE_BROWSERTYPE_SAVE) {
+        document_file_name(destination->file, relative);
+        editor_save_document(base, destination->file, 1);
+      } else {
+        new_document_doc = document_file_create(1, 1, base);
+        document_file_load(new_document_doc, relative, 0, 1);
+      }
     }
   }
 
@@ -755,8 +765,8 @@ void editor_reload_document(struct editor* base, struct document_file* file) {
 }
 
 // Save single modified document
-void editor_save_document(struct editor* base, struct document_file* file) {
-  if ((document_undo_modified(file) || document_file_modified_cache(file)) && file->save) {
+void editor_save_document(struct editor* base, struct document_file* file, int force) {
+  if ((document_undo_modified(file) || document_file_modified_cache(file) || force) && file->save) {
     document_file_save(file, file->filename);
     document_file_detect_properties(file);
   }
@@ -766,7 +776,7 @@ void editor_save_document(struct editor* base, struct document_file* file) {
 void editor_save_documents(struct editor* base) {
   struct list_node* docs = base->documents->first;
   while (docs) {
-    editor_save_document(base, *(struct document_file**)list_object(docs));
+    editor_save_document(base, *(struct document_file**)list_object(docs), 0);
     docs = docs->next;
   }
 }
@@ -824,21 +834,32 @@ void editor_panel_assign(struct editor* base, struct document_file* file) {
 }
 
 // Update and change to browser view
-void editor_view_browser(struct editor* base, const char* filename, struct stream* filter_stream, struct encoding* filter_encoding) {
-  if (!filter_stream) {
-    editor_filter_clear(base);
+void editor_view_browser(struct editor* base, const char* filename, struct stream* filter_stream, struct encoding* filter_encoding, int type, char* preset, char* predefined) {
+  if (preset) {
+    free(base->browser_preset);
+    base->browser_preset = strdup(preset);
   }
 
   editor_panel_assign(base, base->browser_doc);
+
+  if (!filter_stream) {
+    editor_filter_clear(base);
+    if (base->browser_preset) {
+      base->filter_doc->buffer = range_tree_insert_split(base->filter_doc->buffer, range_tree_length(base->filter_doc->buffer), (uint8_t*)base->browser_preset, strlen(base->browser_preset), 0);
+      document_view_select_all(base->filter->view, base->filter->file);
+      editor_focus(base, base->filter, 1);
+    }
+  }
 
   if (filename) {
     document_file_name(base->panel->file, filename);
   }
 
-  document_directory(base->browser_doc, filter_stream, filter_encoding);
+  document_directory(base->browser_doc, filter_stream, filter_encoding, (predefined && *predefined)?predefined:base->browser_preset);
   document_file_change_views(base->browser_doc);
   document_view_reset(base->panel->view, base->browser_doc);
   base->panel->view->line_select = 1;
+  base->browser_type = type;
 
   (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
 }

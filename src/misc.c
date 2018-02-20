@@ -48,6 +48,21 @@ char** merge_sort(char** sort1, char** sort2, size_t count) {
   return sort1;
 }
 
+// Return file name without directory path
+char* extract_file_name(const char* file) {
+  const char* last = file;
+  const char* search = file;
+  while (*search) {
+    if (*search=='/') {
+      last = search+1;
+    }
+
+    search++;
+  }
+
+  return strdup(last);
+}
+
 // Return directory path without file name
 char* strip_file_name(const char* file) {
   const char* last = file;
