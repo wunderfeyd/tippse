@@ -108,6 +108,7 @@ const char* config_default =
       "escape:escape,"
       "ctrl+f3:searchall,"
       "shift+ctrl+f3:searchdirectory,"
+      "ctrl+t:new,"
     "},"
     "fileextensions:{"
       "c:C,"

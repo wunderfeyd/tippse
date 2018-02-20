@@ -133,7 +133,8 @@ struct splitter;
 #define TIPPSE_CMD_SELECT_INVERT 78
 #define TIPPSE_CMD_SEARCH_ALL 79
 #define TIPPSE_CMD_SAVEAS 80
-#define TIPPSE_CMD_MAX 81
+#define TIPPSE_CMD_NEW 81
+#define TIPPSE_CMD_MAX 82
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -186,6 +187,8 @@ struct editor {
 
   int browser_type;                   // Type of current file browser
   char* browser_preset;               // Text for filter preset
+
+  int document_draft_count;           // Counter for new documents
 };
 
 #include "misc.h"

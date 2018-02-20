@@ -117,6 +117,7 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"selectinvert", TIPPSE_CMD_SELECT_INVERT, "Invert selection"},
   {"searchall", TIPPSE_CMD_SEARCH_ALL, "Search and select all matches"},
   {"saveas", TIPPSE_CMD_SAVEAS, "Save current document with another name"},
+  {"new", TIPPSE_CMD_NEW, "Create new untitled document"},
   {NULL, 0, ""}
 };
 
@@ -138,6 +139,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->console_text = NULL;
   base->browser_type = TIPPSE_BROWSERTYPE_OPEN;
   base->browser_preset = NULL;
+  base->document_draft_count = 0;
 
   editor_command_map_create(base);
 
@@ -222,6 +224,7 @@ void editor_destroy(struct editor* base) {
 
   list_destroy(base->documents);
   editor_command_map_destroy(base);
+  free(base->browser_preset);
   free(base->console_text);
   free(base);
 }
@@ -383,7 +386,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     char* directory = strip_file_name(base->document->file->filename);
     char* corrected = correct_path(directory);
     char* relative = relativate_path(base->base_path, corrected);
-    editor_view_browser(base, relative, NULL, NULL, (command==TIPPSE_CMD_BROWSER)?TIPPSE_BROWSERTYPE_OPEN:TIPPSE_BROWSERTYPE_SAVE, filename, NULL);
+    editor_view_browser(base, relative, NULL, NULL, (command==TIPPSE_CMD_BROWSER)?TIPPSE_BROWSERTYPE_OPEN:TIPPSE_BROWSERTYPE_SAVE, (command==TIPPSE_CMD_BROWSER)?"":filename, NULL);
     free(relative);
     free(corrected);
     free(directory);
@@ -440,6 +443,10 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     editor_focus(base, base->document, 1);
   } else if (command==TIPPSE_CMD_CLOSE) {
     editor_close_document(base, base->focus->file);
+  } else if (command==TIPPSE_CMD_NEW) {
+    struct document_file* empty = editor_empty_document(base);
+    splitter_assign_document_file(base->document, empty);
+    document_view_reset(base->document->view, empty);
   } else if (command==TIPPSE_CMD_RETURN && base->focus->file==base->goto_doc) {
     struct stream stream;
     stream_from_page(&stream, base->focus->file->buffer, 0);
@@ -818,7 +825,10 @@ void editor_close_document(struct editor* base, struct document_file* file) {
 // Create empty document
 struct document_file* editor_empty_document(struct editor* base) {
   struct document_file* file = document_file_create(1, 1, base);
-  document_file_name(file, "Untitled");
+  base->document_draft_count++;
+  char title[1024];
+  sprintf(&title[0], "Untitled%d", base->document_draft_count);
+  document_file_name(file, &title[0]);
   list_insert(base->documents, NULL, &file);
   return file;
 }
@@ -844,7 +854,7 @@ void editor_view_browser(struct editor* base, const char* filename, struct strea
 
   if (!filter_stream) {
     editor_filter_clear(base);
-    if (base->browser_preset) {
+    if (base->browser_preset && *base->browser_preset) {
       base->filter_doc->buffer = range_tree_insert_split(base->filter_doc->buffer, range_tree_length(base->filter_doc->buffer), (uint8_t*)base->browser_preset, strlen(base->browser_preset), 0);
       document_view_select_all(base->filter->view, base->filter->file);
       editor_focus(base, base->filter, 1);
