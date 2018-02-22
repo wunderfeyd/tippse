@@ -45,7 +45,9 @@ struct config_cache {
 #include "documentfile.h"
 
 void config_command_create(struct config_command* base);
+void config_command_destroy_inplace(struct config_command* base);
 void config_command_destroy(struct config_command* base);
+struct config_command* config_command_clone(struct config_command* clone);
 int64_t config_command_cache(struct config_command* base, struct config_cache* cache);
 
 struct config_value* config_value_create(codepoint_t* value_codepoints, size_t value_length);

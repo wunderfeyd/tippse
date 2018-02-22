@@ -125,6 +125,7 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
 struct editor* editor_create(const char* base_path, struct screen* screen, int argc, const char** argv) {
   struct editor* base = (struct editor*)malloc(sizeof(struct editor));
   base->close = 0;
+  base->tasks = list_create(sizeof(struct editor_task));
   base->base_path = base_path;
   base->screen = screen;
   base->focus = NULL;
@@ -224,6 +225,13 @@ void editor_destroy(struct editor* base) {
 
   list_destroy(base->documents);
   editor_command_map_destroy(base);
+
+  while (base->tasks->first) {
+    editor_task_destroy_inplace((struct editor_task*)list_object(base->tasks->first));
+    list_remove(base->tasks, base->tasks->first);
+  }
+  list_destroy(base->tasks);
+
   free(base->browser_preset);
   free(base->console_text);
   free(base);
@@ -351,23 +359,44 @@ void editor_keypress(struct editor* base, int key, codepoint_t cp, int button, i
 
   if (!parent || !parent->end) {
     if (cp>0x0) {
-      editor_intercept(base, TIPPSE_CMD_CHARACTER, NULL, key, cp, button, button_old, x, y);
+      struct editor_task* task = (struct editor_task*)list_object(list_insert_empty(base->tasks, base->tasks->last));
+      task->command = TIPPSE_CMD_CHARACTER;
+      task->arguments = NULL;
+      task->key = key;
+      task->cp = cp;
+      task->button = button;
+      task->button_old = button_old;
+      task->x = x;
+      task->y = y;
     }
-    return;
+  } else {
+    struct config_value* value = (struct config_value*)list_object(*(struct list_node**)trie_object(parent));
+    struct list_node* it = value->commands.first;
+    while (it) {
+      struct config_command* source = (struct config_command*)list_object(it);
+      int command = (int)config_command_cache(source, &editor_commands[0]);
+      if (command!=TIPPSE_CMD_CHARACTER) {
+        struct config_command* arguments = config_command_clone(source);
+        struct editor_task* task = (struct editor_task*)list_object(list_insert_empty(base->tasks, base->tasks->last));
+        task->command = command;
+        task->arguments = arguments;
+        task->key = key;
+        task->cp = cp;
+        task->button = button;
+        task->button_old = button_old;
+        task->x = x;
+        task->y = y;
+      }
+      it = it->next;
+    }
   }
 
-  // Copy and execute (copy is needed in case of file access commands altering the config structure)
-  struct config_value* value = config_value_clone((struct config_value*)list_object(*(struct list_node**)trie_object(parent)));
-  struct list_node* it = value->commands.first;
-  while (it) {
-    struct config_command* arguments = (struct config_command*)list_object(it);
-    int command = (int)config_command_cache(arguments, &editor_commands[0]);
-    if (command!=TIPPSE_CMD_CHARACTER) {
-      editor_intercept(base, command, arguments, key, cp, button, button_old, x, y);
-    }
-    it = it->next;
+  while (base->tasks->first) {
+    struct editor_task* task = (struct editor_task*)list_object(base->tasks->first);
+    editor_intercept(base, task->command, task->arguments, task->key, task->cp, task->button, task->button_old, task->x, task->y);
+    editor_task_destroy_inplace((struct editor_task*)list_object(base->tasks->first));
+    list_remove(base->tasks, base->tasks->first);
   }
-  config_value_destroy(value);
 }
 
 // After event translation we can intercept the core commands (for now)
@@ -1061,5 +1090,12 @@ void editor_search(struct editor* base) {
 void editor_filter_clear(struct editor* base) {
   if (base->filter_doc->buffer) {
     document_file_delete(base->filter_doc, 0, base->filter_doc->buffer->length);
+  }
+}
+
+// Destroy task contents
+void editor_task_destroy_inplace(struct editor_task* base) {
+  if (base->arguments) {
+    config_command_destroy(base->arguments);
   }
 }

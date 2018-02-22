@@ -145,12 +145,23 @@ struct splitter;
 #define TIPPSE_BROWSERTYPE_OPEN 0
 #define TIPPSE_BROWSERTYPE_SAVE 1
 
-struct editor {
-  int close;                  // editor closing?
+struct editor_task {
+  int command;                        // command to execute
+  struct config_command* arguments;   // arguments to the command
+  int key;                            // key from event source
+  codepoint_t cp;                     // codepoint from event source
+  int button;                         // mouse button status
+  int button_old;                     // mouse button status before command
+  int x;                              // mouse x coordinate for command
+  int y;                              // mouse y coordinate for command
+};
 
-  const char* base_path;      // base file path of startup
-  struct screen* screen;      // display manager
-  struct list* documents;     // open documents
+struct editor {
+  int close;                          // editor closing?
+
+  const char* base_path;              // base file path of startup
+  struct screen* screen;              // display manager
+  struct list* documents;             // open documents
 
   struct document_file* tabs_doc;     // document: open documents
   struct document_file* browser_doc;  // document: list of file from current directory
@@ -171,11 +182,11 @@ struct editor {
   struct splitter* document;          // Current selected document
   struct splitter* last_document;     // Last selected user document
 
-  int search_regex;         // Search for regluar expression?
-  int search_ignore_case;   // Ignore case during search?
-  int64_t tick;             // Start tick
-  int64_t tick_undo;        // Tick count for next undo chaining
-  int64_t tick_incremental; // Tick count for next incremental document processing
+  int search_regex;                   // Search for regluar expression?
+  int search_ignore_case;             // Ignore case during search?
+  int64_t tick;                       // Start tick
+  int64_t tick_undo;                  // Tick count for next undo chaining
+  int64_t tick_incremental;           // Tick count for next incremental document processing
 
   char* command_map[TIPPSE_CMD_MAX];
   int pipefd[2];                      // Process stdin/stdout pipes
@@ -189,6 +200,8 @@ struct editor {
   char* browser_preset;               // Text for filter preset
 
   int document_draft_count;           // Counter for new documents
+
+  struct list* tasks;                 // open tasks
 };
 
 #include "misc.h"
@@ -236,4 +249,6 @@ void editor_command_map_destroy(struct editor* base);
 void editor_command_map_read(struct editor* base, struct document_file* file);
 
 void editor_filter_clear(struct editor* base);
+
+void editor_task_destroy_inplace(struct editor_task* base);
 #endif /* #ifndef TIPPSE_EDITOR_H */

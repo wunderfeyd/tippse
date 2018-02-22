@@ -448,17 +448,38 @@ const char* config_default =
 ;
 
 // Build command
-void config_command_create(struct config_command* base) {
+void config_command_create_inplace(struct config_command* base) {
   base->cached = 0;
   base->arguments = NULL;
   base->length = 0;
 }
 
-void config_command_destroy(struct config_command* base) {
+void config_command_destroy_inplace(struct config_command* base) {
   for (size_t n = 0; n<base->length; n++) {
     free(base->arguments[n].codepoints);
   }
   free(base->arguments);
+}
+
+void config_command_destroy(struct config_command* base) {
+  config_command_destroy_inplace(base);
+  free(base);
+}
+
+struct config_command* config_command_clone(struct config_command* clone) {
+  struct config_command* base = malloc(sizeof(struct config_command));
+  base->cached = clone->cached;
+  base->value = clone->value;
+  base->length = clone->length;
+  size_t length = sizeof(struct config_argument)*clone->length;
+  base->arguments = (struct config_argument*)malloc(length);
+  for (size_t n = 0; n<clone->length; n++) {
+    base->arguments[n].length = clone->arguments[n].length;
+    size_t length = sizeof(codepoint_t)*(clone->arguments[n].length+1);
+    base->arguments[n].codepoints = (codepoint_t*)malloc(length);
+    memcpy(base->arguments[n].codepoints, clone->arguments[n].codepoints, length);
+  }
+  return base;
 }
 
 // Create configuration entry assigned value
@@ -502,7 +523,7 @@ void config_value_parse_command(struct config_value* base) {
       if (cp==';' || cp==0) {
         if (argument>0) {
           list_insert_empty(&base->commands, base->commands.last);
-          config_command_create((struct config_command*)list_object(base->commands.last));
+          config_command_create_inplace((struct config_command*)list_object(base->commands.last));
         }
         if (base->commands.last) {
           struct config_command* command = (struct config_command*)list_object(base->commands.last);
@@ -540,7 +561,7 @@ void config_value_destroy(struct config_value* base) {
 
 void config_value_destroy_inplace(struct config_value* base) {
   while (base->commands.first) {
-    config_command_destroy((struct config_command*)list_object(base->commands.first));
+    config_command_destroy_inplace((struct config_command*)list_object(base->commands.first));
     list_remove(&base->commands, base->commands.first);
   }
   list_destroy_inplace(&base->commands);
