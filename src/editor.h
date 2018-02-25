@@ -134,7 +134,12 @@ struct splitter;
 #define TIPPSE_CMD_SEARCH_ALL 79
 #define TIPPSE_CMD_SAVEAS 80
 #define TIPPSE_CMD_NEW 81
-#define TIPPSE_CMD_MAX 82
+#define TIPPSE_CMD_QUIT_FORCE 82
+#define TIPPSE_CMD_QUIT_SAVE 83
+#define TIPPSE_CMD_SAVE_FORCE 84
+#define TIPPSE_CMD_NULL 85
+#define TIPPSE_CMD_SAVE_ASK 86
+#define TIPPSE_CMD_MAX 87
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -154,6 +159,13 @@ struct editor_task {
   int button_old;                     // mouse button status before command
   int x;                              // mouse x coordinate for command
   int y;                              // mouse y coordinate for command
+  struct document_file* file;         // document selected for this task
+  int stop;                           // stop task execute chain?
+};
+
+struct editor_menu {
+  char* title;
+  struct editor_task task;
 };
 
 struct editor {
@@ -173,6 +185,7 @@ struct editor {
   struct document_file* filter_doc;   // document: panel filter
   struct document_file* commands_doc; // document: list of known commands
   struct document_file* console_doc;  // document: list last editor messages
+  struct document_file* menu_doc;     // document: menu with selections for current task
 
   struct splitter* splitters;         // Tree of splitters
   struct splitter* panel;             // Extra panel for toolbox user input
@@ -202,6 +215,10 @@ struct editor {
   int document_draft_count;           // Counter for new documents
 
   struct list* tasks;                 // open tasks
+  struct list_node* task_active;      // current active task
+  struct document_file* task_focus;   // delete task list if file is nor focused
+
+  struct list* menu;                  // menu selections
 };
 
 #include "misc.h"
@@ -221,7 +238,7 @@ void editor_closed(struct editor* base);
 void editor_draw(struct editor* base);
 void editor_tick(struct editor* base);
 void editor_keypress(struct editor* base, int key, codepoint_t cp, int button, int button_old, int x, int y);
-void editor_intercept(struct editor* base, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y);
+void editor_intercept(struct editor* base, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y, struct document_file* file);
 
 void editor_focus(struct editor* base, struct splitter* node, int disable);
 void editor_split(struct editor* base, struct splitter* node);
@@ -229,13 +246,15 @@ struct splitter* editor_unsplit(struct editor* base, struct splitter* node);
 int editor_open_selection(struct editor* base, struct splitter* node, struct splitter* destination);
 void editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination, int type);
 void editor_reload_document(struct editor* base, struct document_file* file);
-void editor_save_document(struct editor* base, struct document_file* file, int force);
-void editor_save_documents(struct editor* base);
+void editor_save_document(struct editor* base, struct document_file* file, int force, int ask);
+void editor_save_documents(struct editor* base, int command);
+int editor_modified_documents(struct editor* base);
 void editor_close_document(struct editor* base, struct document_file* file);
 void editor_panel_assign(struct editor* base, struct document_file* file);
 void editor_view_browser(struct editor* base, const char* filename, struct stream* filter_stream, struct encoding* filter_encoding, int type, char* preset, char* predefined);
 void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding);
 void editor_view_commands(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding);
+void editor_view_menu(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding);
 int editor_update_panel_height(struct editor* base, struct splitter* panel, int max);
 struct document_file* editor_empty_document(struct editor* base);
 void editor_update_search_title(struct editor* base);
@@ -250,5 +269,14 @@ void editor_command_map_read(struct editor* base, struct document_file* file);
 
 void editor_filter_clear(struct editor* base);
 
+struct editor_task* editor_task_append(struct editor* base, int front, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y, struct document_file* file);
 void editor_task_destroy_inplace(struct editor_task* base);
+void editor_task_document_removed(struct editor* base, struct document_file* file);
+void editor_task_clear(struct editor* base);
+void editor_task_stop(struct editor* base);
+void editor_task_remove_stop(struct editor* base);
+
+void editor_menu_title(struct editor* base, const char* title);
+void editor_menu_clear(struct editor* base);
+void editor_menu_append(struct editor* base, const char* title, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y, struct document_file* file);
 #endif /* #ifndef TIPPSE_EDITOR_H */

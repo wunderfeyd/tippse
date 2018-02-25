@@ -42,6 +42,7 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->cache = NULL;
   base->caches = list_create(sizeof(struct document_file_cache));
   base->binary = 0;
+  base->draft = 0;
   base->undos = list_create(sizeof(struct document_undo));
   base->redos = list_create(sizeof(struct document_undo));
   base->filename = strdup("");
@@ -132,6 +133,17 @@ void document_file_name(struct document_file* base, const char* filename) {
   }
 
   document_file_reload_config(base);
+  base->draft = 0;
+}
+
+// Set file draft status
+void document_file_draft(struct document_file* base) {
+  base->draft = 1;
+}
+
+// Retrieve file draft status
+int document_file_drafted(struct document_file* base) {
+  return base->draft;
 }
 
 // Change encoding

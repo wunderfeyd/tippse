@@ -118,6 +118,11 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"searchall", TIPPSE_CMD_SEARCH_ALL, "Search and select all matches"},
   {"saveas", TIPPSE_CMD_SAVEAS, "Save current document with another name"},
   {"new", TIPPSE_CMD_NEW, "Create new untitled document"},
+  {"quitforce", TIPPSE_CMD_QUIT_FORCE, "Quit without any further questions"},
+  {"quitsave", TIPPSE_CMD_QUIT_SAVE, "Save and quit"},
+  {"saveforce", TIPPSE_CMD_SAVE_FORCE, "Save file contents regardless its current working state"},
+  {"null", TIPPSE_CMD_NULL, "Nothing"},
+  {"saveask", TIPPSE_CMD_SAVE_ASK, "Request user interaction if file was modified ans is going to be saved"},
   {NULL, 0, ""}
 };
 
@@ -126,6 +131,8 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   struct editor* base = (struct editor*)malloc(sizeof(struct editor));
   base->close = 0;
   base->tasks = list_create(sizeof(struct editor_task));
+  base->task_focus = NULL;
+  base->menu = list_create(sizeof(struct editor_menu));
   base->base_path = base_path;
   base->screen = screen;
   base->focus = NULL;
@@ -160,6 +167,11 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   document_file_name(base->commands_doc, base->base_path);
   base->commands_doc->defaults.wrapping = 0;
   base->commands_doc->line_select = 1;
+
+  base->menu_doc = document_file_create(0, 1, base);
+  document_file_name(base->menu_doc, base->base_path);
+  base->menu_doc->defaults.wrapping = 0;
+  base->menu_doc->line_select = 1;
 
   base->document = splitter_create(0, 0, NULL, NULL,  "");
 
@@ -198,6 +210,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   list_insert(base->documents, NULL, &base->search_results_doc);
   list_insert(base->documents, NULL, &base->filter_doc);
   list_insert(base->documents, NULL, &base->console_doc);
+  list_insert(base->documents, NULL, &base->menu_doc);
 
   for (int n = argc-1; n>=1; n--) {
     editor_open_document(base, argv[n], NULL, base->document, TIPPSE_BROWSERTYPE_OPEN);
@@ -226,10 +239,10 @@ void editor_destroy(struct editor* base) {
   list_destroy(base->documents);
   editor_command_map_destroy(base);
 
-  while (base->tasks->first) {
-    editor_task_destroy_inplace((struct editor_task*)list_object(base->tasks->first));
-    list_remove(base->tasks, base->tasks->first);
-  }
+  editor_menu_clear(base);
+  list_destroy(base->menu);
+
+  editor_task_clear(base);
   list_destroy(base->tasks);
 
   free(base->browser_preset);
@@ -254,7 +267,7 @@ void editor_draw(struct editor* base) {
   if (base->focus==base->panel || base->focus==base->filter) {
     int filter_height = (base->focus==base->filter)?(editor_update_panel_height(base, base->filter, (base->screen->height/4)+1)):0;
     int panel_height = (base->screen->height/2)+1-filter_height-(filter_height>0?1:0);
-    if (base->panel->file!=base->browser_doc && base->panel->file!=base->tabs_doc && base->panel->file!=base->commands_doc) {
+    if (base->panel->file!=base->browser_doc && base->panel->file!=base->tabs_doc && base->panel->file!=base->commands_doc && base->panel->file!=base->menu_doc) {
       panel_height = editor_update_panel_height(base, base->panel, (base->screen->height/2)+1-filter_height);;
     }
 
@@ -359,33 +372,16 @@ void editor_keypress(struct editor* base, int key, codepoint_t cp, int button, i
 
   if (!parent || !parent->end) {
     if (cp>0x0) {
-      struct editor_task* task = (struct editor_task*)list_object(list_insert_empty(base->tasks, base->tasks->last));
-      task->command = TIPPSE_CMD_CHARACTER;
-      task->arguments = NULL;
-      task->key = key;
-      task->cp = cp;
-      task->button = button;
-      task->button_old = button_old;
-      task->x = x;
-      task->y = y;
+      editor_task_append(base, 1, TIPPSE_CMD_CHARACTER, NULL, key, cp, button, button_old, x, y, NULL);
     }
   } else {
     struct config_value* value = (struct config_value*)list_object(*(struct list_node**)trie_object(parent));
     struct list_node* it = value->commands.first;
     while (it) {
-      struct config_command* source = (struct config_command*)list_object(it);
-      int command = (int)config_command_cache(source, &editor_commands[0]);
+      struct config_command* arguments = (struct config_command*)list_object(it);
+      int command = (int)config_command_cache(arguments, &editor_commands[0]);
       if (command!=TIPPSE_CMD_CHARACTER) {
-        struct config_command* arguments = config_command_clone(source);
-        struct editor_task* task = (struct editor_task*)list_object(list_insert_empty(base->tasks, base->tasks->last));
-        task->command = command;
-        task->arguments = arguments;
-        task->key = key;
-        task->cp = cp;
-        task->button = button;
-        task->button_old = button_old;
-        task->x = x;
-        task->y = y;
+        editor_task_append(base, 1, command, arguments, key, cp, button, button_old, x, y, NULL);
       }
       it = it->next;
     }
@@ -393,14 +389,21 @@ void editor_keypress(struct editor* base, int key, codepoint_t cp, int button, i
 
   while (base->tasks->first) {
     struct editor_task* task = (struct editor_task*)list_object(base->tasks->first);
-    editor_intercept(base, task->command, task->arguments, task->key, task->cp, task->button, task->button_old, task->x, task->y);
-    editor_task_destroy_inplace((struct editor_task*)list_object(base->tasks->first));
-    list_remove(base->tasks, base->tasks->first);
+    if (task->stop) {
+      break;
+    }
+
+    base->task_active = base->tasks->first;
+    editor_intercept(base, task->command, task->arguments, task->key, task->cp, task->button, task->button_old, task->x, task->y, task->file);
+    if (base->task_active && !task->stop) {
+      editor_task_destroy_inplace(task);
+      list_remove(base->tasks, base->task_active);
+    }
   }
 }
 
 // After event translation we can intercept the core commands (for now)
-void editor_intercept(struct editor* base, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y) {
+void editor_intercept(struct editor* base, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y, struct document_file* file) {
   if (command==TIPPSE_CMD_MOUSE) {
     struct splitter* select = splitter_by_coordinate(base->splitters, x, y);
     if (select && button!=0 && button_old==0) {
@@ -408,9 +411,19 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     }
   }
 
+  if (base->task_focus && ((base->focus!=base->panel && base->focus!=base->filter) || base->panel->file!=base->task_focus)) {
+    base->task_focus = NULL;
+    editor_task_clear(base);
+  }
+
   if (command==TIPPSE_CMD_DOCUMENTSELECTION) {
     editor_view_tabs(base, NULL, NULL);
   } else if (command==TIPPSE_CMD_BROWSER || command==TIPPSE_CMD_SAVEAS) {
+    // Hacky hack for "saveas" dialog / browser need active splitter with document file at the moment
+    if (file) {
+      splitter_assign_document_file(base->document, file);
+    }
+
     char* filename = extract_file_name(base->document->file->filename);
     char* directory = strip_file_name(base->document->file->filename);
     char* corrected = correct_path(directory);
@@ -420,10 +433,29 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     free(corrected);
     free(directory);
     free(filename);
+    editor_task_stop(base);
+    base->task_focus = base->browser_doc;
   } else if (command==TIPPSE_CMD_COMMANDS) {
     editor_view_commands(base, NULL, NULL);
   } else if (command==TIPPSE_CMD_QUIT) {
+    if (editor_modified_documents(base)) {
+      editor_task_stop(base);
+      editor_menu_clear(base);
+      editor_menu_title(base, "Quit?");
+      editor_menu_append(base, "Yes, save documents", TIPPSE_CMD_QUIT_SAVE, NULL, 0, 0, 0, 0, 0, 0, NULL);
+      editor_menu_append(base, "No, go back", TIPPSE_CMD_ESCAPE, NULL, 0, 0, 0, 0, 0, 0, NULL);
+      editor_menu_append(base, "Force quit without saving documents", TIPPSE_CMD_QUIT_FORCE, NULL, 0, 0, 0, 0, 0, 0, NULL);
+      editor_focus(base, base->document, 1);
+      editor_view_menu(base, NULL, NULL);
+      base->task_focus = base->menu_doc;
+    } else {
+      editor_task_append(base, 0, TIPPSE_CMD_QUIT_FORCE, NULL, 0, 0, 0, 0, 0, 0, NULL);
+    }
+  } else if (command==TIPPSE_CMD_QUIT_FORCE) {
     base->close = 1;
+  } else if (command==TIPPSE_CMD_QUIT_SAVE) {
+    editor_save_documents(base, TIPPSE_CMD_SAVE);
+    editor_task_append(base, 0, TIPPSE_CMD_QUIT_FORCE, NULL, 0, 0, 0, 0, 0, 0, NULL);
   } else if (command==TIPPSE_CMD_SEARCH) {
     editor_search(base);
   } else if (command==TIPPSE_CMD_SEARCH_NEXT) {
@@ -470,6 +502,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     }
   } else if (command==TIPPSE_CMD_ESCAPE) {
     editor_focus(base, base->document, 1);
+    editor_task_clear(base);
   } else if (command==TIPPSE_CMD_CLOSE) {
     editor_close_document(base, base->focus->file);
   } else if (command==TIPPSE_CMD_NEW) {
@@ -514,9 +547,15 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
   } else if (command==TIPPSE_CMD_RELOAD) {
     editor_reload_document(base, base->document->file);
   } else if (command==TIPPSE_CMD_SAVE) {
-    editor_save_document(base, base->document->file, 0);
+    editor_save_document(base, file?file:base->document->file, 0, 0);
+  } else if (command==TIPPSE_CMD_SAVE_FORCE) {
+    editor_save_document(base, file?file:base->document->file, 1, 0);
+  } else if (command==TIPPSE_CMD_SAVE_ASK) {
+    editor_save_document(base, file?file:base->document->file, 0, 1);
+  } else if (command==TIPPSE_CMD_NULL) {
+    editor_task_remove_stop(base);
   } else if (command==TIPPSE_CMD_SAVEALL) {
-    editor_save_documents(base);
+    editor_save_documents(base, TIPPSE_CMD_SAVE);
   } else if (command==TIPPSE_CMD_SHELL) {
     if (base->document->file->pipefd[1]==-1 && base->document->file==base->compiler_doc) {
       if (arguments && arguments->length>1) {
@@ -552,7 +591,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
   } else if (command==TIPPSE_CMD_SELECT_INVERT) {
     document_view_select_invert(base->document->view);
   } else {
-    if (base->focus->file==base->tabs_doc || base->focus->file==base->browser_doc || base->focus->file==base->commands_doc || base->focus->file==base->filter_doc) {
+    if (base->focus->file==base->tabs_doc || base->focus->file==base->browser_doc || base->focus->file==base->commands_doc || base->focus->file==base->menu_doc || base->focus->file==base->filter_doc) {
       file_offset_t before = base->filter->file->buffer?base->filter->file->buffer->length:0;
       if (command==TIPPSE_CMD_UP || command==TIPPSE_CMD_DOWN || command==TIPPSE_CMD_PAGEDOWN || command==TIPPSE_CMD_PAGEUP || command==TIPPSE_CMD_HOME || command==TIPPSE_CMD_END || command==TIPPSE_CMD_RETURN) {
         (*base->panel->document->keypress)(base->panel->document, base->panel, command, arguments, key, cp, button, button_old, x-base->document->x, y-base->focus->y);
@@ -582,6 +621,8 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
             editor_view_tabs(base, filter_stream, base->filter_doc->encoding);
           } else if (base->panel->file==base->commands_doc) {
             editor_view_commands(base, filter_stream, base->filter_doc->encoding);
+          } else if (base->panel->file==base->menu_doc) {
+            editor_view_menu(base, filter_stream, base->filter_doc->encoding);
           }
         }
 
@@ -676,9 +717,18 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
     if (*name) {
       editor_focus(base, destination, 1);
       done = 1;
-      if (base->panel->file!=base->commands_doc) {
-        editor_open_document(base, name, node, destination, base->browser_type);
-      } else {
+      if (base->panel->file==base->menu_doc) {
+        struct list_node* it = base->menu->first;
+        while (it) {
+          struct editor_menu* entry = (struct editor_menu*)list_object(it);
+          if (strcmp(entry->title, name)==0) {
+            editor_focus(base, base->document, 1);
+            editor_task_append(base, 2, entry->task.command, entry->task.arguments, entry->task.key, entry->task.cp, entry->task.button, entry->task.button_old, entry->task.x, entry->task.y, entry->task.file);
+            break;
+          }
+          it = it->next;
+        }
+      } else if (base->panel->file==base->commands_doc) {
         for (size_t n = 0; editor_commands[n].text; n++) {
           const char* compare1 = name;
           const char* compare2 = editor_commands[n].text;
@@ -688,10 +738,12 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
           }
 
           if (*compare1==' ') {
-            editor_intercept(base, (int)n, NULL, 0, 0, 0, 0, 0, 0);
+            editor_intercept(base, (int)n, NULL, 0, 0, 0, 0, 0, 0, NULL);
             break;
           }
         }
+      } else {
+        editor_open_document(base, name, node, destination, base->browser_type);
       }
     }
 
@@ -727,6 +779,11 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
       }
       search_destroy(search);
     }
+  }
+
+  if (base->task_focus==node->file && done) {
+    editor_task_remove_stop(base);
+    base->task_focus = NULL;
   }
 
   return done;
@@ -770,7 +827,7 @@ void editor_open_document(struct editor* base, const char* name, struct splitter
     } else {
       if (type==TIPPSE_BROWSERTYPE_SAVE) {
         document_file_name(destination->file, relative);
-        editor_save_document(base, destination->file, 1);
+        editor_save_document(base, destination->file, 1, 0);
       } else {
         new_document_doc = document_file_create(1, 1, base);
         document_file_load(new_document_doc, relative, 0, 1);
@@ -801,20 +858,92 @@ void editor_reload_document(struct editor* base, struct document_file* file) {
 }
 
 // Save single modified document
-void editor_save_document(struct editor* base, struct document_file* file, int force) {
-  if ((document_undo_modified(file) || document_file_modified_cache(file) || force) && file->save) {
-    document_file_save(file, file->filename);
-    document_file_detect_properties(file);
+void editor_save_document(struct editor* base, struct document_file* file, int force, int ask) {
+  if (!file->save) {
+    return;
   }
+
+  int modified_cache = document_file_modified_cache(file);
+  int modified = document_undo_modified(file);
+  int draft = document_file_drafted(file);
+
+  if (!modified && !modified_cache && !draft && !force) {
+    return;
+  }
+
+  if (modified_cache && !force) {
+    editor_task_stop(base);
+    editor_menu_clear(base);
+    char* title = combine_string("File on disk modified, overwrite? - ", file->filename);
+    editor_menu_title(base, title);
+    free(title);
+    editor_menu_append(base, "Yes, overwrite file", TIPPSE_CMD_SAVE_FORCE, NULL, 0, 0, 0, 0, 0, 0, file);
+    editor_menu_append(base, "No, go back", TIPPSE_CMD_ESCAPE, NULL, 0, 0, 0, 0, 0, 0, NULL);
+    editor_menu_append(base, "Skip file", TIPPSE_CMD_NULL, NULL, 0, 0, 0, 0, 0, 0, NULL);
+    editor_focus(base, base->document, 1);
+    editor_view_menu(base, NULL, NULL);
+    base->task_focus = base->menu_doc;
+    return;
+  }
+
+  if (modified && !force && ask) {
+    editor_task_stop(base);
+    editor_menu_clear(base);
+    char* title = combine_string("File modified, save? - ", file->filename);
+    editor_menu_title(base, title);
+    free(title);
+    editor_menu_append(base, "Yes, save it", TIPPSE_CMD_SAVE_FORCE, NULL, 0, 0, 0, 0, 0, 0, file);
+    editor_menu_append(base, "No, go back", TIPPSE_CMD_ESCAPE, NULL, 0, 0, 0, 0, 0, 0, NULL);
+    editor_menu_append(base, "Skip file", TIPPSE_CMD_NULL, NULL, 0, 0, 0, 0, 0, 0, NULL);
+    editor_focus(base, base->document, 1);
+    editor_view_menu(base, NULL, NULL);
+    base->task_focus = base->menu_doc;
+    return;
+  }
+
+  if (draft && !force) {
+    editor_task_stop(base);
+    editor_menu_clear(base);
+    char* title = combine_string("File never saved, select path? - ", file->filename);
+    editor_menu_title(base, title);
+    free(title);
+    editor_menu_append(base, "Yes, save it", TIPPSE_CMD_SAVEAS, NULL, 0, 0, 0, 0, 0, 0, file);
+    editor_menu_append(base, "No, go back", TIPPSE_CMD_ESCAPE, NULL, 0, 0, 0, 0, 0, 0, NULL);
+    editor_menu_append(base, "Skip file", TIPPSE_CMD_NULL, NULL, 0, 0, 0, 0, 0, 0, NULL);
+    editor_focus(base, base->document, 1);
+    editor_view_menu(base, NULL, NULL);
+    base->task_focus = base->menu_doc;
+    return;
+  }
+
+  document_file_save(file, file->filename);
+  // TODO: we need a return value here to give the user a choice what to do in case of an error
+  document_file_detect_properties(file);
 }
 
 // Save all modified documents
-void editor_save_documents(struct editor* base) {
-  struct list_node* docs = base->documents->first;
-  while (docs) {
-    editor_save_document(base, *(struct document_file**)list_object(docs), 0);
-    docs = docs->next;
+void editor_save_documents(struct editor* base, int command) {
+  struct list_node* it = base->documents->first;
+  while (it) {
+    struct document_file* file = *(struct document_file**)list_object(it);
+    if (file->save) {
+      editor_task_append(base, 0, command, NULL, 0, 0, 0, 0, 0, 0, file);
+    }
+    it = it->next;
   }
+}
+
+// Check for modified documents
+int editor_modified_documents(struct editor* base) {
+  struct list_node* it = base->documents->first;
+  while (it) {
+    struct document_file* file = *(struct document_file**)list_object(it);
+    if (file->save && (document_file_modified_cache(file) || document_undo_modified(file) || document_file_drafted(file))) {
+      return 1;
+    }
+    it = it->next;
+  }
+  return 0;
 }
 
 // Close single document and reassign splitters
@@ -845,6 +974,7 @@ void editor_close_document(struct editor* base, struct document_file* file) {
     }
 
     struct document_file* replace = *(struct document_file**)list_object(remove);
+    editor_task_document_removed(base, replace);
     splitter_exchange_document_file(base->splitters, replace, assign);
     document_file_destroy(replace);
     list_remove(base->documents, remove);
@@ -858,6 +988,7 @@ struct document_file* editor_empty_document(struct editor* base) {
   char title[1024];
   sprintf(&title[0], "Untitled%d", base->document_draft_count);
   document_file_name(file, &title[0]);
+  document_file_draft(file);
   list_insert(base->documents, NULL, &file);
   return file;
 }
@@ -981,6 +1112,47 @@ void editor_view_commands(struct editor* base, struct stream* filter_stream, str
   (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
 }
 
+// Update and change to commands view
+void editor_view_menu(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding) {
+  if (!filter_stream) {
+    editor_command_map_read(base, base->document->file);
+    editor_filter_clear(base);
+  }
+
+  editor_panel_assign(base, base->menu_doc);
+
+  struct search* search = filter_stream?search_create_plain(1, 0, *filter_stream, filter_encoding, base->tabs_doc->encoding):NULL;
+
+  base->menu_doc->buffer = range_tree_delete(base->menu_doc->buffer, 0, base->menu_doc->buffer?base->menu_doc->buffer->length:0, 0, base->menu_doc);
+
+  struct list_node* it = base->menu->first;
+  while (it) {
+    struct editor_menu* entry = (struct editor_menu*)list_object(it);
+
+    struct stream text_stream;
+    stream_from_plain(&text_stream, (uint8_t*)entry->title, strlen(entry->title));
+    if (!search || search_find(search, &text_stream, NULL)) {
+      if (base->menu_doc->buffer) {
+        base->menu_doc->buffer = range_tree_insert_split(base->menu_doc->buffer, base->menu_doc->buffer?base->menu_doc->buffer->length:0, (uint8_t*)"\n", 1, 0);
+      }
+
+      base->menu_doc->buffer = range_tree_insert_split(base->menu_doc->buffer, base->menu_doc->buffer?base->menu_doc->buffer->length:0, (uint8_t*)entry->title, strlen(entry->title), 0);
+    }
+
+    it = it->next;
+  }
+
+  if (search) {
+    search_destroy(search);
+  }
+
+  document_file_change_views(base->menu_doc);
+  document_view_reset(base->panel->view, base->menu_doc);
+  base->panel->view->line_select = 1;
+
+  (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
+}
+
 // Setup command map array
 void editor_command_map_create(struct editor* base) {
   for (size_t n = 0; n<TIPPSE_CMD_MAX; n++) {
@@ -1098,4 +1270,122 @@ void editor_task_destroy_inplace(struct editor_task* base) {
   if (base->arguments) {
     config_command_destroy(base->arguments);
   }
+}
+
+// Append task
+struct editor_task* editor_task_append(struct editor* base, int front, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y, struct document_file* file) {
+  struct list_node* prev = base->tasks->last;
+  if (front==1) {
+    struct list_node* it = base->tasks->first;
+    prev = NULL;
+    while (it) {
+      struct editor_task* task = (struct editor_task*)list_object(it);
+      if (task->stop) {
+        break;
+      }
+      prev = it;
+      it = it->next;
+    }
+  } else if (front==2) {
+    prev = base->tasks->first;
+  }
+
+  struct editor_task* task = (struct editor_task*)list_object(list_insert_empty(base->tasks, prev));
+  task->command = command;
+  task->arguments = arguments?config_command_clone(arguments):NULL;
+  task->key = key;
+  task->cp = cp;
+  task->button = button;
+  task->button_old = button_old;
+  task->x = x;
+  task->y = y;
+  task->file = file;
+  task->stop = 0;
+  return task;
+}
+
+// Document was removed from index... also remove all tasks assigned to it
+void editor_task_document_removed(struct editor* base, struct document_file* file) {
+  struct list_node* it = base->tasks->first;
+  while (it) {
+    struct list_node* next = it->next;
+    struct editor_task* task = (struct editor_task*)list_object(it);
+    if (task->file==file) {
+      if (it==base->task_active) {
+        base->task_active = NULL;
+      }
+      editor_task_destroy_inplace(task);
+      list_remove(base->tasks, it);
+    }
+    it = next;
+  }
+}
+
+// Remove all tasks
+void editor_task_clear(struct editor* base) {
+  while (base->tasks->first) {
+    struct editor_task* task = (struct editor_task*)list_object(base->tasks->first);
+    editor_task_destroy_inplace(task);
+    list_remove(base->tasks, base->tasks->first);
+  }
+
+  base->task_active = NULL;
+}
+
+// Place "stop" at current task
+void editor_task_stop(struct editor* base) {
+  if (!base->tasks->first) {
+    return;
+  }
+
+  struct editor_task* task = (struct editor_task*)list_object(base->tasks->first);
+  task->stop = 1;
+}
+
+// Search for first stop task and remove it
+void editor_task_remove_stop(struct editor* base) {
+  struct list_node* it = base->tasks->first;
+  while (it) {
+    struct editor_task* task = (struct editor_task*)list_object(it);
+    if (task->stop) {
+      if (it==base->task_active) {
+        base->task_active = NULL;
+      }
+      editor_task_destroy_inplace(task);
+      list_remove(base->tasks, it);
+      break;
+    }
+    it = it->next;
+  }
+}
+
+// Change title for active menu
+void editor_menu_title(struct editor* base, const char* title) {
+  document_file_name(base->menu_doc, title);
+}
+
+// Remove menu contents
+void editor_menu_clear(struct editor* base) {
+  while (base->menu->first) {
+    struct editor_menu* entry = (struct editor_menu*)list_object(base->menu->first);
+    free(entry->title);
+    editor_task_destroy_inplace(&entry->task);
+    list_remove(base->menu, base->menu->first);
+  }
+}
+
+// Add menu entry
+void editor_menu_append(struct editor* base, const char* title, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y, struct document_file* file) {
+  struct editor_menu* entry = (struct editor_menu*)list_object(list_insert_empty(base->menu, base->menu->last));
+  entry->title = strdup(title);
+  entry->task.command = command;
+  entry->task.arguments = arguments?config_command_clone(arguments):NULL;
+  entry->task.key = key;
+  entry->task.cp = cp;
+  entry->task.button = button;
+  entry->task.button_old = button_old;
+  entry->task.x = x;
+  entry->task.y = y;
+  entry->task.file = file;
+  entry->task.stop = 0;
 }

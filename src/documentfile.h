@@ -71,6 +71,7 @@ struct document_file {
   int newline;                          // type of newline, e.g. Unix or DOS
   int binary;                           // binary file?
   int line_select;                      // Selection list?
+  int draft;                            // File is draft / new and never saved
 
   char* filename;                       // file name
   int save;                             // file can be saved, is real file?
@@ -119,6 +120,8 @@ struct document_file* document_file_create(int save, int config, struct editor* 
 void document_file_clear(struct document_file* base, int all);
 void document_file_destroy(struct document_file* base);
 void document_file_name(struct document_file* base, const char* filename);
+void document_file_draft(struct document_file* base);
+int document_file_drafted(struct document_file* base);
 void document_file_encoding(struct document_file* base, struct encoding* encoding);
 void document_file_create_pipe(struct document_file* base);
 void document_file_pipe(struct document_file* base, const char* command);
