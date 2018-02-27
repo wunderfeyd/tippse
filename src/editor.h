@@ -211,6 +211,7 @@ struct editor {
 
   int browser_type;                   // Type of current file browser
   char* browser_preset;               // Text for filter preset
+  struct document_file* browser_file; // Current file assigned to browser
 
   int document_draft_count;           // Counter for new documents
 
@@ -244,14 +245,14 @@ void editor_focus(struct editor* base, struct splitter* node, int disable);
 void editor_split(struct editor* base, struct splitter* node);
 struct splitter* editor_unsplit(struct editor* base, struct splitter* node);
 int editor_open_selection(struct editor* base, struct splitter* node, struct splitter* destination);
-void editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination, int type);
+int editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination, int type);
 void editor_reload_document(struct editor* base, struct document_file* file);
 void editor_save_document(struct editor* base, struct document_file* file, int force, int ask);
 void editor_save_documents(struct editor* base, int command);
 int editor_modified_documents(struct editor* base);
 void editor_close_document(struct editor* base, struct document_file* file);
 void editor_panel_assign(struct editor* base, struct document_file* file);
-void editor_view_browser(struct editor* base, const char* filename, struct stream* filter_stream, struct encoding* filter_encoding, int type, char* preset, char* predefined);
+void editor_view_browser(struct editor* base, const char* filename, struct stream* filter_stream, struct encoding* filter_encoding, int type, char* preset, char* predefined, struct document_file* file);
 void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding);
 void editor_view_commands(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding);
 void editor_view_menu(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding);

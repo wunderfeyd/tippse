@@ -419,16 +419,12 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
   if (command==TIPPSE_CMD_DOCUMENTSELECTION) {
     editor_view_tabs(base, NULL, NULL);
   } else if (command==TIPPSE_CMD_BROWSER || command==TIPPSE_CMD_SAVEAS) {
-    // Hacky hack for "saveas" dialog / browser need active splitter with document file at the moment
-    if (file) {
-      splitter_assign_document_file(base->document, file);
-    }
-
-    char* filename = extract_file_name(base->document->file->filename);
-    char* directory = strip_file_name(base->document->file->filename);
+    struct document_file* browser_file = file?file:base->document->file;
+    char* filename = extract_file_name(browser_file->filename);
+    char* directory = strip_file_name(browser_file->filename);
     char* corrected = correct_path(directory);
     char* relative = relativate_path(base->base_path, corrected);
-    editor_view_browser(base, relative, NULL, NULL, (command==TIPPSE_CMD_BROWSER)?TIPPSE_BROWSERTYPE_OPEN:TIPPSE_BROWSERTYPE_SAVE, (command==TIPPSE_CMD_BROWSER)?"":filename, NULL);
+    editor_view_browser(base, relative, NULL, NULL, (command==TIPPSE_CMD_BROWSER)?TIPPSE_BROWSERTYPE_OPEN:TIPPSE_BROWSERTYPE_SAVE, (command==TIPPSE_CMD_BROWSER)?"":filename, NULL, browser_file);
     free(relative);
     free(corrected);
     free(directory);
@@ -615,7 +611,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
           }
           if (base->panel->file==base->browser_doc) {
             char* raw = (char*)range_tree_raw(base->filter_doc->buffer, 0, now);
-            editor_view_browser(base, NULL, filter_stream, base->filter_doc->encoding, base->browser_type, NULL, raw);
+            editor_view_browser(base, NULL, filter_stream, base->filter_doc->encoding, base->browser_type, NULL, raw, base->browser_file);
             free(raw);
           } else if (base->panel->file==base->tabs_doc) {
             editor_view_tabs(base, filter_stream, base->filter_doc->encoding);
@@ -742,8 +738,10 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
             break;
           }
         }
+      } else if (base->panel->file==base->browser_doc) {
+        done = editor_open_document(base, name, node, destination, base->browser_type);
       } else {
-        editor_open_document(base, name, node, destination, base->browser_type);
+        done = editor_open_document(base, name, node, destination, TIPPSE_BROWSERTYPE_OPEN);
       }
     }
 
@@ -790,7 +788,8 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
 }
 
 // Open file into destination splitter
-void editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination, int type) {
+int editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination, int type) {
+  int success = 1;
   char* path_only;
   if (node) {
     if (node->file==base->browser_doc) {
@@ -806,39 +805,43 @@ void editor_open_document(struct editor* base, const char* name, struct splitter
   char* corrected = correct_path(combined);
   char* relative = relativate_path(base->base_path, corrected);
 
-  struct document_file* new_document_doc = NULL;
-  struct list_node* docs = base->documents->first;
-  while (docs) {
-    struct document_file* docs_document_doc = *(struct document_file**)list_object(docs);
-    if (strcmp(docs_document_doc->filename, relative)==0 && (!node || docs_document_doc!=node->file)) {
-      new_document_doc = docs_document_doc;
-      list_remove(base->documents, docs);
-      break;
+  if (is_directory(relative)) {
+    if (destination) {
+      editor_view_browser(base, relative, NULL, NULL, type, NULL, NULL, base->browser_file);
+    }
+  } else {
+    struct document_file* new_document_doc = NULL;
+    struct list_node* docs = base->documents->first;
+    while (docs) {
+      struct document_file* docs_document_doc = *(struct document_file**)list_object(docs);
+      if (strcmp(docs_document_doc->filename, relative)==0 && (!node || docs_document_doc!=node->file)) {
+        new_document_doc = docs_document_doc;
+        break;
+      }
+
+      docs = docs->next;
     }
 
-    docs = docs->next;
-  }
-
-  if (!new_document_doc) {
-    if (is_directory(relative)) {
-      if (destination) {
-        editor_view_browser(base, relative, NULL, NULL, type, NULL, NULL);
-      }
-    } else {
-      if (type==TIPPSE_BROWSERTYPE_SAVE) {
-        document_file_name(destination->file, relative);
-        editor_save_document(base, destination->file, 1, 0);
+    if (type==TIPPSE_BROWSERTYPE_OPEN) {
+      if (new_document_doc) {
+        list_remove(base->documents, docs);
       } else {
         new_document_doc = document_file_create(1, 1, base);
         document_file_load(new_document_doc, relative, 0, 1);
       }
-    }
-  }
 
-  if (new_document_doc) {
-    list_insert(base->documents, NULL, &new_document_doc);
-    if (destination) {
-      splitter_assign_document_file(destination, new_document_doc);
+      list_insert(base->documents, NULL, &new_document_doc);
+      if (destination) {
+        splitter_assign_document_file(destination, new_document_doc);
+      }
+    } else {
+      if (new_document_doc && new_document_doc!=base->browser_file) {
+        editor_console_update(base, "File already opened!", SIZE_T_MAX, CONSOLE_TYPE_WARNING);
+        success = 0;
+      } else {
+        document_file_name(base->browser_file, relative);
+        editor_save_document(base, base->browser_file, 1, 0);
+      }
     }
   }
 
@@ -846,6 +849,8 @@ void editor_open_document(struct editor* base, const char* name, struct splitter
   free(combined);
   free(path_only);
   free(corrected);
+
+  return success;
 }
 
 // Reload single document
@@ -916,9 +921,23 @@ void editor_save_document(struct editor* base, struct document_file* file, int f
     return;
   }
 
-  document_file_save(file, file->filename);
-  // TODO: we need a return value here to give the user a choice what to do in case of an error
-  document_file_detect_properties(file);
+  int saved = document_file_save(file, file->filename);
+  if (saved) {
+    document_file_detect_properties(file);
+  } else {
+    editor_task_stop(base);
+    editor_menu_clear(base);
+    char* title = combine_string("Unable to write file... - ", file->filename);
+    editor_menu_title(base, title);
+    free(title);
+    editor_menu_append(base, "Try again", TIPPSE_CMD_SAVE, NULL, 0, 0, 0, 0, 0, 0, file);
+    editor_menu_append(base, "Save with different name", TIPPSE_CMD_SAVEAS, NULL, 0, 0, 0, 0, 0, 0, file);
+    editor_menu_append(base, "Go back", TIPPSE_CMD_ESCAPE, NULL, 0, 0, 0, 0, 0, 0, NULL);
+    editor_menu_append(base, "Skip file", TIPPSE_CMD_NULL, NULL, 0, 0, 0, 0, 0, 0, NULL);
+    editor_focus(base, base->document, 1);
+    editor_view_menu(base, NULL, NULL);
+    base->task_focus = base->menu_doc;
+  }
 }
 
 // Save all modified documents
@@ -1004,7 +1023,7 @@ void editor_panel_assign(struct editor* base, struct document_file* file) {
 }
 
 // Update and change to browser view
-void editor_view_browser(struct editor* base, const char* filename, struct stream* filter_stream, struct encoding* filter_encoding, int type, char* preset, char* predefined) {
+void editor_view_browser(struct editor* base, const char* filename, struct stream* filter_stream, struct encoding* filter_encoding, int type, char* preset, char* predefined, struct document_file* file) {
   if (preset) {
     free(base->browser_preset);
     base->browser_preset = strdup(preset);
@@ -1030,6 +1049,7 @@ void editor_view_browser(struct editor* base, const char* filename, struct strea
   document_view_reset(base->panel->view, base->browser_doc);
   base->panel->view->line_select = 1;
   base->browser_type = type;
+  base->browser_file = file;
 
   (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
 }

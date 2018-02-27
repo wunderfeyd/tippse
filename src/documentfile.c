@@ -337,13 +337,15 @@ int document_file_save_plain(struct document_file* base, const char* filename) {
 }
 
 // Save file, uses a temporary file if necessary
-void document_file_save(struct document_file* base, const char* filename) {
+int document_file_save(struct document_file* base, const char* filename) {
+  int success = 0;
   if (base->buffer && (base->buffer->inserter&TIPPSE_INSERTER_FILE)) {
     char* tmpname = combine_string(filename, ".save.tmp");
     if (document_file_save_plain(base, tmpname)) {
       if (rename(tmpname, filename)==0) {
         document_file_load(base, filename, 1, 0);
         editor_console_update(base->editor, "Saved!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
+        success = 1;
       } else {
         editor_console_update(base->editor, "Renaming failed!", SIZE_T_MAX, CONSOLE_TYPE_ERROR);
       }
@@ -356,6 +358,7 @@ void document_file_save(struct document_file* base, const char* filename) {
     if (document_file_save_plain(base, filename)) {
       document_undo_mark_save_point(base);
       editor_console_update(base->editor, "Saved!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
+      success = 1;
     } else {
       editor_console_update(base->editor, "Writing failed!", SIZE_T_MAX, CONSOLE_TYPE_ERROR);
     }
@@ -367,6 +370,8 @@ void document_file_save(struct document_file* base, const char* filename) {
       document_file_reference_cache(base, base->cache);
     }
   }
+
+  return success;
 }
 
 // Detect file properties
