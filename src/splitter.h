@@ -8,39 +8,40 @@ struct document_view;
 struct document;
 struct splitter;
 
+// Splitter flags
 #define TIPPSE_SPLITTER_HORZ 1
 #define TIPPSE_SPLITTER_VERT 2
 #define TIPPSE_SPLITTER_FIXED0 4
 #define TIPPSE_SPLITTER_FIXED1 8
 
 struct splitter {
-  struct splitter* parent;
-  struct splitter* side[2];
-  int type;
-  int split;
+  struct splitter* parent;    // Parent splitter object
+  struct splitter* side[2];   // Left/Right or Top/Bottom sides
+  int type;                   // Combined splitter flags
+  int split;                  // Split position
 
-  int x;
-  int y;
-  int width;
-  int height;
-  int client_width;
-  int client_height;
+  int x;                      // On screen x position
+  int y;                      // On screen y position
+  int width;                  // On screen x size
+  int height;                 // On screen y size
+  int client_width;           // Width of the document conrent (without splitter head etc.)
+  int client_height;          // Height of the document conrent (without splitter head etc.)
 
-  int cursor_x;
-  int cursor_y;
+  int cursor_x;               // Cursor placement in client area
+  int cursor_y;               // Cursor placement in client area
 
-  int64_t timeout;
+  int64_t timeout;            // Next timeout callback
 
-  int active;
-  char* name;
-  char* status;
+  int active;                 // Focused splitter?
+  char* name;                 // Name
+  char* status;               // Status text
 
-  struct document_file* file;
-  struct document_view* view;
+  struct document_file* file; // Assigned document file
+  struct document_view* view; // Current view object
 
-  struct document* document;
-  struct document* document_text;
-  struct document* document_hex;
+  struct document* document;  // Current document handler
+  struct document* document_text; // Text editor handler
+  struct document* document_hex;  // Hex editor handler
 };
 
 #include "list.h"

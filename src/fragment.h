@@ -12,14 +12,14 @@ struct file_cache;
 struct file_cache_node;
 
 struct fragment {
-  int count;
-  int type;
-  uint8_t* buffer;
-  file_offset_t offset;
-  struct file_cache* cache;
-  struct file_cache_node* cache_node;
+  int count;                            // Reference counter
+  int type;                             // Type of fragment
+  uint8_t* buffer;                      // Pointer to buffer content
+  file_offset_t offset;                 // Absolute offset to on disk file content
+  struct file_cache* cache;             // Cache handler
+  struct file_cache_node* cache_node;   // Active node in cache handler
 
-  size_t length;
+  size_t length;                        // Length of fragment data
 };
 
 #include "filecache.h"

@@ -8,24 +8,25 @@ struct encoding;
 #include <termios.h>
 #include "types.h"
 
+// Single display character (usally fits into a terminal character cell)
 struct screen_char {
-  codepoint_t codepoints[8];
-  size_t length;
-  int foreground;
-  int background;
+  codepoint_t codepoints[8];  // Codepoints used for encoding the character
+  size_t length;              // Number of codepoints used in this structure
+  int foreground;             // Foreground color
+  int background;             // Background color
 };
 
 struct screen {
-  int width;
-  int height;
-  int cursor_x;
-  int cursor_y;
-  struct screen_char* buffer;
-  struct screen_char* visible;
-  char* title;
-  char* title_new;
-  struct termios termios_original;
-  struct encoding* encoding;
+  int width;                        // Screen size x direction
+  int height;                       // Screen size y direction
+  int cursor_x;                     // Current cursor placement
+  int cursor_y;                     // Current cursor placement
+  struct screen_char* buffer;       // Back buffer to hold the complete screen as it should be presented
+  struct screen_char* visible;      // Buffer that holds the screen as it is currently presented
+  char* title;                      // Console window title
+  char* title_new;                  // Title update
+  struct termios termios_original;  // Termios structure for change detection
+  struct encoding* encoding;        // Terminal encoding
 };
 
 #include "encoding/utf8.h"

@@ -2,6 +2,7 @@
 
 #include "trie.h"
 
+// Return pointer to new trie instance
 struct trie* trie_create(size_t node_size) {
   struct trie* base = malloc(sizeof(struct trie));
   base->node_size = node_size;
@@ -10,12 +11,14 @@ struct trie* trie_create(size_t node_size) {
   return base;
 }
 
+// Free trie memory
 void trie_destroy(struct trie* base) {
   trie_clear(base);
   list_destroy(base->buckets);
   free(base);
 }
 
+// Remove all nodes from trie
 void trie_clear(struct trie* base) {
   while (base->buckets->first) {
     list_remove(base->buckets, base->buckets->first);
@@ -25,6 +28,7 @@ void trie_clear(struct trie* base) {
   base->root = NULL;
 }
 
+// Create node in bucket and create new bucket if no node is left
 struct trie_node* trie_create_node(struct trie* base) {
   if (base->fill==TRIE_NODES_PER_BUCKET) {
     base->fill = 0;
@@ -42,6 +46,7 @@ struct trie_node* trie_create_node(struct trie* base) {
   return node;
 }
 
+// Append specific codepoint to current node (or return result node if it already existed)
 struct trie_node* trie_append_codepoint(struct trie* base, struct trie_node* parent, codepoint_t cp, int end) {
   if (!parent) {
     parent = base->root;
@@ -68,6 +73,7 @@ struct trie_node* trie_append_codepoint(struct trie* base, struct trie_node* par
   return parent;
 }
 
+// Find specific codepoint
 struct trie_node* trie_find_codepoint(struct trie* base, struct trie_node* parent, codepoint_t cp) {
   if (!parent) {
     parent = base->root;

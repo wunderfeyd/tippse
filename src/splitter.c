@@ -176,6 +176,7 @@ void splitter_unassign_document_file(struct splitter* base) {
   base->file = NULL;
 }
 
+// Remove and set new splitter content from document file
 void splitter_assign_document_file(struct splitter* base, struct document_file* file) {
   splitter_unassign_document_file(base);
 
@@ -218,6 +219,7 @@ void splitter_exchange_document_file(struct splitter* base, struct document_file
   }
 }
 
+// Empty splitter rectangle and call the document handler
 void splitter_draw(struct splitter* base, struct screen* screen) {
   codepoint_t cp = 0x20;
   for (int yy = 0; yy<base->height; yy++) {
@@ -229,6 +231,7 @@ void splitter_draw(struct splitter* base, struct screen* screen) {
   (*base->document->draw)(base->document, screen, base);
 }
 
+// Return one document file structure from the base splitter or its children
 struct document_file* splitter_first_document(const struct splitter* base) {
   while (base && !base->file) {
     base = base->side[0];
@@ -237,6 +240,7 @@ struct document_file* splitter_first_document(const struct splitter* base) {
   return base->file;
 }
 
+// Draw horizontal split
 void splitter_draw_split_horizontal(const struct splitter* base, struct screen* screen, int x, int y, int width) {
   struct document_file* file = splitter_first_document(base);
 
@@ -263,6 +267,7 @@ void splitter_draw_split_horizontal(const struct splitter* base, struct screen* 
   screen_setchar(screen, x+width, y, 0, 0, screen->width, screen->height, &right, 1, file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
 }
 
+// Draw vertical split
 void splitter_draw_split_vertical(const struct splitter* base, struct screen* screen, int x, int y, int height) {
   struct document_file* file = splitter_first_document(base);
   codepoint_t cp = 0x2502;
@@ -288,6 +293,7 @@ void splitter_draw_split_vertical(const struct splitter* base, struct screen* sc
   screen_setchar(screen, x, y+height, 0, 0, screen->width, screen->height, &bottom, 1, file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
 }
 
+// Draw base splitter and all its children
 void splitter_draw_multiple_recursive(struct splitter* base, struct screen* screen, int x, int y, int width, int height, int incremental) {
   if (base->side[0] && base->side[1]) {
     int size = (base->type&TIPPSE_SPLITTER_HORZ)?width:height;
@@ -355,11 +361,13 @@ void splitter_draw_multiple_recursive(struct splitter* base, struct screen* scre
   }
 }
 
+// Simplified call to splitter recursive drawing
 void splitter_draw_multiple(struct splitter* base, struct screen* screen, int incremental) {
   screen_cursor(screen, -1, -1);
   splitter_draw_multiple_recursive(base, screen, 0, 1, screen->width, screen->height-1, incremental);
 }
 
+// Return splitter from absolute screen position
 struct splitter* splitter_by_coordinate(struct splitter* base, int x, int y) {
   if (base->side[0] && base->side[1]) {
     struct splitter* found = splitter_by_coordinate(base->side[0], x, y);

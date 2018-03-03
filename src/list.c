@@ -2,12 +2,14 @@
 
 #include "list.h"
 
+// Build list
 struct list* list_create(size_t node_size) {
   struct list* base = malloc(sizeof(struct list));
   list_create_inplace(base, node_size);
   return base;
 }
 
+// Build list in known memory location
 void list_create_inplace(struct list* base, size_t node_size) {
   base->first = NULL;
   base->last = NULL;
@@ -15,23 +17,27 @@ void list_create_inplace(struct list* base, size_t node_size) {
   base->node_size = node_size;
 }
 
+// Destroy list structure
 void list_destroy_inplace(struct list* base) {
   if (base->count!=0) {
     printf("list not empty\r\n");
   }
 }
 
+// Remove list structure
 void list_destroy(struct list* base) {
   list_destroy_inplace(base);
   free(base);
 }
 
+// Insert object
 struct list_node* list_insert(struct list* base, struct list_node* prev, void* object) {
   struct list_node* node = list_insert_empty(base, prev);
   memcpy(list_object(node), object, base->node_size);
   return node;
 }
 
+// Append empty element
 struct list_node* list_insert_empty(struct list* base, struct list_node* prev) {
   struct list_node* node = malloc(sizeof(struct list_node)+base->node_size);
   if (!prev) {
@@ -62,6 +68,7 @@ struct list_node* list_insert_empty(struct list* base, struct list_node* prev) {
   return node;
 }
 
+// Remove element from list
 void list_remove(struct list* base, struct list_node* node) {
   if (base->first==node) {
     base->first = node->next;
@@ -82,4 +89,3 @@ void list_remove(struct list* base, struct list_node* node) {
   base->count--;
   free(node);
 }
-

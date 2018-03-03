@@ -10,21 +10,25 @@ struct trie_node;
 struct trie;
 struct list;
 
+// Maximum nodes per bucket
 #define TRIE_NODES_PER_BUCKET 1024
+// Number of bits are used to represent a unicode codepoint
 #define TRIE_CODEPOINT_BIT 20
 
+// Node inside the trie
 struct trie_node {
-  int end;
-  struct trie_node* parent;
-  struct trie_node* side[16];
+  int end;                    // Node defines an end point
+  struct trie_node* parent;   // Previous node
+  struct trie_node* side[16]; // Child nodes
 };
 
+// Trie base object
 struct trie {
-  struct trie_node* root;
+  struct trie_node* root;     // Root node to start with
 
-  struct list* buckets;
-  size_t fill;
-  size_t node_size;
+  struct list* buckets;       // List of created buckets
+  size_t fill;                // Fill level of current bucket
+  size_t node_size;           // User object size
 };
 
 #include "list.h"

@@ -2,6 +2,7 @@
 
 #include "fragment.h"
 
+// Return referenced fragment to a memory location
 struct fragment* fragment_create_memory(uint8_t* buffer, size_t length) {
   struct fragment* base = malloc(sizeof(struct fragment));
   base->type = FRAGMENT_MEMORY;
@@ -13,6 +14,7 @@ struct fragment* fragment_create_memory(uint8_t* buffer, size_t length) {
   return base;
 }
 
+// Return referenced fragment to an on disk file location
 struct fragment* fragment_create_file(struct file_cache* cache, file_offset_t offset, size_t length, struct document_file* file) {
   struct fragment* base = malloc(sizeof(struct fragment));
   base->type = FRAGMENT_FILE;
@@ -28,12 +30,14 @@ struct fragment* fragment_create_file(struct file_cache* cache, file_offset_t of
   return base;
 }
 
+// Load content into memory
 void fragment_cache(struct fragment* base) {
   if (base->type==FRAGMENT_FILE) {
     base->buffer = file_cache_use_node(base->cache, &base->cache_node, base->offset, base->length);
   }
 }
 
+// Increment reference counter
 void fragment_reference(struct fragment* base, struct document_file* file) {
   if (base->type==FRAGMENT_FILE && file) {
     document_file_reference_cache(file, base->cache);
@@ -42,6 +46,7 @@ void fragment_reference(struct fragment* base, struct document_file* file) {
   base->count++;
 }
 
+// Decrement reference counter and remove object if it hits zero instances
 void fragment_dereference(struct fragment* base, struct document_file* file) {
   if (base->type==FRAGMENT_FILE && file) {
     document_file_dereference_cache(file, base->cache);

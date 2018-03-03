@@ -5,16 +5,19 @@
 #include <stdio.h>
 #include <string.h>
 
+// Node of list
 struct list_node {
-  struct list_node* next;
-  struct list_node* prev;
+  struct list_node* next;   // Next node in list
+  struct list_node* prev;   // Previous node in list
 };
 
+
+// List base object
 struct list {
-  struct list_node* first;
-  struct list_node* last;
-  size_t count;
-  size_t node_size;
+  struct list_node* first;  // First node of list
+  struct list_node* last;   // Last node of list
+  size_t count;             // Number of nodes in list
+  size_t node_size;         // User object size
 };
 
 struct list* list_create(size_t node_size);

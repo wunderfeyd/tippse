@@ -81,9 +81,9 @@
 
 // Block structure for bracket matching and code folding
 struct visual_bracket {
-  int diff;
-  int min;
-  int max;
+  int diff;                 // Difference level
+  int min;                  // Lowest level
+  int max;                  // Highest level
 };
 
 // Block visualisation hints per page

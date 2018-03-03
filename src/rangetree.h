@@ -24,19 +24,19 @@ struct range_tree_node;
 #include "visualinfo.h"
 
 struct range_tree_node {
-  struct range_tree_node* parent;
-  struct range_tree_node* side[2];
-  struct range_tree_node* next;
-  struct range_tree_node* prev;
-  file_offset_t length;
-  int depth;
-  int inserter;
+  struct range_tree_node* parent;   // parent node
+  struct range_tree_node* side[2];  // binary split (left and right side)
+  struct range_tree_node* next;     // Next element in overlay list for the leaf nodes
+  struct range_tree_node* prev;     // Previous element in overlay list for the leaf nodes
+  file_offset_t length;             // Length of node
+  int depth;                        // Current depth level
+  int inserter;                     // Combined flags to modify interaction rules
 
   // TODO: shrink structure dynamically depending on type of tree
-  int64_t fuse_id;
-  struct fragment* buffer;
-  file_offset_t offset;
-  struct visual_info visuals;
+  int64_t fuse_id;                  // Only fuse neighbor nodes with the same fuse identification
+  struct fragment* buffer;          // Buffer to file content
+  file_offset_t offset;             // Relative start offset to the beginning of the file content buffer
+  struct visual_info visuals;       // Visual information
 };
 
 #include "fragment.h"

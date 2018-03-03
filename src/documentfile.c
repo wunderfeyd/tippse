@@ -386,6 +386,7 @@ void document_file_detect_properties(struct document_file* base) {
   document_file_detect_properties_stream(base, &stream);
 }
 
+// Auto detect stream properties
 void document_file_detect_properties_stream(struct document_file* base, struct stream* document_stream) {
   file_offset_t offset = 0;
   struct stream stream = *document_stream;

@@ -620,13 +620,9 @@ void config_load(struct config* base, const char* filename) {
     int value = 0;
     int escape = 0;
     int string = 0;
-    while (1) {
+    while (!stream_end(&stream)) {
       size_t length;
       codepoint_t cp = (*file->encoding->decode)(file->encoding, &stream, &length);
-
-      if (cp==0) {
-        break;
-      }
 
       int append = 0;
       if (!string && !escape) {

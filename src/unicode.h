@@ -12,8 +12,8 @@
 #include "trie.h"
 
 struct unicode_transform_node {
-  size_t length;
-  codepoint_t cp[8];
+  size_t length;        // Number of codepoint
+  codepoint_t cp[8];    // Codepoints
 };
 
 void unicode_init(void);
