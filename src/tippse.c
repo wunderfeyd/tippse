@@ -230,12 +230,18 @@ int main(int argc, const char** argv) {
       FD_SET(STDIN_FILENO, &set_read);
 
       tippse_append_inputs(editor, &set_read, &set_write, &nfds);
-      select(nfds+1, &set_read, NULL, NULL, &tv);
-      if (FD_ISSET(STDIN_FILENO, &set_read)) {
-        in = read(STDIN_FILENO, &input_buffer[input_pos], sizeof(input_buffer)-input_pos);
-        if (in>0) {
-          input_pos += (size_t)in;
-          ansi_timeout = tick_count()+tick_ms(25);
+      int ret = select(nfds+1, &set_read, NULL, NULL, &tv);
+      if (ret>0) {
+        if (FD_ISSET(STDIN_FILENO, &set_read)) {
+          in = read(STDIN_FILENO, &input_buffer[input_pos], sizeof(input_buffer)-input_pos);
+          if (in>0) {
+            input_pos += (size_t)in;
+            ansi_timeout = tick_count()+tick_ms(25);
+          }
+        }
+
+        if (tippse_check_inputs(editor, &set_read, &set_write, &nfds)) {
+          stop = 1;
         }
       }
 
@@ -249,12 +255,7 @@ int main(int argc, const char** argv) {
         ansi_timeout = 0;
       }
 
-
       editor_tick(editor);
-
-      if (tippse_check_inputs(editor, &set_read, &set_write, &nfds)) {
-        stop = 1;
-      }
     }
 
     size_t check = 0;

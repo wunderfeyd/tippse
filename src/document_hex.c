@@ -102,7 +102,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
     for (int x = 0; x<(int)data_size; x++) {
       char_size--;
       if (char_size==0) {
-        size_t advance = 1;
+        size_t advance;
         chars[x].length = unicode_read_combined_sequence(&text_cache, 0, chars[x].codepoints, 8, &advance, &char_size);
         encoding_cache_advance(&text_cache, advance);
       } else {

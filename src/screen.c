@@ -52,6 +52,12 @@ struct config_cache screen_color_codes[] = {
   {NULL, 0, NULL}
 };
 
+// Screen resize signal bound in screen_create
+static int screen_resize_counter = 0;
+void screen_size_changed(int signal) {
+  ++screen_resize_counter;
+}
+
 // Create screen
 struct screen* screen_create(void) {
   struct screen* base = (struct screen*)malloc(sizeof(struct screen));
@@ -64,6 +70,7 @@ struct screen* screen_create(void) {
   base->title_new = strdup("Tippse");
   base->cursor_x = -1;
   base->cursor_y = -1;
+  base->resize_check = -1;
 
   tcgetattr(STDIN_FILENO, &base->termios_original);
 
@@ -71,6 +78,7 @@ struct screen* screen_create(void) {
   memset(&raw, 0, sizeof(raw));
   cfmakeraw(&raw);
   tcsetattr(STDIN_FILENO, TCSANOW, &raw);
+  UNUSED(signal(SIGWINCH, screen_size_changed));
 
   UNUSED(write(STDOUT_FILENO, screen_ansi_init, strlen(screen_ansi_init)));
 
@@ -92,6 +100,7 @@ void screen_destroy(struct screen* base) {
 
 // Initialise screen
 void screen_check(struct screen* base) {
+  base->resize_check = screen_resize_counter;
   struct winsize w;
   ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
 
@@ -121,6 +130,12 @@ void screen_check(struct screen* base) {
   }
 }
 
+// Was the screen resized since last size check?
+int screen_resized(struct screen* base) {
+  return (screen_resize_counter!=base->resize_check)?1:0;
+}
+
+// Update character widths with real terminal display width
 void screen_character_width_detect(struct screen* base) {
   codepoint_t cps = 0x10000;
   char* output = (char*)malloc((size_t)(24*cps));

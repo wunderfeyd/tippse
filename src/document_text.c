@@ -265,8 +265,8 @@ position_t document_text_render_lookahead_word_wrap(struct document_file* file, 
   size_t advanced = 0;
   while (count<max) {
     codepoint_t codepoints[8];
-    size_t advance = 1;
-    size_t length = 1;
+    size_t advance;
+    size_t length;
     size_t read = unicode_read_combined_sequence(cache, advanced, &codepoints[0], 8, &advance, &length);
 
     if (codepoints[0]<=' ') {
@@ -428,18 +428,16 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     }
 
     codepoint_t codepoints[8];
-    size_t advance = 1;
-    size_t length = 1;
+    size_t advance;
+    size_t length;
     size_t read = unicode_read_combined_sequence(&render_info->cache, 0, &codepoints[0], 8, &advance, &length);
 
     codepoint_t cp = codepoints[0];
 
-    if (cp!=0xfeff && (cp!=newline_cp1 || newline_cp2==0)) {
-      render_info->visual_detail &= ~VISUAL_DETAIL_CONTROLCHARACTER;
-    }
-
     if (cp==0xfeff) {
       render_info->visual_detail |= VISUAL_DETAIL_CONTROLCHARACTER;
+    } else if (cp!=newline_cp1 || newline_cp2==0) {
+      render_info->visual_detail &= ~VISUAL_DETAIL_CONTROLCHARACTER;
     }
 
     int visual_detail_before = render_info->visual_detail;
@@ -554,9 +552,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
             out->x_max = render_info->column;
             out->x_min = 0;
           }
-        }
 
-        if (drawn&1) {
           int set = 1;
           if (drawn&2) {
             if (cancel && out->type!=VISUAL_SEEK_NONE) {
@@ -590,11 +586,11 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         }
       }
 
-      if (drawn>=2 && !in->clip) {
-        stop = 1;
-      }
-
-      if (boundary && page_count>1 && drawn<2 && !stop) {
+      if (drawn>=2) {
+        if (!in->clip) {
+          stop = 1;
+        }
+      } else if (boundary && page_count>1 && !stop) {
         if (in->type!=VISUAL_SEEK_BRACKET_NEXT && in->type!=VISUAL_SEEK_BRACKET_PREV && in->type!=VISUAL_SEEK_INDENTATION_LAST && in->type!=VISUAL_SEEK_WORD_TRANSITION_NEXT && in->type!=VISUAL_SEEK_WORD_TRANSITION_PREV) {
           rendered = 0;
         }
@@ -603,12 +599,10 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       }
     }
 
-    if (cp==newline_cp2 && newline_cp2!=0) {
-      render_info->visual_detail |= VISUAL_DETAIL_CONTROLCHARACTER;
-    }
-
     if (cp==newline_cp1) {
       render_info->visual_detail &= ~VISUAL_DETAIL_CONTROLCHARACTER;
+    } else if (cp==newline_cp2 && newline_cp2!=0) {
+      render_info->visual_detail |= VISUAL_DETAIL_CONTROLCHARACTER;
     }
 
     if (render_info->draw_indentation && view->show_invisibles && screen && render_info->y_view==render_info->y) {
@@ -730,8 +724,8 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     position_t word_length = 0;
     if (view->wrapping) {
       codepoint_t codepoints[8];
-      size_t advance = 1;
-      size_t length = 1;
+      size_t advance;
+      size_t length;
       size_t read = unicode_read_combined_sequence(&render_info->cache, 0, &codepoints[0], 8, &advance, &length);
       position_t width = unicode_width(&codepoints[0], read)-1;
       if (cp<=' ') {
@@ -753,6 +747,29 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         render_info->indentation = 0;
         render_info->indentation_extra = 0;
         render_info->draw_indentation = 0;
+
+        if (render_info->visual_detail&VISUAL_DETAIL_WHITESPACED_COMPLETE) {
+          render_info->visual_detail |= VISUAL_DETAIL_WHITESPACED_START;
+        }
+
+        render_info->visual_detail |= VISUAL_DETAIL_NEWLINE;
+        render_info->visual_detail &= ~(VISUAL_DETAIL_WRAPPED|VISUAL_DETAIL_STOPPED_INDENTATION);
+
+        render_info->whitespaced = 0;
+        render_info->whitespace_scan = 0;
+        render_info->indented = 0;
+
+        render_info->line++;
+        render_info->lines++;
+        render_info->column = 0;
+        render_info->columns = 0;
+
+        for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
+          render_info->brackets_line[n].diff = 0;
+          render_info->brackets_line[n].min = 0;
+          render_info->brackets_line[n].max = 0;
+          render_info->depth_line[n] = render_info->depth_new[n];
+        }
       } else {
         render_info->draw_indentation = 1;
 
@@ -770,69 +787,46 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       render_info->xs = 0;
     }
 
-    if (cp==newline_cp1) {
-      if (render_info->visual_detail&VISUAL_DETAIL_WHITESPACED_COMPLETE) {
-        render_info->visual_detail |= VISUAL_DETAIL_WHITESPACED_START;
-      }
-
-      render_info->visual_detail |= VISUAL_DETAIL_NEWLINE;
-      render_info->visual_detail &= ~(VISUAL_DETAIL_WRAPPED|VISUAL_DETAIL_STOPPED_INDENTATION);
-
-      render_info->whitespaced = 0;
-      render_info->whitespace_scan = 0;
-      render_info->indented = 0;
-
-      render_info->line++;
-      render_info->lines++;
-      render_info->column = 0;
-      render_info->columns = 0;
-
-      for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
-        render_info->brackets_line[n].diff = 0;
-        render_info->brackets_line[n].min = 0;
-        render_info->brackets_line[n].max = 0;
-        render_info->depth_line[n] = render_info->depth_new[n];
-      }
-    }
-
     if (cp!='\t' && cp!=' ' && cp!=newline_cp2) {
       render_info->visual_detail &= ~VISUAL_DETAIL_WHITESPACED_COMPLETE;
     }
 
-    if (bracket_match&VISUAL_BRACKET_CLOSE) {
-      int bracket = bracket_match&VISUAL_BRACKET_MASK;
-      render_info->depth_new[bracket]--;
-      int min = render_info->depth_old[bracket]-render_info->depth_new[bracket];
-      if (min>render_info->brackets[bracket].min) {
-        render_info->brackets[bracket].min = min;
+    if (bracket_match>VISUAL_BRACKET_MASK) {
+      if (bracket_match&VISUAL_BRACKET_CLOSE) {
+        int bracket = bracket_match&VISUAL_BRACKET_MASK;
+        render_info->depth_new[bracket]--;
+        int min = render_info->depth_old[bracket]-render_info->depth_new[bracket];
+        if (min>render_info->brackets[bracket].min) {
+          render_info->brackets[bracket].min = min;
+        }
+
+        render_info->brackets[bracket].diff--;
+
+        int min_line = render_info->depth_line[bracket]-render_info->depth_new[bracket];
+        if (min_line>render_info->brackets_line[bracket].min) {
+          render_info->brackets_line[bracket].min = min_line;
+        }
+
+        render_info->brackets_line[bracket].diff--;
       }
 
-      render_info->brackets[bracket].diff--;
+      if (bracket_match&VISUAL_BRACKET_OPEN) {
+        int bracket = bracket_match&VISUAL_BRACKET_MASK;
+        render_info->depth_new[bracket]++;
+        int max = render_info->depth_new[bracket]-render_info->depth_old[bracket];
+        if (max>render_info->brackets[bracket].max) {
+          render_info->brackets[bracket].max = max;
+        }
 
-      int min_line = render_info->depth_line[bracket]-render_info->depth_new[bracket];
-      if (min_line>render_info->brackets_line[bracket].min) {
-        render_info->brackets_line[bracket].min = min_line;
+        render_info->brackets[bracket].diff++;
+
+        int max_line = render_info->depth_new[bracket]-render_info->depth_line[bracket];
+        if (max_line>render_info->brackets_line[bracket].max) {
+          render_info->brackets_line[bracket].max = max_line;
+        }
+
+        render_info->brackets_line[bracket].diff++;
       }
-
-      render_info->brackets_line[bracket].diff--;
-    }
-
-    if (bracket_match&VISUAL_BRACKET_OPEN) {
-      int bracket = bracket_match&VISUAL_BRACKET_MASK;
-      render_info->depth_new[bracket]++;
-      int max = render_info->depth_new[bracket]-render_info->depth_old[bracket];
-      if (max>render_info->brackets[bracket].max) {
-        render_info->brackets[bracket].max = max;
-      }
-
-      render_info->brackets[bracket].diff++;
-
-      int max_line = render_info->depth_new[bracket]-render_info->depth_line[bracket];
-      if (max_line>render_info->brackets_line[bracket].max) {
-        render_info->brackets_line[bracket].max = max_line;
-      }
-
-      render_info->brackets_line[bracket].diff++;
     }
 
     if (in->clip && render_info->buffer) {

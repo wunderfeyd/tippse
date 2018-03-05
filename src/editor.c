@@ -264,6 +264,8 @@ int editor_update_panel_height(struct editor* base, struct splitter* panel, int 
 
 // Refresh editor components
 void editor_draw(struct editor* base) {
+  screen_check(base->screen);
+
   if (base->focus==base->panel || base->focus==base->filter) {
     int filter_height = (base->focus==base->filter)?(editor_update_panel_height(base, base->filter, (base->screen->height/4)+1)):0;
     int panel_height = (base->screen->height/2)+1-filter_height-(filter_height>0?1:0);
@@ -277,7 +279,6 @@ void editor_draw(struct editor* base) {
     base->splitters->split = 0;
   }
 
-  screen_check(base->screen);
   splitter_draw_multiple(base->splitters, base->screen, 0);
 
   int foreground = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_STATUS];
@@ -347,7 +348,7 @@ void editor_tick(struct editor* base) {
     }
   }
 
-  if (base->splitters->timeout && base->splitters->timeout<tick) {
+  if ((base->splitters->timeout && base->splitters->timeout<tick) || screen_resized(base->screen)) {
     editor_draw(base);
   }
 
