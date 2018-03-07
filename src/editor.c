@@ -446,7 +446,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
       editor_view_menu(base, NULL, NULL);
       base->task_focus = base->menu_doc;
     } else {
-      editor_task_append(base, 0, TIPPSE_CMD_QUIT_FORCE, NULL, 0, 0, 0, 0, 0, 0, NULL);
+      editor_task_append(base, 1, TIPPSE_CMD_QUIT_FORCE, NULL, 0, 0, 0, 0, 0, 0, NULL);
     }
   } else if (command==TIPPSE_CMD_QUIT_FORCE) {
     base->close = 1;
@@ -1035,7 +1035,7 @@ void editor_view_browser(struct editor* base, const char* filename, struct strea
   if (!filter_stream) {
     editor_filter_clear(base);
     if (base->browser_preset && *base->browser_preset) {
-      base->filter_doc->buffer = range_tree_insert_split(base->filter_doc->buffer, range_tree_length(base->filter_doc->buffer), (uint8_t*)base->browser_preset, strlen(base->browser_preset), 0);
+      document_file_insert(base->filter_doc, 0, (uint8_t*)base->browser_preset, strlen(base->browser_preset));
       document_view_select_all(base->filter->view, base->filter->file);
       editor_focus(base, base->filter, 1);
     }
