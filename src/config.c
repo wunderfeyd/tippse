@@ -35,7 +35,7 @@ const char* config_default =
     "wrapping:1,"
     "invisibles:0,"
     "shell:{"
-      "compile:\"find / -iname \\\"*.*\\\"\","
+      "compile:\"./make.sh\","
     "},"
     "keys:{"
       "up:up,"

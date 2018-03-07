@@ -1402,7 +1402,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
         utf8[0] = '\t';
       }
 
-      document_file_insert(file, view->offset, &utf8[0], size);
+      document_file_insert(file, view->offset, &utf8[0], size, 0);
     } else {
       document_text_raise_indentation(base, splitter, selection_low, selection_high-1, 1);
     }
@@ -1502,11 +1502,11 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     document_select_delete(splitter);
 
     if (file->newline==TIPPSE_NEWLINE_CRLF) {
-      document_file_insert(file, view->offset, (uint8_t*)"\r\n", 2);
+      document_file_insert(file, view->offset, (uint8_t*)"\r\n", 2, 0);
     } else if (file->newline==TIPPSE_NEWLINE_CR) {
-      document_file_insert(file, view->offset, (uint8_t*)"\r", 1);
+      document_file_insert(file, view->offset, (uint8_t*)"\r", 1, 0);
     } else {
-      document_file_insert(file, view->offset, (uint8_t*)"\n", 1);
+      document_file_insert(file, view->offset, (uint8_t*)"\n", 1, 0);
     }
 
     // --- Begin test auto indentation ... opening bracket
@@ -1519,7 +1519,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     while (buffer && offset!=out.offset) {
       if (displacement>=buffer->length || !buffer->buffer) {
         if (displacement!=displacement_start) {
-          document_file_insert(file, view->offset, buffer->buffer->buffer+buffer->offset+displacement_start, displacement-displacement_start);
+          document_file_insert(file, view->offset, buffer->buffer->buffer+buffer->offset+displacement_start, displacement-displacement_start, 0);
         }
 
         // Brrr... reresearch next node since it could have been fused by the last insert
@@ -1538,7 +1538,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
 
     if (buffer && displacement!=displacement_start) {
-      document_file_insert(file, view->offset, buffer->buffer->buffer+buffer->offset+displacement_start, displacement-displacement_start);
+      document_file_insert(file, view->offset, buffer->buffer->buffer+buffer->offset+displacement_start, displacement-displacement_start, 0);
     }
 
     int diff = 0;
@@ -1565,7 +1565,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     document_select_delete(splitter);
     uint8_t coded[8];
     size_t size = file->encoding->encode(file->encoding, cp, &coded[0], 8);
-    document_file_insert(file, view->offset, &coded[0], size);
+    document_file_insert(file, view->offset, &coded[0], size, 0);
 
     // --- Begin test auto indentation ... closing bracket
     struct document_text_position out_bracket;
@@ -1876,7 +1876,7 @@ void document_text_raise_indentation(struct document* base, struct splitter* spl
 
     const uint8_t* text = buffer?buffer->buffer->buffer+buffer->offset+displacement:NULL;
     if (!buffer || (*text!='\r' && *text!='\n') || !empty_lines) {
-      document_file_insert(splitter->file, offset, &utf8[0], size);
+      document_file_insert(splitter->file, offset, &utf8[0], size, 0);
     }
 
     out_end.line--;
@@ -2180,7 +2180,7 @@ void document_text_transform(struct document* base, struct trie* transformation,
     if (recode>512 || (!transform && recode>256)) {
       document_file_delete(file, recode_from, from-recode_from);
       document_file_reduce(&to, recode_from, from-recode_from);
-      document_file_insert(file, recode_from, &recoded[0], recode);
+      document_file_insert(file, recode_from, &recoded[0], recode, 0);
       document_file_expand(&to, recode_from, recode);
       recode = 0;
       seek = 1;
@@ -2209,6 +2209,6 @@ void document_text_transform(struct document* base, struct trie* transformation,
 
   if (recode>0) {
     document_file_delete(file, recode_from, from-recode_from);
-    document_file_insert(file, recode_from, &recoded[0], recode);
+    document_file_insert(file, recode_from, &recoded[0], recode, 0);
   }
 }

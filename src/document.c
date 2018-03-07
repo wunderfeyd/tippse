@@ -334,21 +334,21 @@ void document_directory(struct document_file* file, struct stream* filter_stream
 
   char** sort = merge_sort(sort1, sort2, files->count);
 
-  file->buffer = range_tree_delete(file->buffer, 0, range_tree_length(file->buffer), 0, file);
+  document_file_empty(file);
 
   if (predefined && *predefined) {
     char* combined = combine_path_file(file->filename, predefined);
-    file->buffer = range_tree_insert_split(file->buffer, range_tree_length(file->buffer), (uint8_t*)predefined, strlen(predefined), TIPPSE_INSERTER_NOFUSE|document_directory_highlight(combined));
+    document_file_insert(file, range_tree_length(file->buffer), (uint8_t*)predefined, strlen(predefined), TIPPSE_INSERTER_NOFUSE|document_directory_highlight(combined));
     free(combined);
   }
 
   for (size_t n = 0; n<files->count; n++) {
     if (file->buffer) {
-      file->buffer = range_tree_insert_split(file->buffer, range_tree_length(file->buffer), (uint8_t*)"\n", 1, TIPPSE_INSERTER_NOFUSE);
+      document_file_insert(file, range_tree_length(file->buffer), (uint8_t*)"\n", 1, TIPPSE_INSERTER_NOFUSE);
     }
 
     char* combined = combine_path_file(file->filename, sort[n]);
-    file->buffer = range_tree_insert_split(file->buffer, range_tree_length(file->buffer), (uint8_t*)sort[n], strlen(sort[n]), TIPPSE_INSERTER_NOFUSE|document_directory_highlight(combined));
+    document_file_insert(file, range_tree_length(file->buffer), (uint8_t*)sort[n], strlen(sort[n]), TIPPSE_INSERTER_NOFUSE|document_directory_highlight(combined));
     free(combined);
     free(sort[n]);
   }

@@ -604,13 +604,13 @@ void document_file_expand_all(struct document_file* base, file_offset_t offset, 
   }
 }
 
-void document_file_insert(struct document_file* base, file_offset_t offset, const uint8_t* text, size_t length) {
+void document_file_insert(struct document_file* base, file_offset_t offset, const uint8_t* text, size_t length, int inserter) {
   if (base->buffer && offset>base->buffer->length) {
     return;
   }
 
   file_offset_t old_length = range_tree_length(base->buffer);
-  base->buffer = range_tree_insert_split(base->buffer, offset, text, length, 0);
+  base->buffer = range_tree_insert_split(base->buffer, offset, text, length, inserter);
   length = range_tree_length(base->buffer)-old_length;
   if (length<=0) {
     return;
@@ -681,6 +681,11 @@ void document_file_delete(struct document_file* base, file_offset_t offset, file
 
   document_file_reduce_all(base, offset, length);
   document_undo_empty(base, base->redos);
+}
+
+// Clear file contents
+void document_file_empty(struct document_file* base) {
+  document_file_delete(base, 0, range_tree_length(base->buffer));
 }
 
 // Move offsets from ne range into another

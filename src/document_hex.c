@@ -289,21 +289,21 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   } else if (command==TIPPSE_CMD_RETURN) {
     uint8_t text = file->binary?0:32;
     document_select_delete(splitter);
-    document_file_insert(file, view->offset, &text, 1);
+    document_file_insert(file, view->offset, &text, 1, 0);
     view->offset--;
   }
 
   if (command==TIPPSE_CMD_CHARACTER && ((cp>='0' && cp<='9') || (cp>='a' && cp<='f') || (cp>='A' && cp<='F'))) {
     if (document->cp_first!=0) {
       uint8_t text = (uint8_t)((document_hex_value(document->cp_first)<<4)+document_hex_value(cp));
-      document_file_insert(file, view->offset, &text, 1);
+      document_file_insert(file, view->offset, &text, 1, 0);
       document_file_delete(file, view->offset, 1);
       document->cp_first = 0;
     } else {
       if (selection_low!=FILE_OFFSET_T_MAX) {
         uint8_t text = file->binary?0:32;
         document_select_delete(splitter);
-        document_file_insert(file, view->offset, &text, 1);
+        document_file_insert(file, view->offset, &text, 1, 0);
         view->offset--;
       }
       document->cp_first = cp;

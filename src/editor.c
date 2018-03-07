@@ -122,7 +122,7 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"quitsave", TIPPSE_CMD_QUIT_SAVE, "Save and quit"},
   {"saveforce", TIPPSE_CMD_SAVE_FORCE, "Save file contents regardless its current working state"},
   {"null", TIPPSE_CMD_NULL, "Nothing"},
-  {"saveask", TIPPSE_CMD_SAVE_ASK, "Request user interaction if file was modified ans is going to be saved"},
+  {"saveask", TIPPSE_CMD_SAVE_ASK, "Request user interaction if file was modified and is going to be saved"},
   {NULL, 0, ""}
 };
 
@@ -1035,7 +1035,7 @@ void editor_view_browser(struct editor* base, const char* filename, struct strea
   if (!filter_stream) {
     editor_filter_clear(base);
     if (base->browser_preset && *base->browser_preset) {
-      document_file_insert(base->filter_doc, 0, (uint8_t*)base->browser_preset, strlen(base->browser_preset));
+      document_file_insert(base->filter_doc, 0, (uint8_t*)base->browser_preset, strlen(base->browser_preset), 0);
       document_view_select_all(base->filter->view, base->filter->file);
       editor_focus(base, base->filter, 1);
     }
@@ -1065,7 +1065,7 @@ void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct 
 
   struct search* search = filter_stream?search_create_plain(1, 0, *filter_stream, filter_encoding, base->tabs_doc->encoding):NULL;
 
-  base->tabs_doc->buffer = range_tree_delete(base->tabs_doc->buffer, 0, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, 0, base->tabs_doc);
+  document_file_empty(base->tabs_doc);
   struct list_node* doc = base->documents->first;
   while (doc) {
     struct document_file* file = *(struct document_file**)list_object(doc);
@@ -1073,11 +1073,11 @@ void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct 
     stream_from_plain(&text_stream, (uint8_t*)file->filename, strlen(file->filename));
     if (file->save && (!search || search_find(search, &text_stream, NULL))) {
       if (base->tabs_doc->buffer) {
-        base->tabs_doc->buffer = range_tree_insert_split(base->tabs_doc->buffer, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, (uint8_t*)"\n", 1, 0);
+        document_file_insert(base->tabs_doc, range_tree_length(base->tabs_doc->buffer), (uint8_t*)"\n", 1, TIPPSE_INSERTER_NOFUSE);
       }
 
       int highlight = document_undo_modified(file)?TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_MODIFIED<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT):0;
-      base->tabs_doc->buffer = range_tree_insert_split(base->tabs_doc->buffer, base->tabs_doc->buffer?base->tabs_doc->buffer->length:0, (uint8_t*)file->filename, strlen(file->filename), TIPPSE_INSERTER_NOFUSE|highlight);
+      document_file_insert(base->tabs_doc, range_tree_length(base->tabs_doc->buffer), (uint8_t*)file->filename, strlen(file->filename), TIPPSE_INSERTER_NOFUSE|highlight);
     }
 
     doc = doc->next;
@@ -1105,7 +1105,7 @@ void editor_view_commands(struct editor* base, struct stream* filter_stream, str
 
   struct search* search = filter_stream?search_create_plain(1, 0, *filter_stream, filter_encoding, base->tabs_doc->encoding):NULL;
 
-  base->commands_doc->buffer = range_tree_delete(base->commands_doc->buffer, 0, base->commands_doc->buffer?base->commands_doc->buffer->length:0, 0, base->commands_doc);
+  document_file_empty(base->commands_doc);
   for (size_t n = 1; editor_commands[n].text; n++) {
     char output[4096];
     // TODO: Encoding may destroy equal width ... build string in a different way
@@ -1115,10 +1115,10 @@ void editor_view_commands(struct editor* base, struct stream* filter_stream, str
     stream_from_plain(&text_stream, (uint8_t*)&output[0], strlen(&output[0]));
     if (!search || search_find(search, &text_stream, NULL)) {
       if (base->commands_doc->buffer) {
-        base->commands_doc->buffer = range_tree_insert_split(base->commands_doc->buffer, base->commands_doc->buffer?base->commands_doc->buffer->length:0, (uint8_t*)"\n", 1, 0);
+        document_file_insert(base->commands_doc, range_tree_length(base->commands_doc->buffer), (uint8_t*)"\n", 1, 0);
       }
 
-      base->commands_doc->buffer = range_tree_insert_split(base->commands_doc->buffer, base->commands_doc->buffer?base->commands_doc->buffer->length:0, (uint8_t*)&output[0], strlen(&output[0]), 0);
+      document_file_insert(base->commands_doc, range_tree_length(base->commands_doc->buffer), (uint8_t*)&output[0], strlen(&output[0]), 0);
     }
   }
 
@@ -1144,8 +1144,7 @@ void editor_view_menu(struct editor* base, struct stream* filter_stream, struct 
 
   struct search* search = filter_stream?search_create_plain(1, 0, *filter_stream, filter_encoding, base->tabs_doc->encoding):NULL;
 
-  base->menu_doc->buffer = range_tree_delete(base->menu_doc->buffer, 0, base->menu_doc->buffer?base->menu_doc->buffer->length:0, 0, base->menu_doc);
-
+  document_file_empty(base->menu_doc);
   struct list_node* it = base->menu->first;
   while (it) {
     struct editor_menu* entry = (struct editor_menu*)list_object(it);
@@ -1154,10 +1153,10 @@ void editor_view_menu(struct editor* base, struct stream* filter_stream, struct 
     stream_from_plain(&text_stream, (uint8_t*)entry->title, strlen(entry->title));
     if (!search || search_find(search, &text_stream, NULL)) {
       if (base->menu_doc->buffer) {
-        base->menu_doc->buffer = range_tree_insert_split(base->menu_doc->buffer, base->menu_doc->buffer?base->menu_doc->buffer->length:0, (uint8_t*)"\n", 1, 0);
+        document_file_insert(base->menu_doc, range_tree_length(base->menu_doc->buffer), (uint8_t*)"\n", 1, 0);
       }
 
-      base->menu_doc->buffer = range_tree_insert_split(base->menu_doc->buffer, base->menu_doc->buffer?base->menu_doc->buffer->length:0, (uint8_t*)entry->title, strlen(entry->title), 0);
+      document_file_insert(base->menu_doc, range_tree_length(base->menu_doc->buffer), (uint8_t*)entry->title, strlen(entry->title), 0);
     }
 
     it = it->next;
@@ -1256,8 +1255,8 @@ void editor_console_update(struct editor* base, const char* text, size_t length,
   base->console_text = strndup(text, length);
   base->console_color = VISUAL_FLAG_COLOR_CONSOLENORMAL+type;
 
-  base->console_doc->buffer = range_tree_insert_split(base->console_doc->buffer, base->console_doc->buffer?base->console_doc->buffer->length:0, (uint8_t*)text, length, TIPPSE_INSERTER_HIGHLIGHT|(base->console_color<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT));
-  base->console_doc->buffer = range_tree_insert_split(base->console_doc->buffer, base->console_doc->buffer?base->console_doc->buffer->length:0, (uint8_t*)"\n", 1, 0);
+  document_file_insert(base->console_doc, range_tree_length(base->console_doc->buffer), (uint8_t*)text, length, TIPPSE_INSERTER_HIGHLIGHT|(base->console_color<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT));
+  document_file_insert(base->console_doc, range_tree_length(base->console_doc->buffer), (uint8_t*)"\n", 1, 0);
   base->console_index++;
 }
 
@@ -1281,9 +1280,7 @@ void editor_search(struct editor* base) {
 
 // Empty filter text
 void editor_filter_clear(struct editor* base) {
-  if (base->filter_doc->buffer) {
-    document_file_delete(base->filter_doc, 0, base->filter_doc->buffer->length);
-  }
+  document_file_empty(base->filter_doc);
 }
 
 // Destroy task contents
