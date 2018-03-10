@@ -293,7 +293,7 @@ void document_search_directory(const char* path, struct range_tree_node* search_
 inline int document_directory_highlight(const char* path) {
   if (is_directory(path)) {
     return TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_DIRECTORY<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT);
-  } else if (access(path, F_OK)==-1) {
+  } else if (!is_file(path)) {
     return TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_REMOVED<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT);
   }
   return 0;

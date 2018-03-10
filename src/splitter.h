@@ -2,6 +2,7 @@
 #define TIPPSE_SPLITTER_H
 
 #include <stdlib.h>
+#include "types.h"
 
 struct document_file;
 struct document_view;

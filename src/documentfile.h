@@ -3,12 +3,16 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#ifdef _WINDOWS
+#include <windows.h>
+#else
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <unistd.h>
 #include <signal.h>
+#endif
 
 struct document_file;
 struct document_view;
@@ -88,8 +92,10 @@ struct document_file {
   struct trie* autocomplete_build;      // auto complete build tree
   int autocomplete_rescan;              // file was changed rescan entire document
 
+#ifndef _WINDOWS
   int pipefd[2];                        // Pipe to child process
   pid_t pid;                            // Child process id
+#endif
 };
 
 #include "misc.h"

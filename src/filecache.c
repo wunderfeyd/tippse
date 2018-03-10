@@ -6,7 +6,7 @@
 struct file_cache* file_cache_create(const char* filename) {
   struct file_cache* base = malloc(sizeof(struct file_cache));
   base->filename = strdup(filename);
-  base->fd = open(base->filename, O_RDONLY);
+  base->fd = file_create(base->filename, TIPPSE_FILE_READ);
   base->count = 1;
   base->left = FILE_CACHE_NODES;
   base->allocated = FILE_CACHE_NODES;
@@ -16,9 +16,11 @@ struct file_cache* file_cache_create(const char* filename) {
     base->ranged[n] = NULL;
   }
 
-  struct stat info;
-  fstat(base->fd, &info);
-  base->modification_time = info.st_mtime;
+  if (base->fd) {
+    struct stat info;
+    fstat(base->fd->fd, &info);
+    base->modification_time = info.st_mtime;
+  }
   return base;
 }
 
@@ -36,7 +38,9 @@ void file_cache_dereference(struct file_cache* base) {
       free(base->nodes[count]);
     }
 
-    close(base->fd);
+    if (base->fd) {
+      file_destroy(base->fd);
+    }
     free(base->filename);
     free(base);
   }
@@ -130,14 +134,9 @@ uint8_t* file_cache_use_node(struct file_cache* base, struct file_cache_node** r
     node->offset = offset;
     node->length = length;
 
-    if (base->fd!=-1) {
-      lseek(base->fd, (off_t)node->offset, SEEK_SET);
-      ssize_t in = read(base->fd, &node->buffer[0], node->length);
-      if (in>0) {
-        node->length = (size_t)in;
-      } else {
-        node->length = 0;
-      }
+    if (base->fd) {
+      file_seek(base->fd, node->offset, TIPPSE_SEEK_START);
+      node->length = file_read(base->fd, &node->buffer[0], node->length);
     } else {
       node->length = 0;
     }

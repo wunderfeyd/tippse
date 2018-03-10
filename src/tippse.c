@@ -4,6 +4,9 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#ifdef _WINDOWS
+#include <windows.h>
+#else
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,6 +14,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
+#endif
 
 #include "screen.h"
 #include "encoding/utf8.h"

@@ -233,21 +233,20 @@ void document_file_close_pipe(struct document_file* base) {
 void document_file_load(struct document_file* base, const char* filename, int reload, int reset) {
   document_file_clear(base, !reload);
   if (!is_directory(filename)) {
-    int f = open(filename, O_RDONLY);
-    if (f!=-1) {
+    struct file* f = file_create(filename, TIPPSE_FILE_READ);
+    if (f) {
       base->cache = file_cache_create(filename);
       document_file_reference_cache(base, base->cache);
 
-      file_offset_t length = (file_offset_t)lseek(f, 0, SEEK_END);
-      lseek(f, 0, SEEK_SET);
+      file_offset_t length = file_seek(f, 0, TIPPSE_SEEK_END);
+      file_seek(f, 0, TIPPSE_SEEK_START);
       file_offset_t offset = 0;
       while (1) {
         file_offset_t block = 0;
         struct fragment* fragment = NULL;
         if (length<TIPPSE_DOCUMENT_MEMORY_LOADMAX) {
           uint8_t* copy = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MAX);
-          ssize_t in = read(f, copy, TREE_BLOCK_LENGTH_MAX);
-          block = (file_offset_t)((in>=0)?in:0);
+          block = (file_offset_t)file_read(f, copy, TREE_BLOCK_LENGTH_MAX);
           fragment = fragment_create_memory(copy, (size_t)block);
         } else {
           block = length-offset;
@@ -268,7 +267,7 @@ void document_file_load(struct document_file* base, const char* filename, int re
         offset += block;
       }
 
-      close(f);
+      file_destroy(f);
     }
   }
 
@@ -315,8 +314,8 @@ void document_file_load_memory(struct document_file* base, const uint8_t* buffer
 
 // Save file directly to file system
 int document_file_save_plain(struct document_file* base, const char* filename) {
-  int f = open(filename, O_RDWR|O_CREAT|O_TRUNC, 0644);
-  if (f==-1) {
+  struct file* f = file_create(filename, TIPPSE_FILE_READ|TIPPSE_FILE_WRITE|TIPPSE_FILE_CREATE|TIPPSE_FILE_TRUNCATE);
+  if (!f) {
     return 0;
   }
 
@@ -324,14 +323,14 @@ int document_file_save_plain(struct document_file* base, const char* filename) {
     struct range_tree_node* buffer = range_tree_first(base->buffer);
     while (buffer) {
       fragment_cache(buffer->buffer);
-      if (write(f, buffer->buffer->buffer+buffer->offset, buffer->length)!=(ssize_t)buffer->length) {
+      if (file_write(f, buffer->buffer->buffer+buffer->offset, buffer->length)!=buffer->length) {
         return 0;
       }
       buffer = range_tree_next(buffer);
     }
   }
 
-  close(f);
+  file_destroy(f);
   document_undo_mark_save_point(base);
   return 1;
 }

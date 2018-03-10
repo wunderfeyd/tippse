@@ -5,7 +5,19 @@ struct screen_char;
 struct screen;
 struct encoding;
 
+#include <stdlib.h>
+#ifdef _WINDOWS
+#include <windows.h>
+#else
 #include <termios.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <termios.h>
+#include <unistd.h>
+#endif
 #include "types.h"
 
 // Single display character (usally fits into a terminal character cell)
@@ -26,7 +38,10 @@ struct screen {
   struct screen_char* visible;      // Buffer that holds the screen as it is currently presented
   char* title;                      // Console window title
   char* title_new;                  // Title update
+#ifdef _WINDOWS
+#else
   struct termios termios_original;  // Termios structure for change detection
+#endif
   struct encoding* encoding;        // Terminal encoding
 };
 

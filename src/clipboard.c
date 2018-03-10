@@ -51,8 +51,8 @@ void clipboard_command_set(struct range_tree_node* data, int binary, const char*
   }
 }
 
-#ifdef _WIN32
-void clipboard_windows_set(struct range_tree_node* data, int binary, const char* command) {
+#ifdef _WINDOWS
+void clipboard_windows_set(struct range_tree_node* data, int binary) {
   //TODO: implement clipboard for Windows
 }
 #endif
@@ -123,7 +123,7 @@ struct range_tree_node* clipboard_command_get(const char* command) {
   return data;
 }
 
-#ifdef _WIN32
+#ifdef _WINDOWS
 struct range_tree_node* clipboard_windows_get(void) {
   //TODO: implement clipboard for Windows
   return NULL;

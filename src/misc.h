@@ -4,7 +4,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdio.h>
+#ifdef _WINDOWS
+#include <windows.h>
+#else
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -13,15 +15,13 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <pwd.h>
+#endif
 #include "types.h"
 #include "encoding.h"
 #include "encoding/native.h"
 #include "unicode.h"
-
-struct directory {
-  DIR* dir;             // directory stream
-  struct dirent* entry; // last read directory entry
-};
+#include "directory.h"
+#include "file.h"
 
 char** merge_sort(char** sort1, char** sort2, size_t count);
 
@@ -33,6 +33,7 @@ char* correct_path(const char* path);
 char* relativate_path(const char* base, const char* path);
 char* home_path(void);
 int is_directory(const char* path);
+int is_file(const char* path);
 
 int64_t tick_count(void);
 int64_t tick_ms(int64_t ms);

@@ -216,7 +216,7 @@ char* home_path(void) {
   return strdup("");
 }
 
-// Check if directory
+// Check for directory
 int is_directory(const char* path) {
   struct stat statbuf;
   if (stat(path, &statbuf)!=0) {
@@ -224,6 +224,16 @@ int is_directory(const char* path) {
   }
 
   return S_ISDIR(statbuf.st_mode);
+}
+
+// Check for file
+int is_file(const char* path) {
+  struct stat statbuf;
+  if (stat(path, &statbuf)!=0) {
+    return 0;
+  }
+
+  return !S_ISDIR(statbuf.st_mode);
 }
 
 // Return tick counter (microseconds)
@@ -309,33 +319,4 @@ int64_t decode_based_signed_offset(struct encoding_cache* cache, int base, size_
 int64_t decode_based_signed(struct encoding_cache* cache, int base, size_t count) {
   size_t offset = 0;
   return decode_based_signed_offset(cache, base, &offset, count);
-}
-
-// Build directory stream
-struct directory* directory_create(const char* path) {
-  struct directory* base = malloc(sizeof(struct directory));
-  base->dir = opendir(path);
-  return base;
-}
-
-// Get name of next directory entry
-const char* directory_next(struct directory* base) {
-  if (!base->dir) {
-    return NULL;
-  }
-
-  base->entry = readdir(base->dir);
-  if (!base->entry) {
-    return NULL;
-  }
-
-  return &base->entry->d_name[0];
-}
-
-// Close directory stream
-void directory_destroy(struct directory* base) {
-  if (base->dir) {
-    closedir(base->dir);
-  }
-  free(base);
 }

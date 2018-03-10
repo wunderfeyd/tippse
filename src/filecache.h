@@ -3,11 +3,15 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#ifdef _WINDOWS
+#include <windows.h>
+#else
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <unistd.h>
+#endif
 #include "types.h"
 
 struct file_cache;
@@ -17,6 +21,7 @@ struct file_cache_node;
 #define FILE_CACHE_NODES (((1024*1024)/TREE_BLOCK_LENGTH_MAX)+1)
 
 #include "rangetree.h"
+#include "file.h"
 
 struct file_cache_node {
   uint8_t buffer[TREE_BLOCK_LENGTH_MAX];    // buffer
@@ -29,7 +34,7 @@ struct file_cache_node {
 
 struct file_cache {
   char* filename;                           // name of file
-  int fd;                                   // file descriptor
+  struct file* fd;                          // file descriptor
   int count;                                // reference counter
   time_t modification_time;                 // modification time of file during load
 
