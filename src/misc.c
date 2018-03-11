@@ -203,6 +203,12 @@ char* relativate_path(const char* base, const char* path) {
 
 // Return user's home directory
 char* home_path(void) {
+#ifdef _WINDOWS
+  char result[MAX_PATH];
+  SHGetFolderPath(NULL, CSIDL_COMMON_APPDATA, NULL, SHGFP_TYPE_CURRENT, &result[0]);
+  convert_internal_path(&result[0]);
+  return strdup(&result[0]);
+#else
   char* env = getenv("HOME");
   if (env) {
     return strdup(env);
@@ -214,33 +220,49 @@ char* home_path(void) {
   }
 
   return strdup("");
+#endif
 }
 
 // Check for directory
 int is_directory(const char* path) {
+#ifdef _WINDOWS
+  DWORD attributes = GetFileAttributes(path);
+  return (attributes!=INVALID_FILE_ATTRIBUTES && (attributes&FILE_ATTRIBUTE_DIRECTORY))?1:0;
+#else
   struct stat statbuf;
   if (stat(path, &statbuf)!=0) {
     return 0;
   }
 
   return S_ISDIR(statbuf.st_mode);
+#endif
 }
 
 // Check for file
 int is_file(const char* path) {
+#ifdef _WINDOWS
+  DWORD attributes = GetFileAttributes(path);
+  return (attributes!=INVALID_FILE_ATTRIBUTES && !(attributes&FILE_ATTRIBUTE_DIRECTORY))?1:0;
+#else
   struct stat statbuf;
   if (stat(path, &statbuf)!=0) {
     return 0;
   }
 
   return !S_ISDIR(statbuf.st_mode);
+#endif
 }
 
 // Return tick counter (microseconds)
 int64_t tick_count(void) {
+#ifdef _WINDOWS
+  // TODO: Check for wrapped counter
+  return (int64_t)GetTickCount()*(int64_t)1000;
+#else
   struct timeval t;
   gettimeofday(&t, NULL);
   return (int64_t)t.tv_sec*1000000+(int64_t)t.tv_usec;
+#endif
 }
 
 // Return tick count from milliseconds
@@ -320,3 +342,30 @@ int64_t decode_based_signed(struct encoding_cache* cache, int base, size_t count
   size_t offset = 0;
   return decode_based_signed_offset(cache, base, &offset, count);
 }
+
+#ifdef _WINDOWS
+// Return real path to specified folder/file
+char* realpath(const char* path, char* resolved_path) {
+  char result[MAX_PATH];
+  GetFullPathName(path, MAX_PATH, result, NULL);
+  convert_internal_path(&result[0]);
+  return strdup(&result[0]);
+}
+
+// Replace directory backslashes into internal reprensentation
+void convert_internal_path(char* path) {
+  for (size_t n = 0; path[n]!=0; n++) {
+    if (path[n]=='\\') {
+      path[n] = '/';
+    }
+  }
+}
+
+// Duplicate a string with given length and terminate with NUL
+char* strndup(const char* src, size_t length) {
+  char* dst = malloc(sizeof(char)*(length+1));
+  memcpy(dst, src, length);
+  dst[length] = '\0';
+  return dst;
+}
+#endif

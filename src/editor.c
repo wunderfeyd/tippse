@@ -289,11 +289,13 @@ void editor_draw(struct editor* base) {
   }
 
   int running = 0;
+#ifndef _WINDOWS
   struct list_node* docs = base->documents->first;
   while (docs && !running) {
     running |= ((*(struct document_file**)list_object(docs))->pipefd[0]!=-1)?1:0;
     docs = docs->next;
   }
+#endif
 
   int x = 0;
   if (running) {
@@ -465,6 +467,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     editor_focus(base, base->document, 1);
     document_search(base->last_document, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 1, base->search_ignore_case, base->search_regex, 1, 0);
   } else if (command==TIPPSE_CMD_SEARCH_DIRECTORY) {
+#ifndef _WINDOWS
     if (base->document->file->pipefd[1]==-1 && base->document->file==base->search_results_doc) {
       document_file_create_pipe(base->document->file);
       if (base->document->file->pid==0) {
@@ -474,6 +477,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     } else {
       splitter_assign_document_file(base->document, base->search_results_doc);
     }
+#endif
   } else if (command==TIPPSE_CMD_REPLACE) {
     editor_panel_assign(base, base->replace_doc);
     document_select_all(base->panel, 1);
@@ -554,6 +558,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
   } else if (command==TIPPSE_CMD_SAVEALL) {
     editor_save_documents(base, TIPPSE_CMD_SAVE);
   } else if (command==TIPPSE_CMD_SHELL) {
+#ifndef _WINDOWS
     if (base->document->file->pipefd[1]==-1 && base->document->file==base->compiler_doc) {
       if (arguments && arguments->length>1) {
         struct trie_node* parent = config_find_ascii(base->focus->file->config, "/shell/");
@@ -573,6 +578,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     } else {
       splitter_assign_document_file(base->document, base->compiler_doc);
     }
+#endif
   } else if (command==TIPPSE_CMD_SEARCH_MODE_TEXT) {
     base->search_regex = 0;
     editor_update_search_title(base);

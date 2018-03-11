@@ -39,6 +39,9 @@ struct screen {
   char* title;                      // Console window title
   char* title_new;                  // Title update
 #ifdef _WINDOWS
+  HWND window;                      // Main window handle
+  HFONT font;                       // Console font
+  
 #else
   struct termios termios_original;  // Termios structure for change detection
 #endif

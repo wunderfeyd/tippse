@@ -36,7 +36,11 @@ struct file_cache {
   char* filename;                           // name of file
   struct file* fd;                          // file descriptor
   int count;                                // reference counter
+#ifdef _WINDOWS
+  FILETIME modification_time;               // modification time of file during load
+#else
   time_t modification_time;                 // modification time of file during load
+#endif
 
   struct file_cache_node* nodes[FILE_CACHE_NODES]; // nodes pool
   struct file_cache_node* open[FILE_CACHE_NODES]; // nodes unused

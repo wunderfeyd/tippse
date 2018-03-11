@@ -17,9 +17,13 @@ struct file_cache* file_cache_create(const char* filename) {
   }
 
   if (base->fd) {
+#ifdef _WINDOWS
+    GetFileTime(base->fd->fd, NULL, NULL, &base->modification_time);
+#else
     struct stat info;
     fstat(base->fd->fd, &info);
     base->modification_time = info.st_mtime;
+#endif
   }
   return base;
 }
@@ -155,7 +159,13 @@ uint8_t* file_cache_use_node_ranged(struct file_cache* base, struct file_cache_n
 
 // The file was modified while it was open?
 int file_cache_modified(struct file_cache* base) {
+#ifdef _WINDOWS
+  FILETIME info;
+  GetFileTime(base->fd->fd, NULL, NULL, &info);
+  return memcmp(&base->modification_time, &info, sizeof(FILETIME))?1:0;
+#else
   struct stat info;
   stat(base->filename, &info);
   return (base->modification_time!=info.st_mtime)?1:0;
+#endif
 }

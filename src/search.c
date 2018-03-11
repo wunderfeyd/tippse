@@ -1710,12 +1710,12 @@ void search_test(void) {
     search_destroy(search);
   }*/
 
-  int f = open("enwik8", O_RDONLY);
-  if (f!=-1) {
+  struct file* f = file_create("enwik8", TIPPSE_FILE_READ);
+  if (f) {
     size_t length = 100*1000*1000;
     uint8_t* buffer = (uint8_t*)malloc(length);
-    UNUSED(read(f, buffer, length));
-    close(f);
+    UNUSED(file_read(f, buffer, length));
+    file_destroy(f);
 
     printf("hash search...\r\n");
     struct stream buffered;

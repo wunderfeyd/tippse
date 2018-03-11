@@ -64,6 +64,8 @@ struct screen* screen_create(void) {
   base->cursor_y = -1;
   base->resize_check = -1;
 
+#ifdef _WINDOWS
+#else
   tcgetattr(STDIN_FILENO, &base->termios_original);
 
   struct termios raw;
@@ -73,14 +75,17 @@ struct screen* screen_create(void) {
   UNUSED(signal(SIGWINCH, screen_size_changed));
 
   UNUSED(write(STDOUT_FILENO, screen_ansi_init, strlen(screen_ansi_init)));
-
+#endif
   return base;
 }
 
 // Destroy screen
 void screen_destroy(struct screen* base) {
+#ifdef _WINDOWS
+#else
   UNUSED(write(STDOUT_FILENO, screen_ansi_restore, strlen(screen_ansi_restore)));
   tcsetattr(STDIN_FILENO, TCSANOW, &base->termios_original);
+#endif
 
   free(base->title);
   free(base->title_new);
@@ -93,12 +98,19 @@ void screen_destroy(struct screen* base) {
 // Initialise screen
 void screen_check(struct screen* base) {
   base->resize_check = screen_resize_counter;
+  int width = 0;
+  int height = 0;
+#ifdef _WINDOWS
+#else
   struct winsize w;
   ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+  width = w.ws_col;
+  height = w.ws_row;
+#endif
 
-  if (base->width!=w.ws_col || base->height!=w.ws_row) {
-    base->width = w.ws_col;
-    base->height = w.ws_row;
+  if (base->width!=width || base->height!=height) {
+    base->width = width;
+    base->height = height;
     free(base->visible);
     free(base->buffer);
     base->buffer = (struct screen_char*)malloc(sizeof(struct screen_char)*(size_t)(base->width*base->height));
@@ -129,6 +141,8 @@ int screen_resized(struct screen* base) {
 
 // Update character widths with real terminal display width
 void screen_character_width_detect(struct screen* base) {
+#ifdef _WINDOWS
+#else
   codepoint_t cps = 0x10000;
   char* output = (char*)malloc((size_t)(24*cps));
   char* pos = output;
@@ -158,8 +172,10 @@ void screen_character_width_detect(struct screen* base) {
       }
     }
   }
+#endif
 }
 
+#ifndef _WINDOWS
 // Put char on backbuffer
 void screen_draw_char(struct screen* base, char** pos, int n, int* w, int* foreground_old, int* background_old) {
   if ((n/base->width)!=((*w)/base->width)) {
@@ -231,6 +247,7 @@ void screen_draw_update(struct screen* base, char** pos, int old, int n, int* w,
     }
   }
 }
+#endif
 
 // Set screen title
 void screen_title(struct screen* base, const char* title) {
@@ -249,6 +266,8 @@ void screen_cursor(struct screen* base, int x, int y) {
 
 // Output screen difference data
 void screen_draw(struct screen* base) {
+#ifdef _WINDOWS
+#else
   int foreground_old = -3;
   int background_old = -3;
   struct screen_char* c;
@@ -312,6 +331,7 @@ void screen_draw(struct screen* base) {
 
   UNUSED(write(STDOUT_FILENO, output, (size_t)(pos-output)));
   free(output);
+#endif
 }
 
 // Put text to a specific location

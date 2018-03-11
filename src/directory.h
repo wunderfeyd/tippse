@@ -23,4 +23,8 @@ struct directory {
 #endif
 };
 
+struct directory* directory_create(const char* path);
+const char* directory_next(struct directory* base);
+void directory_destroy(struct directory* base);
+
 #endif // #ifndef TIPPSE_DIRECTORY_H

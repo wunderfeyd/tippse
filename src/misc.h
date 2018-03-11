@@ -6,6 +6,7 @@
 #include <string.h>
 #ifdef _WINDOWS
 #include <windows.h>
+#include <shlobj.h>
 #else
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -44,8 +45,9 @@ uint64_t decode_based_unsigned(struct encoding_cache* cache, int base, size_t co
 int64_t decode_based_signed_offset(struct encoding_cache* cache, int base, size_t* offset, size_t count);
 int64_t decode_based_signed(struct encoding_cache* cache, int base, size_t count);
 
-struct directory* directory_create(const char* path);
-const char* directory_next(struct directory* base);
-void directory_destroy(struct directory* base);
-
+#ifdef _WINDOWS
+char* realpath(const char* path, char* resolved_path);
+void convert_internal_path(char* path);
+char* strndup(const char* src, size_t length);
+#endif
 #endif /* #ifndef TIPPSE_MISC_H */
