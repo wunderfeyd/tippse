@@ -17,6 +17,7 @@ struct tippse_window {
   HFONT font;               // console font
   uint8_t keystate[256];    // keyboard state of virtual keys
   HKL keyboard_layout;      // keyboard layout needed for translation (unused)
+  int mouse_buttons;        // Current mouse button state
 };
 
 void tippse_detect_keyboard_layout(struct tippse_window* base) {
@@ -28,6 +29,7 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
   if (message==WM_CREATE) {
     CREATESTRUCT* data = (CREATESTRUCT*)param2;
     base = (struct tippse_window*)data->lpCreateParams;
+    base->mouse_buttons = 0;
     base->font = CreateFont(16, 8, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_DONTCARE, /*"Lucida Console"*/"FixedSys");
     tippse_detect_keyboard_layout(base);
     memset(&base->keystate[0], 0, sizeof(base->keystate));
@@ -49,6 +51,30 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
     //TextOutA(ps.hdc, 0, 0, "Bla", 3);
     screen_draw(base->screen, ps.hdc, base->font, 8, 16);
     EndPaint(window, &ps);
+  } else if (message==WM_LBUTTONDOWN || message==WM_RBUTTONDOWN || message==WM_MBUTTONDOWN || message==WM_LBUTTONUP || message==WM_RBUTTONUP || message==WM_MBUTTONUP || message==WM_MOUSEMOVE) {
+    int mouse_buttons = 0;
+    if (param1&MK_LBUTTON) {
+      mouse_buttons |= TIPPSE_MOUSE_LBUTTON;
+    }
+    if (param1&MK_RBUTTON) {
+      mouse_buttons |= TIPPSE_MOUSE_RBUTTON;
+    }
+    if (param1&MK_MBUTTON) {
+      mouse_buttons |= TIPPSE_MOUSE_MBUTTON;
+    }
+
+    int key = TIPPSE_KEY_MOUSE;
+    if (param1&MK_CONTROL) {
+      key |= TIPPSE_KEY_MOD_CTRL;
+    }
+    if (param1&MK_SHIFT) {
+      key |= TIPPSE_KEY_MOD_SHIFT;
+    }
+
+
+    editor_keypress(base->editor, key, 0, mouse_buttons, base->mouse_buttons, (int)((int16_t)(param2&0xffff))/8, (int)((int16_t)(param2>>16))/16);
+    editor_draw(base->editor);
+    base->mouse_buttons = mouse_buttons;
   } else if (message==WM_KEYDOWN) {
     wchar_t output[256];
     int ret = ToUnicodeEx(param1, (param2>>16)&0xff, &base->keystate[0], &output[0], sizeof(output)/sizeof(wchar_t), 0, base->keyboard_layout);

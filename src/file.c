@@ -27,7 +27,6 @@ struct file* file_create(const char* path, int flags) {
   }
 
   HANDLE fd = CreateFile(path, access, share, NULL, creation, FILE_ATTRIBUTE_NORMAL, NULL);
-  printf("%p %p\r\n", fd, INVALID_HANDLE_VALUE);
   if (fd==INVALID_HANDLE_VALUE) {
     return NULL;
   }
