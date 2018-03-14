@@ -6,7 +6,9 @@
 struct directory* directory_create(const char* path) {
   struct directory* base = malloc(sizeof(struct directory));
 #ifdef _WINDOWS
-  base->dir = FindFirstFileA(path, &base->entry);
+  char* path_file = combine_string(path, "/*.*");
+  base->dir = FindFirstFileA(path_file, &base->entry);
+  free(path_file);
   base->next = 0;
 #else
   base->dir = opendir(path);

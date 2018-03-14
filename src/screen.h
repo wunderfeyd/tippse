@@ -28,6 +28,12 @@ struct screen_char {
   int background;             // Background color
 };
 
+struct screen_rgb {
+  uint8_t r;                  // red channel intensity
+  uint8_t g;                  // green channel intensity
+  uint8_t b;                  // blue channel intensity
+};
+
 struct screen {
   int width;                        // Screen size x direction
   int height;                       // Screen size y direction
@@ -39,9 +45,7 @@ struct screen {
   char* title;                      // Console window title
   char* title_new;                  // Title update
 #ifdef _WINDOWS
-  HWND window;                      // Main window handle
-  HFONT font;                       // Console font
-  
+  HWND window;                      // window to draw to
 #else
   struct termios termios_original;  // Termios structure for change detection
 #endif
@@ -51,6 +55,7 @@ struct screen {
 #include "encoding/utf8.h"
 #include "encoding/cp850.h"
 #include "encoding/ascii.h"
+#include "encoding/utf16le.h"
 #include "config.h"
 
 void screen_destroy(struct screen* base);
@@ -62,7 +67,12 @@ void screen_draw_char(struct screen* base, char** pos, int n, int* w, int* foreg
 void screen_draw_update(struct screen* base, char** pos, int old, int n, int* w, int* foreground_old, int* background_old);
 void screen_title(struct screen* base, const char* title);
 void screen_cursor(struct screen* base, int x, int y);
+#ifdef _WINDOWS
+void screen_draw(struct screen* base, HDC context, HFONT font, int font_x, int font_y);
+#else
 void screen_draw(struct screen* base);
+#endif
+void screen_update(struct screen* base);
 void screen_drawtext(const struct screen* base, int x, int y, int clip_x, int clip_y, int clip_width, int clip_height, const char* text, size_t length, int foreground, int background);
 codepoint_t screen_getchar(const struct screen* base, int x, int y);
 void screen_setchar(const struct screen* base, int x, int y, int clip_x, int clip_y, int clip_width, int clip_height, codepoint_t* codepoints, size_t length, int foreground, int background);

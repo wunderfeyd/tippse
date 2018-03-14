@@ -44,6 +44,28 @@ struct config_cache screen_color_codes[] = {
   {NULL, 0, NULL}
 };
 
+// rgb colors for index colors - TODO: copy this into the config
+struct screen_rgb rgb_index[] = {
+  {0, 0, 0},
+  {255, 255, 255},
+  {0, 0, 0},
+  {128, 0, 0},
+  {0, 128, 0},
+  {128, 128, 0},
+  {0, 0, 128},
+  {128, 0, 128},
+  {0, 128, 128},
+  {192, 192, 192},
+  {128, 128, 128},
+  {255, 0, 0},
+  {0, 255, 0},
+  {255, 255, 0},
+  {0, 0, 255},
+  {255, 0, 255},
+  {0, 255, 255},
+  {255, 255, 255}
+};
+
 // Screen resize signal bound in screen_create
 static int screen_resize_counter = 0;
 void screen_size_changed(int signal) {
@@ -53,7 +75,6 @@ void screen_size_changed(int signal) {
 // Create screen
 struct screen* screen_create(void) {
   struct screen* base = (struct screen*)malloc(sizeof(struct screen));
-  base->encoding = encoding_utf8_create();
   base->width = 0;
   base->height = 0;
   base->buffer = NULL;
@@ -65,7 +86,10 @@ struct screen* screen_create(void) {
   base->resize_check = -1;
 
 #ifdef _WINDOWS
+  base->encoding = encoding_utf16le_create();
 #else
+  base->encoding = encoding_utf8_create();
+
   tcgetattr(STDIN_FILENO, &base->termios_original);
 
   struct termios raw;
@@ -101,6 +125,10 @@ void screen_check(struct screen* base) {
   int width = 0;
   int height = 0;
 #ifdef _WINDOWS
+  RECT r;
+  GetClientRect(base->window, &r);
+  width = (r.right-r.left)/8;
+  height = (r.bottom-r.top)/16;
 #else
   struct winsize w;
   ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
@@ -264,10 +292,35 @@ void screen_cursor(struct screen* base, int x, int y) {
   base->cursor_y = y;
 }
 
+#ifdef _WINDOWS
+// Output screen
+void screen_draw(struct screen* base, HDC context, HFONT font, int font_x, int font_y) {
+  int n = 0;
+  for (int y = 0; y<base->height; y++) {
+    for (int x = 0; x<base->width; x++) {
+      struct screen_char* c = &base->buffer[n++];
+
+      wchar_t codes[16];
+      uint8_t* pos = (uint8_t*)&codes[0];
+      for (size_t copy = 0; copy<c->length; copy++) {
+        pos += (*base->encoding->encode)(NULL, c->codepoints[copy], pos, SIZE_T_MAX);
+      }
+
+      struct screen_rgb* foreground = &rgb_index[c->foreground+2];
+      struct screen_rgb* background = &rgb_index[c->background+2];
+      if (x==base->cursor_x && y==base->cursor_y) {
+        foreground = &rgb_index[c->background+2];
+        background = &rgb_index[c->foreground+2];
+      }
+      SetTextColor(context, RGB(foreground->r, foreground->g, foreground->b));
+      SetBkColor(context, RGB(background->r, background->g, background->b));
+      TextOutW(context, x*font_x, y*font_y, &codes[0], (pos-(uint8_t*)&codes[0])/(int)sizeof(wchar_t));
+    }
+  }
+}
+#else
 // Output screen difference data
 void screen_draw(struct screen* base) {
-#ifdef _WINDOWS
-#else
   int foreground_old = -3;
   int background_old = -3;
   struct screen_char* c;
@@ -331,6 +384,16 @@ void screen_draw(struct screen* base) {
 
   UNUSED(write(STDOUT_FILENO, output, (size_t)(pos-output)));
   free(output);
+}
+#endif
+
+void screen_update(struct screen* base) {
+#ifdef _WINDOWS
+  RECT r;
+  GetClientRect(base->window, &r);
+  InvalidateRect(base->window, &r, FALSE);
+#else
+  screen_draw(base);
 #endif
 }
 

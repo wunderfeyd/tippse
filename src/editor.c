@@ -334,7 +334,7 @@ void editor_draw(struct editor* base) {
   size_t length = encoding_strlen_based(NULL, encoding_utf8_decode, &stream);
   screen_drawtext(base->screen, base->screen->width-(int)length, 0, 0, 0, base->screen->width, base->screen->height, status, length, foreground, background);
 
-  screen_draw(base->screen);
+  screen_update(base->screen);
 }
 
 // Regular timer event (schedule processes)

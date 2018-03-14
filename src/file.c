@@ -11,17 +11,23 @@ struct file* file_create(const char* path, int flags) {
   }
   if (flags&TIPPSE_FILE_CREATE) {
     creation |= CREATE_ALWAYS;
+  } else {
+    creation |= OPEN_EXISTING;
   }
 
   DWORD access = 0;
+  DWORD share = 0;
   if (flags&TIPPSE_FILE_WRITE) {
-    access |= GENERIC_READ;
+    access |= GENERIC_WRITE;
+    share |= FILE_SHARE_WRITE;
   }
   if (flags&TIPPSE_FILE_READ) {
-    access |= GENERIC_WRITE;
+    access |= GENERIC_READ;
+    share |= FILE_SHARE_READ|FILE_SHARE_WRITE;
   }
 
-  HANDLE fd = CreateFile(path, access, FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, creation, FILE_ATTRIBUTE_NORMAL, NULL);
+  HANDLE fd = CreateFile(path, access, share, NULL, creation, FILE_ATTRIBUTE_NORMAL, NULL);
+  printf("%p %p\r\n", fd, INVALID_HANDLE_VALUE);
   if (fd==INVALID_HANDLE_VALUE) {
     return NULL;
   }
@@ -69,7 +75,7 @@ void file_destroy(struct file* base) {
 size_t file_read(struct file* base, void* buffer, size_t length) {
 #ifdef _WINDOWS
   DWORD read;
-  if (ReadFile(base->fd, buffer, (DWORD)length, &read, NULL)==0) {
+  if (!ReadFile(base->fd, buffer, (DWORD)length, &read, NULL)) {
     return 0;
   }
   return (size_t)read;
@@ -83,7 +89,7 @@ size_t file_read(struct file* base, void* buffer, size_t length) {
 size_t file_write(struct file* base, void* buffer, size_t length) {
 #ifdef _WINDOWS
   DWORD written;
-  if (WriteFile(base->fd, buffer, (DWORD)length, &written, NULL)==0) {
+  if (!WriteFile(base->fd, buffer, (DWORD)length, &written, NULL)) {
     return 0;
   }
   return (size_t)written;
