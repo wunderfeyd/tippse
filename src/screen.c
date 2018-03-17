@@ -127,8 +127,8 @@ void screen_check(struct screen* base) {
 #ifdef _WINDOWS
   RECT r;
   GetClientRect(base->window, &r);
-  width = (r.right-r.left)/8;
-  height = (r.bottom-r.top)/16;
+  width = (r.right-r.left)/base->font_width;
+  height = (r.bottom-r.top)/base->font_height;
 #else
   struct winsize w;
   ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
@@ -294,7 +294,8 @@ void screen_cursor(struct screen* base, int x, int y) {
 
 #ifdef _WINDOWS
 // Output screen
-void screen_draw(struct screen* base, HDC context, HFONT font, int font_x, int font_y) {
+void screen_draw(struct screen* base, HDC context) {
+  SelectObject(context, base->font);
   int n = 0;
   for (int y = 0; y<base->height; y++) {
     for (int x = 0; x<base->width; x++) {
@@ -314,7 +315,7 @@ void screen_draw(struct screen* base, HDC context, HFONT font, int font_x, int f
       }
       SetTextColor(context, RGB(foreground->r, foreground->g, foreground->b));
       SetBkColor(context, RGB(background->r, background->g, background->b));
-      TextOutW(context, x*font_x, y*font_y, &codes[0], (pos-(uint8_t*)&codes[0])/(int)sizeof(wchar_t));
+      TextOutW(context, x*base->font_width, y*base->font_height, &codes[0], (pos-(uint8_t*)&codes[0])/(int)sizeof(wchar_t));
     }
   }
 }

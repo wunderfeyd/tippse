@@ -46,6 +46,9 @@ struct screen {
   char* title_new;                  // Title update
 #ifdef _WINDOWS
   HWND window;                      // window to draw to
+  HFONT font;                       // font to use for drawing
+  int font_width;                   // font width
+  int font_height;                  // font height
 #else
   struct termios termios_original;  // Termios structure for change detection
 #endif
@@ -68,7 +71,7 @@ void screen_draw_update(struct screen* base, char** pos, int old, int n, int* w,
 void screen_title(struct screen* base, const char* title);
 void screen_cursor(struct screen* base, int x, int y);
 #ifdef _WINDOWS
-void screen_draw(struct screen* base, HDC context, HFONT font, int font_x, int font_y);
+void screen_draw(struct screen* base, HDC context);
 #else
 void screen_draw(struct screen* base);
 #endif

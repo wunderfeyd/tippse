@@ -20,6 +20,8 @@
 #include "types.h"
 #include "encoding.h"
 #include "encoding/native.h"
+#include "encoding/utf8.h"
+#include "encoding/utf16le.h"
 #include "unicode.h"
 #include "directory.h"
 #include "file.h"
@@ -47,7 +49,9 @@ int64_t decode_based_signed(struct encoding_cache* cache, int base, size_t count
 
 #ifdef _WINDOWS
 char* realpath(const char* path, char* resolved_path);
-void convert_internal_path(char* path);
 char* strndup(const char* src, size_t length);
+
+wchar_t* string_system(const char* convert);
+char* string_internal(const wchar_t* convert);
 #endif
 #endif /* #ifndef TIPPSE_MISC_H */

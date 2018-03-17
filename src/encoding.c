@@ -46,7 +46,7 @@ struct range_tree_node* encoding_transform_stream(struct stream* stream, struct 
   struct range_tree_node* root = NULL;
   while (1) {
     if (stream_end(stream) || recode>512) {
-      root = range_tree_insert_split(root, root?root->length:0, &recoded[0], recode, 0);
+      root = range_tree_insert_split(root, range_tree_length(root), &recoded[0], recode, 0);
       recode = 0;
       if (stream_end(stream)) {
         break;

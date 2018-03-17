@@ -15,8 +15,9 @@
 struct directory {
 #ifdef _WINDOWS
   HANDLE dir;           // directory stream handle
-  WIN32_FIND_DATA entry; // last read directory entry
+  WIN32_FIND_DATAW entry; // last read directory entry
   int next;             // fetch next entry
+  char* last_name;      // converted name of last entry
 #else
   DIR* dir;             // directory stream
   struct dirent* entry; // last read directory entry

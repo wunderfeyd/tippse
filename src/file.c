@@ -26,7 +26,9 @@ struct file* file_create(const char* path, int flags) {
     share |= FILE_SHARE_READ|FILE_SHARE_WRITE;
   }
 
-  HANDLE fd = CreateFile(path, access, share, NULL, creation, FILE_ATTRIBUTE_NORMAL, NULL);
+  wchar_t* os = string_system(path);
+  HANDLE fd = CreateFileW(os, access, share, NULL, creation, FILE_ATTRIBUTE_NORMAL, NULL);
+  free(os);
   if (fd==INVALID_HANDLE_VALUE) {
     return NULL;
   }

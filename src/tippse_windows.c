@@ -14,7 +14,6 @@
 struct tippse_window {
   struct screen* screen;    // screen handler for painting
   struct editor* editor;    // editor handler for high level events
-  HFONT font;               // console font
   uint8_t keystate[256];    // keyboard state of virtual keys
   HKL keyboard_layout;      // keyboard layout needed for translation (unused)
   int mouse_buttons;        // Current mouse button state
@@ -29,14 +28,22 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
   if (message==WM_CREATE) {
     CREATESTRUCT* data = (CREATESTRUCT*)param2;
     base = (struct tippse_window*)data->lpCreateParams;
+    base->screen->window = window;
     base->mouse_buttons = 0;
-    base->font = CreateFont(16, 8, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_DONTCARE, /*"Lucida Console"*/"FixedSys");
+    base->screen->font = CreateFont(16, 8, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_DONTCARE, /*"Lucida Console"*/"FixedSys");
+
+    HDC context = GetDC(window);
+    SIZE size;
+    SelectObject(context, base->screen->font);
+    GetTextExtentPoint32(context, " ", 1, &size);
+    ReleaseDC(window, context);
+    base->screen->font_width = (int)size.cx;
+    base->screen->font_height = (int)size.cy;
+
     tippse_detect_keyboard_layout(base);
     memset(&base->keystate[0], 0, sizeof(base->keystate));
     SetTimer(window, 100, 100, NULL);
     return 0;
-  //} else if (message==WM_ERASEBKGND) {
-  //  return 0;
   } else if (message==WM_INPUTLANGCHANGE) {
     tippse_detect_keyboard_layout(base);
   } else if (message==WM_TIMER) {
@@ -47,9 +54,7 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
   } else if (message==WM_PAINT) {
     PAINTSTRUCT ps;
     BeginPaint(window, &ps);
-    SelectObject(ps.hdc, base->font);
-    //TextOutA(ps.hdc, 0, 0, "Bla", 3);
-    screen_draw(base->screen, ps.hdc, base->font, 8, 16);
+    screen_draw(base->screen, ps.hdc);
     EndPaint(window, &ps);
   } else if (message==WM_LBUTTONDOWN || message==WM_RBUTTONDOWN || message==WM_MBUTTONDOWN || message==WM_LBUTTONUP || message==WM_RBUTTONUP || message==WM_MBUTTONUP || message==WM_MOUSEMOVE) {
     int mouse_buttons = 0;
@@ -72,7 +77,7 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
     }
 
 
-    editor_keypress(base->editor, key, 0, mouse_buttons, base->mouse_buttons, (int)((int16_t)(param2&0xffff))/8, (int)((int16_t)(param2>>16))/16);
+    editor_keypress(base->editor, key, 0, mouse_buttons, base->mouse_buttons, (int)((int16_t)(param2&0xffff))/base->screen->font_width, (int)((int16_t)(param2>>16))/base->screen->font_height);
     editor_draw(base->editor);
     base->mouse_buttons = mouse_buttons;
   } else if (message==WM_KEYDOWN) {
@@ -156,7 +161,7 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
     if (base->keystate[VK_SHIFT]) {
       key |= TIPPSE_KEY_MOD_SHIFT;
     }
-    //printf("%d -> %d %d %d\r\n", param1, ret, key, (int)cp);
+
     editor_keypress(base->editor, key, (int)cp, 0, 0, 0, 0);
     editor_draw(base->editor);
   } else if (message==WM_KEYUP) {
@@ -175,6 +180,47 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, char* command_li
   printf("Base: %s\r\n", base_path);
   unicode_init();
 
+  char* cmdline = string_internal(GetCommandLineW());
+  char* buffer = strdup(cmdline);
+  char** argv = malloc(sizeof(char*)*strlen(buffer));
+  int argc = 0;
+  char* index = buffer;
+  char* current = cmdline;
+  int quotes = 0;
+  while (1) {
+    if ((*current<=0x20 && *current>0 && !quotes) || *current=='\0') {
+      if (index) {
+        *index++ = '\0';
+        argv[argc++] = strdup(buffer);
+      }
+
+      if (*current=='\0') {
+        break;
+      }
+      index = NULL;
+      current++;
+      continue;
+    }
+
+    if (!index) {
+      index = buffer;
+    }
+
+    if (*current=='"' && *(current+1)=='"') {
+      *index++ = '"';
+      current+=2;
+    } else if (*current=='"') {
+      quotes = !quotes;
+      current++;
+    } else {
+      *index++ = *current;
+      current++;
+    }
+  }
+
+  free(buffer);
+  free(cmdline);
+
   WNDCLASS wndclass;
   memset(&wndclass, 0, sizeof(wndclass));
   wndclass.style = 0;
@@ -191,10 +237,14 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, char* command_li
 
   struct tippse_window base;
   base.screen = screen_create();
-  base.editor = editor_create(base_path, base.screen, 0, NULL);
+  base.editor = editor_create(base_path, base.screen, argc, (const char**)argv);
+
+  for (int n = 0; n<argc; n++) {
+    free(argv[n]);
+  }
+  free(argv);
 
   HWND window = CreateWindowEx(0, wndclass.lpszClassName, "Tippse", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, wndclass.hInstance, &base);
-  base.screen->window = window;
   SetWindowLongPtr(window, GWLP_USERDATA, (LONG_PTR)&base);
   ShowWindow(window, show);
 
