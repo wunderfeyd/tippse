@@ -296,10 +296,15 @@ void screen_cursor(struct screen* base, int x, int y) {
 // Output screen
 void screen_draw(struct screen* base, HDC context) {
   SelectObject(context, base->font);
+  struct screen_char empty;
+  empty.codepoints[0] = ' ';
+  empty.length = 0;
+  empty.background = VISUAL_FLAG_COLOR_BACKGROUND;
+  empty.foreground = VISUAL_FLAG_COLOR_TEXT;
   int n = 0;
-  for (int y = 0; y<base->height; y++) {
-    for (int x = 0; x<base->width; x++) {
-      struct screen_char* c = &base->buffer[n++];
+  for (int y = 0; y<=base->height; y++) {
+    for (int x = 0; x<=base->width; x++) {
+      struct screen_char* c = (x<base->width && y<base->height)?&base->buffer[n++]:&empty;
 
       wchar_t codes[16];
       uint8_t* pos = (uint8_t*)&codes[0];

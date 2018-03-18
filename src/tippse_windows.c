@@ -56,7 +56,7 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
     BeginPaint(window, &ps);
     screen_draw(base->screen, ps.hdc);
     EndPaint(window, &ps);
-  } else if (message==WM_LBUTTONDOWN || message==WM_RBUTTONDOWN || message==WM_MBUTTONDOWN || message==WM_LBUTTONUP || message==WM_RBUTTONUP || message==WM_MBUTTONUP || message==WM_MOUSEMOVE) {
+  } else if (message==WM_LBUTTONDOWN || message==WM_RBUTTONDOWN || message==WM_MBUTTONDOWN || message==WM_LBUTTONUP || message==WM_RBUTTONUP || message==WM_MBUTTONUP || message==WM_MOUSEMOVE || message==WM_MOUSEWHEEL) {
     int mouse_buttons = 0;
     if (param1&MK_LBUTTON) {
       mouse_buttons |= TIPPSE_MOUSE_LBUTTON;
@@ -66,6 +66,15 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
     }
     if (param1&MK_MBUTTON) {
       mouse_buttons |= TIPPSE_MOUSE_MBUTTON;
+    }
+
+    if (message==WM_MOUSEWHEEL) {
+      int delta = GET_WHEEL_DELTA_WPARAM(param1);
+      if (delta>0) {
+        mouse_buttons |= TIPPSE_MOUSE_WHEEL_UP;
+      } else if (delta<0) {
+        mouse_buttons |= TIPPSE_MOUSE_WHEEL_DOWN;
+      }
     }
 
     int key = TIPPSE_KEY_MOUSE;
