@@ -26,6 +26,10 @@ struct screen_char {
   size_t length;              // Number of codepoints used in this structure
   int foreground;             // Foreground color
   int background;             // Background color
+#ifdef _WINDOWS
+  wchar_t codes[16];          // transformed output
+  uint8_t* pos;               // transformation end
+#endif
 };
 
 struct screen_rgb {
@@ -71,7 +75,7 @@ void screen_draw_update(struct screen* base, char** pos, int old, int n, int* w,
 void screen_title(struct screen* base, const char* title);
 void screen_cursor(struct screen* base, int x, int y);
 #ifdef _WINDOWS
-void screen_draw(struct screen* base, HDC context);
+void screen_draw(struct screen* base, HDC context, int redraw, int cursor);
 #else
 void screen_draw(struct screen* base);
 #endif

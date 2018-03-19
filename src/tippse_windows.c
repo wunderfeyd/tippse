@@ -17,10 +17,22 @@ struct tippse_window {
   uint8_t keystate[256];    // keyboard state of virtual keys
   HKL keyboard_layout;      // keyboard layout needed for translation (unused)
   int mouse_buttons;        // Current mouse button state
+  int64_t cursor_blink;     // Start tick of cursor blinking
+  int cursor_blink_old;     // cursor blink state
 };
 
 void tippse_detect_keyboard_layout(struct tippse_window* base) {
   base->keyboard_layout = GetKeyboardLayout(GetCurrentThreadId());
+}
+
+int tippse_cursor_blink(struct tippse_window* base) {
+  int cursor = 1;
+  int64_t tick = tick_count();
+  int64_t diff = (tick-base->cursor_blink)/500000;
+  if (diff<6) {
+    cursor = (diff+1)&1;
+  }
+  return cursor;
 }
 
 LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM param2) {
@@ -48,13 +60,18 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
     tippse_detect_keyboard_layout(base);
   } else if (message==WM_TIMER) {
     editor_tick(base->editor);
+    if (base->cursor_blink_old!=tippse_cursor_blink(base)) {
+      screen_update(base->screen);
+    }
   } else if (message==WM_SIZE) {
     screen_check(base->screen);
     editor_draw(base->editor);
   } else if (message==WM_PAINT) {
     PAINTSTRUCT ps;
     BeginPaint(window, &ps);
-    screen_draw(base->screen, ps.hdc);
+    int cursor = tippse_cursor_blink(base);
+    screen_draw(base->screen, ps.hdc, ps.fErase, cursor);
+    base->cursor_blink_old = cursor;
     EndPaint(window, &ps);
   } else if (message==WM_LBUTTONDOWN || message==WM_RBUTTONDOWN || message==WM_MBUTTONDOWN || message==WM_LBUTTONUP || message==WM_RBUTTONUP || message==WM_MBUTTONUP || message==WM_MOUSEMOVE || message==WM_MOUSEWHEEL) {
     int mouse_buttons = 0;
@@ -173,6 +190,7 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
 
     editor_keypress(base->editor, key, (int)cp, 0, 0, 0, 0);
     editor_draw(base->editor);
+    base->cursor_blink = tick_count();
   } else if (message==WM_KEYUP) {
     base->keystate[param1] = 0;
   } else if (message==WM_DESTROY) {
@@ -247,6 +265,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, char* command_li
   struct tippse_window base;
   base.screen = screen_create();
   base.editor = editor_create(base_path, base.screen, argc, (const char**)argv);
+  base.cursor_blink = 0;
+  base.cursor_blink_old = 2;
 
   for (int n = 0; n<argc; n++) {
     free(argv[n]);

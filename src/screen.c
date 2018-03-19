@@ -44,26 +44,26 @@ struct config_cache screen_color_codes[] = {
   {NULL, 0, NULL}
 };
 
-// rgb colors for index colors - TODO: copy this into the config
+// rgb colors for index colors - TODO: copy this into the config (Tango config Gnome Terminal Linux)
 struct screen_rgb rgb_index[] = {
-  {0, 0, 0},
-  {255, 255, 255},
-  {0, 0, 0},
-  {128, 0, 0},
-  {0, 128, 0},
-  {128, 128, 0},
-  {0, 0, 128},
-  {128, 0, 128},
-  {0, 128, 128},
-  {192, 192, 192},
-  {128, 128, 128},
-  {255, 0, 0},
-  {0, 255, 0},
-  {255, 255, 0},
-  {0, 0, 255},
-  {255, 0, 255},
-  {0, 255, 255},
-  {255, 255, 255}
+  {0x00, 0x00, 0x00},
+  {0xff, 0xff, 0xff},
+  {0x00, 0x00, 0x00},
+  {0xcc, 0x00, 0x00},
+  {0x4e, 0x9a, 0x06},
+  {0xc4, 0xa0, 0x00},
+  {0x34, 0x65, 0xa4},
+  {0x75, 0x50, 0x7b},
+  {0x06, 0x98, 0x9a},
+  {0xd3, 0xd7, 0xcf},
+  {0x55, 0x57, 0x53},
+  {0xef, 0x29, 0x29},
+  {0x8a, 0xe2, 0x34},
+  {0xfc, 0xe9, 0x4f},
+  {0x72, 0x9f, 0xcf},
+  {0xad, 0x7f, 0xa8},
+  {0x34, 0xe2, 0xe2},
+  {0xee, 0xee, 0xec}
 };
 
 // Screen resize signal bound in screen_create
@@ -294,33 +294,64 @@ void screen_cursor(struct screen* base, int x, int y) {
 
 #ifdef _WINDOWS
 // Output screen
-void screen_draw(struct screen* base, HDC context) {
+void screen_draw(struct screen* base, HDC context, int redraw, int cursor) {
   SelectObject(context, base->font);
   struct screen_char empty;
   empty.codepoints[0] = ' ';
-  empty.length = 0;
+  empty.length = 1;
   empty.background = VISUAL_FLAG_COLOR_BACKGROUND;
   empty.foreground = VISUAL_FLAG_COLOR_TEXT;
+  empty.codes[0] = ' ';
+  empty.pos = (uint8_t*)&empty.codes[1];
+
   int n = 0;
   for (int y = 0; y<=base->height; y++) {
     for (int x = 0; x<=base->width; x++) {
+      struct screen_char* v = (x<base->width && y<base->height)?&base->visible[n]:&empty;
       struct screen_char* c = (x<base->width && y<base->height)?&base->buffer[n++]:&empty;
 
-      wchar_t codes[16];
-      uint8_t* pos = (uint8_t*)&codes[0];
-      for (size_t copy = 0; copy<c->length; copy++) {
-        pos += (*base->encoding->encode)(NULL, c->codepoints[copy], pos, SIZE_T_MAX);
+      int modified = 0;
+      if (v->length!=c->length) {
+        modified = 1;
+      } else {
+        for (size_t check = 0; check<c->length; check++) {
+          if (v->codepoints[check]!=c->codepoints[check]) {
+            modified = 1;
+            break;
+          }
+        }
       }
 
-      struct screen_rgb* foreground = &rgb_index[c->foreground+2];
-      struct screen_rgb* background = &rgb_index[c->background+2];
-      if (x==base->cursor_x && y==base->cursor_y) {
-        foreground = &rgb_index[c->background+2];
-        background = &rgb_index[c->foreground+2];
+      if (modified) {
+        v->length = c->length;
+        for (size_t copy = 0; copy<c->length; copy++) {
+          v->codepoints[copy] = c->codepoints[copy];
+        }
+
+        v->pos = (uint8_t*)&v->codes[0];
+        for (size_t copy = 0; copy<v->length; copy++) {
+          v->pos += (*base->encoding->encode)(NULL, v->codepoints[copy], v->pos, SIZE_T_MAX);
+        }
       }
-      SetTextColor(context, RGB(foreground->r, foreground->g, foreground->b));
-      SetBkColor(context, RGB(background->r, background->g, background->b));
-      TextOutW(context, x*base->font_width, y*base->font_height, &codes[0], (pos-(uint8_t*)&codes[0])/(int)sizeof(wchar_t));
+
+      int index_foreground = c->foreground;
+      int index_background = c->background;
+      if (cursor && x==base->cursor_x && y==base->cursor_y) {
+        index_foreground = VISUAL_FLAG_COLOR_BACKGROUND;
+        index_background = c->foreground;
+      }
+
+      if (modified || v->foreground!=index_foreground || v->background!=index_background || redraw) {
+        v->foreground = index_foreground;
+        v->background = index_background;
+
+        struct screen_rgb* foreground = &rgb_index[v->foreground+2];
+        struct screen_rgb* background = &rgb_index[v->background+2];
+
+        SetTextColor(context, RGB(foreground->r, foreground->g, foreground->b));
+        SetBkColor(context, RGB(background->r, background->g, background->b));
+        TextOutW(context, x*base->font_width, y*base->font_height, &v->codes[0], (v->pos-(uint8_t*)&v->codes[0])/(int)sizeof(wchar_t));
+      }
     }
   }
 }

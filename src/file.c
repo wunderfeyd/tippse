@@ -6,13 +6,18 @@
 struct file* file_create(const char* path, int flags) {
 #ifdef _WINDOWS
   DWORD creation = 0;
-  if (flags&TIPPSE_FILE_TRUNCATE) {
-    creation |= TRUNCATE_EXISTING;
-  }
   if (flags&TIPPSE_FILE_CREATE) {
-    creation |= CREATE_ALWAYS;
+    if (flags&TIPPSE_FILE_TRUNCATE) {
+      creation = CREATE_ALWAYS;
+    } else {
+      creation = OPEN_ALWAYS;
+    }
   } else {
-    creation |= OPEN_EXISTING;
+    if (flags&TIPPSE_FILE_TRUNCATE) {
+      creation = TRUNCATE_EXISTING;
+    } else {
+      creation = OPEN_EXISTING;
+    }
   }
 
   DWORD access = 0;
@@ -23,7 +28,7 @@ struct file* file_create(const char* path, int flags) {
   }
   if (flags&TIPPSE_FILE_READ) {
     access |= GENERIC_READ;
-    share |= FILE_SHARE_READ|FILE_SHARE_WRITE;
+    share |= FILE_SHARE_READ;
   }
 
   wchar_t* os = string_system(path);
