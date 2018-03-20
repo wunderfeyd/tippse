@@ -151,6 +151,7 @@ void screen_check(struct screen* base) {
         c->codepoints[0] = 0x20;
         c->foreground = 15;
         c->background = 0;
+        c->modified = 1;
 
         c = &base->visible[y*base->width+x];
         c->length = 0;
@@ -310,19 +311,22 @@ void screen_draw(struct screen* base, HDC context, int redraw, int cursor) {
       struct screen_char* v = (x<base->width && y<base->height)?&base->visible[n]:&empty;
       struct screen_char* c = (x<base->width && y<base->height)?&base->buffer[n++]:&empty;
 
-      int modified = 0;
-      if (v->length!=c->length) {
-        modified = 1;
-      } else {
-        for (size_t check = 0; check<c->length; check++) {
-          if (v->codepoints[check]!=c->codepoints[check]) {
-            modified = 1;
-            break;
+      int modified = c->modified;
+      if (modified) {
+        if (v->length!=c->length) {
+          modified = 1;
+        } else {
+          for (size_t check = 0; check<c->length; check++) {
+            if (v->codepoints[check]!=c->codepoints[check]) {
+              modified = 1;
+              break;
+            }
           }
         }
       }
 
       if (modified) {
+        c->modified = 0;
         v->length = c->length;
         for (size_t copy = 0; copy<c->length; copy++) {
           v->codepoints[copy] = c->codepoints[copy];
@@ -388,14 +392,16 @@ void screen_draw(struct screen* base) {
   for (n = 0; n<base->width*base->height; n++) {
     c = &base->buffer[n];
     v = &base->visible[n];
-    int modified = 0;
-    if (v->length!=c->length) {
-      modified = 1;
-    } else {
-      for (size_t check = 0; check<c->length; check++) {
-        if (v->codepoints[check]!=c->codepoints[check]) {
-          modified = 1;
-          break;
+    int modified = c->modified;
+    if (modified) {
+      if (v->length!=c->length) {
+        modified = 1;
+      } else {
+        for (size_t check = 0; check<c->length; check++) {
+          if (v->codepoints[check]!=c->codepoints[check]) {
+            modified = 1;
+            break;
+          }
         }
       }
     }
@@ -404,6 +410,7 @@ void screen_draw(struct screen* base) {
       screen_draw_update(base, &pos, old, n, &w, &foreground_old, &background_old);
       old = n+1;
       screen_draw_char(base, &pos, n, &w, &foreground_old, &background_old);
+      c->modified = 0;
       v->length = c->length;
       v->foreground = c->foreground;
       v->background = c->background;
@@ -485,6 +492,7 @@ void screen_setchar(const struct screen* base, int x, int y, int clip_x, int cli
     }
   }
 
+  c->modified = 1;
   if (x==base->width-1 && unicode_width(&codepoints[0], length)>1) {
     c->length = 1;
     c->codepoints[0] = '?';

@@ -60,7 +60,9 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
     tippse_detect_keyboard_layout(base);
   } else if (message==WM_TIMER) {
     editor_tick(base->editor);
-    if (base->cursor_blink_old!=tippse_cursor_blink(base)) {
+    int cursor = tippse_cursor_blink(base);
+    if (base->cursor_blink_old!=cursor) {
+      base->cursor_blink_old = cursor;
       screen_update(base->screen);
     }
   } else if (message==WM_SIZE) {

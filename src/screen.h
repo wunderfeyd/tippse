@@ -26,6 +26,7 @@ struct screen_char {
   size_t length;              // Number of codepoints used in this structure
   int foreground;             // Foreground color
   int background;             // Background color
+  int modified;               // Character was touched
 #ifdef _WINDOWS
   wchar_t codes[16];          // transformed output
   uint8_t* pos;               // transformation end
