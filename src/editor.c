@@ -123,6 +123,7 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"saveforce", TIPPSE_CMD_SAVE_FORCE, "Save file contents regardless its current working state"},
   {"null", TIPPSE_CMD_NULL, "Nothing"},
   {"saveask", TIPPSE_CMD_SAVE_ASK, "Request user interaction if file was modified and is going to be saved"},
+  {"closeforce", TIPPSE_CMD_CLOSE_FORCE, "Close document without asking for save options"},
   {NULL, 0, ""}
 };
 
@@ -505,6 +506,9 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     editor_focus(base, base->document, 1);
     editor_task_clear(base);
   } else if (command==TIPPSE_CMD_CLOSE) {
+    editor_ask_document_action(base, base->focus->file, 0, 1);
+    editor_task_append(base, 0, TIPPSE_CMD_CLOSE_FORCE, NULL, 0, 0, 0, 0, 0, 0, base->focus->file);
+  } else if (command==TIPPSE_CMD_CLOSE_FORCE) {
     editor_close_document(base, base->focus->file);
   } else if (command==TIPPSE_CMD_NEW) {
     struct document_file* empty = editor_empty_document(base);
@@ -869,10 +873,10 @@ void editor_reload_document(struct editor* base, struct document_file* file) {
   document_file_load(file, file->filename, 0, 0);
 }
 
-// Save single modified document
-void editor_save_document(struct editor* base, struct document_file* file, int force, int ask) {
+// Ask user for file action if needed
+int editor_ask_document_action(struct editor* base, struct document_file* file, int force, int ask) {
   if (!file->save) {
-    return;
+    return 0;
   }
 
   int modified_cache = document_file_modified_cache(file);
@@ -880,7 +884,7 @@ void editor_save_document(struct editor* base, struct document_file* file, int f
   int draft = document_file_drafted(file);
 
   if (!modified && !modified_cache && !draft && !force) {
-    return;
+    return 0;
   }
 
   if (modified_cache && !force) {
@@ -895,7 +899,7 @@ void editor_save_document(struct editor* base, struct document_file* file, int f
     editor_focus(base, base->document, 1);
     editor_view_menu(base, NULL, NULL);
     base->task_focus = base->menu_doc;
-    return;
+    return 0;
   }
 
   if (modified && !force && ask) {
@@ -910,7 +914,7 @@ void editor_save_document(struct editor* base, struct document_file* file, int f
     editor_focus(base, base->document, 1);
     editor_view_menu(base, NULL, NULL);
     base->task_focus = base->menu_doc;
-    return;
+    return 0;
   }
 
   if (draft && !force) {
@@ -925,6 +929,15 @@ void editor_save_document(struct editor* base, struct document_file* file, int f
     editor_focus(base, base->document, 1);
     editor_view_menu(base, NULL, NULL);
     base->task_focus = base->menu_doc;
+    return 0;
+  }
+
+  return 1;
+}
+
+// Save single modified document
+void editor_save_document(struct editor* base, struct document_file* file, int force, int ask) {
+  if (!editor_ask_document_action(base, file, force, ask)) {
     return;
   }
 

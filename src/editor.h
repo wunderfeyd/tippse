@@ -139,7 +139,8 @@ struct splitter;
 #define TIPPSE_CMD_SAVE_FORCE 84
 #define TIPPSE_CMD_NULL 85
 #define TIPPSE_CMD_SAVE_ASK 86
-#define TIPPSE_CMD_MAX 87
+#define TIPPSE_CMD_CLOSE_FORCE 87
+#define TIPPSE_CMD_MAX 88
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -247,6 +248,7 @@ struct splitter* editor_unsplit(struct editor* base, struct splitter* node);
 int editor_open_selection(struct editor* base, struct splitter* node, struct splitter* destination);
 int editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination, int type);
 void editor_reload_document(struct editor* base, struct document_file* file);
+int editor_ask_document_action(struct editor* base, struct document_file* file, int force, int ask);
 void editor_save_document(struct editor* base, struct document_file* file, int force, int ask);
 void editor_save_documents(struct editor* base, int command);
 int editor_modified_documents(struct editor* base);

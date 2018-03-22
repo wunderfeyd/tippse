@@ -238,9 +238,11 @@ void document_file_close_pipe(struct document_file* base) {
 // Load file from file system, up to a certain threshold
 void document_file_load(struct document_file* base, const char* filename, int reload, int reset) {
   document_file_clear(base, !reload);
+  int opened = 0;
   if (!is_directory(filename)) {
     struct file* f = file_create(filename, TIPPSE_FILE_READ);
     if (f) {
+      opened = 1;
       base->cache = file_cache_create(filename);
       document_file_reference_cache(base, base->cache);
 
@@ -278,6 +280,10 @@ void document_file_load(struct document_file* base, const char* filename, int re
   }
 
   document_file_name(base, filename);
+  if (!opened) {
+    document_file_draft(base);
+  }
+
   document_file_detect_properties(base);
   base->bookmarks = range_tree_resize(base->bookmarks, range_tree_length(base->buffer), 0);
   if (!reload) {
@@ -399,18 +405,19 @@ void document_file_detect_properties_stream(struct document_file* base, struct s
   struct encodings {
     struct encoding* (*create)(void);
     int scan_binary;
+    file_offset_t factor;
   };
 
   struct encoding_stats {
-    size_t good;
-    size_t bad;
-    size_t chars;
+    file_offset_t good;
+    file_offset_t bad;
+    file_offset_t chars;
   };
 
-  struct encodings encodings[] = {{encoding_ascii_create, 1}, {encoding_cp850_create, 1}, {encoding_utf8_create, 1}, {encoding_utf16le_create, 0}, {encoding_utf16be_create, 0}};
+  struct encodings encodings[] = {{encoding_ascii_create, 1, 1}, {encoding_cp850_create, 1, 1}, {encoding_utf8_create, 1, 2}, {encoding_utf16le_create, 0, 2}, {encoding_utf16be_create, 0, 2}};
   struct encoding_stats stats[sizeof(encodings)/sizeof(struct encodings)];
 
-  size_t max_chars = 0;
+  file_offset_t max_chars = 0;
   for (size_t n = 0; n<sizeof(encodings)/sizeof(struct encodings); n++) {
     stats[n].good = 0;
     stats[n].bad = 0;
@@ -425,7 +432,7 @@ void document_file_detect_properties_stream(struct document_file* base, struct s
       codepoint_t visual = (*encoding->visual)(encoding, cp);
 
       stats[n].chars++;
-      if (cp==-1 || visual<0 || visual==0xfffd || visual==0xfffe || (!unicode_letter(visual) && !unicode_digit(visual) && !unicode_whitespace(visual))) {
+      if (cp==-1 || visual<0 || visual==0xfffd || visual==0xfffe || (!unicode_letter(visual) && !unicode_digit(visual) && !unicode_whitespace(visual) && cp!=0xfeff)) {
         stats[n].bad++;
       } else {
         stats[n].good++;
@@ -438,19 +445,19 @@ void document_file_detect_properties_stream(struct document_file* base, struct s
     encoding->destroy(encoding);
   }
 
-  size_t max_bad = SIZE_T_MAX;
-  size_t best = 0;
-  size_t bests = 1;
+  file_offset_t max_bad = 0;
+  file_offset_t best = 0;
+  file_offset_t bests = 1;
   for (size_t n = 0; n<sizeof(encodings)/sizeof(struct encodings); n++) {
     if (stats[n].chars==0) {
       continue;
     }
-    stats[n].bad = (stats[n].bad*max_chars)/stats[n].chars;
-    if (stats[n].bad<max_bad) {
-      max_bad = stats[n].bad;
+    file_offset_t score = (stats[n].good*max_chars*encodings[n].factor)/stats[n].chars;
+    if (score>max_bad) {
+      max_bad = score;
       best = n;
       bests = 1;
-    } else if (stats[n].bad==max_bad) {
+    } else if (score==max_bad) {
       bests++;
     }
   }
