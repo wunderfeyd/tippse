@@ -33,20 +33,23 @@ struct encoding {
 };
 
 void encoding_cache_clear(struct encoding_cache* base, struct encoding* encoding, struct stream* stream);
+// Fill code point cache
+inline size_t encoding_cache_buffer(struct encoding_cache* base, size_t offset) {
+  size_t pos = base->end%ENCODING_CACHE_SIZE;
+  base->codepoints[pos] = (*base->encoding->decode)(base->encoding, base->stream, &base->lengths[pos]);
+  base->end++;
+  return pos;
+}
+
 // Skip code points and rebase absolute offset
 inline void encoding_cache_advance(struct encoding_cache* base, size_t advance) {
   base->start += advance;
-  if (base->end<=base->start) {
-    base->end = 0;
-    base->start = 0;
-  }
 }
 
-void encoding_cache_buffer(struct encoding_cache* base, size_t offset);
 // Returned code point from relative offset
 inline codepoint_t encoding_cache_find_codepoint(struct encoding_cache* base, size_t offset) {
   if (offset+base->start>=base->end) {
-    encoding_cache_buffer(base, offset);
+    return base->codepoints[encoding_cache_buffer(base, offset)];
   }
 
   return base->codepoints[(base->start+offset)%ENCODING_CACHE_SIZE];
@@ -55,7 +58,7 @@ inline codepoint_t encoding_cache_find_codepoint(struct encoding_cache* base, si
 // Returned code point byte length from relative offset
 inline size_t encoding_cache_find_length(struct encoding_cache* base, size_t offset) {
   if (offset+base->start>=base->end) {
-    encoding_cache_buffer(base, offset);
+    return base->lengths[encoding_cache_buffer(base, offset)];
   }
 
   return base->lengths[(base->start+offset)%ENCODING_CACHE_SIZE];
