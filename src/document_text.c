@@ -263,6 +263,7 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
 position_t document_text_render_lookahead_word_wrap(struct document_file* file, struct encoding_cache* cache, position_t max) {
   position_t count = 0;
   size_t advanced = 0;
+  position_t width0 = 0;
   while (count<max) {
     codepoint_t codepoints[8];
     size_t advance;
@@ -274,14 +275,21 @@ position_t document_text_render_lookahead_word_wrap(struct document_file* file, 
     }
 
     count += unicode_width(&codepoints[0], read);
+    if (advanced==0) {
+      width0 = count>0?count-1:0;
+    }
     advanced += advance;
+  }
+
+  if (count>=max) {
+    count = width0;
   }
 
   return count;
 }
 
 // Scan for complete whitespace
-int document_text_render_whitespace_scan(struct document_text_render_info* render_info, codepoint_t newline_cp1, codepoint_t newline_cp2) {
+inline int document_text_render_whitespace_scan(struct document_text_render_info* render_info, codepoint_t newline_cp1, codepoint_t newline_cp2) {
   file_offset_t displacement = render_info->displacement;
   size_t pos = 0;
   while (1) {
@@ -478,6 +486,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       if (render_info->keyword_length==0) {
         int visual_flag = 0;
 
+        // 100ms
         (*file->type->mark)(file->type, &render_info->visual_detail, &render_info->cache, (render_info->y_view==render_info->y)?1:0, &render_info->keyword_length, &visual_flag);
 
         render_info->keyword_color = file->defaults.colors[visual_flag];
@@ -627,13 +636,12 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     codepoint_t show = -1;
     int fill = 0;
     codepoint_t fill_code = -1;
-    if (cp=='\t') {
-      fill = file->tabstop_width-(render_info->x%file->tabstop_width);
-      fill_code = ' ';
-      show = view->show_invisibles?0x00bb:' ';
-    } else if (((cp!=newline_cp2 || newline_cp2==0) && cp!=0xfeff) || view->show_invisibles) {
-      fill = unicode_width(&codepoints[0], read);
-      if (view->show_invisibles) {
+    if (view->show_invisibles) {
+      if (cp=='\t') {
+        fill = file->tabstop_width-(render_info->x%file->tabstop_width);
+        fill_code = ' ';
+        show = 0x00bb;
+      } else {
         if (cp==newline_cp1) {
           show = 0x00ac;
         } else if (cp==newline_cp2 && newline_cp2!=0) {
@@ -648,14 +656,23 @@ int document_text_render_span(struct document_text_render_info* render_info, str
           show = 0xfffd;
         }
 
+        fill = unicode_width(&codepoints[0], read);
         if (show!=-1 || fill<=0) {
           fill = 1;
         }
+      }
+    } else {
+      if (cp=='\t') {
+        fill = file->tabstop_width-(render_info->x%file->tabstop_width);
+        fill_code = ' ';
+        show = ' ';
+      } else if (cp==newline_cp1) {
+        show = ' ';
+        fill = 1;
+      } else if (cp==newline_cp2 && newline_cp2!=0) {
+      } else if (cp==0xfeff) {
       } else {
-        if (cp==newline_cp1) {
-          show = ' ';
-          fill = 1;
-        }
+        fill = unicode_width(&codepoints[0], read);
       }
     }
 
@@ -722,22 +739,9 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     }
 
     position_t word_length = 0;
-    if (view->wrapping) {
-      codepoint_t codepoints[8];
-      size_t advance;
-      size_t length;
-      size_t read = unicode_read_combined_sequence(&render_info->cache, 0, &codepoints[0], 8, &advance, &length);
-      position_t width = unicode_width(&codepoints[0], read)-1;
-      if (cp<=' ') {
-        position_t row_width = render_info->width-render_info->indentation-file->tabstop_width;
-        word_length = document_text_render_lookahead_word_wrap(file, &render_info->cache, row_width+1);
-        if (word_length>row_width) {
-          word_length = 0;
-        }
-      }
-      if (word_length<width) {
-        word_length = width;
-      }
+    if (view->wrapping && cp<=' ') {
+      position_t row_width = render_info->width-render_info->indentation-file->tabstop_width;
+      word_length = document_text_render_lookahead_word_wrap(file, &render_info->cache, row_width+1);
     }
 
     if (cp==newline_cp1 || (view->wrapping && render_info->x+word_length>=render_info->width)) {

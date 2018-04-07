@@ -147,7 +147,7 @@ void convert_widths(const char* from, const char* to) {
 }
 
 // Generic method for parsing (param1 is unicode range, param is compared parameter)
-void convert_range_param(size_t param, const char* from, const char* to, const char* name, const char* cmp0, const char* cmp1) {
+void convert_range_param(size_t param, const char* from, const char* to, const char* name, const char* cmp0, const char* cmp1, const char* cmp2, const char* cmp3) {
   size_t size;
   uint8_t* buffer = read_file(from, &size);
   if (!buffer) {
@@ -169,7 +169,7 @@ void convert_range_param(size_t param, const char* from, const char* to, const c
     int to;
     code_range(params[0], &from, &to);
     if (from!=-1) {
-      if ((cmp0 && strcmp(params[param-1], cmp0)==0) || (cmp1 && strcmp(params[param-1], cmp1)==0)) {
+      if ((cmp0 && strcmp(params[param-1], cmp0)==0) || (cmp1 && strcmp(params[param-1], cmp1)==0) || (cmp2 && strcmp(params[param-1], cmp2)==0) || (cmp3 && strcmp(params[param-1], cmp3)==0)) {
         for (int n = from; n<to && n<UNICODE_MAX_CODEPOINT; n++) {
           output[n] = 1;
         }
@@ -357,12 +357,11 @@ void convert_transform(const char* from, const char* to, const char* name, const
 
 int main(int argc, const char** argv) {
   convert_widths("download/EastAsianWidth.txt", "output/unicode_widths.h");
-  convert_range_param(3, "download/UnicodeData.txt", "output/unicode_invisibles.h", "invisibles", "Cc", "Cf");
-  convert_range_param(3, "download/UnicodeData.txt", "output/unicode_nonspacing_marks.h", "nonspacing_marks", "Mn", "Me");
-  convert_range_param(3, "download/UnicodeData.txt", "output/unicode_spacing_marks.h", "spacing_marks", "Mc", NULL);
-  convert_range_param(3, "download/UnicodeData.txt", "output/unicode_digits.h", "digits", "Nd", NULL);
-  convert_range_param(3, "download/UnicodeData.txt", "output/unicode_whitespace.h", "whitespace", "Zs", NULL);
-  convert_range_param(5, "download/UnicodeData.txt", "output/unicode_letters.h", "letters", "L", NULL);
+  convert_range_param(3, "download/UnicodeData.txt", "output/unicode_invisibles.h", "invisibles", "Cc", "Cf", NULL, NULL);
+  convert_range_param(3, "download/UnicodeData.txt", "output/unicode_marks.h", "marks", "Mc", "Mn", "Me", NULL);
+  convert_range_param(3, "download/UnicodeData.txt", "output/unicode_digits.h", "digits", "Nd", NULL, NULL, NULL);
+  convert_range_param(3, "download/UnicodeData.txt", "output/unicode_whitespace.h", "whitespace", "Zs", NULL, NULL, NULL);
+  convert_range_param(5, "download/UnicodeData.txt", "output/unicode_letters.h", "letters", "L", NULL, NULL, NULL);
   convert_transform("download/CaseFolding.txt", "output/unicode_case_folding.h", "case_folding", "C", "F", 1, 0, 2);
   convert_transform("download/NormalizationTest.txt", "output/unicode_normalization.h", "normalization", NULL, NULL, 0, 1, 2);
   return 0;

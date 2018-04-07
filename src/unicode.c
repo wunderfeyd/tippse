@@ -3,16 +3,14 @@
 #include "unicode.h"
 #include "unicode_widths.h"
 #include "unicode_invisibles.h"
-#include "unicode_nonspacing_marks.h"
-#include "unicode_spacing_marks.h"
+#include "unicode_marks.h"
 #include "unicode_case_folding.h"
 #include "unicode_normalization.h"
 #include "unicode_letters.h"
 #include "unicode_whitespace.h"
 #include "unicode_digits.h"
 
-unsigned int unicode_nonspacing_marks[UNICODE_BITFIELD_MAX];
-unsigned int unicode_spacing_marks[UNICODE_BITFIELD_MAX];
+unsigned int unicode_marks[UNICODE_BITFIELD_MAX];
 unsigned int unicode_invisibles[UNICODE_BITFIELD_MAX];
 unsigned int unicode_widths[UNICODE_BITFIELD_MAX];
 unsigned int unicode_letters[UNICODE_BITFIELD_MAX];
@@ -25,8 +23,7 @@ struct trie* unicode_transform_nfc_nfd;
 
 // Initialise static tables
 void unicode_init(void) {
-  unicode_decode_rle(&unicode_nonspacing_marks[0], &unicode_nonspacing_marks_rle[0]);
-  unicode_decode_rle(&unicode_spacing_marks[0], &unicode_spacing_marks_rle[0]);
+  unicode_decode_rle(&unicode_marks[0], &unicode_marks_rle[0]);
   unicode_decode_rle(&unicode_invisibles[0], &unicode_invisibles_rle[0]);
   unicode_decode_rle(&unicode_widths[0], &unicode_widths_rle[0]);
   unicode_decode_rle(&unicode_letters[0], &unicode_letters_rle[0]);
@@ -194,7 +191,7 @@ size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offse
   size_t pos = 0;
   size_t read = 0;
   codepoint_t codepoint = encoding_cache_find_codepoint(cache, offset+read++);
-  if (unicode_bitfield_check(&unicode_nonspacing_marks[0], codepoint) || unicode_bitfield_check(&unicode_spacing_marks[0], codepoint)) {
+  if (unicode_bitfield_check(&unicode_marks[0], codepoint)) {
     codepoints[pos++] = 'o';
   }
 
@@ -202,7 +199,7 @@ size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offse
   if (codepoint>0x20) {
     while (pos<max) {
       codepoint = encoding_cache_find_codepoint(cache, offset+read);
-      if (unicode_bitfield_check(&unicode_nonspacing_marks[0], codepoint) || unicode_bitfield_check(&unicode_spacing_marks[0], codepoint)) {
+      if (unicode_bitfield_check(&unicode_marks[0], codepoint)) {
         codepoints[pos++] = codepoint;
         read++;
         continue;

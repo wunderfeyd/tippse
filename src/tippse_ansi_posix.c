@@ -195,6 +195,7 @@ int main(int argc, const char** argv) {
   int mouse_x = 0;
   int mouse_y = 0;
 
+  if (1) { // allow human inout :)
   unsigned char input_buffer[1024];
   size_t input_pos = 0;
   int64_t ansi_timeout = 0;
@@ -356,6 +357,20 @@ int main(int argc, const char** argv) {
 
     input_pos -= check;
     memcpy(&input_buffer[0], &input_buffer[check], input_pos);
+  }
+  } else {
+    int64_t tick = tick_count();
+    for (int n = 0; n<900; n++) {
+      editor_keypress(editor, TIPPSE_KEY_RIGHT, 0, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
+      //editor_tick(editor);
+      //editor_draw(editor);
+    }
+    for (int n = 0; n<1000; n++) {
+      editor_keypress(editor, (n&1)?TIPPSE_KEY_RIGHT:TIPPSE_KEY_LEFT, 0, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
+      //editor_tick(editor);
+      //editor_draw(editor);
+    }
+    fprintf(stderr, "Time: %d\r\n", (int)(tick_count()-tick));
   }
 
   editor_destroy(editor);
