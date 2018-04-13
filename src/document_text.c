@@ -1048,9 +1048,10 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   }
 
   size_t name_length = strlen(file->filename);
-  char* title = malloc((name_length+(size_t)document_undo_modified(file)*2+1)*sizeof(char));
+  int modified = (document_undo_modified(file) || document_file_drafted(file))?1:0;
+  char* title = malloc((name_length+(size_t)modified*2+1)*sizeof(char));
   memcpy(title, file->filename, name_length);
-  if (document_undo_modified(file) || document_file_drafted(file)) {
+  if (modified) {
     memcpy(title+name_length, " *\0", 3);
   } else {
     title[name_length] = '\0';
