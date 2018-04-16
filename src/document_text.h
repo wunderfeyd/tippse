@@ -7,6 +7,9 @@ struct document_text;
 
 #include "document.h"
 
+// Scan at max the first 2MiB of the file for autocomplete information
+#define TIPPSE_AUTOCOMPLETE_MAX (1024*1024*2)
+
 struct document_text {
   struct document vtbl;             // virtual table of document
 };
@@ -34,7 +37,6 @@ struct document_text_render_info {
   file_offset_t characters;         // number of characters in block
   file_offset_t character;          // number of characters in whole document
   int visual_detail;                // flags for visual details
-  int draw_indentation;             // next line needs indentation?
   position_t width;                 // screen width for rendering
   int keyword_color;                // keyword color
   int keyword_length;               // keyword length remaining
