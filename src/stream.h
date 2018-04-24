@@ -42,7 +42,7 @@ file_offset_t stream_offset_file(struct stream* base);
 file_offset_t stream_offset(struct stream* base);
 
 uint8_t stream_read_forward_oob(struct stream* base);
-inline uint8_t stream_read_forward(struct stream* base) {
+TIPPSE_INLINE uint8_t stream_read_forward(struct stream* base) {
   if (base->displacement<base->cache_length) {
     return *(base->plain+base->displacement++);
   } else {
@@ -51,7 +51,7 @@ inline uint8_t stream_read_forward(struct stream* base) {
 }
 
 uint8_t stream_read_reverse_oob(struct stream* base);
-inline uint8_t stream_read_reverse(struct stream* base) {
+TIPPSE_INLINE uint8_t stream_read_reverse(struct stream* base) {
   base->displacement--;
   if (base->displacement<base->cache_length) {
     return *(base->plain+base->displacement);
@@ -61,7 +61,7 @@ inline uint8_t stream_read_reverse(struct stream* base) {
 }
 
 void stream_forward_oob(struct stream* base, size_t length);
-inline void stream_forward(struct stream* base, size_t length) {
+TIPPSE_INLINE void stream_forward(struct stream* base, size_t length) {
   if (base->displacement+length<=base->cache_length) {
     base->displacement += length;
   } else {
@@ -70,7 +70,7 @@ inline void stream_forward(struct stream* base, size_t length) {
 }
 
 void stream_reverse_oob(struct stream* base, size_t length);
-inline void stream_reverse(struct stream* base, size_t length) {
+TIPPSE_INLINE void stream_reverse(struct stream* base, size_t length) {
   if (base->displacement>=length) {
     base->displacement -= length;
   } else {
@@ -81,11 +81,11 @@ inline void stream_reverse(struct stream* base, size_t length) {
 int stream_end_oob(struct stream* base);
 int stream_start_oob(struct stream* base);
 
-inline int stream_end(struct stream* base) {
+TIPPSE_INLINE int stream_end(struct stream* base) {
   return (base->displacement>=base->cache_length && (base->type==STREAM_TYPE_PLAIN || stream_end_oob(base)))?1:0;
 }
 
-inline int stream_start(struct stream* base) {
+TIPPSE_INLINE int stream_start(struct stream* base) {
   return ((ssize_t)base->displacement<=0 && (base->type==STREAM_TYPE_PLAIN || stream_start_oob(base)))?1:0;
 }
 

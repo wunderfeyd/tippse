@@ -94,7 +94,7 @@ char* combine_string(const char* string1, const char* string2) {
   return combined;
 }
 
-inline int directory_delimiter(char c) {
+TIPPSE_INLINE int directory_delimiter(char c) {
 #ifdef _WINDOWS
   return (c=='\\' || c=='/')?1:0;
 #else

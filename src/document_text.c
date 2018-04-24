@@ -283,7 +283,7 @@ position_t document_text_render_lookahead_word_wrap(struct document_file* file, 
 }
 
 // Scan for complete whitespace
-inline int document_text_render_whitespace_scan(struct document_text_render_info* render_info, codepoint_t newline_cp1, codepoint_t newline_cp2) {
+TIPPSE_INLINE int document_text_render_whitespace_scan(struct document_text_render_info* render_info, codepoint_t newline_cp1, codepoint_t newline_cp2) {
   file_offset_t displacement = render_info->displacement;
   size_t pos = 0;
   while (1) {
@@ -481,13 +481,13 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         int visual_flag = 0;
 
         // 100ms
-        (*file->type->mark)(file->type, &render_info->visual_detail, &render_info->cache, (render_info->y_view==render_info->y)?1:0, &render_info->keyword_length, &visual_flag);
+        (*file->type->mark)(file->type, &render_info->visual_detail, &render_info->cache, &render_info->keyword_length, &visual_flag);
 
         render_info->keyword_color = file->defaults.colors[visual_flag];
       }
     }
 
-    int bracket_match = (*file->type->bracket_match)(render_info->visual_detail, &codepoints[0], read);
+    int bracket_match = (*file->type->bracket_match)(render_info->visual_detail, cp);
 
     // Character bounds / location based stops
     // bibber *brr*
@@ -540,7 +540,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         }
       }
 
-      if (out && stop!=1 && drawn&1) {
+      if (drawn&1 && out && stop!=1) {
         out->y_drawn |= 1;
         if (in->type==VISUAL_SEEK_X_Y) {
           out->x_max = render_info->x;
@@ -788,9 +788,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         }
 
         render_info->brackets_line[bracket].diff--;
-      }
-
-      if (bracket_match&VISUAL_BRACKET_OPEN) {
+      } else {
         int bracket = bracket_match&VISUAL_BRACKET_MASK;
         render_info->depth_new[bracket]++;
         int max = render_info->depth_new[bracket]-render_info->depth_old[bracket];

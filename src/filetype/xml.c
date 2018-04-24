@@ -24,7 +24,7 @@ const char* file_type_xml_name(void) {
   return "XML";
 }
 
-void file_type_xml_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int same_line, int* length, int* flags) {
+void file_type_xml_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int* length, int* flags) {
   codepoint_t cp1 = encoding_cache_find_codepoint(cache, 0);
   codepoint_t cp2 = encoding_cache_find_codepoint(cache, 1);
 

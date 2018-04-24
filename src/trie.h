@@ -36,7 +36,7 @@ struct trie {
 struct trie* trie_create(size_t node_size);
 void trie_destroy(struct trie* base);
 void trie_clear(struct trie* base);
-inline void* trie_object(struct trie_node* node) {return (void*)(node+1);}
+TIPPSE_INLINE void* trie_object(struct trie_node* node) {return (void*)(node+1);}
 struct trie_node* trie_create_node(struct trie* base);
 struct trie_node* trie_append_codepoint(struct trie* base, struct trie_node* parent, codepoint_t cp, int end);
 struct trie_node* trie_find_codepoint(struct trie* base, struct trie_node* parent, codepoint_t cp);

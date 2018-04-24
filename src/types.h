@@ -22,4 +22,10 @@ typedef int32_t codepoint_t;
 inline void unused_result(int result) {}
 #define UNUSED(a) unused_result(a?1:0)
 
+#ifdef __GNUC__
+#define TIPPSE_INLINE inline __attribute__((always_inline))
+#else
+#define TIPPSE_INLINE inline
+#endif
+
 #endif /* #ifndef TIPPSE_TYPES_H */

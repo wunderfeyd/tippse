@@ -44,11 +44,8 @@ struct range_tree_node* encoding_transform_stream(struct stream* stream, struct 
       }
     }
 
-    // TODO: this creates error in gcc 7.2 (maybe because the inline function is in the same compilation unit?)
-    //codepoint_t cp = encoding_cache_find_codepoint(&cache, 0);
-    //encoding_cache_advance(&cache, 1);
-    size_t length;
-    codepoint_t cp = (from->decode)(from, stream, &length);
+    codepoint_t cp = encoding_cache_find_codepoint(&cache, 0);
+    encoding_cache_advance(&cache, 1);
     if (cp==-1) {
       continue;
     }

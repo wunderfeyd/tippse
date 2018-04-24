@@ -50,9 +50,9 @@ void range_tree_destroy(struct range_tree_node* node, struct document_file* file
 struct range_tree_node* range_tree_create(struct range_tree_node* parent, struct range_tree_node* side0, struct range_tree_node* side1, struct fragment* buffer, file_offset_t offset, file_offset_t length, int inserter, int64_t fuse_id, struct document_file* file);
 struct range_tree_node* range_tree_first(struct range_tree_node* node);
 struct range_tree_node* range_tree_last(struct range_tree_node* node);
-inline struct range_tree_node* range_tree_next(struct range_tree_node* node) {return node->next;}
-inline struct range_tree_node* range_tree_prev(struct range_tree_node* node) {return node->prev;}
-inline file_offset_t range_tree_length(struct range_tree_node* node) {return node?node->length:0;}
+TIPPSE_INLINE struct range_tree_node* range_tree_next(struct range_tree_node* node) {return node->next;}
+TIPPSE_INLINE struct range_tree_node* range_tree_prev(struct range_tree_node* node) {return node->prev;}
+TIPPSE_INLINE file_offset_t range_tree_length(struct range_tree_node* node) {return node?node->length:0;}
 void range_tree_exchange(struct range_tree_node* node, struct range_tree_node* old, struct range_tree_node* new);
 struct range_tree_node* range_tree_rotate(struct range_tree_node* node, int side);
 struct range_tree_node* range_tree_balance(struct range_tree_node* node);

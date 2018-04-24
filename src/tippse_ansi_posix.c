@@ -195,7 +195,7 @@ int main(int argc, const char** argv) {
   int mouse_x = 0;
   int mouse_y = 0;
 
-  if (1) { // allow human inout :)
+  if (1) { // allow human input :)
   unsigned char input_buffer[1024];
   size_t input_pos = 0;
   int64_t ansi_timeout = 0;

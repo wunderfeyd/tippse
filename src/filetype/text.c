@@ -25,7 +25,7 @@ const char* file_type_text_name(void) {
   return "Text";
 }
 
-void file_type_text_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int same_line, int* length, int* flags) {
+void file_type_text_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int* length, int* flags) {
   codepoint_t cp1 = encoding_cache_find_codepoint(cache, 0);
 
   int before = *visual_detail;
@@ -33,9 +33,7 @@ void file_type_text_mark(struct file_type* base, int* visual_detail, struct enco
 
   if (cp1=='\t' || cp1==' ') {
     after |= VISUAL_DETAIL_INDENTATION;
-  }
-
-  if ((cp1>='a' && cp1<='z') || (cp1>='A' && cp1<='Z') || (cp1>='0' && cp1<='9') || cp1=='_') {
+  } else if ((cp1>='a' && cp1<='z') || (cp1>='A' && cp1<='Z') || (cp1>='0' && cp1<='9') || cp1=='_') {
     after |= VISUAL_DETAIL_WORD;
   }
 

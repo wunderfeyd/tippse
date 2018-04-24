@@ -28,7 +28,7 @@ const char* file_type_lua_name(void) {
   return "Lua";
 }
 
-void file_type_lua_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int same_line, int* length, int* flags) {
+void file_type_lua_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int* length, int* flags) {
   struct file_type_lua* self = (struct file_type_lua*)base;
 
   // TODO: check for different block comments in future

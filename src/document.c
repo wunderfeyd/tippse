@@ -290,7 +290,7 @@ void document_search_directory(const char* path, struct range_tree_node* search_
 }
 
 // Check file properties and return highlight information
-inline int document_directory_highlight(const char* path) {
+TIPPSE_INLINE int document_directory_highlight(const char* path) {
   if (is_directory(path)) {
     return TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_DIRECTORY<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT);
   } else if (!is_file(path)) {

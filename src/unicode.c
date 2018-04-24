@@ -167,7 +167,7 @@ void unicode_decode_rle(unsigned int* table, uint16_t* rle) {
 }
 
 // Check if codepoint is marked
-inline int unicode_bitfield_check(unsigned int* table, codepoint_t codepoint) {
+TIPPSE_INLINE int unicode_bitfield_check(unsigned int* table, codepoint_t codepoint) {
   if (codepoint>=0 && codepoint<UNICODE_CODEPOINT_MAX) {
     return (table[codepoint/((int)sizeof(unsigned int)*8)]>>(codepoint&((int)sizeof(unsigned int)*8-1)))&1;
   }
@@ -176,7 +176,7 @@ inline int unicode_bitfield_check(unsigned int* table, codepoint_t codepoint) {
 }
 
 // Mark or reset bit for specific codepoint
-inline void unicode_bitfield_set(unsigned int* table, codepoint_t codepoint, int set) {
+TIPPSE_INLINE void unicode_bitfield_set(unsigned int* table, codepoint_t codepoint, int set) {
   if (codepoint>=0 && codepoint<UNICODE_CODEPOINT_MAX) {
     if (!set) {
       table[codepoint/((int)sizeof(unsigned int)*8)] &= ~(((unsigned int)1)<<(codepoint&((int)sizeof(unsigned int)*8-1)));

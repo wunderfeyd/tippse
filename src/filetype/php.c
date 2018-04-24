@@ -28,7 +28,7 @@ const char* file_type_php_name(void) {
   return "PHP";
 }
 
-void file_type_php_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int same_line, int* length, int* flags) {
+void file_type_php_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int* length, int* flags) {
   struct file_type_php* self = (struct file_type_php*)base;
 
   codepoint_t cp1 = encoding_cache_find_codepoint(cache, 0);

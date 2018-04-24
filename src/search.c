@@ -1417,17 +1417,17 @@ int search_find_check(struct search* base, struct stream* text) {
 }
 
 // Loop helper to find the bit in the byte set accordingly to the index
-inline int search_node_bitset_check(struct search_node* node, uint8_t index) {
+TIPPSE_INLINE int search_node_bitset_check(struct search_node* node, uint8_t index) {
   return ((node->bitset[index/SEARCH_NODE_SET_BUCKET]>>(index%SEARCH_NODE_SET_BUCKET))&1);
 }
 
 // Loop helper to find the code point in the code point set accordingly to the index
-inline int search_node_set_check(struct search_node* node, codepoint_t index) {
+TIPPSE_INLINE int search_node_set_check(struct search_node* node, codepoint_t index) {
   return index>=0 && range_tree_marked(node->set, (file_offset_t)index, 1, TIPPSE_INSERTER_MARK);
 }
 
 // Next stack entry, create new stack and frame if needed
-inline void search_find_loop_enter(struct search* base, struct search_stack** load, struct search_stack** start, struct search_stack** end, struct list_node** frame) {
+TIPPSE_INLINE void search_find_loop_enter(struct search* base, struct search_stack** load, struct search_stack** start, struct search_stack** end, struct list_node** frame) {
   *load = (*load)+1;
   if (*load!=*end) {
     return;
@@ -1444,7 +1444,7 @@ inline void search_find_loop_enter(struct search* base, struct search_stack** lo
 }
 
 // Previous stack entry
-inline void search_find_loop_leave(struct search* base, struct search_stack** load, struct search_stack** start, struct search_stack** end, struct list_node** frame) {
+TIPPSE_INLINE void search_find_loop_leave(struct search* base, struct search_stack** load, struct search_stack** start, struct search_stack** end, struct list_node** frame) {
   if (*load!=*start) {
     *load = (*load)-1;
     return;
