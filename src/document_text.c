@@ -492,7 +492,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     // Character bounds / location based stops
     // bibber *brr*
     // values 0 = below; 1 = on line (below); 3 = on line (above); 4 = above
-    // bitset 0 = on line; 1 = above (line); 2 = above
+    // bitset 0 = on line; 1 = above (line); 2 = above; 3 = set
 
     if (!(render_info->visual_detail&VISUAL_DETAIL_CONTROLCHARACTER) || view->show_invisibles) {
       int drawn = 0;
@@ -516,7 +516,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         rendered = (render_info->offset>=in->offset && (out->type!=VISUAL_SEEK_NONE || (drawn&4)))?1:-1;
       } else if (in->type==VISUAL_SEEK_BRACKET_PREV) {
         int bracket_correction = ((bracket_match&VISUAL_BRACKET_CLOSE) && ((bracket_match&VISUAL_BRACKET_MASK)==in->bracket))?1:0;
-        drawn = (render_info->depth_new[in->bracket]-bracket_correction==in->bracket_search && render_info->offset<=in->offset)?1:0;
+        drawn = (render_info->depth_new[in->bracket]-bracket_correction==in->bracket_search && render_info->offset<=in->offset)?(8|1):0;
         if (render_info->offset>=in->offset) {
           rendered = (out->type!=VISUAL_SEEK_NONE || drawn)?1:-1;
         } else {
@@ -524,7 +524,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         }
       } else if (in->type==VISUAL_SEEK_INDENTATION_LAST) {
         if (render_info->line==in->line) {
-          drawn = ((render_info->visual_detail&VISUAL_DETAIL_NEWLINE) || (render_info->indented))?1:0;
+          drawn = ((render_info->visual_detail&VISUAL_DETAIL_NEWLINE) || (render_info->indented))?(8|1):0;
         } else if (render_info->line>in->line) {
           drawn = 4;
         }
@@ -532,7 +532,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         drawn = (render_info->offset>=in->offset && ((render_info->visual_detail^visual_detail_before)&VISUAL_DETAIL_WORD))?(4|2|1):0;
         rendered = (render_info->offset>=in->offset && (out->type!=VISUAL_SEEK_NONE || (drawn&4)))?1:-1;
       } else if (in->type==VISUAL_SEEK_WORD_TRANSITION_PREV) {
-        drawn = (render_info->offset<=in->offset && ((render_info->visual_detail^visual_detail_before)&VISUAL_DETAIL_WORD))?1:0;
+        drawn = (render_info->offset<=in->offset && ((render_info->visual_detail^visual_detail_before)&VISUAL_DETAIL_WORD))?(8|1):0;
         if (render_info->offset>=in->offset) {
           rendered = (out->type!=VISUAL_SEEK_NONE || drawn)?1:-1;
         } else {
@@ -561,7 +561,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
           stop = 1;
         }
 
-        if (set) {
+        if (set && (drawn&(2|8))) {
           out->type = in->type;
           out->x = render_info->x;
           out->y = render_info->y_view;
@@ -582,7 +582,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         }
       }
 
-      if (drawn>=2) {
+      if (drawn&6) {
         if (!in->clip) {
           stop = 1;
         }
