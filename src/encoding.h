@@ -11,13 +11,17 @@ struct stream;
 
 #define ENCODING_CACHE_SIZE 1024
 
+struct encoding_cache_node {
+  codepoint_t cp;
+  size_t length;
+};
+
 struct encoding_cache {
   size_t start;                         // current position in cache
   size_t end;                           // last position in cache
   struct encoding* encoding;            // encoding used for stream
   struct stream* stream;                // input stream
-  codepoint_t codepoints[ENCODING_CACHE_SIZE];  // cache with codepoints
-  size_t lengths[ENCODING_CACHE_SIZE];  // cache with lengths of codepoints
+  struct encoding_cache_node nodes[ENCODING_CACHE_SIZE];  // cache with lengths of codepoints
 };
 
 struct encoding {
@@ -36,7 +40,7 @@ void encoding_cache_clear(struct encoding_cache* base, struct encoding* encoding
 // Fill code point cache
 TIPPSE_INLINE size_t encoding_cache_buffer(struct encoding_cache* base, size_t offset) {
   size_t pos = base->end%ENCODING_CACHE_SIZE;
-  base->codepoints[pos] = (*base->encoding->decode)(base->encoding, base->stream, &base->lengths[pos]);
+  base->nodes[pos].cp = (*base->encoding->decode)(base->encoding, base->stream, &base->nodes[pos].length);
   base->end++;
   return pos;
 }
@@ -47,21 +51,12 @@ TIPPSE_INLINE void encoding_cache_advance(struct encoding_cache* base, size_t ad
 }
 
 // Returned code point from relative offset
-TIPPSE_INLINE codepoint_t encoding_cache_find_codepoint(struct encoding_cache* base, size_t offset) {
+TIPPSE_INLINE struct encoding_cache_node encoding_cache_find_codepoint(struct encoding_cache* base, size_t offset) {
   if (offset+base->start>=base->end) {
-    return base->codepoints[encoding_cache_buffer(base, offset)];
+    return base->nodes[encoding_cache_buffer(base, offset)];
   }
 
-  return base->codepoints[(base->start+offset)%ENCODING_CACHE_SIZE];
-}
-
-// Returned code point byte length from relative offset
-TIPPSE_INLINE size_t encoding_cache_find_length(struct encoding_cache* base, size_t offset) {
-  if (offset+base->start>=base->end) {
-    return base->lengths[encoding_cache_buffer(base, offset)];
-  }
-
-  return base->lengths[(base->start+offset)%ENCODING_CACHE_SIZE];
+  return base->nodes[(base->start+offset)%ENCODING_CACHE_SIZE];
 }
 
 uint16_t* encoding_reverse_table(uint16_t* table, size_t length, size_t max);

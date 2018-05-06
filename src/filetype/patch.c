@@ -24,11 +24,12 @@ const char* file_type_patch_name(void) {
   return "Patch";
 }
 
-void file_type_patch_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int* length, int* flags) {
-  codepoint_t cp1 = encoding_cache_find_codepoint(cache, 0);
+int file_type_patch_mark(struct document_text_render_info* render_info) {
+  int flags = 0;
+  codepoint_t cp1 = render_info->codepoints[0];
 
-  *length = 1;
-  int before = *visual_detail;
+  render_info->keyword_length = 1;
+  int before = render_info->visual_detail;
   int after = before&~(VISUAL_DETAIL_INDENTATION|VISUAL_DETAIL_WORD);
 
   if (before&VISUAL_DETAIL_NEWLINE) {
@@ -53,17 +54,18 @@ void file_type_patch_mark(struct file_type* base, int* visual_detail, struct enc
   }
 
   if ((before|after)&(VISUAL_DETAIL_COMMENT0)) {
-    *flags = VISUAL_FLAG_COLOR_STRING;
+    flags = VISUAL_FLAG_COLOR_STRING;
   } else if ((before|after)&(VISUAL_DETAIL_STRING0)) {
-    *length = 0;
-    *flags = 0;
+    render_info->keyword_length = 0;
+    flags = 0;
   } else if ((before|after)&(VISUAL_DETAIL_STRING1)) {
-    *flags = VISUAL_FLAG_COLOR_PLUS;
+    flags = VISUAL_FLAG_COLOR_PLUS;
   } else if ((before|after)&(VISUAL_DETAIL_STRING2)) {
-    *flags = VISUAL_FLAG_COLOR_MINUS;
+    flags = VISUAL_FLAG_COLOR_MINUS;
   } else {
-    *flags = VISUAL_FLAG_COLOR_LINECOMMENT;
+    flags = VISUAL_FLAG_COLOR_LINECOMMENT;
   }
 
-  *visual_detail = after;
+  render_info->visual_detail = after;
+  return flags;
 }

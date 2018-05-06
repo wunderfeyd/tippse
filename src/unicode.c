@@ -166,65 +166,6 @@ void unicode_decode_rle(unsigned int* table, uint16_t* rle) {
   }
 }
 
-// Check if codepoint is marked
-TIPPSE_INLINE int unicode_bitfield_check(unsigned int* table, codepoint_t codepoint) {
-  if (codepoint>=0 && codepoint<UNICODE_CODEPOINT_MAX) {
-    return (table[codepoint/((int)sizeof(unsigned int)*8)]>>(codepoint&((int)sizeof(unsigned int)*8-1)))&1;
-  }
-
-  return 0;
-}
-
-// Mark or reset bit for specific codepoint
-TIPPSE_INLINE void unicode_bitfield_set(unsigned int* table, codepoint_t codepoint, int set) {
-  if (codepoint>=0 && codepoint<UNICODE_CODEPOINT_MAX) {
-    if (!set) {
-      table[codepoint/((int)sizeof(unsigned int)*8)] &= ~(((unsigned int)1)<<(codepoint&((int)sizeof(unsigned int)*8-1)));
-    } else {
-      table[codepoint/((int)sizeof(unsigned int)*8)] |= ((unsigned int)1)<<(codepoint&((int)sizeof(unsigned int)*8-1));
-    }
-  }
-}
-
-// Return contents and length of combining character sequence
-size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offset, codepoint_t* codepoints, size_t max, size_t* advance, size_t* length) {
-  size_t pos = 0;
-  size_t read = 0;
-  codepoint_t codepoint = encoding_cache_find_codepoint(cache, offset+read++);
-  if (unicode_bitfield_check(&unicode_marks[0], codepoint)) {
-    codepoints[pos++] = 'o';
-  }
-
-  codepoints[pos++] = codepoint;
-  if (codepoint>0x20) {
-    while (pos<max) {
-      codepoint = encoding_cache_find_codepoint(cache, offset+read);
-      if (unicode_bitfield_check(&unicode_marks[0], codepoint)) {
-        codepoints[pos++] = codepoint;
-        read++;
-        continue;
-      } else if (codepoint==0x200d) { // Zero width joiner
-        if (pos+1<max) {
-          codepoints[pos++] = codepoint;
-          read++;
-          codepoints[pos++] = encoding_cache_find_codepoint(cache, offset+read++);
-        }
-        continue;
-      }
-
-      break;
-    }
-  }
-
-  *advance = read;
-  *length = 0;
-  for (size_t check = 0; check<read; check++) {
-    *length += encoding_cache_find_length(cache, offset+check);
-  }
-
-  return pos;
-}
-
 // Check visual width of unicode sequence
 int unicode_width(codepoint_t* codepoints, size_t max) {
   if (max<=0) {
@@ -261,14 +202,14 @@ struct unicode_transform_node* unicode_transform(struct trie* transformation, st
   size_t read = 0;
   struct trie_node* parent = NULL;
   while (1) {
-    codepoint_t cp = encoding_cache_find_codepoint(cache, offset+read);
-    parent = trie_find_codepoint(transformation, parent, cp);
+    struct encoding_cache_node node = encoding_cache_find_codepoint(cache, offset+read);
+    parent = trie_find_codepoint(transformation, parent, node.cp);
 
     if (!parent) {
       return NULL;
     }
 
-    *length += encoding_cache_find_length(cache, offset+read);
+    *length += node.length;
     read++;
 
     if (parent->end) {

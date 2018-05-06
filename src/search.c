@@ -171,7 +171,7 @@ struct search* search_create_plain(int ignore_case, int reverse, struct stream n
   struct search_node* last = NULL;
   size_t offset = 0;
   while (1) {
-    codepoint_t cp = encoding_cache_find_codepoint(&cache, offset);
+    codepoint_t cp = encoding_cache_find_codepoint(&cache, offset).cp;
     if (cp<=0) {
       break;
     }
@@ -224,7 +224,7 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
   size_t offset = 0;
   int escape = 0;
   while (1) {
-    codepoint_t cp = encoding_cache_find_codepoint(&cache, offset);
+    codepoint_t cp = encoding_cache_find_codepoint(&cache, offset).cp;
     if (cp<=0) {
       break;
     }
@@ -241,7 +241,7 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
         size_t min = (size_t)decode_based_unsigned_offset(&cache, 10, &offset, SIZE_T_MAX);
         last->min = min;
         last->max = min;
-        if (encoding_cache_find_codepoint(&cache, offset)==',') {
+        if (encoding_cache_find_codepoint(&cache, offset).cp==',') {
           offset++;
           size_t max = (size_t)decode_based_unsigned_offset(&cache, 10, &offset, SIZE_T_MAX);
           offset++;
@@ -467,7 +467,7 @@ struct range_tree_node* search_replacement(struct search* base, struct range_tre
   size_t offset = 0;
   int escape = 0;
   while (1) {
-    codepoint_t cp = encoding_cache_find_codepoint(&cache, offset);
+    codepoint_t cp = encoding_cache_find_codepoint(&cache, offset).cp;
     if (size>TREE_BLOCK_LENGTH_MAX-8 || cp<=0) {
       output = range_tree_insert_split(output, range_tree_length(output), &coded[0], size, 0);
       size = 0;
@@ -575,7 +575,7 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
   int invert = 0;
   size_t advance = 0;
   while (1) {
-    codepoint_t cp = encoding_cache_find_codepoint(cache, offset+advance);
+    codepoint_t cp = encoding_cache_find_codepoint(cache, offset+advance).cp;
     if (cp<=0) {
       break;
     }
@@ -613,12 +613,12 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
       }
     }
 
-    if (encoding_cache_find_codepoint(cache, offset+advance+1)=='-' && from<=0) {
-      from = encoding_cache_find_codepoint(cache, offset+advance);
+    if (encoding_cache_find_codepoint(cache, offset+advance+1).cp=='-' && from<=0) {
+      from = encoding_cache_find_codepoint(cache, offset+advance).cp;
       advance += 2;
     } else {
       if (from>0) {
-        codepoint_t to = encoding_cache_find_codepoint(cache, offset+advance);
+        codepoint_t to = encoding_cache_find_codepoint(cache, offset+advance).cp;
         advance++;
         while (from<=to) {
           search_node_set(check, (size_t)from);
@@ -692,11 +692,11 @@ size_t search_append_unicode(struct search_node* last, int ignore_case, struct e
     if (advance==1 && shorten) {
       shorten->type &= ~SEARCH_NODE_TYPE_BRANCH;
       shorten->type |= SEARCH_NODE_TYPE_SET;
-      search_node_set(shorten, (size_t)encoding_cache_find_codepoint(cache, offset));
+      search_node_set(shorten, (size_t)encoding_cache_find_codepoint(cache, offset).cp);
     } else {
       codepoint_t cp[8];
       for (size_t n = 0; n<advance; n++) {
-        cp[n] = encoding_cache_find_codepoint(cache, offset+n);
+        cp[n] = encoding_cache_find_codepoint(cache, offset+n).cp;
       }
       search_append_next_codepoint(last, &cp[0], advance);
     }

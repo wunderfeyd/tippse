@@ -7,9 +7,15 @@
 #define DEBUG_RERENDERDISPLAY 1
 #define DEBUG_ALWAYSRERENDER 2
 #define DEBUG_PAGERENDERDISPLAY 4
+#define DEBUG_LINERENDERTIMING 8
 
 int debug = DEBUG_NONE;
 int debug_draw = 0;
+int debug_relocates = 0;
+int debug_pages = 0;
+int debug_chars = 0;
+int64_t debug_span_time = 0;
+int64_t debug_seek_time = 0;
 struct screen* debug_screen = NULL;
 struct splitter* debug_splitter = NULL;
 
@@ -139,6 +145,7 @@ void document_text_render_clear(struct document_text_render_info* render_info, p
 
 // Update renderer state to restart at the given position or to continue if possible
 void document_text_render_seek(struct document_text_render_info* render_info, struct range_tree_node* buffer, struct encoding* encoding, struct document_text_position* in) {
+  int64_t t = tick_count();
   file_offset_t offset_new = 0;
   position_t x_new = 0;
   position_t y_new = 0;
@@ -184,12 +191,13 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
 
   if (dirty && (!buffer_new || render_info->buffer!=range_tree_next(buffer_new)) && render_info->buffer!=buffer_new) {
     rerender = 1;
-  } else if (!dirty && render_info->buffer!=buffer_new) {
+  } else if (!dirty && /*render_info->buffer!=buffer_new ||*/ (!render_info->buffer || !buffer_new)) {
     rerender = 1;
   }
 
   if (rerender) {
     debug_draw++;
+    debug_relocates++;
     render_info->append = 1;
     if (buffer_new) {
       render_info->visual_detail = buffer_new->visuals.detail_before;
@@ -251,6 +259,8 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
   } else {
     render_info->y = render_info->y_view;
   }
+
+  debug_seek_time += tick_count()-t;
 }
 
 // Get word length from specified position
@@ -292,8 +302,9 @@ TIPPSE_INLINE int document_text_render_whitespace_scan(struct document_text_rend
       return buffer_new?range_tree_find_whitespaced(buffer_new):1;
     }
 
-    displacement += encoding_cache_find_length(&render_info->cache, pos);
-    codepoint_t cp = encoding_cache_find_codepoint(&render_info->cache, pos);
+    struct encoding_cache_node node = encoding_cache_find_codepoint(&render_info->cache, pos);
+    displacement += node.length;
+    codepoint_t cp = node.cp;
     if ((cp==newline_cp1 || cp==0) && (pos>0)) {
       return 1;
     }
@@ -312,6 +323,7 @@ TIPPSE_INLINE int document_text_render_whitespace_scan(struct document_text_rend
 // TODO: find better visualization for debugging, find unnecessary render iterations and then optimize (as soon the code is "feature complete")
 int document_text_render_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
   // TODO: Following initializations shouldn't be needed since the caller should check the type / verify
+  int64_t t = tick_count();
   if (out) {
     out->type = VISUAL_SEEK_NONE;
     out->offset = 0;
@@ -342,6 +354,11 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 
   codepoint_t newline_cp1 = (file->newline==TIPPSE_NEWLINE_CR)?'\r':'\n';
   codepoint_t newline_cp2 = (file->newline==TIPPSE_NEWLINE_CRLF)?'\r':0;
+  debug_pages++;
+
+  int (*mark)(struct document_text_render_info* render_info) = file->type->mark;
+  int (*match)(struct document_text_render_info* render_info) = file->type->bracket_match;
+  render_info->file_type = file->type;
 
   while (1) {
     int boundary = 0;
@@ -427,14 +444,18 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       }
 
       page_dirty = (render_info->buffer && render_info->buffer->visuals.dirty)?1:0;
+      debug_pages++;
     }
 
-    codepoint_t codepoints[8];
-    size_t advance;
-    size_t length;
-    size_t read = unicode_read_combined_sequence(&render_info->cache, 0, &codepoints[0], 8, &advance, &length);
+    render_info->read = unicode_read_combined_sequence(&render_info->cache, 0, &render_info->codepoints[0], 8, &render_info->advance, &render_info->length);
+    /*codepoints[0] = stream_read_forward(&render_info->stream);
+    length = 1;
+    advance = 1;
+    size_t read = 1;*/
 
-    codepoint_t cp = codepoints[0];
+    debug_chars++;
+
+    codepoint_t cp = render_info->codepoints[0];
 
     if (cp==0xfeff) {
       render_info->visual_detail |= VISUAL_DETAIL_CONTROLCHARACTER;
@@ -478,16 +499,12 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       }
 
       if (render_info->keyword_length==0) {
-        int visual_flag = 0;
-
         // 100ms
-        (*file->type->mark)(file->type, &render_info->visual_detail, &render_info->cache, &render_info->keyword_length, &visual_flag);
-
-        render_info->keyword_color = file->defaults.colors[visual_flag];
+        render_info->keyword_color = file->defaults.colors[(*mark)(render_info)];
       }
     }
 
-    int bracket_match = (*file->type->bracket_match)(render_info->visual_detail, cp);
+    int bracket_match = (*match)(render_info);
 
     // Character bounds / location based stops
     // bibber *brr*
@@ -602,6 +619,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     }
 
     if (stop && (boundary || !page_dirty || in->clip)) {
+      //stream_reverse(&render_info->stream, 1);
       break;
     }
 
@@ -633,7 +651,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
           show = 0xfffd;
         }
 
-        fill = unicode_width(&codepoints[0], read);
+        fill = unicode_width(&render_info->codepoints[0], render_info->read);
         if (show!=-1 || fill<=0) {
           fill = 1;
         }
@@ -651,7 +669,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       } else if (cp==0xfeff) {
         fill = 0;
       } else {
-        fill = unicode_width(&codepoints[0], read);
+        fill = unicode_width(&render_info->codepoints[0], render_info->read);
       }
     }
 
@@ -672,11 +690,11 @@ int document_text_render_span(struct document_text_render_info* render_info, str
           splitter_drawchar(splitter, screen, (int)x, (int)y, &show, 1, color, background);
         } else {
           codepoint_t codepoints_visual[8];
-          for (size_t code = 0; code<read; code++) {
-            codepoints_visual[code] = (file->encoding->visual)(file->encoding, codepoints[code]);
+          for (size_t code = 0; code<render_info->read; code++) {
+            codepoints_visual[code] = (file->encoding->visual)(file->encoding, render_info->codepoints[code]);
           }
 
-          splitter_drawchar(splitter, screen, (int)x, (int)y, &codepoints_visual[0], read, color, background);
+          splitter_drawchar(splitter, screen, (int)x, (int)y, &codepoints_visual[0], render_info->read, color, background);
         }
 
         for (int pos = 1; pos<fill; pos++) {
@@ -707,11 +725,11 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     render_info->columns++;
     render_info->character++;
     render_info->characters++;
-    encoding_cache_advance(&render_info->cache, advance);
+    encoding_cache_advance(&render_info->cache, render_info->advance);
 
-    render_info->displacement += length;
-    render_info->offset += length;
-    render_info->selection_displacement += length;
+    render_info->displacement += render_info->length;
+    render_info->offset += render_info->length;
+    render_info->selection_displacement += render_info->length;
 
     if (render_info->keyword_length==0 && !(render_info->visual_detail&VISUAL_DETAIL_CONTROLCHARACTER)) {
       render_info->offset_sync = render_info->offset;
@@ -815,6 +833,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     }
   }
 
+  debug_span_time += tick_count()-t;
   return rendered;
 }
 
@@ -860,7 +879,7 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
     struct trie_node* parent_build = NULL;
     struct trie_node* parent_last = NULL;
     while (1) {
-      codepoint_t cp = encoding_cache_find_codepoint(&cache, 0);
+      codepoint_t cp = encoding_cache_find_codepoint(&cache, 0).cp;
       if (cp<=0) {
         break;
       }
@@ -985,7 +1004,13 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   in.x = view->scroll_x;
   position_t last_line = -1;
   for (position_t y = 0; y<splitter->client_height+1; y++) {
+    debug_relocates = 0;
+    debug_pages = 0;
+    debug_chars = 0;
+    debug_span_time = 0;
+    debug_seek_time = 0;
     in.y = y+view->scroll_y;
+    int64_t t1 = tick_count();
 
     // Get render start offset (for bookmark detection)
     struct document_text_position out;
@@ -997,12 +1022,16 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 
     document_text_cursor_position_partial(&render_info, splitter, &in_x_y, &out, 0, 1);
 
+    int start_x = (int)render_info.x;
+
     // Line wrap indicator
     if ((out.visual_detail&VISUAL_DETAIL_WRAPPED) && view->show_invisibles && out.y==in.y) {
       position_t x = out.x-file->tabstop_width-view->scroll_x+view->address_width;
       // TODO: cp should be 0x21aa
       splitter_drawtext(splitter, screen, x, (int)y, "*", 1, file->defaults.colors[VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
     }
+
+    int64_t t2 = tick_count();
 
     // Actual rendering
     while (1) {
@@ -1011,6 +1040,10 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
         break;
       }
     }
+
+    int64_t t3 = tick_count();
+
+    int end_x = (int)render_info.x;
 
     // Bookmark detection
     int marked = range_tree_marked(file->bookmarks, out.offset, render_info.offset-out.offset, TIPPSE_INSERTER_MARK);
@@ -1026,6 +1059,11 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
       }
 
       splitter_drawtext(splitter, screen, 0, (int)y, line, (size_t)size, file->defaults.colors[marked?VISUAL_FLAG_COLOR_BOOKMARK:VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
+    }
+
+    int64_t te = tick_count();
+    if (debug&DEBUG_LINERENDERTIMING) {
+      fprintf(stderr, "%d: %d | %d | %d (%d, %d) @ %d + %d / %d + %d\r\n", (int)y, (int)debug_relocates, (int)debug_pages, (int)debug_chars, start_x, end_x, (int)(te-t1), (int)(t3-t2), (int)debug_seek_time, (int)debug_span_time);
     }
   }
 
@@ -1083,7 +1121,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     stream_from_page(&stream, buffer, displacement);
     struct encoding_cache cache;
     encoding_cache_clear(&cache, file->encoding, &stream);
-    codepoint_t cp = encoding_cache_find_codepoint(&cache, 0);
+    codepoint_t cp = encoding_cache_find_codepoint(&cache, 0).cp;
     if (!((cp>='A' && cp<='Z') || (cp>='a' && cp<='z') || (cp>='0' && cp<='9') || (cp=='_'))) {
       stream_from_page(&stream, buffer, displacement);
       while (!stream_start(&stream)) {
@@ -1098,7 +1136,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
       int prefix = 0;
       struct trie_node* parent = NULL;
       while (stream_offset(&stream)<view->offset) {
-        codepoint_t cp = encoding_cache_find_codepoint(&cache, 0);
+        codepoint_t cp = encoding_cache_find_codepoint(&cache, 0).cp;
         length += encoding_utf8_encode(NULL, cp, (uint8_t*)&text[length], sizeof(text)-length);
         parent = trie_find_codepoint(file->autocomplete_last, parent, cp);
         if (!parent) {
@@ -2178,12 +2216,13 @@ void document_text_transform(struct document* base, struct trie* transformation,
     }
 
     if (!transform) {
+      struct encoding_cache_node node = encoding_cache_find_codepoint(&cache, offset);
       if (recode>0) {
         // TODO: this might change the original encoded characters due to decode and reencode (just copy the old things if possible)
-        recode += file->encoding->encode(file->encoding, encoding_cache_find_codepoint(&cache, offset), &recoded[recode], 8);
+        recode += file->encoding->encode(file->encoding, node.cp, &recoded[recode], 8);
       }
 
-      from += encoding_cache_find_length(&cache, offset);
+      from += node.length;
       offset++;
     } else {
       if (recode==0) {

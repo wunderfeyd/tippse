@@ -25,10 +25,10 @@ const char* file_type_text_name(void) {
   return "Text";
 }
 
-void file_type_text_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int* length, int* flags) {
-  codepoint_t cp1 = encoding_cache_find_codepoint(cache, 0);
+int file_type_text_mark(struct document_text_render_info* render_info) {
+  codepoint_t cp1 = render_info->codepoints[0];
 
-  int before = *visual_detail;
+  int before = render_info->visual_detail;
   int after = before&~(VISUAL_DETAIL_INDENTATION|VISUAL_DETAIL_WORD);
 
   if (cp1=='\t' || cp1==' ') {
@@ -37,5 +37,6 @@ void file_type_text_mark(struct file_type* base, int* visual_detail, struct enco
     after |= VISUAL_DETAIL_WORD;
   }
 
-  *visual_detail = after;
+  render_info->visual_detail = after;
+  return 0;
 }

@@ -42,7 +42,7 @@ int file_type_keyword_config(struct file_type* base, struct encoding_cache* cach
   struct trie_node* last = NULL;
   size_t pos = 0;
   while (1) {
-    codepoint_t cp = encoding_cache_find_codepoint(cache, pos++);
+    codepoint_t cp = encoding_cache_find_codepoint(cache, pos++).cp;
     if (nocase) {
       cp = tolower(cp);
     }
@@ -54,7 +54,7 @@ int file_type_keyword_config(struct file_type* base, struct encoding_cache* cach
     }
 
     if (parent->end) {
-      codepoint_t cp = encoding_cache_find_codepoint(cache, pos);
+      codepoint_t cp = encoding_cache_find_codepoint(cache, pos).cp;
       if ((cp<'a' || cp>'z') && (cp<'A' || cp>'Z') && (cp<'0' || cp>'9') && cp!='_') {
         last = parent;
         *keyword_length = (int)pos;
@@ -69,8 +69,9 @@ int file_type_keyword_config(struct file_type* base, struct encoding_cache* cach
   return (int)config_convert_int64_cache(last, &visual_color_codes[0]);
 }
 
-int file_type_bracket_match(int visual_detail, codepoint_t cp) {
-  if ((visual_detail&(VISUAL_DETAIL_STRING0|VISUAL_DETAIL_STRING1|VISUAL_DETAIL_COMMENT0|VISUAL_DETAIL_COMMENT1))==0) {
+int file_type_bracket_match(struct document_text_render_info* render_info) {
+  if ((render_info->visual_detail&(VISUAL_DETAIL_STRING0|VISUAL_DETAIL_STRING1|VISUAL_DETAIL_COMMENT0|VISUAL_DETAIL_COMMENT1))==0) {
+    codepoint_t cp = render_info->codepoints[0];
     if (cp=='{') {
       return 0|VISUAL_BRACKET_OPEN;
     } else if (cp=='[') {

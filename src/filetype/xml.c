@@ -24,12 +24,13 @@ const char* file_type_xml_name(void) {
   return "XML";
 }
 
-void file_type_xml_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int* length, int* flags) {
-  codepoint_t cp1 = encoding_cache_find_codepoint(cache, 0);
-  codepoint_t cp2 = encoding_cache_find_codepoint(cache, 1);
+int file_type_xml_mark(struct document_text_render_info* render_info) {
+  int flags = 0;
+  codepoint_t cp1 = render_info->codepoints[0];
+  codepoint_t cp2 = encoding_cache_find_codepoint(&render_info->cache, 1).cp;
 
-  *length = 1;
-  int before = *visual_detail;
+  render_info->keyword_length = 1;
+  int before = render_info->visual_detail;
   if (before&VISUAL_DETAIL_NEWLINE) {
     before &= ~(VISUAL_DETAIL_STRING0|VISUAL_DETAIL_STRING1);
   }
@@ -51,10 +52,10 @@ void file_type_xml_mark(struct file_type* base, int* visual_detail, struct encod
     } else if (cp1=='-') {
       if (cp2=='-') {
         if (before_masked==VISUAL_DETAIL_COMMENT2) {
-          *length = 2;
+          render_info->keyword_length = 2;
           after |= VISUAL_DETAIL_COMMENT0;
         } else if (before_masked==(VISUAL_DETAIL_COMMENT2|VISUAL_DETAIL_COMMENT0)) {
-          *length = 2;
+          render_info->keyword_length = 2;
           after &= ~VISUAL_DETAIL_COMMENT0;
         }
       }
@@ -82,24 +83,25 @@ void file_type_xml_mark(struct file_type* base, int* visual_detail, struct encod
   }
 
   if ((before|after)&(VISUAL_DETAIL_STRING0|VISUAL_DETAIL_STRING1)) {
-    *flags = VISUAL_FLAG_COLOR_STRING;
+    flags = VISUAL_FLAG_COLOR_STRING;
   } else if ((before|after)&(VISUAL_DETAIL_COMMENT0)) {
-    *flags = VISUAL_FLAG_COLOR_BLOCKCOMMENT;
+    flags = VISUAL_FLAG_COLOR_BLOCKCOMMENT;
   } else if ((before|after)&(VISUAL_DETAIL_COMMENT2)) {
-    *flags = VISUAL_FLAG_COLOR_TYPE;
+    flags = VISUAL_FLAG_COLOR_TYPE;
   } else if ((after)&(VISUAL_DETAIL_INDENTATION)) {
-    *length = 0;
-    *flags = 0;
+    render_info->keyword_length = 0;
+    flags = 0;
   } else {
     if (!(before&VISUAL_DETAIL_WORD) && (after&VISUAL_DETAIL_WORD)) {
-      *length = 0;
-      *flags = 0;
+      render_info->keyword_length = 0;
+      flags = 0;
     }
 
-    if (*flags==0) {
-      *length = 0;
+    if (flags==0) {
+      render_info->keyword_length = 0;
     }
   }
 
-  *visual_detail = after;
+  render_info->visual_detail = after;
+  return flags;
 }

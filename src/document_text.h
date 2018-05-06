@@ -21,6 +21,7 @@ struct document_text_render_info {
   position_t y;                     // virtual screen Y position, without scroll offset
   position_t y_view;                // virtual screen Y position for rendering, without scroll offset
   struct range_tree_node* buffer;   // access to document buffer, current page in tree
+  struct file_type* file_type;
   file_offset_t displacement;       // displacement for next Unicode character
   file_offset_t offset;             // file offset
   file_offset_t offset_sync;        // last position for keyword
@@ -38,13 +39,15 @@ struct document_text_render_info {
   file_offset_t character;          // number of characters in whole document
   int visual_detail;                // flags for visual details
   position_t width;                 // screen width for rendering
+  size_t advance;
+  size_t length;
+  size_t read;
+  codepoint_t codepoints[8];
   int keyword_color;                // keyword color
   int keyword_length;               // keyword length remaining
   int whitespaced;                  // end of line is whitespace only?
   int whitespace_scan;              // whitespace scanned?
   int indented;                     // begin of line is indentation only?
-  struct stream stream;    // access to byte stream
-  struct encoding_cache cache;      // access to Unicode cache
   struct range_tree_node* selection_root; // root of selection buffer
   struct range_tree_node* selection; // access to selection buffer, current page in tree
   file_offset_t selection_displacement; // position in current selection page
@@ -53,6 +56,8 @@ struct document_text_render_info {
   int depth_line[VISUAL_BRACKET_MAX]; //depth of bracket matching at line
   struct visual_bracket brackets[VISUAL_BRACKET_MAX]; // block structure for bracket matching
   struct visual_bracket brackets_line[VISUAL_BRACKET_MAX]; // block structure for bracket matching at line
+  struct stream stream;    // access to byte stream
+  struct encoding_cache cache;      // access to Unicode cache
 };
 
 // Document position structure

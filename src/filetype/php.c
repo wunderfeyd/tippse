@@ -28,14 +28,15 @@ const char* file_type_php_name(void) {
   return "PHP";
 }
 
-void file_type_php_mark(struct file_type* base, int* visual_detail, struct encoding_cache* cache, int* length, int* flags) {
-  struct file_type_php* self = (struct file_type_php*)base;
+int file_type_php_mark(struct document_text_render_info* render_info) {
+  int flags = 0;
+  struct file_type_php* self = (struct file_type_php*)render_info->file_type;
 
-  codepoint_t cp1 = encoding_cache_find_codepoint(cache, 0);
-  codepoint_t cp2 = encoding_cache_find_codepoint(cache, 1);
+  codepoint_t cp1 = render_info->codepoints[0];
+  codepoint_t cp2 = encoding_cache_find_codepoint(&render_info->cache, 1).cp;
 
-  *length = 1;
-  int before = *visual_detail;
+  render_info->keyword_length = 1;
+  int before = render_info->visual_detail;
   if (before&VISUAL_DETAIL_NEWLINE) {
     before &= ~(VISUAL_DETAIL_STRING0|VISUAL_DETAIL_STRING1|VISUAL_DETAIL_COMMENT1);
   }
@@ -49,16 +50,16 @@ void file_type_php_mark(struct file_type* base, int* visual_detail, struct encod
     if (cp1=='/') {
       if (before_masked==0) {
         if (cp2=='*') {
-          *length = 2;
+          render_info->keyword_length = 2;
           after |= VISUAL_DETAIL_COMMENT0;
         } else if (cp2=='/') {
-          *length = 2;
+          render_info->keyword_length = 2;
           after |= VISUAL_DETAIL_COMMENT1;
         }
       }
     } else if (cp1=='*') {
       if (cp2=='/' && before_masked==VISUAL_DETAIL_COMMENT0) {
-        *length = 2;
+        render_info->keyword_length = 2;
         after &= ~VISUAL_DETAIL_COMMENT0;
       }
     } else if (cp1=='\\') {
@@ -89,24 +90,25 @@ void file_type_php_mark(struct file_type* base, int* visual_detail, struct encod
   }
 
   if ((before|after)&(VISUAL_DETAIL_STRING0|VISUAL_DETAIL_STRING1)) {
-    *flags = VISUAL_FLAG_COLOR_STRING;
+    flags = VISUAL_FLAG_COLOR_STRING;
   } else if ((before|after)&(VISUAL_DETAIL_COMMENT0)) {
-    *flags = VISUAL_FLAG_COLOR_BLOCKCOMMENT;
+    flags = VISUAL_FLAG_COLOR_BLOCKCOMMENT;
   } else if ((before|after)&(VISUAL_DETAIL_COMMENT1)) {
-    *flags = VISUAL_FLAG_COLOR_LINECOMMENT;
+    flags = VISUAL_FLAG_COLOR_LINECOMMENT;
   } else if ((after)&(VISUAL_DETAIL_INDENTATION)) {
-    *length = 0;
-    *flags = 0;
+    render_info->keyword_length = 0;
+    flags = 0;
   } else {
     if (!(before&VISUAL_DETAIL_WORD) && (after&VISUAL_DETAIL_WORD)) {
-      *length = 0;
-      *flags = file_type_keyword_config(base, cache, self->keywords, length, 0);
+      render_info->keyword_length = 0;
+      flags = file_type_keyword_config(render_info->file_type, &render_info->cache, self->keywords, &render_info->keyword_length, 0);
     }
 
-    if (*flags==0) {
-      *length = 0;
+    if (flags==0) {
+      render_info->keyword_length = 0;
     }
   }
 
-  *visual_detail = after;
+  render_info->visual_detail = after;
+  return flags;
 }
