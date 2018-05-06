@@ -183,15 +183,14 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
   }
 
   int dirty = 0;
-  if (buffer_new) {
-    if (range_tree_next(buffer_new)) {
-      dirty = range_tree_next(buffer_new)->visuals.dirty;
-    }
+  struct range_tree_node* next = range_tree_next(buffer_new);
+  if (next) {
+    dirty = range_tree_next(buffer_new)->visuals.dirty;
   }
 
-  if (dirty && (!buffer_new || render_info->buffer!=range_tree_next(buffer_new)) && render_info->buffer!=buffer_new) {
+  if (dirty && (!buffer_new || render_info->buffer!=next) && render_info->buffer!=buffer_new) {
     rerender = 1;
-  } else if (!dirty && /*render_info->buffer!=buffer_new ||*/ (!render_info->buffer || !buffer_new)) {
+  } else if (!dirty && ((next && render_info->offset+range_tree_length(render_info->buffer)<range_tree_offset(next)) || !render_info->buffer || !buffer_new)) {
     rerender = 1;
   }
 
