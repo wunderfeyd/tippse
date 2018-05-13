@@ -166,21 +166,6 @@ void unicode_decode_rle(unsigned int* table, uint16_t* rle) {
   }
 }
 
-// Check visual width of unicode sequence
-int unicode_width(codepoint_t* codepoints, size_t max) {
-  if (max<=0) {
-    return 1;
-  }
-
-  // Return width zero if character is invisible
-  if (unicode_bitfield_check(&unicode_invisibles[0], codepoints[0])) {
-    return 0;
-  }
-
-  // Check if we have CJK ideographs (which are displayed in two columns each)
-  return unicode_bitfield_check(&unicode_widths[0], codepoints[0])+1;
-}
-
 // Adjust visual width with read terminal font capabilities
 void unicode_width_adjust(codepoint_t cp, int width) {
   unicode_bitfield_set(&unicode_invisibles[0], cp, (width==0)?1:0);

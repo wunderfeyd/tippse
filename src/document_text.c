@@ -216,8 +216,6 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
       }
 
       render_info->indented = range_tree_find_indentation(buffer_new);
-      render_info->whitespaced = range_tree_find_whitespaced(buffer_new);
-      render_info->whitespace_scan = 0;
 
       render_info->visual_detail |= VISUAL_DETAIL_WHITESPACED_COMPLETE;
       render_info->visual_detail &= ~(VISUAL_DETAIL_WHITESPACED_START|VISUAL_DETAIL_STOPPED_INDENTATION);
@@ -371,6 +369,10 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
     int boundary = 0;
     while (render_info->buffer && render_info->displacement>=render_info->buffer->length) {
       boundary = 1;
+      if (render_info->keyword_length<0) {
+        render_info->keyword_length = 0;
+      }
+
       int dirty = (render_info->buffer->visuals.xs!=render_info->xs || render_info->buffer->visuals.ys!=render_info->ys || render_info->buffer->visuals.lines!=render_info->lines ||  render_info->buffer->visuals.columns!=render_info->columns || render_info->buffer->visuals.indentation!=render_info->indentations || render_info->buffer->visuals.indentation_extra!=render_info->indentations_extra || render_info->buffer->visuals.detail_after!=render_info->visual_detail ||  (render_info->ys==0 && render_info->buffer->visuals.dirty && view->wrapping))?1:0;
       for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
         if (render_info->buffer->visuals.brackets[n].diff!=render_info->brackets[n].diff || render_info->buffer->visuals.brackets[n].min!=render_info->brackets[n].min || render_info->buffer->visuals.brackets[n].max!=render_info->brackets[n].max || render_info->buffer->visuals.brackets_line[n].diff!=render_info->brackets_line[n].diff || render_info->buffer->visuals.brackets_line[n].min!=render_info->brackets_line[n].min || render_info->buffer->visuals.brackets_line[n].max!=render_info->brackets_line[n].max) {
@@ -472,11 +474,9 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
 
     int visual_detail_before = render_info->visual_detail;
 
-    if (render_info->buffer) {
-      if (render_info->keyword_length==0) {
-        // 100ms
-        render_info->keyword_color = file->defaults.colors[(*mark)(render_info)];
-      }
+    if (render_info->buffer && render_info->keyword_length<=0) {
+      // 100ms
+      render_info->keyword_color = file->defaults.colors[(*mark)(render_info)];
     }
 
     int bracket_match = (*match)(render_info);
@@ -595,10 +595,6 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
       break;
     }
 
-    if (render_info->keyword_length>0) {
-      render_info->keyword_length--;
-    }
-
     int fill;
     if (view->show_invisibles) {
       if (cp=='\t') {
@@ -666,7 +662,9 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
     render_info->offset += render_info->length;
     render_info->selection_displacement += render_info->length;
 
-    if (render_info->keyword_length==0 && !(render_info->visual_detail&VISUAL_DETAIL_CONTROLCHARACTER)) {
+    render_info->keyword_length--;
+
+    if (render_info->keyword_length<=0 && !(render_info->visual_detail&VISUAL_DETAIL_CONTROLCHARACTER)) {
       render_info->offset_sync = render_info->offset;
     }
 
@@ -690,8 +688,6 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
         render_info->visual_detail |= VISUAL_DETAIL_NEWLINE;
         render_info->visual_detail &= ~(VISUAL_DETAIL_WRAPPED|VISUAL_DETAIL_STOPPED_INDENTATION);
 
-        render_info->whitespaced = 0;
-        render_info->whitespace_scan = 0;
         render_info->indented = 0;
 
         render_info->line++;
@@ -770,18 +766,14 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
   int64_t t = tick_count();
   if (out) {
     out->type = VISUAL_SEEK_NONE;
+    out->offset = 0;
     out->x = 0;
     out->y = 0;
-    out->y_drawn = 0;
-    out->x_min = 0;
-    out->x_max = 0;
+    out->line = 0;
   }
 
   int rendered = 1;
   int stop = render_info->buffer?0:1;
-
-  render_info->visual_detail |= (view->wrapping)?VISUAL_DETAIL_WRAPPING:0;
-  render_info->visual_detail |= (view->show_invisibles)?VISUAL_DETAIL_SHOW_INVISIBLES:0;
 
   codepoint_t newline_cp1 = (file->newline==TIPPSE_NEWLINE_CR)?'\r':'\n';
   codepoint_t newline_cp2 = (file->newline==TIPPSE_NEWLINE_CRLF)?'\r':0;
@@ -794,6 +786,10 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
     while (render_info->buffer && render_info->displacement>=render_info->buffer->length) {
       render_info->displacement -= render_info->buffer->length;
       render_info->buffer = range_tree_next(render_info->buffer);
+      if (render_info->keyword_length<0) {
+        render_info->keyword_length = 0;
+      }
+
       if (!render_info->buffer) {
         stop = 2;
       }
@@ -807,71 +803,21 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
 
     codepoint_t cp = render_info->codepoints[0];
 
-    if (cp==0xfeff) {
-      render_info->visual_detail |= VISUAL_DETAIL_CONTROLCHARACTER;
-    } else if (cp!=newline_cp1 || newline_cp2==0) {
-      render_info->visual_detail &= ~VISUAL_DETAIL_CONTROLCHARACTER;
+    if (render_info->buffer && render_info->keyword_length<=0) {
+      render_info->keyword_color = file->defaults.colors[(*mark)(render_info)];
     }
 
-    if (render_info->buffer) {
-      if (render_info->keyword_length==0) {
-        // 100ms
-        render_info->keyword_color = file->defaults.colors[(*mark)(render_info)];
-      }
-    }
-
-    // Character bounds / location based stops
-    // bibber *brr*
-    // values 0 = below; 1 = on line (below); 3 = on line (above); 4 = above
-    // bitset 0 = on line; 1 = above (line); 2 = above; 3 = set
-
-    if (!(render_info->visual_detail&VISUAL_DETAIL_CONTROLCHARACTER) || view->show_invisibles) {
-      int drawn = 0;
-      if (render_info->y_view==in->y) {
-        drawn = (render_info->x>=in->x)?(2|1):1;
-      } else if (render_info->y_view>in->y) {
-        drawn = 4;
-      }
-
-      if (drawn&1 && stop!=1) {
-        out->y_drawn |= 1;
-        out->x_max = render_info->x;
-        out->x_min = (render_info->visual_detail&VISUAL_DETAIL_WRAPPED)?render_info->indentation+render_info->indentation_extra:0;
-
-        int set = 1;
-        if (drawn&2 && out->type!=VISUAL_SEEK_NONE) {
-          if (render_info->x>in->x) {
-            set = 0;
-          }
-
-          stop = 1;
-        }
-
-        if (set) {
-          out->type = in->type;
-          out->x = render_info->x;
-          out->y = render_info->y_view;
-          out->line = render_info->line;
-        }
-      }
-
-      if (drawn>=2) {
-        stop = 1;
-      }
-    }
-
-    if (cp==newline_cp1) {
-      render_info->visual_detail &= ~VISUAL_DETAIL_CONTROLCHARACTER;
-    } else if (cp==newline_cp2 && newline_cp2!=0) {
-      render_info->visual_detail |= VISUAL_DETAIL_CONTROLCHARACTER;
+    if (render_info->y_view==in->y) {
+      out->type = in->type;
+      out->offset = render_info->offset;
+      out->x = render_info->x;
+      out->y = render_info->y_view;
+      out->line = render_info->line;
+      stop = 1;
     }
 
     if (stop) {
       break;
-    }
-
-    if (render_info->keyword_length>0) {
-      render_info->keyword_length--;
     }
 
     int fill;
@@ -934,6 +880,7 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
     render_info->displacement += render_info->length;
     render_info->offset += render_info->length;
     render_info->selection_displacement += render_info->length;
+    render_info->keyword_length--;
 
     position_t word_length = 0;
     if (view->wrapping && cp<=' ') {
@@ -949,8 +896,6 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
         render_info->visual_detail |= VISUAL_DETAIL_NEWLINE;
         render_info->visual_detail &= ~(VISUAL_DETAIL_WRAPPED|VISUAL_DETAIL_STOPPED_INDENTATION);
 
-        render_info->whitespaced = 0;
-        render_info->whitespace_scan = 0;
         render_info->indented = 0;
 
         render_info->line++;
@@ -979,9 +924,6 @@ int document_text_render_span(struct document_text_render_info* render_info, str
   int rendered = 1;
   int stop = render_info->buffer?0:1;
 
-  render_info->visual_detail |= (view->wrapping)?VISUAL_DETAIL_WRAPPING:0;
-  render_info->visual_detail |= (view->show_invisibles)?VISUAL_DETAIL_SHOW_INVISIBLES:0;
-
   codepoint_t newline_cp1 = (file->newline==TIPPSE_NEWLINE_CR)?'\r':'\n';
   codepoint_t newline_cp2 = (file->newline==TIPPSE_NEWLINE_CRLF)?'\r':0;
   debug_pages_render++;
@@ -989,12 +931,20 @@ int document_text_render_span(struct document_text_render_info* render_info, str
   int (*mark)(struct document_text_render_info* render_info) = file->type->mark;
   render_info->file_type = file->type;
 
+  position_t whitespace_x = -1;
+  position_t whitespace_max = 0;
+  position_t whitespace_y = 0;
+
   while (1) {
     while (render_info->buffer && render_info->displacement>=render_info->buffer->length) {
       render_info->visual_detail &= ~(VISUAL_DETAIL_STOPPED_INDENTATION);
 
       render_info->displacement -= render_info->buffer->length;
       render_info->buffer = range_tree_next(render_info->buffer);
+
+      if (render_info->keyword_length<0) {
+        render_info->keyword_length = 0;
+      }
 
       if (!render_info->buffer) {
         stop = 1;
@@ -1009,38 +959,8 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 
     codepoint_t cp = render_info->codepoints[0];
 
-    int color = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
-    int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
-
     if (render_info->buffer) {
-      if (render_info->buffer->inserter&TIPPSE_INSERTER_HIGHLIGHT) {
-        color = file->defaults.colors[render_info->buffer->inserter>>TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT];
-      }
-
-      if ((debug&DEBUG_PAGERENDERDISPLAY)) {
-        color = (intptr_t)render_info->buffer&0xff;
-      }
-
-      if ((debug&DEBUG_RERENDERDISPLAY)) {
-        background = (debug_draw%22)*6+21;
-      }
-
-      if (!render_info->whitespaced) {
-        if (cp==' ' || cp=='\t' || cp==newline_cp2) {
-          if (!render_info->whitespace_scan) {
-            render_info->whitespace_scan = 1;
-            render_info->whitespaced = document_text_render_whitespace_scan(render_info, newline_cp1, newline_cp2);
-          }
-        } else {
-          render_info->whitespace_scan = 0;
-        }
-      }
-
-      if (render_info->whitespaced && cp!=newline_cp1 && cp!=newline_cp2) {
-        background = 1;
-      }
-
-      if (render_info->keyword_length==0) {
+      if (render_info->keyword_length<=0) {
         // 100ms
         render_info->keyword_color = file->defaults.colors[(*mark)(render_info)];
       }
@@ -1048,11 +968,6 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 
     if (stop) {
       break;
-    }
-
-    if (render_info->keyword_length>0) {
-      render_info->keyword_length--;
-      color = render_info->keyword_color;
     }
 
     codepoint_t show = -1;
@@ -1100,19 +1015,54 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       }
     }
 
-    if (render_info->y_view==render_info->y && fill>0) {
-      while (render_info->selection && render_info->selection_displacement>=render_info->selection->length) {
-        render_info->selection_displacement -= render_info->selection->length;
-        render_info->selection = render_info->selection->next;
-      }
-
-      if (render_info->selection && (render_info->selection->inserter&TIPPSE_INSERTER_MARK)) {
-        background = file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
-      }
-
+    if (fill>0) {
       position_t x = render_info->x-view->scroll_x+view->address_width;
-      position_t y = render_info->y-view->scroll_y;
       if (x>=view->address_width) {
+        int color = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
+        int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
+
+        if (render_info->buffer) {
+          if (render_info->buffer->inserter&TIPPSE_INSERTER_HIGHLIGHT) {
+            color = file->defaults.colors[render_info->buffer->inserter>>TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT];
+          }
+
+          if ((debug&DEBUG_PAGERENDERDISPLAY)) {
+            color = (intptr_t)render_info->buffer&0xff;
+          }
+
+          if ((debug&DEBUG_RERENDERDISPLAY)) {
+            background = (debug_draw%22)*6+21;
+          }
+        }
+
+        while (render_info->selection && render_info->selection_displacement>=render_info->selection->length) {
+          render_info->selection_displacement -= render_info->selection->length;
+          render_info->selection = render_info->selection->next;
+        }
+
+        if (render_info->selection && (render_info->selection->inserter&TIPPSE_INSERTER_MARK)) {
+          background = file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
+        }
+
+        if (render_info->keyword_length>0) {
+          color = render_info->keyword_color;
+        }
+
+        position_t y = render_info->y-view->scroll_y;
+
+        if (cp==' ' || cp=='\t' || cp==newline_cp2) {
+          if (whitespace_x==-1) {
+            whitespace_x = x;
+          }
+        } else {
+          if (cp!=newline_cp1) {
+            whitespace_x = -1;
+          }
+        }
+
+        whitespace_max = x+((cp!=newline_cp1)?fill:0);
+        whitespace_y = y;
+
         if (show!=-1) {
           splitter_drawchar(splitter, screen, (int)x, (int)y, &show, 1, color, background);
         } else {
@@ -1151,6 +1101,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     render_info->displacement += render_info->length;
     render_info->offset += render_info->length;
     render_info->selection_displacement += render_info->length;
+    render_info->keyword_length--;
 
     position_t word_length = 0;
     if (view->wrapping && cp<=' ') {
@@ -1166,8 +1117,6 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         render_info->visual_detail |= VISUAL_DETAIL_NEWLINE;
         render_info->visual_detail &= ~(VISUAL_DETAIL_WRAPPED|VISUAL_DETAIL_STOPPED_INDENTATION);
 
-        render_info->whitespaced = 0;
-        render_info->whitespace_scan = 0;
         render_info->indented = 0;
 
         render_info->line++;
@@ -1188,6 +1137,17 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     // TODO: render_info->buffer->visuals.ys==render_info->ys is hacked since some lines didn't wrap during rendering (which is wrong anyway, retest if span render buffer is available)
     if ((render_info->y_view>render_info->y && render_info->buffer->visuals.ys>=render_info->ys) || (render_info->y_view==render_info->y && render_info->x-view->scroll_x>render_info->width)) {
       stop = 1;
+    }
+  }
+
+  if (whitespace_x>=0) {
+    if (!render_info->buffer || (render_info->visual_detail&VISUAL_DETAIL_NEWLINE) || document_text_render_whitespace_scan(render_info, newline_cp1, newline_cp2)) {
+      codepoint_t show = ' ';
+      int background = 1;
+      int color = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
+      for (position_t x = whitespace_x; x<whitespace_max; x++) {
+        splitter_drawchar(splitter, screen, (int)x, (int)whitespace_y, &show, 1, color, background);
+      }
     }
   }
 
@@ -1374,13 +1334,12 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 
     // Get render start offset (for bookmark detection)
     struct document_text_position out;
-    struct document_text_position in_x_y;
-    in_x_y.type = VISUAL_SEEK_X_Y;
-    in_x_y.clip = 1;
-    in_x_y.x = in.x;
-    in_x_y.y = in.y;
 
-    document_text_cursor_position_partial(&render_info, splitter, &in_x_y, &out, 0, 1);
+    //document_text_cursor_position_partial(&render_info, splitter, &in_x_y, &out, 0, 1);
+    document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
+    document_text_prerender_span(&render_info, screen, splitter, view, file, &in, &out, ~0, 1);
+
+    int debug_seek_chars = debug_chars;
 
     int start_x = (int)render_info.x;
 
@@ -1394,12 +1353,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     int64_t t2 = tick_count();
 
     // Actual rendering
-    while (1) {
-      document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
-      if (document_text_render_span(&render_info, screen, splitter, view, file, &in, NULL, ~0, 1)) {
-        break;
-      }
-    }
+    document_text_render_span(&render_info, screen, splitter, view, file, &in, NULL, ~0, 1);
 
     int64_t t3 = tick_count();
 
@@ -1423,7 +1377,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 
     int64_t te = tick_count();
     if (debug&DEBUG_LINERENDERTIMING) {
-      fprintf(stderr, "%d: %d | %d/%d/%d | %d (%d, %d) @ %d + %d / %d + %d\r\n", (int)y, (int)debug_relocates, (int)debug_pages_collect, (int)debug_pages_prerender, (int)debug_pages_render, (int)debug_chars, start_x, end_x, (int)(te-t1), (int)(t3-t2), (int)debug_seek_time, (int)debug_span_time);
+      fprintf(stderr, "%d: %d | %d/%d/%d | %d-%d (%d, %d) @ %d + %d / %d + %d\r\n", (int)y, (int)debug_relocates, (int)debug_pages_collect, (int)debug_pages_prerender, (int)debug_pages_render, (int)debug_chars, (int)debug_seek_chars, start_x, end_x, (int)(te-t1), (int)(t3-t2), (int)debug_seek_time, (int)debug_span_time);
     }
   }
 
@@ -2126,6 +2080,7 @@ void document_text_keypress_line_select(struct document* base, struct splitter* 
     in_line_column.column = 0;
     document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
     view->selection_start = out.offset;
+    view->offset = out.offset;
     in_line_column.column = POSITION_T_MAX;
     document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
     view->selection_end = out.offset;

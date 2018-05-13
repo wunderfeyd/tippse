@@ -45,8 +45,6 @@ struct document_text_render_info {
   codepoint_t codepoints[8];
   int keyword_color;                // keyword color
   int keyword_length;               // keyword length remaining
-  int whitespaced;                  // end of line is whitespace only?
-  int whitespace_scan;              // whitespace scanned?
   int indented;                     // begin of line is indentation only?
   struct range_tree_node* selection_root; // root of selection buffer
   struct range_tree_node* selection; // access to selection buffer, current page in tree

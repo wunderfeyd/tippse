@@ -24,7 +24,6 @@ void unicode_decode_rle(unsigned int* table, uint16_t* rle);
 void unicode_update_combining_mark(codepoint_t codepoint);
 int unicode_combining_mark(codepoint_t codepoint);
 //size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offset, codepoint_t* codepoints, size_t max, size_t* advance, size_t* length);
-int unicode_width(codepoint_t* codepoints, size_t max);
 void unicode_width_adjust(codepoint_t cp, int width);
 int unicode_letter(codepoint_t codepoint);
 int unicode_digit(codepoint_t codepoint);
@@ -54,6 +53,26 @@ TIPPSE_INLINE void unicode_bitfield_set(unsigned int* table, codepoint_t codepoi
 }
 
 unsigned int unicode_marks[UNICODE_BITFIELD_MAX];
+unsigned int unicode_invisibles[UNICODE_BITFIELD_MAX];
+unsigned int unicode_widths[UNICODE_BITFIELD_MAX];
+unsigned int unicode_letters[UNICODE_BITFIELD_MAX];
+unsigned int unicode_whitespaces[UNICODE_BITFIELD_MAX];
+unsigned int unicode_digits[UNICODE_BITFIELD_MAX];
+
+// Check visual width of unicode sequence
+TIPPSE_INLINE int unicode_width(codepoint_t* codepoints, size_t max) {
+  if (max<=0) {
+    return 1;
+  }
+
+  // Return width zero if character is invisible
+  if (unicode_bitfield_check(&unicode_invisibles[0], codepoints[0])) {
+    return 0;
+  }
+
+  // Check if we have CJK ideographs (which are displayed in two columns each)
+  return unicode_bitfield_check(&unicode_widths[0], codepoints[0])+1;
+}
 
 // Return contents and length of combining character sequence
 TIPPSE_INLINE size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offset, codepoint_t* codepoints, size_t max, size_t* advance, size_t* length) {
