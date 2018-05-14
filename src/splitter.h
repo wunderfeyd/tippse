@@ -61,6 +61,7 @@ void splitter_status(struct splitter* base, const char* status);
 void splitter_cursor(struct splitter* base, struct screen* screen, int x, int y);
 void splitter_scrollbar(struct splitter* base, struct screen* screen);
 void splitter_hilight(const struct splitter* base, struct screen* screen, int x, int y, int color);
+void splitter_exchange_color(const struct splitter* base, struct screen* screen, int x, int y, int from, int to);
 void splitter_unassign_document_file(struct splitter* base);
 void splitter_assign_document_file(struct splitter* base, struct document_file* file);
 void splitter_exchange_document_file(struct splitter* base, struct document_file* from, struct document_file* to);

@@ -154,6 +154,21 @@ void splitter_hilight(const struct splitter* base, struct screen* screen, int x,
   c->foreground = color;
 }
 
+void splitter_exchange_color(const struct splitter* base, struct screen* screen, int x, int y, int from, int to) {
+  if (y<0 || y>=base->client_height || x<0 || x>=base->client_width) {
+    return;
+  }
+
+  struct screen_char* c = &screen->buffer[(base->y+y)*screen->width+(base->x+x)];
+  if (c->foreground==from) {
+    c->foreground = to;
+  }
+
+  if (c->background==from) {
+    c->background = to;
+  }
+}
+
 void splitter_unassign_document_file(struct splitter* base) {
   if (!base->file) {
     return;
