@@ -770,6 +770,7 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
     out->x = 0;
     out->y = 0;
     out->line = 0;
+    out->visual_detail = 0;
   }
 
   int rendered = 1;
@@ -803,6 +804,7 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
       out->x = render_info->x;
       out->y = render_info->y_view;
       out->line = render_info->line;
+      out->visual_detail = render_info->visual_detail;
       stop = 1;
     }
 

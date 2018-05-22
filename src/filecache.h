@@ -18,13 +18,14 @@ struct file_cache;
 struct file_cache_node;
 
 // One megabyte of cache
-#define FILE_CACHE_NODES (((1024*1024)/TREE_BLOCK_LENGTH_MAX)+1)
+#define FILE_CACHE_SIZE (1024*1024)
+#define FILE_CACHE_NODES ((FILE_CACHE_SIZE/TREE_BLOCK_LENGTH_MAX)+1)
 
 #include "rangetree.h"
 #include "file.h"
 
 struct file_cache_node {
-  uint8_t buffer[TREE_BLOCK_LENGTH_MAX];    // buffer
+  uint8_t* buffer;                         // buffer
   struct file_cache_node** reference;       // reference node used for linking to caller
   file_offset_t offset;                     // file offset
   size_t length;                            // length of buffer
@@ -46,6 +47,7 @@ struct file_cache {
   struct file_cache_node* open[FILE_CACHE_NODES]; // nodes unused
   size_t allocated;                         // position of first allocated node in pool
   size_t left;                              // number of unused nodes
+  size_t size;                              // size in bytes of allocated nodes
   struct file_cache_node* first;            // first used node
   struct file_cache_node* last;             // last used node
   struct file_cache_node* ranged[FILE_CACHE_NODES]; // nodes within last offset
@@ -56,6 +58,7 @@ void file_cache_reference(struct file_cache* base);
 void file_cache_dereference(struct file_cache* base);
 int file_cache_modified(struct file_cache* base);
 
+void file_cache_cleanup(struct file_cache* base, size_t length);
 struct file_cache_node* file_cache_acquire_node(struct file_cache* base);
 void file_cache_release_node(struct file_cache* base, struct file_cache_node* node);
 void file_cache_unlink_node(struct file_cache* base, struct file_cache_node* node);

@@ -12,6 +12,7 @@ struct file_cache* file_cache_create(const char* filename) {
   base->allocated = FILE_CACHE_NODES;
   base->first = NULL;
   base->last = NULL;
+  base->size = 0;
   for (size_t n = 0; n<FILE_CACHE_NODES; n++) {
     base->ranged[n] = NULL;
   }
@@ -50,12 +51,15 @@ void file_cache_dereference(struct file_cache* base) {
   }
 }
 
-// Add used node and return it
-struct file_cache_node* file_cache_acquire_node(struct file_cache* base) {
-  if (base->left==0) {
+// Remove nodes to reduce cache size
+void file_cache_cleanup(struct file_cache* base, size_t length) {
+  while (base->size>FILE_CACHE_SIZE-length && base->left!=FILE_CACHE_NODES) {
     file_cache_release_node(base, base->last);
   }
+}
 
+// Add used node and return it
+struct file_cache_node* file_cache_acquire_node(struct file_cache* base) {
   base->left--;
   if (base->left<base->allocated) {
     base->allocated = base->left;
@@ -90,6 +94,8 @@ void file_cache_release_node(struct file_cache* base, struct file_cache_node* no
     *node->reference = NULL;
   }
 
+  free(node->buffer);
+  base->size -= node->length;
   file_cache_unlink_node(base, node);
   base->open[base->left++] = node;
 }
@@ -121,32 +127,38 @@ uint8_t* file_cache_use_node(struct file_cache* base, struct file_cache_node** r
     file_cache_link_node(base, node);
     node->reference = reference;
   } else {
+    file_cache_cleanup(base, length);
     node = file_cache_acquire_node(base);
     *reference = node;
     node->offset = FILE_OFFSET_T_MAX;
     node->length = 0;
     node->reference = reference;
+    node->buffer = NULL;
   }
 
   if (node->offset!=offset || node->length!=length) {
-    if (length>TREE_BLOCK_LENGTH_MAX) {
-      // Woops
-      printf("\r\nTried to allocate a page larger than the set up maximum\r\n");
-      abort();
-    }
-
     node->offset = offset;
-    node->length = length;
 
     if (base->fd) {
+      if (node->length!=length) {
+        base->size -= node->length;
+        node->length = length;
+        free(node->buffer);
+        node->buffer = malloc(sizeof(uint8_t)*node->length);
+        base->size += node->length;
+      }
+
       file_seek(base->fd, node->offset, TIPPSE_SEEK_START);
-      node->length = file_read(base->fd, &node->buffer[0], node->length);
+      node->length = file_read(base->fd, node->buffer, node->length);
     } else {
+      base->size -= node->length;
+      free(node->buffer);
+      node->buffer = NULL;
       node->length = 0;
     }
   }
 
-  return &node->buffer[0];
+  return node->buffer;
 }
 
 // Mark node as used and transfer file content depending on the base offset while the file cache itself holds the node references
