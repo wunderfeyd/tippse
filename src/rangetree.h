@@ -10,8 +10,8 @@
 struct fragment;
 struct range_tree_node;
 
-#define TREE_BLOCK_LENGTH_MAX 4096
-#define TREE_BLOCK_LENGTH_MIN 16
+#define TREE_BLOCK_LENGTH_MAX 65536
+#define TREE_BLOCK_LENGTH_MIN 4096
 
 #define TIPPSE_INSERTER_LEAF 1
 #define TIPPSE_INSERTER_FILE 2

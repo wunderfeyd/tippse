@@ -250,12 +250,9 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
         render_info->brackets_line[n].min = 0;
         render_info->brackets_line[n].max = 0;
       }
-
-      stream_from_page(&render_info->stream, render_info->buffer, render_info->displacement);
-    } else {
-      stream_from_page(&render_info->stream, NULL, 0);
     }
 
+    stream_from_page(&render_info->stream, render_info->buffer, render_info->displacement);
     encoding_cache_clear(&render_info->cache, encoding, &render_info->stream);
   }
 
@@ -324,6 +321,17 @@ TIPPSE_INLINE int document_text_render_whitespace_scan(struct document_text_rend
   return 0;
 }
 
+// Split huge pages into smaller ones ahead of rendering time
+int document_text_split_buffer(struct range_tree_node* buffer, struct document_file* file) {
+  if (!buffer || buffer->length<=TREE_BLOCK_LENGTH_MIN) {
+    return 0;
+  }
+
+  struct range_tree_node* after = buffer;
+  file->buffer = range_tree_split(file->buffer, &after, TREE_BLOCK_LENGTH_MIN, NULL);
+  return 1;
+}
+
 // Render some pages until the position is found or pages are no longer dirty
 // TODO: find better visualization for debugging, find unnecessary render iterations and then optimize (as soon the code is "feature complete")
 int document_text_collect_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
@@ -365,6 +373,11 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
   int (*match)(struct document_text_render_info* render_info) = file->type->bracket_match;
   render_info->file_type = file->type;
 
+  if (document_text_split_buffer(render_info->buffer, file)) {
+    stream_from_page(&render_info->stream, render_info->buffer, render_info->displacement);
+    encoding_cache_clear(&render_info->cache, file->encoding, &render_info->stream);
+    page_dirty = 1;
+  }
   while (1) {
     int boundary = 0;
     while (render_info->buffer && render_info->displacement>=render_info->buffer->length) {
@@ -402,6 +415,11 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
       render_info->displacement -= render_info->buffer->length;
       file_offset_t rewind = render_info->offset-render_info->offset_sync-render_info->displacement;
       render_info->buffer = range_tree_next(render_info->buffer);
+      if (document_text_split_buffer(render_info->buffer, file)) {
+        stream_from_page(&render_info->stream, render_info->buffer, render_info->displacement);
+        encoding_cache_clear(&render_info->cache, file->encoding, &render_info->stream);
+        dirty = 1;
+      }
 
       if (render_info->buffer) {
         if (render_info->visual_detail!=render_info->buffer->visuals.detail_before || render_info->keyword_length!=render_info->buffer->visuals.keyword_length || (render_info->keyword_color!=render_info->buffer->visuals.keyword_color && render_info->keyword_length>0) || render_info->displacement!=render_info->buffer->visuals.displacement || rewind!=render_info->buffer->visuals.rewind || dirty) {

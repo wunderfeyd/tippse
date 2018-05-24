@@ -19,7 +19,7 @@ struct file_cache_node;
 
 // One megabyte of cache
 #define FILE_CACHE_SIZE (1024*1024)
-#define FILE_CACHE_NODES ((FILE_CACHE_SIZE/TREE_BLOCK_LENGTH_MAX)+1)
+#define FILE_CACHE_NODES ((FILE_CACHE_SIZE/TREE_BLOCK_LENGTH_MIN)+1)
 
 #include "rangetree.h"
 #include "file.h"

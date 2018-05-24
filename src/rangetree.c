@@ -729,7 +729,7 @@ struct range_tree_node* range_tree_fuse(struct range_tree_node* root, struct ran
         range_tree_update(next);
         first->inserter &= ~TIPPSE_INSERTER_LEAF;
         root = range_tree_update(first);
-      } else if (first->length+next->length<TREE_BLOCK_LENGTH_MAX) {
+      } else if (first->length+next->length<TREE_BLOCK_LENGTH_MIN) {
         if (first->buffer && next->buffer && (first->buffer->type==FRAGMENT_MEMORY || next->buffer->type==FRAGMENT_MEMORY)) {
           fragment_cache(first->buffer);
           fragment_cache(next->buffer);
