@@ -199,8 +199,11 @@ struct editor {
   int search_regex;                   // Search for regluar expression?
   int search_ignore_case;             // Ignore case during search?
   int64_t tick;                       // Start tick
+  int64_t tick_message;               // Tick count for process messages
   int64_t tick_undo;                  // Tick count for next undo chaining
   int64_t tick_incremental;           // Tick count for next incremental document processing
+
+  int indicator;                      // Process indicator
 
   char* command_map[TIPPSE_CMD_MAX];
   int pipefd[2];                      // Process stdin/stdout pipes
@@ -282,4 +285,6 @@ void editor_task_remove_stop(struct editor* base);
 void editor_menu_title(struct editor* base, const char* title);
 void editor_menu_clear(struct editor* base);
 void editor_menu_append(struct editor* base, const char* title, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y, struct document_file* file);
+
+void editor_process_message(struct editor* base, const char* message, file_offset_t position, file_offset_t length);
 #endif /* #ifndef TIPPSE_EDITOR_H */

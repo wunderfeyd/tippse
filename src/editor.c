@@ -149,6 +149,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->browser_type = TIPPSE_BROWSERTYPE_OPEN;
   base->browser_preset = NULL;
   base->document_draft_count = 0;
+  base->indicator = 0;
 
   editor_command_map_create(base);
 
@@ -357,12 +358,14 @@ void editor_tick(struct editor* base) {
 
   if (tick>base->tick_incremental) {
     base->tick_incremental = tick+tick_ms(100);
+    base->tick_message = tick_count();
     splitter_draw_multiple(base->splitters, base->screen, 1);
   }
 }
 
 // An input event was signalled ... translate it to a command if possible
 void editor_keypress(struct editor* base, int key, codepoint_t cp, int button, int button_old, int x, int y) {
+  base->tick_message = tick_count();
   base->tick_undo = tick_count()+500000;
 
   char key_lookup[1024];
@@ -1425,4 +1428,37 @@ void editor_menu_append(struct editor* base, const char* title, int command, str
   entry->task.y = y;
   entry->task.file = file;
   entry->task.stop = 0;
+}
+
+void editor_process_message(struct editor* base, const char* message, file_offset_t position, file_offset_t length) {
+  int64_t tick = tick_count();
+  if (tick>base->tick_message+1000000 && base->focus && base->screen) {
+    base->tick_message = tick;
+
+    int foreground = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
+    int background = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
+    for (int x = 0; x<base->screen->width; x++) {
+      codepoint_t cp = 0x20;
+      screen_setchar(base->screen, x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, foreground, background);
+    }
+
+    char indicator = 0;
+    base->indicator++;
+    base->indicator&=3;
+    if (base->indicator==0) {
+      indicator = '|';
+    } if (base->indicator==1) {
+      indicator = '/';
+    } if (base->indicator==2) {
+      indicator = '-';
+    } if (base->indicator==3) {
+      indicator = '\\';
+    }
+
+    char text[1024];
+    size_t size = (size_t)snprintf(&text[0], 1023, "%s %3.1f%% %c", message, ((double)position/(double)length)*100.0, indicator);
+
+    screen_drawtext(base->screen, 0, 0, 0, 0, base->screen->width, base->screen->height, &text[0], size, foreground, background);
+    screen_draw(base->screen);
+  }
 }

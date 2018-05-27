@@ -378,6 +378,9 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
     encoding_cache_clear(&render_info->cache, file->encoding, &render_info->stream);
     page_dirty = 1;
   }
+
+  editor_process_message(file->editor, "Locating...", render_info->offset, range_tree_length(file->buffer));
+
   while (1) {
     int boundary = 0;
     while (render_info->buffer && render_info->displacement>=render_info->buffer->length) {
@@ -472,6 +475,8 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
 
       page_dirty = (render_info->buffer && render_info->buffer->visuals.dirty)?1:0;
       debug_pages_collect++;
+
+      editor_process_message(file->editor, "Locating...", render_info->offset, range_tree_length(file->buffer));
     }
 
     render_info->read = unicode_read_combined_sequence(&render_info->cache, 0, &render_info->codepoints[0], 8, &render_info->advance, &render_info->length);
