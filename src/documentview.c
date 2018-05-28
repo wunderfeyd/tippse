@@ -19,7 +19,7 @@ void document_view_destroy(struct document_view* base) {
 }
 
 // Reset view
-void document_view_reset(struct document_view* base, struct document_file* file) {
+void document_view_reset(struct document_view* base, struct document_file* file, int defaults) {
   base->offset = 0;
   base->offset_calculated = FILE_OFFSET_T_MAX;
   base->selection_reset = 1;
@@ -36,7 +36,7 @@ void document_view_reset(struct document_view* base, struct document_file* file)
   base->scrollbar_timeout = 0;
   base->selection_start = FILE_OFFSET_T_MAX;
   base->selection_end = FILE_OFFSET_T_MAX;
-  document_view_filechange(base, file);
+  document_view_filechange(base, file, defaults);
 }
 
 // Clone view
@@ -47,13 +47,16 @@ void document_view_clone(struct document_view* dst, struct document_view* src, s
 
   *dst = *src;
   dst->selection = NULL;
-  document_view_filechange(dst, file);
+  document_view_filechange(dst, file, 0);
 }
 
 // Copy file defaults
-void document_view_filechange(struct document_view* base, struct document_file* file) {
-  base->wrapping = file->defaults.wrapping;
-  base->show_invisibles = file->defaults.invisibles;
+void document_view_filechange(struct document_view* base, struct document_file* file, int defaults) {
+  if (defaults) {
+    base->wrapping = file->defaults.wrapping;
+    base->show_invisibles = file->defaults.invisibles;
+  }
+
   base->line_select = file->line_select;
   base->bracket_indentation = 0;
   base->selection = range_tree_resize(base->selection, range_tree_length(file->buffer), 0);

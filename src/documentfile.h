@@ -156,8 +156,8 @@ void document_file_empty(struct document_file* base);
 void document_file_relocate(file_offset_t* pos, file_offset_t from, file_offset_t to, file_offset_t length);
 void document_file_move(struct document_file* base, file_offset_t from, file_offset_t to, file_offset_t length);
 
-void document_file_change_views(struct document_file* base);
-void document_file_reset_views(struct document_file* base);
+void document_file_change_views(struct document_file* base, int defaults);
+void document_file_reset_views(struct document_file* base, int defaults);
 
 void document_file_reference_cache(struct document_file* base, struct file_cache* cache);
 void document_file_dereference_cache(struct document_file* base, struct file_cache* cache);

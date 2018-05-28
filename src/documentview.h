@@ -39,9 +39,9 @@ struct document_view {
 
 struct document_view* document_view_create(void);
 void document_view_destroy(struct document_view* base);
-void document_view_reset(struct document_view* base, struct document_file* file);
+void document_view_reset(struct document_view* base, struct document_file* file, int defaults);
 void document_view_clone(struct document_view* dst, struct document_view* src, struct document_file* file);
-void document_view_filechange(struct document_view* base, struct document_file* file);
+void document_view_filechange(struct document_view* base, struct document_file* file, int defaults);
 
 void document_view_select_all(struct document_view* base, struct document_file* file);
 void document_view_select_nothing(struct document_view* base, struct document_file* file);

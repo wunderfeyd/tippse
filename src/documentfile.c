@@ -69,7 +69,7 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->defaults.tabstop_width = 0;
   base->defaults.invisibles = 0;
   base->defaults.wrapping = 0;
-  document_file_reset_views(base);
+  document_file_reset_views(base, 1);
   document_undo_mark_save_point(base);
   document_file_reload_config(base);
   return base;
@@ -163,7 +163,7 @@ void document_file_create_pipe(struct document_file* base) {
   base->buffer = NULL;
   document_undo_empty(base, base->undos);
   document_undo_empty(base, base->redos);
-  document_file_reset_views(base);
+  document_file_reset_views(base, 1);
 
   document_file_close_pipe(base);
 
@@ -186,7 +186,7 @@ void document_file_create_pipe(struct document_file* base) {
     document_undo_mark_save_point(base);
     document_file_detect_properties(base);
     base->bookmarks = range_tree_static(base->bookmarks, range_tree_length(base->buffer), 0);
-    document_file_reset_views(base);
+    document_file_reset_views(base, 1);
 
     (*base->type->destroy)(base->type);
     base->type = file_type_c_create(base->config, "compiler_output");
@@ -294,9 +294,9 @@ void document_file_load(struct document_file* base, const char* filename, int re
   }
 
   if (!reset) {
-    document_file_reset_views(base);
+    document_file_reset_views(base, !reload);
   } else {
-    document_file_change_views(base);
+    document_file_change_views(base, !reload);
   }
 }
 
@@ -321,7 +321,7 @@ void document_file_load_memory(struct document_file* base, const uint8_t* buffer
   document_file_name(base, "<memory>");
   document_file_detect_properties(base);
   base->bookmarks = range_tree_static(base->bookmarks, range_tree_length(base->buffer), 0);
-  document_file_reset_views(base);
+  document_file_reset_views(base, 1);
 }
 
 // Save file directly to file system
@@ -760,27 +760,27 @@ void document_file_move(struct document_file* base, file_offset_t from, file_off
 }
 
 // Change document data structure if not real file
-void document_file_change_views(struct document_file* base) {
+void document_file_change_views(struct document_file* base, int defaults) {
   base->bookmarks = range_tree_resize(base->bookmarks, range_tree_length(base->buffer), 0);
 
-  document_view_filechange(base->view, base);
+  document_view_filechange(base->view, base, defaults);
 
   struct list_node* views = base->views->first;
   while (views) {
     struct document_view* view = *(struct document_view**)list_object(views);
-    document_view_filechange(view, base);
+    document_view_filechange(view, base, defaults);
 
     views = views->next;
   }
 }
 
 // Reset all active views to the document
-void document_file_reset_views(struct document_file* base) {
-  document_view_reset(base->view, base);
+void document_file_reset_views(struct document_file* base, int defaults) {
+  document_view_reset(base->view, base, defaults);
   struct list_node* views = base->views->first;
   while (views) {
     struct document_view* view = *(struct document_view**)list_object(views);
-    document_view_reset(view, base);
+    document_view_reset(view, base, defaults);
 
     views = views->next;
   }

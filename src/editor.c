@@ -221,7 +221,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   if (!base->document->file) {
     struct document_file* empty = editor_empty_document(base);
     splitter_assign_document_file(base->document, empty);
-    document_view_reset(base->document->view, empty);
+    document_view_reset(base->document->view, empty, 1);
   }
 
   editor_focus(base, base->document, 0);
@@ -516,7 +516,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
   } else if (command==TIPPSE_CMD_NEW) {
     struct document_file* empty = editor_empty_document(base);
     splitter_assign_document_file(base->document, empty);
-    document_view_reset(base->document->view, empty);
+    document_view_reset(base->document->view, empty, 1);
   } else if (command==TIPPSE_CMD_RETURN && base->focus->file==base->goto_doc) {
     struct stream stream;
     stream_from_page(&stream, base->focus->file->buffer, 0);
@@ -1068,8 +1068,8 @@ void editor_view_browser(struct editor* base, const char* filename, struct strea
   }
 
   document_directory(base->browser_doc, filter_stream, filter_encoding, (predefined && *predefined)?predefined:base->browser_preset);
-  document_file_change_views(base->browser_doc);
-  document_view_reset(base->panel->view, base->browser_doc);
+  document_file_change_views(base->browser_doc, 1);
+  document_view_reset(base->panel->view, base->browser_doc, 1);
   base->panel->view->line_select = 1;
   base->browser_type = type;
   base->browser_file = file;
@@ -1109,8 +1109,8 @@ void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct 
     search_destroy(search);
   }
 
-  document_file_change_views(base->tabs_doc);
-  document_view_reset(base->panel->view, base->tabs_doc);
+  document_file_change_views(base->tabs_doc, 1);
+  document_view_reset(base->panel->view, base->tabs_doc, 1);
   base->panel->view->line_select = 1;
 
   (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
@@ -1148,8 +1148,8 @@ void editor_view_commands(struct editor* base, struct stream* filter_stream, str
     search_destroy(search);
   }
 
-  document_file_change_views(base->commands_doc);
-  document_view_reset(base->panel->view, base->commands_doc);
+  document_file_change_views(base->commands_doc, 1);
+  document_view_reset(base->panel->view, base->commands_doc, 1);
   base->panel->view->line_select = 1;
 
   (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
@@ -1188,8 +1188,8 @@ void editor_view_menu(struct editor* base, struct stream* filter_stream, struct 
     search_destroy(search);
   }
 
-  document_file_change_views(base->menu_doc);
-  document_view_reset(base->panel->view, base->menu_doc);
+  document_file_change_views(base->menu_doc, 1);
+  document_view_reset(base->panel->view, base->menu_doc, 1);
   base->panel->view->line_select = 1;
 
   (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
@@ -1459,6 +1459,6 @@ void editor_process_message(struct editor* base, const char* message, file_offse
     size_t size = (size_t)snprintf(&text[0], 1023, "%s %3.1f%% %c", message, ((double)position/(double)length)*100.0, indicator);
 
     screen_drawtext(base->screen, 0, 0, 0, 0, base->screen->width, base->screen->height, &text[0], size, foreground, background);
-    screen_draw(base->screen);
+    screen_update(base->screen);
   }
 }
