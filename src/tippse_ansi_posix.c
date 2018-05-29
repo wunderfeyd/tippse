@@ -356,7 +356,9 @@ int main(int argc, const char** argv) {
     }
 
     input_pos -= check;
-    memcpy(&input_buffer[0], &input_buffer[check], input_pos);
+    if (check>0) {
+      memmove(&input_buffer[0], &input_buffer[check], input_pos);
+    }
   }
   } else {
     int64_t tick = tick_count();

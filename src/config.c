@@ -109,6 +109,7 @@ const char* config_default =
       "ctrl+f3:searchall,"
       "shift+ctrl+f3:searchdirectory,"
       "ctrl+t:new,"
+      "ctrl+n:splitnext,"
     "},"
     "fileextensions:{"
       "c:C,"

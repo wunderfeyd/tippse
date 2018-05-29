@@ -140,7 +140,9 @@ struct splitter;
 #define TIPPSE_CMD_NULL 85
 #define TIPPSE_CMD_SAVE_ASK 86
 #define TIPPSE_CMD_CLOSE_FORCE 87
-#define TIPPSE_CMD_MAX 88
+#define TIPPSE_CMD_SPLIT_NEXT 88
+#define TIPPSE_CMD_SPLIT_PREV 89
+#define TIPPSE_CMD_MAX 90
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -246,6 +248,7 @@ void editor_keypress(struct editor* base, int key, codepoint_t cp, int button, i
 void editor_intercept(struct editor* base, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y, struct document_file* file);
 
 void editor_focus(struct editor* base, struct splitter* node, int disable);
+void editor_focus_next(struct editor* base, struct splitter* node, int side);
 void editor_split(struct editor* base, struct splitter* node);
 struct splitter* editor_unsplit(struct editor* base, struct splitter* node);
 int editor_open_selection(struct editor* base, struct splitter* node, struct splitter* destination);

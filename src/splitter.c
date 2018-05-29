@@ -23,6 +23,7 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
   base->x = 0;
   base->y = 0;
   base->timeout = 0;
+  base->parent = NULL;
 
   if (!side0 || !side1) {
     base->side[0] = NULL;
@@ -397,4 +398,24 @@ struct splitter* splitter_by_coordinate(struct splitter* base, int x, int y) {
   }
 
   return NULL;
+}
+
+// Find next splitter in list
+struct splitter* splitter_next(struct splitter* base, int side) {
+  struct splitter* target = base;
+  if (target->parent) {
+    while (target->parent) {
+      if (target->parent->side[side]==target) {
+        target = target->parent->side[side^1];
+        break;
+      }
+      target = target->parent;
+    }
+  }
+
+  while (target->side[side]) {
+    target = target->side[side];
+  }
+
+  return target->side[0]?NULL:target;
 }

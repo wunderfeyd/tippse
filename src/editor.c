@@ -124,6 +124,8 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"null", TIPPSE_CMD_NULL, "Nothing"},
   {"saveask", TIPPSE_CMD_SAVE_ASK, "Request user interaction if file was modified and is going to be saved"},
   {"closeforce", TIPPSE_CMD_CLOSE_FORCE, "Close document without asking for save options"},
+  {"splitnext", TIPPSE_CMD_SPLIT_NEXT, "Select next split view"},
+  {"splitprevious", TIPPSE_CMD_SPLIT_PREV, "Select previous split view"},
   {NULL, 0, ""}
 };
 
@@ -140,6 +142,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->tick = tick_count();
   base->tick_undo = -1;
   base->tick_incremental = -1;
+  base->tick_message = 0;
   base->search_regex = 0;
   base->search_ignore_case = 1;
   base->console_index = 0;
@@ -472,14 +475,14 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     document_search(base->last_document, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 1, base->search_ignore_case, base->search_regex, 1, 0);
   } else if (command==TIPPSE_CMD_SEARCH_DIRECTORY) {
 #ifndef _WINDOWS
-    if (base->document->file->pipefd[1]==-1 && base->document->file==base->search_results_doc) {
-      document_file_create_pipe(base->document->file);
-      if (base->document->file->pid==0) {
+    if (base->last_document->file->pipefd[1]==-1 && base->last_document->file==base->search_results_doc) {
+      document_file_create_pipe(base->last_document->file);
+      if (base->last_document->file->pid==0) {
         document_search_directory(base->base_path, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, base->search_ignore_case, base->search_regex, 0);
         exit(0);
       }
     } else {
-      splitter_assign_document_file(base->document, base->search_results_doc);
+      splitter_assign_document_file(base->last_document, base->search_results_doc);
     }
 #endif
   } else if (command==TIPPSE_CMD_REPLACE) {
@@ -543,9 +546,13 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
 
     editor_focus(base, base->document, 1);
   } else if (command==TIPPSE_CMD_OPEN) {
-    editor_open_selection(base, base->focus, base->document);
+    editor_open_selection(base, base->focus, base->last_document);
+  } else if (command==TIPPSE_CMD_SPLIT_NEXT) {
+    editor_focus_next(base, base->last_document, 0);
+  } else if (command==TIPPSE_CMD_SPLIT_PREV) {
+    editor_focus_next(base, base->last_document, 1);
   } else if (command==TIPPSE_CMD_SPLIT) {
-    editor_split(base, base->document);
+    editor_split(base, base->last_document);
   } else if (command==TIPPSE_CMD_UNSPLIT) {
     struct splitter* document = editor_unsplit(base, base->document);
     if (base->focus==base->document) {
@@ -566,7 +573,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     editor_save_documents(base, TIPPSE_CMD_SAVE);
   } else if (command==TIPPSE_CMD_SHELL) {
 #ifndef _WINDOWS
-    if (base->document->file->pipefd[1]==-1 && base->document->file==base->compiler_doc) {
+    if (base->last_document->file->pipefd[1]==-1 && base->last_document->file==base->compiler_doc) {
       if (arguments && arguments->length>1) {
         struct trie_node* parent = config_find_ascii(base->focus->file->config, "/shell/");
         if (parent) {
@@ -577,13 +584,13 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
           // TODO: Use current shell encoding (get it somewhere)
           struct encoding* utf8 = encoding_utf8_create();
           char* shell = (char*)config_convert_encoding(parent, utf8);
-          document_file_pipe(base->document->file, shell);
+          document_file_pipe(base->last_document->file, shell);
           free(shell);
           encoding_utf8_destroy(utf8);
         }
       }
     } else {
-      splitter_assign_document_file(base->document, base->compiler_doc);
+      splitter_assign_document_file(base->last_document, base->compiler_doc);
     }
 #endif
   } else if (command==TIPPSE_CMD_SEARCH_MODE_TEXT) {
@@ -664,6 +671,20 @@ void editor_focus(struct editor* base, struct splitter* node, int disable) {
     base->last_document = node;
   }
 }
+
+// Set focus to next open document
+void editor_focus_next(struct editor* base, struct splitter* node, int side) {
+  while (1) {
+    node = splitter_next(node, side);
+    if (!node) {
+      node = base->splitters;
+    } else if (node->file && node!=base->panel && node!=base->filter) {
+      editor_focus(base, node, 1);
+      break;
+    }
+  }
+}
+
 
 // Split view
 void editor_split(struct editor* base, struct splitter* node) {
@@ -1037,11 +1058,11 @@ struct document_file* editor_empty_document(struct editor* base) {
 
 // Assign new document to panel
 void editor_panel_assign(struct editor* base, struct document_file* file) {
-  if (base->focus==base->document || base->panel->file!=file) {
+  if (base->focus==base->last_document || base->panel->file!=file) {
     splitter_assign_document_file(base->panel, file);
     editor_focus(base, base->panel, 1);
   } else {
-    editor_focus(base, base->document, 1);
+    editor_focus(base, base->last_document, 1);
   }
 }
 
