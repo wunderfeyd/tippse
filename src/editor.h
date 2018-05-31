@@ -196,7 +196,6 @@ struct editor {
   struct splitter* toolbox;           // Contains filter and panel
   struct splitter* focus;             // Current focused document
   struct splitter* document;          // Current selected document
-  struct splitter* last_document;     // Last selected user document
 
   int search_regex;                   // Search for regluar expression?
   int search_ignore_case;             // Ignore case during search?
