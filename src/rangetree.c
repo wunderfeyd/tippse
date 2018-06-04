@@ -8,12 +8,12 @@ int64_t range_tree_fuse_id = 1;
 void range_tree_print(struct range_tree_node* node, int depth, int side) {
   int tab = depth;
   while (tab>0) {
-    printf("  ");
+    fprintf(stderr, "  ");
     tab--;
   }
 
-  printf("%d %5d %5d %s(%p-%p) %5d %5d (%p) %d %d %d", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", (void*)node->buffer, (void*)(node->buffer?node->buffer->buffer:NULL), (int)node->offset, node->depth, (void*)node, node->visuals.brackets[2].diff, node->visuals.brackets[2].min, node->visuals.brackets[2].max);
-  printf("\r\n");
+  fprintf(stderr, "%d %5d %5d %s(%p-%p) %5d %5d (%p) %d %d %d", side, (int)node->length, (int)node->visuals.lines, node->buffer?"B":" ", (void*)node->buffer, (void*)(node->buffer?node->buffer->buffer:NULL), (int)node->offset, node->depth, (void*)node, node->visuals.brackets[2].diff, node->visuals.brackets[2].min, node->visuals.brackets[2].max);
+  fprintf(stderr, "\r\n");
   if (node->side[0]) {
     range_tree_print(node->side[0], depth+1, 0);
   }

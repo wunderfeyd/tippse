@@ -195,7 +195,7 @@ struct search* search_create_plain(int ignore_case, int reverse, struct stream n
     search_optimize(base, output_encoding);
   }
   //int64_t tick3 = tick_count();
-  //printf("\r\n%d %d %d\r\n", (int)(tick2-tick), (int)(tick3-tick2), (int)sizeof(struct search_node));
+  //fprintf(stderr, "\r\n%d %d %d\r\n", (int)(tick2-tick), (int)(tick3-tick2), (int)sizeof(struct search_node));
   return base;
 }
 
@@ -594,6 +594,8 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
 
       if (cp=='^' && advance==0) {
         invert = 1;
+        advance++;
+        continue;
       }
     } else {
       from = 0;
@@ -630,10 +632,6 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
     }
   }
 
-  if (invert) {
-    check->set = range_tree_invert_mark(check->set, TIPPSE_INSERTER_MARK);
-  }
-
   if (ignore_case) {
     // TODO: Ummm... very hacky ... we transform from pure codepoints ... what about multi codepoint transformations?
     // TODO: only check codepoints that are actually transform instead of bruteforce all codepoints (speed improvement)
@@ -660,6 +658,10 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
     }
     native_encoding->destroy(native_encoding);
     range_tree_destroy(source, NULL);
+  }
+
+  if (invert) {
+    check->set = range_tree_invert_mark(check->set, TIPPSE_INSERTER_MARK);
   }
 
   return advance;
@@ -750,13 +752,13 @@ int search_debug_stops[128];
 void search_debug_indent(size_t depth) {
   for (size_t n = 0; n<depth; n++) {
     if (!search_debug_stops[n]) {
-      printf("|");
+      fprintf(stderr, "|");
     } else {
-      printf(" ");
+      fprintf(stderr, " ");
     }
 
     for (int l = 0; l<search_debug_lengths[n]-1; l++) {
-      printf(" ");
+      fprintf(stderr, " ");
     }
   }
 }
@@ -768,68 +770,68 @@ void search_debug_tree(struct search* base, struct search_node* node, size_t dep
   }
   length = 0;
   if (node->group_start.first) {
-    printf("{");
+    fprintf(stderr, "{");
     length++;
   }
 
   if (node->type&SEARCH_NODE_TYPE_GROUP_START) {
-    printf("(");
+    fprintf(stderr, "(");
     length++;
   }
 
   if (node->type&SEARCH_NODE_TYPE_BRANCH) {
-    printf("B");
+    fprintf(stderr, "B");
     length++;
   }
 
   if (node->type&SEARCH_NODE_TYPE_GREEDY) {
-    printf("*");
+    fprintf(stderr, "*");
     length++;
   }
 
   if (node->type&SEARCH_NODE_TYPE_POSSESSIVE) {
-    printf("+");
+    fprintf(stderr, "+");
     length++;
   }
 
   if (node->type&SEARCH_NODE_TYPE_MATCHING_TYPE) {
-    printf("M");
+    fprintf(stderr, "M");
     length++;
   }
 
   if (node->type&SEARCH_NODE_TYPE_BYTE) {
-    printf("8");
+    fprintf(stderr, "8");
     length++;
   }
 
   if (node->type&SEARCH_NODE_TYPE_BACKREFERENCE) {
-    printf("R");
+    fprintf(stderr, "R");
     length++;
   }
 
   if (node->type&SEARCH_NODE_TYPE_START_POSITION) {
-    printf("<");
+    fprintf(stderr, "<");
     length++;
   }
 
   if (node->type&SEARCH_NODE_TYPE_END_POSITION) {
-    printf(">");
+    fprintf(stderr, ">");
     length++;
   }
 
   if (node->type&SEARCH_NODE_TYPE_GROUP_END) {
-    printf(")");
+    fprintf(stderr, ")");
     length++;
   }
 
   if (node->group_end.first) {
-    printf("}");
+    fprintf(stderr, "}");
     length++;
   }
 
   if (node->type&SEARCH_NODE_TYPE_SET) {
     if (node->size==0) {
-      printf("[");
+      fprintf(stderr, "[");
       int count = 0;
       struct range_tree_node* range = range_tree_first(node->set);
       size_t codepoint = 0;
@@ -840,14 +842,14 @@ void search_debug_tree(struct search* base, struct search_node* node, size_t dep
             size_t c = n+codepoint;
             if (c<0x20 || c>0x7f) {
               if (node->type&SEARCH_NODE_TYPE_BYTE) {
-                printf("\\%02x", (int)c);
+                fprintf(stderr, "\\%02x", (int)c);
                 length+=3;
               } else {
-                printf("\\%06x", (int)c);
+                fprintf(stderr, "\\%06x", (int)c);
                 length+=7;
               }
             } else {
-              printf("%c", (int)c);
+              fprintf(stderr, "%c", (int)c);
               length++;
             }
           }
@@ -857,31 +859,31 @@ void search_debug_tree(struct search* base, struct search_node* node, size_t dep
       }
 
       if (count==8) {
-        printf("..");
+        fprintf(stderr, "..");
         length+=2;
       }
-      printf("]");
+      fprintf(stderr, "]");
       length+=2;
     }
 
     if (node->size>0) {
-      printf("\"");
+      fprintf(stderr, "\"");
       for (size_t n = 0; n<node->size; n++) {
         uint8_t c = node->plain[n];
         if (c<0x20 || c>0x7f) {
           if (node->type&SEARCH_NODE_TYPE_BYTE) {
-            printf("\\%02x", c);
+            fprintf(stderr, "\\%02x", c);
             length+=3;
           } else {
-            printf("\\%06x", c);
+            fprintf(stderr, "\\%06x", c);
             length+=7;
           }
         } else {
-          printf("%c", c);
+          fprintf(stderr, "%c", c);
           length++;
         }
       }
-      printf("\"");
+      fprintf(stderr, "\"");
       length+=2;
     }
   }
@@ -889,22 +891,22 @@ void search_debug_tree(struct search* base, struct search_node* node, size_t dep
   if (node->min!=1 || node->max!=1) {
     char out[1024];
     length += sprintf(&out[0], "{%d,%d}", (int)node->min, (int)node->max);
-    printf("%s", &out[0]);
+    fprintf(stderr, "%s", &out[0]);
   }
 
   if (node->next) {
-    printf(" ");
+    fprintf(stderr, " ");
     length+=1;
     search_debug_tree(base, node->next, depth+1, length, node->sub.first?0:1);
   } else {
-    printf("\r\n");
+    fprintf(stderr, "\r\n");
   }
 
   struct list_node* subs = node->sub.first;
   while (subs) {
     struct search_node* check = *((struct search_node**)list_object(subs));
     search_debug_indent(depth);
-    printf("`- ");
+    fprintf(stderr, "`- ");
     subs = subs->next;
     search_debug_tree(base, check, depth+1, 3, subs?0:1);
   }
@@ -915,7 +917,7 @@ void search_optimize(struct search* base, struct encoding* encoding) {
   int again;
   do {
     if (SEARCH_DEBUG) {
-      printf("loop codepoints.. %d\r\n", search_node_count(base->root));
+      fprintf(stderr, "loop codepoints.. %d\r\n", search_node_count(base->root));
       search_debug_tree(base, base->root, 0, 0, 0);
     }
     again = search_optimize_combine_branch(base->root);
@@ -924,7 +926,7 @@ void search_optimize(struct search* base, struct encoding* encoding) {
   search_optimize_native(encoding, base->root);
   do {
     if (SEARCH_DEBUG) {
-      printf("loop native.. %d\r\n", search_node_count(base->root));
+      fprintf(stderr, "loop native.. %d\r\n", search_node_count(base->root));
       search_debug_tree(base, base->root, 0, 0, 0);
     }
     again = search_optimize_combine_branch(base->root);
@@ -1309,7 +1311,7 @@ void search_prepare_skip(struct search* base, struct search_node* node) {
       }
     }
   }
-  //printf("Nodes: %d\r\n", (int)nodes);
+  //fprintf(stderr, "Nodes: %d\r\n", (int)nodes);
 }
 
 // Find next occurence of the compiled pattern until the stream ends or "left" has been count down
@@ -1335,7 +1337,7 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
       size_t size = 0;
       while (1) {
         uint8_t index = stream_read_reverse(text);
-        // printf("%02x '%c' %d/%d @ %d\r\n", index, index, (int)size, (int)base->skip[size].index[index], (int)stream_offset(text));
+        // fprintf(stderr, "%02x '%c' %d/%d @ %d\r\n", index, index, (int)size, (int)base->skip[size].index[index], (int)stream_offset(text));
         hit = base->skip[size++].index[index];
         if (hit) {
           break;
@@ -1473,6 +1475,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
     if (enter==1 && node->type&SEARCH_NODE_TYPE_GROUP_START) {
       node->start = stream;
     }
+
     if (node->type&SEARCH_NODE_TYPE_SET) {
       if (node->plain) {
         enter = 1;
@@ -1688,19 +1691,19 @@ void search_test(void) {
   const char* text_text = "Dies ist ein l TesstTeßt, HaLLo schschschSchlappiSchlappi ppi! 999 make_debug.sh abc #include bla"; //"void et_container::remove_ticket_number(";
   stream_from_plain(&text, (uint8_t*)text_text, strlen(text_text));
   int found = search_find(search, &text, NULL);
-  printf("%d\r\n", found);
+  fprintf(stderr, "%d\r\n", found);
   if (found) {
-    printf("\"");
+    fprintf(stderr, "\"");
     for (const uint8_t* plain = search->hit_start.plain+search->hit_start.displacement; plain!=search->hit_end.plain+search->hit_end.displacement; plain++) {
-      printf("%c", *plain);
+      fprintf(stderr, "%c", *plain);
     }
-    printf("\"\r\n");
+    fprintf(stderr, "\"\r\n");
     for (size_t n = 0; n<search->groups; n++) {
-      printf("%d: \"", (int)n);
+      fprintf(stderr, "%d: \"", (int)n);
       for (const uint8_t* plain = search->group_hits[n].start.plain+search->group_hits[n].start.displacement; plain!=search->group_hits[n].end.plain+search->group_hits[n].end.displacement; plain++) {
-        printf("%c", *plain);
+        fprintf(stderr, "%c", *plain);
       }
-      printf("\"\r\n");
+      fprintf(stderr, "\"\r\n");
     }
   }
   search_destroy(search);
@@ -1717,7 +1720,7 @@ void search_test(void) {
     UNUSED(file_read(f, buffer, length));
     file_destroy(f);
 
-    printf("hash search...\r\n");
+    fprintf(stderr, "hash search...\r\n");
     struct stream buffered;
     struct search* search = search_create_plain(1, 0, needle_stream, needle_encoding, output_encoding);
     search_debug_tree(search, search->root, 0, 0, 0);
@@ -1725,13 +1728,13 @@ void search_test(void) {
     for (size_t n = 0; n<5; n++) {
       stream_from_plain(&buffered, buffer, length);
       int found = search_find(search, &buffered, NULL);
-      printf("%d %d us %d\r\n", (int)n, (int)((tick_count()-tick)/(int64_t)(n+1)), found);
+      fprintf(stderr, "%d %d us %d\r\n", (int)n, (int)((tick_count()-tick)/(int64_t)(n+1)), found);
       if (found) {
-        printf("%d \"", (int)stream_offset_plain(&search->hit_start));
+        fprintf(stderr, "%d \"", (int)stream_offset_plain(&search->hit_start));
         for (const uint8_t* plain = search->hit_start.plain+search->hit_start.displacement; plain!=search->hit_end.plain+search->hit_end.displacement; plain++) {
-          printf("%c", *plain);
+          fprintf(stderr, "%c", *plain);
         }
-        printf("\"\r\n");
+        fprintf(stderr, "\"\r\n");
       }
       fflush(stdout);
     }
@@ -1741,7 +1744,7 @@ void search_test(void) {
 
   {
     struct file_cache* file = file_cache_create("enwik8");
-    printf("hash search...\r\n");
+    fprintf(stderr, "hash search...\r\n");
     struct stream buffered;
     struct search* search = search_create_plain(1, 0, needle_stream, needle_encoding, output_encoding);
     search_debug_tree(search, search->root, 0, 0, 0);
@@ -1749,13 +1752,13 @@ void search_test(void) {
     for (size_t n = 0; n<5; n++) {
       stream_from_file(&buffered, file, 0);
       int found = search_find(search, &buffered, NULL);
-      printf("%d %d us %d\r\n", (int)n, (int)((tick_count()-tick)/(int64_t)(n+1)), found);
+      fprintf(stderr, "%d %d us %d\r\n", (int)n, (int)((tick_count()-tick)/(int64_t)(n+1)), found);
       if (found) {
-        printf("%d \"", (int)stream_offset_file(&search->hit_start));
+        fprintf(stderr, "%d \"", (int)stream_offset_file(&search->hit_start));
         for (const uint8_t* plain = search->hit_start.plain+search->hit_start.displacement; plain!=search->hit_end.plain+search->hit_end.displacement; plain++) {
-          printf("%c", *plain);
+          fprintf(stderr, "%c", *plain);
         }
-        printf("\"\r\n");
+        fprintf(stderr, "\"\r\n");
       }
       fflush(stdout);
     }
@@ -1783,19 +1786,19 @@ void search_test(void) {
 
     struct search* search = search_create_regex(1, 0, needle_stream, needle_encoding, output_encoding);
     if ((fuzz&0)==0) {
-      printf(">> %d || ", (int)fuzz);
+      fprintf(stderr, ">> %d || ", (int)fuzz);
       for (size_t n = 0; n<length; n++) {
         if (random[n]>=32 && random[n]<127) {
-          printf("%c", random[n]);
+          fprintf(stderr, "%c", random[n]);
         } else {
-          printf(".");
+          fprintf(stderr, ".");
         }
       }
-      printf("\r\n");
+      fprintf(stderr, "\r\n");
       search_debug_tree(search, search->root, 0, 0, 0);
     }
     int found = search_find(search, &output_stream, NULL);
-    printf("<< %d\r\n", found);
+    fprintf(stderr, "<< %d\r\n", found);
 
     search_destroy(search);
   }
