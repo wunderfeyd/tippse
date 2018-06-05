@@ -472,7 +472,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     document_search(base->document, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 1, base->search_ignore_case, base->search_regex, 0, 0);
   } else if (command==TIPPSE_CMD_SEARCH_ALL) {
     editor_focus(base, base->document, 1);
-    document_search(base->document, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 1, base->search_ignore_case, base->search_regex, 1, 0);
+    document_search(base->document, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 0, base->search_ignore_case, base->search_regex, 1, 0);
   } else if (command==TIPPSE_CMD_SEARCH_DIRECTORY) {
 #ifndef _WINDOWS
     if (base->document->file->pipefd[1]==-1 && base->document->file==base->search_results_doc) {
