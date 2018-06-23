@@ -141,7 +141,9 @@ file_offset_t document_text_cursor_position_partial(struct document_text_render_
 file_offset_t document_text_cursor_position(struct splitter* splitter, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel) {
   struct document_text_render_info render_info;
   document_text_render_clear(&render_info, splitter->client_width-splitter->view->address_width, splitter->view->selection);
-  return document_text_cursor_position_partial(&render_info, splitter, in, out, wrap, cancel);
+  file_offset_t offset = document_text_cursor_position_partial(&render_info, splitter, in, out, wrap, cancel);
+  document_text_render_destroy(&render_info);
+  return offset;
 }
 
 // Clear renderer state to ensure a restart at next seek
@@ -149,6 +151,12 @@ void document_text_render_clear(struct document_text_render_info* render_info, p
   memset(render_info, 0, sizeof(struct document_text_render_info));
   render_info->width = width;
   render_info->selection_root = selection;
+  stream_from_plain(&render_info->stream, NULL, 0);
+}
+
+// Remove renderer temporaries
+void document_text_render_destroy(struct document_text_render_info* render_info) {
+  stream_destroy(&render_info->stream);
 }
 
 // Update renderer state to restart at the given position or to continue if possible
@@ -252,6 +260,7 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
       }
     }
 
+    stream_destroy(&render_info->stream);
     stream_from_page(&render_info->stream, render_info->buffer, render_info->displacement);
     encoding_cache_clear(&render_info->cache, encoding, &render_info->stream);
   }
@@ -374,6 +383,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
   render_info->file_type = file->type;
 
   if (document_text_split_buffer(render_info->buffer, file)) {
+    stream_destroy(&render_info->stream);
     stream_from_page(&render_info->stream, render_info->buffer, render_info->displacement);
     encoding_cache_clear(&render_info->cache, file->encoding, &render_info->stream);
     page_dirty = 1;
@@ -419,6 +429,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
       file_offset_t rewind = render_info->offset-render_info->offset_sync-render_info->displacement;
       render_info->buffer = range_tree_next(render_info->buffer);
       if (document_text_split_buffer(render_info->buffer, file)) {
+        stream_destroy(&render_info->stream);
         stream_from_page(&render_info->stream, render_info->buffer, render_info->displacement);
         encoding_cache_clear(&render_info->cache, file->encoding, &render_info->stream);
         dirty = 1;
@@ -1185,6 +1196,7 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
     document_text_render_clear(&render_info, splitter->client_width-view->address_width, view->selection);
     document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
     document_text_collect_span(&render_info, NULL, NULL, view, file, &in, NULL, 16, 1);
+    document_text_render_destroy(&render_info);
   }
 
   file_offset_t autocomplete_length = range_tree_length(file->buffer);
@@ -1244,6 +1256,7 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
       file->autocomplete_last = file->autocomplete_build;
       file->autocomplete_build = NULL;
     }
+    stream_destroy(&stream);
   }
 
   if (file->autocomplete_offset>=range_tree_length(file->buffer) && file->autocomplete_rescan>1) {
@@ -1279,7 +1292,6 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   // TODO: cursor position is already known by seek flag in keypress function? Test me.
   document_text_cursor_position(splitter, &in, &cursor, 0, 1);
 
-  struct document_text_render_info render_info;
   while (1) {
     position_t scroll_x = view->scroll_x;
     position_t scroll_y = view->scroll_y;
@@ -1311,6 +1323,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 
     prerender++;
 
+    struct document_text_render_info render_info;
     document_text_render_clear(&render_info, splitter->client_width-view->address_width, view->selection);
     in.type = VISUAL_SEEK_X_Y;
     in.clip = 0;
@@ -1323,6 +1336,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
         break;
       }
     }
+    document_text_render_destroy(&render_info);
   }
 
   if (view->scroll_x_old!=view->scroll_x || view->scroll_y_old!=view->scroll_y) {
@@ -1331,6 +1345,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     view->show_scrollbar = 1;
   }
 
+  struct document_text_render_info render_info;
   document_text_render_clear(&render_info, splitter->client_width-view->address_width, view->selection);
   in.type = VISUAL_SEEK_X_Y;
   in.clip = 1;
@@ -1379,15 +1394,25 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 
     if (in.y<=(file->buffer?file->buffer->visuals.ys:0)) {
       char line[1024];
-      int size;
+      int size = 0;
       if (out.line!=last_line) {
         last_line = out.line;
-        size = sprintf(line, "%5d", (int)(out.line+1));
-      } else {
-        size = sprintf(line, "     ");
+        size = sprintf(line, "%lld", (int64_t)(out.line+1));
       }
 
-      splitter_drawtext(splitter, screen, 0, (int)y, line, (size_t)size, file->defaults.colors[marked?VISUAL_FLAG_COLOR_BOOKMARK:VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
+      if (view->address_width>0) {
+        int start = size-(view->address_width-1);
+        int x = 0;
+        if (start<=0) {
+          start = 0;
+          x = (view->address_width-1)-size;
+        } else {
+          size = view->address_width+1;
+          start--;
+        }
+
+        splitter_drawtext(splitter, screen, x, (int)y, line+start, (size_t)size, file->defaults.colors[marked?VISUAL_FLAG_COLOR_BOOKMARK:VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
+      }
     }
 
     int64_t te = tick_count();
@@ -1395,6 +1420,8 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
       fprintf(stderr, "%d: %d | %d/%d/%d | %d-%d (%d, %d) @ %d + %d / %d + %d\r\n", (int)y, (int)debug_relocates, (int)debug_pages_collect, (int)debug_pages_prerender, (int)debug_pages_render, (int)debug_chars, (int)debug_seek_chars, start_x, end_x, (int)(te-t1), (int)(t3-t2), (int)debug_seek_time, (int)debug_span_time);
     }
   }
+
+  document_text_render_destroy(&render_info);
 
   if (!screen) {
     return;
@@ -1452,6 +1479,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     encoding_cache_clear(&cache, file->encoding, &stream);
     codepoint_t cp = encoding_cache_find_codepoint(&cache, 0).cp;
     if (!((cp>='A' && cp<='Z') || (cp>='a' && cp<='z') || (cp>='0' && cp<='9') || (cp=='_'))) {
+      stream_destroy(&stream);
       stream_from_page(&stream, buffer, displacement);
       while (!stream_start(&stream)) {
         uint8_t index = stream_read_reverse(&stream);
@@ -1506,11 +1534,12 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
         splitter_drawtext(splitter, screen, (int)(cursor.x-view->scroll_x+view->address_width), (int)(cursor.y-view->scroll_y)-1, &text[0], length, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
       }
     }
+    stream_destroy(&stream);
   }
   const char* newline[TIPPSE_NEWLINE_MAX] = {"Auto", "Lf", "Cr", "CrLf"};
   const char* tabstop[TIPPSE_TABSTOP_MAX] = {"Auto", "Tab", "Space"};
   char status[1024];
-  sprintf(&status[0], "%s%s%d/%d:%d - %d/%d byte - %s*%d %s %s/%s %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (int)(file->buffer?file->buffer->visuals.lines+1:0), (int)(cursor.line+1), (int)(cursor.column+1), (int)view->offset, (int)range_tree_length(file->buffer), tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->type->type)(file->type), (*file->encoding->name)());
+  sprintf(&status[0], "%s%s%lld/%lld:%lld - %lld/%lld byte - %s*%d %s %s/%s %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (file->buffer?file->buffer->visuals.lines+1:0), (cursor.line+1), (cursor.column+1), view->offset, range_tree_length(file->buffer), tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->type->type)(file->type), (*file->encoding->name)());
   splitter_status(splitter, &status[0]);
 
   view->scroll_y_max = file->buffer?file->buffer->visuals.ys:0;
@@ -1633,6 +1662,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       document_text_render_clear(&render_info, splitter->client_width-view->address_width, view->selection);
       document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
       document_text_collect_span(&render_info, NULL, splitter, view, file, &in, &out_first, ~0, 1);
+      document_text_render_destroy(&render_info);
 
       if (out_first.type!=VISUAL_SEEK_NONE) {
         view->cursor_x = out_first.x;
@@ -2391,6 +2421,8 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
     }
   }
 
+  document_text_render_destroy(&render_info);
+
   if (((cursor->bracket_match&VISUAL_BRACKET_OPEN) && out.offset>cursor->offset) || ((cursor->bracket_match&VISUAL_BRACKET_CLOSE) && out.offset<cursor->offset && out.type!=VISUAL_SEEK_NONE)) {
     splitter_hilight(splitter, screen, (int)(cursor->x-view->scroll_x+view->address_width), (int)(cursor->y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
     splitter_hilight(splitter, screen, (int)(out.x-view->scroll_x+view->address_width), (int)(out.y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
@@ -2457,6 +2489,7 @@ file_offset_t document_text_word_transition_next(struct document* base, struct s
     document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
     int rendered = document_text_collect_span(&render_info, NULL, splitter, view, file, &in, &out, ~0, 1);
     offset = render_info.offset;
+    document_text_render_destroy(&render_info);
     if (rendered==1) {
       return out.offset;
     }
@@ -2487,10 +2520,13 @@ file_offset_t document_text_word_transition_prev(struct document* base, struct s
     int rendered = document_text_collect_span(&render_info, NULL, splitter, view, file, &in, &out, ~0, 1);
 
     if (rendered==1) {
+      document_text_render_destroy(&render_info);
       return out.offset;
     } else if (rendered==0) {
       offset = render_info.offset;
+      document_text_render_destroy(&render_info);
     } else if (rendered==-1) {
+      document_text_render_destroy(&render_info);
       file_offset_t diff;
       struct range_tree_node* node = range_tree_find_offset(file->buffer, offset, &diff);
       if (!node) {
@@ -2514,6 +2550,7 @@ void document_text_transform(struct document* base, struct trie* transformation,
   int seek = 1;
   size_t offset = 0;
   struct stream stream;
+  stream_from_plain(&stream, NULL, 0);
   struct encoding_cache cache;
 
   uint8_t recoded[1024];
@@ -2529,6 +2566,7 @@ void document_text_transform(struct document* base, struct trie* transformation,
         return;
       }
 
+      stream_destroy(&stream);
       stream_from_page(&stream, buffer, displacement);
       encoding_cache_clear(&cache, file->encoding, &stream);
     }

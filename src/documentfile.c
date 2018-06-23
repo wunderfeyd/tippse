@@ -69,6 +69,7 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->defaults.tabstop_width = 0;
   base->defaults.invisibles = 0;
   base->defaults.wrapping = 0;
+  base->defaults.address_width = 6;
   document_file_reset_views(base, 1);
   document_undo_mark_save_point(base);
   document_file_reload_config(base);
@@ -215,7 +216,7 @@ void document_file_fill_pipe(struct document_file* base, uint8_t* buffer, size_t
     memcpy(copy, buffer, length);
     file_offset_t offset = range_tree_length(base->buffer);
     struct fragment* fragment = fragment_create_memory(copy, length);
-    base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, length, 0, 0, base);
+    base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, length, 0, 0, base, NULL);
     fragment_dereference(fragment, base);
 
     document_file_expand_all(base, offset, length);
@@ -253,8 +254,8 @@ void document_file_load(struct document_file* base, const char* filename, int re
         file_offset_t block = 0;
         struct fragment* fragment = NULL;
         if (length<TIPPSE_DOCUMENT_MEMORY_LOADMAX) {
-          uint8_t* copy = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MAX);
-          block = (file_offset_t)file_read(f, copy, TREE_BLOCK_LENGTH_MAX);
+          uint8_t* copy = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MIN);
+          block = (file_offset_t)file_read(f, copy, TREE_BLOCK_LENGTH_MIN);
           fragment = fragment_create_memory(copy, (size_t)block);
         } else {
           block = length-offset;
@@ -270,7 +271,7 @@ void document_file_load(struct document_file* base, const char* filename, int re
           break;
         }
 
-        base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, fragment->length, 0, 0, base);
+        base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, fragment->length, 0, 0, base, NULL);
         fragment_dereference(fragment, base);
         offset += block;
       }
@@ -309,7 +310,7 @@ void document_file_load_memory(struct document_file* base, const uint8_t* buffer
     uint8_t* copy = (uint8_t*)malloc(max);
     memcpy(copy, buffer, max);
     struct fragment* fragment = fragment_create_memory(copy, max);
-    base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, max, 0, 0, base);
+    base->buffer = range_tree_insert(base->buffer, offset, fragment, 0, max, 0, 0, base, NULL);
     fragment_dereference(fragment, base);
     offset += max;
     length -= max;
@@ -331,20 +332,24 @@ int document_file_save_plain(struct document_file* base, const char* filename) {
     return 0;
   }
 
+  int success = 1;
   if (base->buffer) {
-    struct range_tree_node* buffer = range_tree_first(base->buffer);
-    while (buffer) {
-      fragment_cache(buffer->buffer);
-      if (file_write(f, buffer->buffer->buffer+buffer->offset, buffer->length)!=buffer->length) {
-        return 0;
+    struct stream stream;
+    stream_from_page(&stream, range_tree_first(base->buffer), 0);
+    while (!stream_end(&stream)) {
+      size_t length = stream_cache_length(&stream)-stream_displacement(&stream);
+      if (file_write(f, (void*)stream_buffer(&stream), length)!=length) {
+        success = 0;
+        break;
       }
-      buffer = range_tree_next(buffer);
+      stream_next(&stream);
     }
+    stream_destroy(&stream);
   }
 
   file_destroy(f);
   document_undo_mark_save_point(base);
-  return 1;
+  return success;
 }
 
 // Save file, uses a temporary file if necessary
@@ -393,14 +398,15 @@ void document_file_detect_properties(struct document_file* base) {
 
   struct stream stream;
   stream_from_page(&stream, range_tree_first(base->buffer), 0);
-
   document_file_detect_properties_stream(base, &stream);
+  stream_destroy(&stream);
 }
 
 // Auto detect stream properties
 void document_file_detect_properties_stream(struct document_file* base, struct stream* document_stream) {
   file_offset_t offset = 0;
-  struct stream stream = *document_stream;
+  struct stream stream;
+  stream_clone(&stream, document_stream);
 
   struct encodings {
     struct encoding* (*create)(void);
@@ -589,6 +595,8 @@ void document_file_detect_properties_stream(struct document_file* base, struct s
   if (base->defaults.tabstop_width!=0) {
     base->tabstop_width = base->defaults.tabstop_width;
   }
+
+  stream_destroy(&stream);
 }
 
 // Correct file offset by expansion offset and length
@@ -812,6 +820,7 @@ void document_file_reload_config(struct document_file* base) {
   base->defaults.tabstop_width = (int)config_convert_int64(config_find_ascii(base->config, "/tabstop_width"));
   base->defaults.wrapping = (int)config_convert_int64(config_find_ascii(base->config, "/wrapping"));
   base->defaults.invisibles = (int)config_convert_int64(config_find_ascii(base->config, "/invisibles"));
+  base->defaults.address_width = (int)config_convert_int64(config_find_ascii(base->config, "/addresswidth"));
 
   const char* search = base->filename;
   const char* last = base->filename;

@@ -126,6 +126,8 @@ void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie*
       runs--;
     }
   }
+
+  stream_destroy(&stream);
 }
 
 // Append transform to trie and assign result

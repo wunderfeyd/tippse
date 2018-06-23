@@ -346,6 +346,7 @@ int main(int argc, const char** argv) {
         if (!bracket_paste && cp!=-1) {
           editor_keypress(editor, TIPPSE_KEY_CHARACTER, cp, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
         }
+        stream_destroy(&stream);
       }
 
       if (used==0) {

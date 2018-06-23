@@ -120,6 +120,7 @@ void document_text_keypress_line_select(struct document* base, struct splitter* 
 void document_text_toggle_bookmark(struct document* base, struct splitter* splitter, file_offset_t offset);
 
 void document_text_render_clear(struct document_text_render_info* render_info, position_t width, struct range_tree_node* selection);
+void document_text_render_destroy(struct document_text_render_info* render_info);
 void document_text_render_seek(struct document_text_render_info* render_info, struct range_tree_node* buffer, struct encoding* encoding, struct document_text_position* in);
 position_t document_text_render_lookahead_word_wrap(struct document_file* file, struct encoding_cache* cache, position_t max);
 // int document_text_render_whitespace_scan(struct document_text_render_info* render_info, codepoint_t newline_cp1, codepoint_t newline_cp2);

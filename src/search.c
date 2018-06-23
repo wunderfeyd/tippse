@@ -518,6 +518,8 @@ struct range_tree_node* search_replacement(struct search* base, struct range_tre
     offset++;
   }
 
+  stream_destroy(&replacement_stream);
+
   return output;
 }
 
@@ -651,6 +653,8 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
           encoding_cache_clear(&native_cache, native_encoding, &native_stream);
 
           search_append_unicode(last, ignore_case, &native_cache, 0, check, 2);
+
+          stream_destroy(&native_stream);
         }
       }
       codepoint += range->length;
@@ -1460,7 +1464,8 @@ TIPPSE_INLINE void search_find_loop_leave(struct search* base, struct search_sta
 
 // The hot loop of the search, matching and branching is done here. Non recursive version, but uses recursive style with a simulated stack. This version has replaced a recursive version to halt and continue the search process (in future)
 int search_find_loop(struct search* base, struct search_node* node, struct stream* text) {
-  struct stream stream = *text;
+  struct stream stream;
+  stream_clone(&stream, text);
   struct list_node* frame = base->stack.first;
   struct search_stack* start = (struct search_stack*)list_object(frame);
   struct search_stack* end = start+base->stack_size;
@@ -1512,7 +1517,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
               load->loop = node->min;
               load->hits = hits;
               node->stack = load;
-              load->stream = stream;
+              stream_clone(&load->stream, &stream);
             }
           } else {
             if ((node->type&SEARCH_NODE_TYPE_BYTE)) {
@@ -1552,10 +1557,12 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
 
           if (!enter) {
             node->stack = load->previous;
+            stream_destroy(&load->stream);
             search_find_loop_leave(base, &load, &start, &end, &frame);
           } else {
             index->loop++;
-            stream = load->stream;
+            stream_destroy(&stream);
+            stream_clone(&stream, &load->stream);
           }
         }
       }
@@ -1567,12 +1574,13 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
           load->previous = node->stack;
           load->loop = (enter==2)?node->stack->loop+1:0;
           load->sub = node->sub.first;
-          load->stream = stream;
+          stream_clone(&load->stream, &stream);
           load->hits = hits;
           node->stack = load;
           enter = 1;
         } else {
-          stream = load->stream;
+          stream_destroy(&stream);
+          stream_clone(&stream, &load->stream);
         }
 
         struct search_stack* index = node->stack;
@@ -1589,6 +1597,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
             } else {
               if (node->type&SEARCH_NODE_TYPE_POSSESSIVE) {
                 node->stack = load->previous;
+                stream_destroy(&load->stream);
                 search_find_loop_leave(base, &load, &start, &end, &frame);
                 enter = 1;
               }
@@ -1597,6 +1606,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
         }
         if (!enter) {
           node->stack = load->previous;
+          stream_destroy(&load->stream);
           search_find_loop_leave(base, &load, &start, &end, &frame);
         }
       } else {
@@ -1616,7 +1626,8 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
           }
         } else if (node->type&SEARCH_NODE_TYPE_BACKREFERENCE) {
           // TODO: are min/max or modifiers needed here?
-          struct stream source = base->group_hits[node->group].node_start->start;
+          struct stream source;
+          stream_clone(&source, &base->group_hits[node->group].node_start->start);
           file_offset_t from = stream_offset(&source);
           file_offset_t to = stream_offset(&base->group_hits[node->group].node_start->end);
           enter = 1;
@@ -1627,6 +1638,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
             }
             from++;
           }
+          stream_destroy(&source);
         }
       }
     }
@@ -1663,6 +1675,7 @@ int search_find_loop(struct search* base, struct search_node* node, struct strea
     }
   }
 
+  stream_destroy(&stream);
   return hit;
 }
 

@@ -7,6 +7,7 @@ void stream_from_plain(struct stream* base, const uint8_t* plain, size_t size) {
   base->type = STREAM_TYPE_PLAIN;
   base->plain = plain;
   base->displacement = 0;
+  base->page_offset = 0;
   base->cache_length = size;
 }
 
@@ -15,23 +16,81 @@ void stream_from_page(struct stream* base, struct range_tree_node* buffer, file_
   base->type = STREAM_TYPE_PAGED;
   base->buffer = buffer;
   base->displacement = displacement;
-  base->cache_length = range_tree_length(buffer);
-  if (buffer) {
-    fragment_cache(buffer->buffer);
-  }
-
-  base->plain = buffer?(buffer->buffer->buffer+buffer->offset):NULL;
+  base->page_offset = 0;
+  base->cache_length = 0;
+  stream_reference_page(base);
 }
 
 // Build stream from file
 void stream_from_file(struct stream* base, struct file_cache* cache, file_offset_t offset) {
   base->type = STREAM_TYPE_FILE;
   base->file.cache = cache;
-  base->file.node = NULL;
-  base->displacement = offset%TREE_BLOCK_LENGTH_MAX;
+  base->displacement = offset%FILE_CACHE_PAGE_SIZE;
+  base->page_offset = 0;
   base->file.offset = offset-base->displacement;
-  base->plain = file_cache_use_node_ranged(base->file.cache, &base->file.node, base->file.offset, TREE_BLOCK_LENGTH_MAX);
-  base->cache_length = base->file.node->length;
+  base->cache_node = file_cache_invoke(base->file.cache, base->file.offset, FILE_CACHE_PAGE_SIZE, &base->plain, &base->cache_length);
+}
+
+// Clear data structures
+void stream_destroy(struct stream* base) {
+  if (base->type==STREAM_TYPE_PAGED) {
+    stream_unreference_page(base);
+  } else if (base->type==STREAM_TYPE_FILE) {
+    file_cache_revoke(base->file.cache, base->cache_node);
+  }
+}
+
+// Copy one stream to another
+void stream_clone(struct stream* dst, struct stream* src) {
+  memcpy(dst, src, sizeof(struct stream));
+  if (dst->type==STREAM_TYPE_PAGED) {
+    if (dst->buffer && dst->buffer->buffer && dst->buffer->buffer->type==FRAGMENT_FILE) {
+      file_cache_clone(dst->buffer->buffer->cache, dst->cache_node);
+    }
+  } else if (dst->type==STREAM_TYPE_FILE) {
+    file_cache_clone(dst->file.cache, dst->cache_node);
+  }
+}
+
+// Check for page end since the page might be fragmented in cache
+int stream_rereference_page(struct stream* base) {
+  if (base->buffer && base->page_offset+base->displacement<range_tree_length(base->buffer)) {
+    stream_unreference_page(base);
+    stream_reference_page(base);
+    return 1;
+  }
+
+  return 0;
+}
+
+// Load page from fragment or file cache
+void stream_reference_page(struct stream* base) {
+  base->cache_length = range_tree_length(base->buffer);
+
+  if (base->buffer && base->buffer->buffer && base->buffer->buffer->type==FRAGMENT_FILE) {
+    file_offset_t ondisk = base->buffer->buffer->offset+base->buffer->offset;
+    file_offset_t final = ondisk+base->page_offset+base->displacement;
+
+    file_offset_t page = final-(final%FILE_CACHE_PAGE_SIZE);
+    file_offset_t max = page>ondisk?page:ondisk;
+    size_t displacement = (final-max)%FILE_CACHE_PAGE_SIZE;
+
+    base->page_offset = max-ondisk;
+    size_t cache_length;
+    base->cache_node = file_cache_invoke(base->buffer->buffer->cache, max, FILE_CACHE_PAGE_SIZE, &base->plain, &cache_length);
+
+    base->displacement = displacement;
+    base->cache_length = base->cache_length>cache_length?cache_length:base->cache_length;
+  } else {
+    base->plain = base->buffer?(base->buffer->buffer->buffer+base->buffer->offset):NULL;
+  }
+}
+
+// Release page
+void stream_unreference_page(struct stream* base) {
+  if (base->buffer && base->buffer->buffer && base->buffer->buffer->type==FRAGMENT_FILE) {
+    file_cache_revoke(base->buffer->buffer->cache, base->cache_node);
+  }
 }
 
 // Return stream offset (plain stream)
@@ -41,7 +100,7 @@ size_t stream_offset_plain(struct stream* base) {
 
 // Return stream offset (page stream)
 file_offset_t stream_offset_page(struct stream* base) {
-  return range_tree_offset(base->buffer)+base->displacement;
+  return range_tree_offset(base->buffer)+base->page_offset+base->displacement;
 }
 
 // Return stream offset (file stream)
@@ -99,11 +158,17 @@ void stream_forward_oob(struct stream* base, size_t length) {
 
   if (base->type==STREAM_TYPE_PLAIN) {
   } else if (base->type==STREAM_TYPE_PAGED) {
+    if (stream_rereference_page(base)) {
+      return;
+    }
+
+    stream_unreference_page(base);
+    base->displacement += base->page_offset;
+    base->page_offset = 0;
     while (base->buffer) {
       struct range_tree_node* buffer = range_tree_next(base->buffer);
       if (!buffer) {
-        fragment_cache(base->buffer->buffer);
-        base->plain = base->buffer->buffer->buffer+base->buffer->offset;
+        stream_reference_page(base);
         return;
       }
 
@@ -111,17 +176,16 @@ void stream_forward_oob(struct stream* base, size_t length) {
       base->buffer = buffer;
       base->cache_length = base->buffer->length;
       if (base->displacement<base->buffer->length) {
-        fragment_cache(base->buffer->buffer);
-        base->plain = base->buffer->buffer->buffer+base->buffer->offset;
+        stream_reference_page(base);
         break;
       }
     }
   } else if (base->type==STREAM_TYPE_FILE) {
-    while (base->cache_length>=TREE_BLOCK_LENGTH_MAX && base->displacement>=TREE_BLOCK_LENGTH_MAX) {
-      base->displacement -= TREE_BLOCK_LENGTH_MAX;
-      base->file.offset += TREE_BLOCK_LENGTH_MAX;
-      base->plain = file_cache_use_node_ranged(base->file.cache, &base->file.node, base->file.offset, TREE_BLOCK_LENGTH_MAX);
-      base->cache_length = base->file.node->length;
+    while (base->cache_length>=FILE_CACHE_PAGE_SIZE && base->displacement>=FILE_CACHE_PAGE_SIZE) {
+      file_cache_revoke(base->file.cache, base->cache_node);
+      base->displacement -= FILE_CACHE_PAGE_SIZE;
+      base->file.offset += FILE_CACHE_PAGE_SIZE;
+      base->cache_node = file_cache_invoke(base->file.cache, base->file.offset, FILE_CACHE_PAGE_SIZE, &base->plain, &base->cache_length);
     }
   }
 }
@@ -132,11 +196,17 @@ void stream_reverse_oob(struct stream* base, size_t length) {
 
   if (base->type==STREAM_TYPE_PLAIN) {
   } else if (base->type==STREAM_TYPE_PAGED) {
+    if (stream_rereference_page(base)) {
+      return;
+    }
+
+    stream_unreference_page(base);
+    base->displacement += base->page_offset;
+    base->page_offset = 0;
     while (base->buffer) {
       struct range_tree_node* buffer = range_tree_prev(base->buffer);
       if (!buffer) {
-        fragment_cache(base->buffer->buffer);
-        base->plain = base->buffer->buffer->buffer+base->buffer->offset;
+        stream_reference_page(base);
         return;
       }
 
@@ -144,27 +214,26 @@ void stream_reverse_oob(struct stream* base, size_t length) {
       base->displacement += base->buffer->length;
       base->cache_length = base->buffer->length;
       if (base->displacement<base->buffer->length) {
-        fragment_cache(base->buffer->buffer);
-        base->plain = base->buffer->buffer->buffer+base->buffer->offset;
+        stream_reference_page(base);
         break;
       }
     }
   } else if (base->type==STREAM_TYPE_FILE) {
     while (base->file.offset>0 && (ssize_t)base->displacement<0) {
-      base->displacement += TREE_BLOCK_LENGTH_MAX;
-      base->file.offset -= TREE_BLOCK_LENGTH_MAX;
-      base->plain = file_cache_use_node_ranged(base->file.cache, &base->file.node, base->file.offset, TREE_BLOCK_LENGTH_MAX);
-      base->cache_length = base->file.node->length;
+      file_cache_revoke(base->file.cache, base->cache_node);
+      base->displacement += FILE_CACHE_PAGE_SIZE;
+      base->file.offset -= FILE_CACHE_PAGE_SIZE;
+      base->cache_node = file_cache_invoke(base->file.cache, base->file.offset, FILE_CACHE_PAGE_SIZE, &base->plain, &base->cache_length);
     }
   }
 }
 
 // Helper for range tree end check (TODO: clean include files to allow inline usage of range_tree_next)
 int stream_end_oob(struct stream* base) {
-  return ((base->type==STREAM_TYPE_PAGED && (!base->buffer || !range_tree_next(base->buffer))) || (base->type==STREAM_TYPE_FILE && base->cache_length<TREE_BLOCK_LENGTH_MAX))?1:0;
+  return ((base->type==STREAM_TYPE_PAGED && ((!base->buffer || !range_tree_next(base->buffer)) && base->page_offset+base->displacement>=range_tree_length(base->buffer))) || (base->type==STREAM_TYPE_FILE && base->cache_length<FILE_CACHE_PAGE_SIZE))?1:0;
 }
 
 // Helper for range tree start check (TODO: clean include files to allow inline usage of range_tree_prev)
 int stream_start_oob(struct stream* base) {
-  return ((base->type==STREAM_TYPE_PAGED && (!base->buffer || !range_tree_prev(base->buffer))) || (base->type==STREAM_TYPE_FILE && base->file.offset==0))?1:0;
+  return ((base->type==STREAM_TYPE_PAGED && ((!base->buffer || !range_tree_prev(base->buffer)) && base->page_offset+base->displacement<=0)) || (base->type==STREAM_TYPE_FILE && base->file.offset==0))?1:0;
 }

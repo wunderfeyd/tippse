@@ -2,20 +2,19 @@
 
 #include "filecache.h"
 
+#define FILE_CACHE_DEBUG 0
+
 // Create file cache
 struct file_cache* file_cache_create(const char* filename) {
   struct file_cache* base = malloc(sizeof(struct file_cache));
   base->filename = strdup(filename);
   base->fd = file_create(base->filename, TIPPSE_FILE_READ);
   base->count = 1;
-  base->left = FILE_CACHE_NODES;
-  base->allocated = FILE_CACHE_NODES;
-  base->first = NULL;
-  base->last = NULL;
+  base->index = NULL;
+  list_create_inplace(&base->active, sizeof(struct file_cache_node));
+  list_create_inplace(&base->inactive, sizeof(struct file_cache_node));
   base->size = 0;
-  for (size_t n = 0; n<FILE_CACHE_NODES; n++) {
-    base->ranged[n] = NULL;
-  }
+  base->max = FILE_CACHE_SIZE;
 
   if (base->fd) {
 #ifdef _WINDOWS
@@ -39,134 +38,131 @@ void file_cache_dereference(struct file_cache* base) {
   base->count--;
 
   if (base->count==0) {
-    for (size_t count = base->allocated; count<FILE_CACHE_NODES; count++) {
-      free(base->nodes[count]);
-    }
+    range_tree_destroy(base->index, NULL);
+
+    file_cache_empty(base, &base->active);
+    file_cache_empty(base, &base->inactive);
 
     if (base->fd) {
       file_destroy(base->fd);
     }
+
     free(base->filename);
     free(base);
   }
 }
 
-// Remove nodes to reduce cache size
-void file_cache_cleanup(struct file_cache* base, size_t length) {
-  while (base->size>FILE_CACHE_SIZE-length && base->left!=FILE_CACHE_NODES) {
-    file_cache_release_node(base, base->last);
+// Decrease reference counter of file cache
+void file_cache_empty(struct file_cache* base, struct list* nodes) {
+  while (nodes->first) {
+    struct file_cache_node* node = (struct file_cache_node*)list_object(nodes->first);
+    free(node->buffer);
+    if (node->count!=0) {
+      fprintf(stderr, "Hmm, a cached node is still in use!\r\n");
+    }
+    list_remove(nodes, nodes->first);
   }
 }
 
-// Add used node and return it
-struct file_cache_node* file_cache_acquire_node(struct file_cache* base) {
-  base->left--;
-  if (base->left<base->allocated) {
-    base->allocated = base->left;
-    base->open[base->left] = base->nodes[base->left] = malloc(sizeof(struct file_cache_node));
-  }
+// Check if cache size is exhausted
+void file_cache_cleanup(struct file_cache* base) {
+  while (base->size>base->max) {
+    struct file_cache_node* node = (struct file_cache_node*)list_object(base->inactive.last);
+    if (node->count!=0) {
+      fprintf(stderr, "Hmm, a cached node is still in use in inactive list (%d)!\r\n", node->count);
+      break;
+    }
 
-  struct file_cache_node* node = base->open[base->left];
-  file_cache_link_node(base, node);
+    if (FILE_CACHE_DEBUG) {
+      fprintf(stderr, "Remove %p %llx\r\n", node, node->offset);
+    }
 
-  return node;
-}
-
-// Add unused node
-void file_cache_link_node(struct file_cache* base, struct file_cache_node* node) {
-  node->next = base->first;
-  node->prev = NULL;
-
-  if (base->first) {
-    base->first->prev = node;
-  }
-
-  base->first = node;
-
-  if (!base->last) {
-    base->last = node;
+    base->index = range_tree_mark(base->index, node->offset, FILE_CACHE_PAGE_SIZE, 0);
+    free(node->buffer);
+    list_remove(&base->inactive, base->inactive.last);
+    base->size -= FILE_CACHE_PAGE_SIZE;
   }
 }
 
-// Remove used node
-void file_cache_release_node(struct file_cache* base, struct file_cache_node* node) {
-  if (node->reference) {
-    *node->reference = NULL;
+// Create a reference (or valid buffer) to a cache
+struct file_cache_node* file_cache_invoke(struct file_cache* base, file_offset_t offset, size_t length, const uint8_t** buffer, size_t* buffer_length) {
+  file_offset_t index = offset/FILE_CACHE_PAGE_SIZE;
+  file_offset_t low = (index)*FILE_CACHE_PAGE_SIZE;
+  file_offset_t high = (index+1)*FILE_CACHE_PAGE_SIZE;
+  if (range_tree_length(base->index)<high) {
+    base->index = range_tree_resize(base->index, high, 0);
   }
 
-  free(node->buffer);
-  base->size -= node->length;
-  file_cache_unlink_node(base, node);
-  base->open[base->left++] = node;
-}
-
-// Remove unused node
-void file_cache_unlink_node(struct file_cache* base, struct file_cache_node* node) {
-  if (node->prev) {
-    node->prev->next = node->next;
-  }
-
-  if (node->next) {
-    node->next->prev = node->prev;
-  }
-
-  if (base->last==node) {
-    base->last = node->prev;
-  }
-
-  if (base->first==node) {
-    base->first = node->next;
-  }
-}
-
-// Mark node as used and transfer file content
-uint8_t* file_cache_use_node(struct file_cache* base, struct file_cache_node** reference, file_offset_t offset, size_t length) {
-  struct file_cache_node* node = *reference;
-  if (node) {
-    file_cache_unlink_node(base, node);
-    file_cache_link_node(base, node);
-    node->reference = reference;
+  file_offset_t diff;
+  struct file_cache_node* node;
+  // TODO: optimize ... some parts are doing some work twice
+  if (range_tree_marked(base->index, low, high-low, TIPPSE_INSERTER_MARK)) {
+    struct range_tree_node* tree = range_tree_find_offset(base->index, low, &diff);
+    struct list_node* it = (struct list_node*)tree->user_data;
+    node = (struct file_cache_node*)list_object(it);
+    if (it!=base->active.first) {
+      if (node->count==0) {
+        list_remove_node(&base->inactive, it);
+        list_insert_node(&base->active, it, NULL);
+      } else {
+        list_move(&base->active, it, NULL);
+      }
+    }
+    node->count++;
   } else {
-    file_cache_cleanup(base, length);
-    node = file_cache_acquire_node(base);
-    *reference = node;
-    node->offset = FILE_OFFSET_T_MAX;
-    node->length = 0;
-    node->reference = reference;
-    node->buffer = NULL;
-  }
-
-  if (node->offset!=offset || node->length!=length) {
-    node->offset = offset;
+    base->index = range_tree_mark(base->index, low, high-low, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
+    struct range_tree_node* tree = range_tree_find_offset(base->index, low, &diff);
+    tree->user_data = list_insert_empty(&base->active, NULL);
+    node = (struct file_cache_node*)list_object((struct list_node*)tree->user_data);
+    node->list_node = (struct list_node*)tree->user_data;
+    node->count = 1;
+    node->buffer = (uint8_t*)malloc(FILE_CACHE_PAGE_SIZE);
+    node->offset = low;
+    node->length = FILE_CACHE_PAGE_SIZE;
+    base->size += FILE_CACHE_PAGE_SIZE;
 
     if (base->fd) {
-      if (node->length!=length) {
-        base->size -= node->length;
-        node->length = length;
-        free(node->buffer);
-        node->buffer = malloc(sizeof(uint8_t)*node->length);
-        base->size += node->length;
+      file_seek(base->fd, low, TIPPSE_SEEK_START);
+      node->length = file_read(base->fd, node->buffer, FILE_CACHE_PAGE_SIZE);
+      if (FILE_CACHE_DEBUG) {
+        fprintf(stderr, "Read %p %llx %x\r\n", node, low, node->length);
       }
-
-      file_seek(base->fd, node->offset, TIPPSE_SEEK_START);
-      node->length = file_read(base->fd, node->buffer, node->length);
-    } else {
-      base->size -= node->length;
-      free(node->buffer);
-      node->buffer = NULL;
-      node->length = 0;
     }
   }
 
-  return node->buffer;
+  file_cache_cleanup(base);
+  file_cache_debug(base);
+
+  size_t displacement = offset%FILE_CACHE_PAGE_SIZE;
+  *buffer = node->buffer+displacement;
+  *buffer_length = (displacement<=node->length)?node->length-displacement:0;
+  return node;
 }
 
-// Mark node as used and transfer file content depending on the base offset while the file cache itself holds the node references
-uint8_t* file_cache_use_node_ranged(struct file_cache* base, struct file_cache_node** reference, file_offset_t offset, size_t length) {
-  file_offset_t index = (offset/TREE_BLOCK_LENGTH_MAX)%FILE_CACHE_NODES;
-  uint8_t* buffer = file_cache_use_node(base, &base->ranged[index], offset, length);
-  *reference = base->ranged[index];
-  return buffer;
+// Release reference
+void file_cache_clone(struct file_cache* base, struct file_cache_node* node) {
+  if (node->count==0) {
+    fprintf(stderr, "Node to clone was not in use...");
+    abort();
+  }
+  node->count++;
+
+  file_cache_debug(base);
+}
+
+// Release reference
+void file_cache_revoke(struct file_cache* base, struct file_cache_node* node) {
+  node->count--;
+
+  if (node->count==0) {
+    list_remove_node(&base->active, node->list_node);
+    list_insert_node(&base->inactive, node->list_node, NULL);
+  } else if (node->count<0) {
+    fprintf(stderr, "Node count underflow!!! There's a serious problem.");
+    abort();
+  }
+
+  file_cache_debug(base);
 }
 
 // The file was modified while it was open?
@@ -180,4 +176,21 @@ int file_cache_modified(struct file_cache* base) {
   stat(base->filename, &info);
   return (base->modification_time!=info.st_mtime)?1:0;
 #endif
+}
+
+// Print cache debug information
+void file_cache_debug(struct file_cache* base) {
+  if (FILE_CACHE_DEBUG) {
+    int count = 0;
+
+    struct list_node* it = base->active.first;
+    while (it) {
+      struct file_cache_node* node = (struct file_cache_node*)list_object(it);
+      count += node->count;
+
+      it = it->next;
+    }
+
+    fprintf(stderr, "FC '%s' %d+%d/%d & %d refs (%d/%d)\r\n", base->filename, (int)base->active.count, (int)base->inactive.count, (int)(base->active.count+base->inactive.count), count, (int)base->size, (int)base->max);
+  }
 }

@@ -34,6 +34,7 @@ const char* config_default =
     "},"
     "wrapping:1,"
     "invisibles:0,"
+    "addresswidth:6,"
     "shell:{"
       "compile:\"./make.sh\","
     "},"
@@ -695,6 +696,7 @@ void config_load(struct config* base, const char* filename) {
         }
       }
     }
+    stream_destroy(&stream);
   }
 
   document_file_destroy(file);

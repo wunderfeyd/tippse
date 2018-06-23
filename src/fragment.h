@@ -17,7 +17,6 @@ struct fragment {
   uint8_t* buffer;                      // Pointer to buffer content
   file_offset_t offset;                 // Absolute offset to on disk file content
   struct file_cache* cache;             // Cache handler
-  struct file_cache_node* cache_node;   // Active node in cache handler
 
   size_t length;                        // Length of fragment data
 };
@@ -27,7 +26,6 @@ struct fragment {
 
 struct fragment* fragment_create_memory(uint8_t* buffer, size_t length);
 struct fragment* fragment_create_file(struct file_cache* cache, file_offset_t offset, size_t length, struct document_file* file);
-void fragment_cache(struct fragment* base);
 void fragment_reference(struct fragment* base, struct document_file* file);
 void fragment_dereference(struct fragment* base, struct document_file* file);
 

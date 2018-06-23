@@ -465,6 +465,7 @@ void screen_drawtext(const struct screen* base, int x, int y, int clip_x, int cl
     x++;
     length--;
   }
+  stream_destroy(&stream);
 }
 
 // Return codepoint at screen location

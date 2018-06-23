@@ -28,6 +28,9 @@ void list_destroy_inplace(struct list* base);
 TIPPSE_INLINE void* list_object(struct list_node* node) {return (void*)(node+1);}
 struct list_node* list_insert_empty(struct list* base, struct list_node* prev);
 struct list_node* list_insert(struct list* base, struct list_node* prev, void* object);
+void list_insert_node(struct list* base, struct list_node* node, struct list_node* prev);
 void list_remove(struct list* base, struct list_node* node);
+void list_remove_node(struct list* base, struct list_node* node);
+void list_move(struct list* base, struct list_node* node, struct list_node* prev);
 
 #endif /* #ifndef TIPPSE_LIST_H */

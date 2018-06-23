@@ -407,6 +407,8 @@ wchar_t* string_system(const char* convert) {
 
   utf8->destroy(utf8);
   utf16->destroy(utf16);
+  stream_destroy(&stream);
+
   return output;
 }
 
@@ -429,6 +431,7 @@ char* string_internal(const wchar_t* convert) {
 
   utf8->destroy(utf8);
   utf16->destroy(utf16);
+  stream_destroy(&stream);
   return output;
 }
 #endif

@@ -31,7 +31,6 @@ void document_view_reset(struct document_view* base, struct document_file* file,
   base->scroll_x_old = 0;
   base->scroll_y_old = 0;
   base->scroll_y_max = 0;
-  base->address_width = 0;
   base->show_scrollbar = 0;
   base->scrollbar_timeout = 0;
   base->selection_start = FILE_OFFSET_T_MAX;
@@ -55,6 +54,7 @@ void document_view_filechange(struct document_view* base, struct document_file* 
   if (defaults) {
     base->wrapping = file->defaults.wrapping;
     base->show_invisibles = file->defaults.invisibles;
+    base->address_width = file->defaults.address_width;
   }
 
   base->line_select = file->line_select;

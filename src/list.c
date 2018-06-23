@@ -37,9 +37,15 @@ struct list_node* list_insert(struct list* base, struct list_node* prev, void* o
   return node;
 }
 
-// Append empty element
+// Allocate empty element
 struct list_node* list_insert_empty(struct list* base, struct list_node* prev) {
   struct list_node* node = malloc(sizeof(struct list_node)+base->node_size);
+  list_insert_node(base, node, prev);
+  return node;
+}
+
+// Link the specified node
+void list_insert_node(struct list* base, struct list_node* node, struct list_node* prev) {
   if (!prev) {
     node->prev = NULL;
     node->next = base->first;
@@ -64,12 +70,16 @@ struct list_node* list_insert_empty(struct list* base, struct list_node* prev) {
   }
 
   base->count++;
-
-  return node;
 }
 
-// Remove element from list
+// Free element
 void list_remove(struct list* base, struct list_node* node) {
+  list_remove_node(base, node);
+  free(node);
+}
+
+// Unlink element
+void list_remove_node(struct list* base, struct list_node* node) {
   if (base->first==node) {
     base->first = node->next;
   }
@@ -87,5 +97,14 @@ void list_remove(struct list* base, struct list_node* node) {
   }
 
   base->count--;
-  free(node);
+}
+
+// Unlink and link node again at different position
+void list_move(struct list* base, struct list_node* node, struct list_node* prev) {
+  if (node==prev) {
+    return;
+  }
+
+  list_remove_node(base, node);
+  list_insert_node(base, node, prev);
 }

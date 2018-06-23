@@ -13,5 +13,6 @@ struct range_tree_node* clipboard_command_get(const char* command);
 struct range_tree_node* clipboard_windows_get(void);
 
 #include "rangetree.h"
+#include "stream.h"
 
 #endif  /* #ifndef TIPPSE_CLIPBOARD_H */

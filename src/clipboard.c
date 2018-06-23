@@ -30,22 +30,26 @@ void clipboard_command_set(struct range_tree_node* data, int binary, const char*
   if (pipe) {
     if (binary) {
       fwrite("hexdump plain/text\n", 1, 19, pipe);
-      struct range_tree_node* node = range_tree_first(data);
-      while (node) {
-        char* buffer = (char*)malloc(node->length*3+1);
-        fragment_cache(node->buffer);
-        for (file_offset_t pos = 0; pos<node->length; pos++) sprintf(buffer+3*pos, "%02x ", *(node->buffer->buffer+node->offset+pos));
-        fwrite(buffer, 1, node->length*3, pipe);
+      struct stream stream;
+      stream_from_page(&stream, data, 0);
+      while (!stream_end(&stream)) {
+        size_t length = stream_cache_length(&stream)-stream_displacement(&stream);
+        char* buffer = (char*)malloc(length*3+1);
+        for (file_offset_t pos = 0; pos<length; pos++) sprintf(buffer+3*pos, "%02x ", *(stream_buffer(&stream)+pos));
+        fwrite(buffer, 1, length*3, pipe);
         free(buffer);
-        node = range_tree_next(node);
+        stream_next(&stream);
       }
+      stream_destroy(&stream);
     } else {
-      struct range_tree_node* node = range_tree_first(data);
-      while (node) {
-        fragment_cache(node->buffer);
-        fwrite(node->buffer->buffer+node->offset, 1, node->length, pipe);
-        node = range_tree_next(node);
+      struct stream stream;
+      stream_from_page(&stream, data, 0);
+      while (!stream_end(&stream)) {
+        size_t length = stream_cache_length(&stream)-stream_displacement(&stream);
+        fwrite(stream_buffer(&stream), 1, length, pipe);
+        stream_next(&stream);
       }
+      stream_destroy(&stream);
     }
     pclose(pipe);
   }
@@ -85,13 +89,13 @@ struct range_tree_node* clipboard_command_get(const char* command) {
     if (length==19 && memcmp(buffer, "hexdump plain/text\n", 19)==0) {
       free(buffer);
       while (!feof(pipe)) {
-        uint8_t* buffer = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MAX*3);
-        file_offset_t length = fread(buffer, 1, TREE_BLOCK_LENGTH_MAX*3, pipe);
+        uint8_t* buffer = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MIN*3);
+        file_offset_t length = fread(buffer, 1, TREE_BLOCK_LENGTH_MIN*3, pipe);
         if (length) {
           file_offset_t offset = range_tree_length(data);
           for (file_offset_t pos = 0; pos<length/3; pos++) *(buffer+pos) = document_hex_value_from_string((const char*)buffer+pos*3, 3);
           struct fragment* fragment = fragment_create_memory(buffer, length/3);
-          data = range_tree_insert(data, offset, fragment, 0, length/3, 0, 0, NULL);
+          data = range_tree_insert(data, offset, fragment, 0, length/3, 0, 0, NULL, NULL);
           fragment_dereference(fragment, NULL);
         } else {
           free(buffer);
@@ -100,18 +104,18 @@ struct range_tree_node* clipboard_command_get(const char* command) {
     } else {
       if (length) {
         struct fragment* fragment = fragment_create_memory(buffer, length);
-        data = range_tree_insert(data, 0, fragment, 0, length, 0, 0, NULL);
+        data = range_tree_insert(data, 0, fragment, 0, length, 0, 0, NULL, NULL);
         fragment_dereference(fragment, NULL);
       } else {
         free(buffer);
       }
       while (!feof(pipe)) {
-        uint8_t* buffer = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MAX);
-        file_offset_t length = fread(buffer, 1, TREE_BLOCK_LENGTH_MAX, pipe);
+        uint8_t* buffer = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MIN);
+        file_offset_t length = fread(buffer, 1, TREE_BLOCK_LENGTH_MIN, pipe);
         if (length) {
           file_offset_t offset = range_tree_length(data);
           struct fragment* fragment = fragment_create_memory(buffer, length);
-          data = range_tree_insert(data, offset, fragment, 0, length, 0, 0, NULL);
+          data = range_tree_insert(data, offset, fragment, 0, length, 0, 0, NULL, NULL);
           fragment_dereference(fragment, NULL);
         } else {
           free(buffer);

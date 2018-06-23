@@ -338,6 +338,7 @@ void editor_draw(struct editor* base) {
   stream_from_plain(&stream, (uint8_t*)status, SIZE_T_MAX);
   size_t length = encoding_strlen_based(NULL, encoding_utf8_decode, &stream);
   screen_drawtext(base->screen, base->screen->width-(int)length, 0, 0, 0, base->screen->width, base->screen->height, status, length, foreground, background);
+  stream_destroy(&stream);
 
   screen_update(base->screen);
 }
@@ -544,6 +545,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
       }
     }
 
+    stream_destroy(&stream);
     editor_focus(base, base->document, 1);
   } else if (command==TIPPSE_CMD_OPEN) {
     editor_open_selection(base, base->focus, base->document);
@@ -640,6 +642,9 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
             editor_view_commands(base, filter_stream, base->filter_doc->encoding);
           } else if (base->panel->file==base->menu_doc) {
             editor_view_menu(base, filter_stream, base->filter_doc->encoding);
+          }
+          if (filter_stream) {
+            stream_destroy(filter_stream);
           }
         }
 
@@ -807,6 +812,8 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
         free(name);
       }
       search_destroy(search);
+      stream_destroy(&text_stream);
+      stream_destroy(&filter_stream);
     }
   }
 
@@ -1118,6 +1125,7 @@ void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct 
       int highlight = document_undo_modified(file)?TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_MODIFIED<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT):0;
       document_file_insert(base->tabs_doc, range_tree_length(base->tabs_doc->buffer), (uint8_t*)file->filename, strlen(file->filename), TIPPSE_INSERTER_NOFUSE|highlight);
     }
+    stream_destroy(&text_stream);
 
     doc = doc->next;
   }
@@ -1159,6 +1167,7 @@ void editor_view_commands(struct editor* base, struct stream* filter_stream, str
 
       document_file_insert(base->commands_doc, range_tree_length(base->commands_doc->buffer), (uint8_t*)&output[0], strlen(&output[0]), 0);
     }
+    stream_destroy(&text_stream);
   }
 
   if (search) {
@@ -1197,6 +1206,7 @@ void editor_view_menu(struct editor* base, struct stream* filter_stream, struct 
 
       document_file_insert(base->menu_doc, range_tree_length(base->menu_doc->buffer), (uint8_t*)entry->title, strlen(entry->title), 0);
     }
+    stream_destroy(&text_stream);
 
     it = it->next;
   }

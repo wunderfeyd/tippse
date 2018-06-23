@@ -16,21 +16,21 @@
 
 struct file_cache;
 struct file_cache_node;
+struct list_node;
 
 // One megabyte of cache
+#define FILE_CACHE_PAGE_SIZE (65536)
 #define FILE_CACHE_SIZE (1024*1024)
-#define FILE_CACHE_NODES ((FILE_CACHE_SIZE/TREE_BLOCK_LENGTH_MIN)+1)
 
 #include "rangetree.h"
 #include "file.h"
 
 struct file_cache_node {
-  uint8_t* buffer;                         // buffer
-  struct file_cache_node** reference;       // reference node used for linking to caller
-  file_offset_t offset;                     // file offset
+  int count;                                // number of references
+  uint8_t* buffer;                          // buffer
+  file_offset_t offset;                     // offset in file
   size_t length;                            // length of buffer
-  struct file_cache_node* next;             // next node
-  struct file_cache_node* prev;             // previous node
+  struct list_node* list_node;              // node in list
 };
 
 struct file_cache {
@@ -43,14 +43,11 @@ struct file_cache {
   time_t modification_time;                 // modification time of file during load
 #endif
 
-  struct file_cache_node* nodes[FILE_CACHE_NODES]; // nodes pool
-  struct file_cache_node* open[FILE_CACHE_NODES]; // nodes unused
-  size_t allocated;                         // position of first allocated node in pool
-  size_t left;                              // number of unused nodes
-  size_t size;                              // size in bytes of allocated nodes
-  struct file_cache_node* first;            // first used node
-  struct file_cache_node* last;             // last used node
-  struct file_cache_node* ranged[FILE_CACHE_NODES]; // nodes within last offset
+  size_t max;                               // maximum cache size
+  size_t size;                              // current cache size
+  struct range_tree_node* index;            // index
+  struct list active;                       // list of active nodes
+  struct list inactive;                     // lru list of inactive nodes
 };
 
 struct file_cache* file_cache_create(const char* filename);
@@ -58,11 +55,10 @@ void file_cache_reference(struct file_cache* base);
 void file_cache_dereference(struct file_cache* base);
 int file_cache_modified(struct file_cache* base);
 
-void file_cache_cleanup(struct file_cache* base, size_t length);
-struct file_cache_node* file_cache_acquire_node(struct file_cache* base);
-void file_cache_release_node(struct file_cache* base, struct file_cache_node* node);
-void file_cache_unlink_node(struct file_cache* base, struct file_cache_node* node);
-void file_cache_link_node(struct file_cache* base, struct file_cache_node* node);
-uint8_t* file_cache_use_node(struct file_cache* base, struct file_cache_node** reference, file_offset_t offset, size_t length);
-uint8_t* file_cache_use_node_ranged(struct file_cache* base, struct file_cache_node** reference, file_offset_t offset, size_t length);
+void file_cache_empty(struct file_cache* base, struct list* nodes);
+void file_cache_cleanup(struct file_cache* base);
+struct file_cache_node* file_cache_invoke(struct file_cache* base, file_offset_t offset, size_t length, const uint8_t** buffer, size_t* buffer_length);
+void file_cache_clone(struct file_cache* base, struct file_cache_node* node);
+void file_cache_revoke(struct file_cache* base, struct file_cache_node* node);
+void file_cache_debug(struct file_cache* base);
 #endif  /* #ifndef TIPPSE_FILECACHE_H */

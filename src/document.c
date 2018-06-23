@@ -20,6 +20,7 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
   } else {
     search = search_create_plain(ignore_case, reverse, needle_stream, search_encoding, file->encoding);
   }
+  stream_destroy(&needle_stream);
 
   if (!replace && all) {
     document_view_select_nothing(view, file);
@@ -145,6 +146,7 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
         }
       }
     }
+    stream_destroy(&text_stream);
 
     if (found) {
       matches++;
@@ -240,22 +242,24 @@ void document_search_directory(const char* path, struct range_tree_node* search_
       } else {
         search = search_create_plain(ignore_case, 0, needle_stream, search_encoding, file->encoding);
       }
+      stream_destroy(&needle_stream);
 
       file_offset_t line = 1;
-      struct stream newlines = stream;
+      struct stream newlines;
+      stream_clone(&newlines, &stream);
       file_offset_t line_hit = line;
-      struct stream line_start = newlines;
+      struct stream line_start;
+      stream_clone(&line_start, &newlines);
       while (!stream_end(&stream)) {
-        stream_forward_oob(&stream, 0);
         int found = search_find(search, &stream, NULL);
         if (!found) {
           break;
         }
         file_offset_t hit = stream_offset_file(&search->hit_start);
-        stream_forward_oob(&newlines, 0);
         while (stream_offset(&newlines)<=hit) {
           line_hit = line;
-          line_start = newlines;
+          stream_destroy(&line_start);
+          stream_clone(&line_start, &newlines);
           while (!stream_end(&newlines) && stream_read_forward(&newlines)!='\n') {
           }
           line++;
@@ -263,8 +267,8 @@ void document_search_directory(const char* path, struct range_tree_node* search_
         printf("%s:%d: ", scan, (int)line_hit);
 
         int columns = 80;
-        struct stream line_copy = line_start;
-        stream_forward_oob(&line_copy, 0);
+        struct stream line_copy;
+        stream_clone(&line_copy, &line_start);
         while (!stream_end(&line_copy) && columns>0) {
           columns--;
           uint8_t index = stream_read_forward(&line_copy);
@@ -276,9 +280,13 @@ void document_search_directory(const char* path, struct range_tree_node* search_
           }
         }
         printf("\n");
+        stream_destroy(&line_copy);
       }
+      stream_destroy(&newlines);
+      stream_destroy(&line_start);
 
       search_destroy(search);
+      stream_destroy(&stream);
       file_cache_dereference(cache);
       document_file_destroy(file);
     }
@@ -316,6 +324,7 @@ void document_directory(struct document_file* file, struct stream* filter_stream
       char* name = strdup(filename);
       list_insert(files, NULL, &name);
     }
+    stream_destroy(&text_stream);
   }
 
   directory_destroy(directory);

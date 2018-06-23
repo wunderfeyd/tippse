@@ -44,6 +44,7 @@ struct document_file_defaults {
 
   int invisibles;                       // show invisibles?
   int wrapping;                         // show line wrapping?
+  int address_width;                    // width of the position column in characters
 
   int tabstop;                          // type of tabstop
   int tabstop_width;                    // number of spaces per tab

@@ -63,6 +63,7 @@ uint8_t* encoding_transform_plain(const uint8_t* buffer, size_t length, struct e
   struct range_tree_node* root = encoding_transform_stream(&stream, from, to);
   uint8_t* raw = range_tree_raw(root, 0, root?root->length:0);
   range_tree_destroy(root, NULL);
+  stream_destroy(&stream);
   return raw;
 }
 

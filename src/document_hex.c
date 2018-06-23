@@ -38,17 +38,22 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
     return;
   }
 
+  int foreground = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
+  int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
+  int selectionx = file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
+  int bookmarkx = file->defaults.colors[VISUAL_FLAG_COLOR_BOOKMARK];
+
   file_offset_t file_size = range_tree_length(file->buffer);
   view->cursor_x = view->offset%16;
   view->cursor_y = (position_t)(view->offset/16);
   if (view->cursor_y>=view->scroll_y+splitter->client_height) {
     view->scroll_y = view->cursor_y-splitter->client_height+1;
   }
-  view->scroll_y_max = (int)((file_size+16)/16);
+  view->scroll_y_max = (position_t)((file_size+16)/16);
   if (view->cursor_y<view->scroll_y) {
     view->scroll_y = view->cursor_y;
   }
-  int max_height = (int)((file_size+16)/16)-splitter->client_height;
+  position_t max_height = (position_t)((file_size+16)/16)-splitter->client_height;
   if (view->scroll_y>max_height) {
     view->scroll_y = max_height;
   }
@@ -92,97 +97,106 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   free(title);
 
   char status[1024];
-  sprintf(&status[0], "%lu/%lu bytes - %08lx - Hex %s", (unsigned long)view->offset, (unsigned long)file_size, (unsigned long)view->offset, (*file->encoding->name)());
+  sprintf(&status[0], "%llu/%llu bytes - %llx - Hex %s", view->offset, file_size, view->offset, (*file->encoding->name)());
   splitter_status(splitter, &status[0]);
 
   size_t char_size = 1;
-  int y;
-  for (y = 0; y<splitter->client_height; y++) {
-    struct document_hex_char chars[16];
-    size_t data_size = file_size-offset>16?16:file_size-offset;
-    for (int x = 0; x<(int)data_size; x++) {
-      char_size--;
-      if (char_size==0) {
-        size_t advance;
-        chars[x].length = unicode_read_combined_sequence(&text_cache, 0, chars[x].codepoints, 8, &advance, &char_size);
-        encoding_cache_advance(&text_cache, advance);
+  for (int y = 0; y<splitter->client_height; y++) {
+    size_t data_size = 16;
+    char line[1024];
+    int size = sprintf(line, "%llx", offset);
+
+    if (view->address_width>0) {
+      int x = 0;
+      int start = size-(view->address_width-1);
+      if (start<=0) {
+        start = 0;
+        x = (view->address_width-1)-size;
       } else {
-        chars[x].codepoints[0] = 0;
-        chars[x].length = 1;
+        size = view->address_width+1;
+        start--;
       }
 
-      chars[x].byte = stream_read_forward(&byte_stream);
-      selection_displacement++;
-      while (selection && selection_displacement>selection->length) {
-        selection_displacement -= selection->length;
-        selection = selection->next;
-      }
-      chars[x].selection = (selection && (selection->inserter&TIPPSE_INSERTER_MARK))?1:0;
+      int marked = range_tree_marked(file->bookmarks, offset, data_size, TIPPSE_INSERTER_MARK);
 
-      bookmark_displacement++;
-      while (bookmark && bookmark_displacement>bookmark->length) {
-        bookmark_displacement -= bookmark->length;
-        bookmark = bookmark->next;
-      }
-      chars[x].bookmark = (bookmark && (bookmark->inserter&TIPPSE_INSERTER_MARK))?1:0;
+      splitter_drawtext(splitter, screen, x, (int)y, line+start, (size_t)size, file->defaults.colors[marked?VISUAL_FLAG_COLOR_BOOKMARK:VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
     }
 
-    document_hex_render(base, screen, splitter, offset, y, data_size, chars);
-    offset += data_size;
-    if (offset>=file_size) break;
+    for (size_t delta = 0; delta<data_size; delta++) {
+      int x_bytes = view->address_width+(delta*3);
+      int x_characters = view->address_width+(16*3)+delta;
+
+      if (offset<file_size) {
+        size_t length;
+        codepoint_t codepoints[8];
+        char_size--;
+        if (char_size==0) {
+          size_t advance;
+          length = unicode_read_combined_sequence(&text_cache, 0, &codepoints[0], 8, &advance, &char_size);
+          encoding_cache_advance(&text_cache, advance);
+        } else {
+          codepoints[0] = 0;
+          length = 1;
+        }
+
+        uint8_t byte = stream_read_forward(&byte_stream);
+        selection_displacement++;
+        while (selection && selection_displacement>selection->length) {
+          selection_displacement -= selection->length;
+          selection = selection->next;
+        }
+        int selected = (selection && (selection->inserter&TIPPSE_INSERTER_MARK))?1:0;
+
+        bookmark_displacement++;
+        while (bookmark && bookmark_displacement>bookmark->length) {
+          bookmark_displacement -= bookmark->length;
+          bookmark = bookmark->next;
+        }
+        int marked = (bookmark && (bookmark->inserter&TIPPSE_INSERTER_MARK))?1:0;
+
+        int size = sprintf(line, (delta!=data_size)?"%02x ":"%02x", byte);
+        if (!selected) {
+          splitter_drawtext(splitter, screen, x_bytes, y, line, (size_t)size, marked?bookmarkx:foreground, background);
+        } else {
+          splitter_drawtext(splitter, screen, x_bytes, y, line, (size_t)size, foreground, selectionx);
+        }
+
+        codepoint_t visuals[8];
+        for (size_t n = 0; n<length; n++) {
+          visuals[n] = (file->encoding->visual)(file->encoding, codepoints[n]);
+        }
+        document_hex_convert(&codepoints[0], &length, &visuals[0], view->show_invisibles, '.');
+
+        if (!selected) {
+          splitter_drawchar(splitter, screen, x_characters, y, visuals, length, marked?bookmarkx:foreground, background);
+        } else {
+          splitter_drawchar(splitter, screen, x_characters, y, visuals, length, foreground, selectionx);
+        }
+      }
+
+      if (view->offset==offset) {
+        if (document->cp_first) {
+          int size = sprintf(line, "%01x", document_hex_value(document->cp_first));
+          splitter_drawtext(splitter, screen, x_bytes, y, line, (size_t)size, foreground, background);
+        }
+
+        if (document_view_select_active(view)) {
+          splitter_cursor(splitter, screen, -1, -1);
+        } else {
+          splitter_cursor(splitter, screen, x_bytes+(document->cp_first!=0), y);
+        }
+      }
+
+      offset++;
+    }
+
+    if (offset>file_size) break;
   }
-  if (file_size && file_size%16==0) document_hex_render(base, screen, splitter, offset, y+1, 0, NULL);
-  if (document_view_select_active(view)) {
-    splitter_cursor(splitter, screen, -1, -1);
-  } else {
-    splitter_cursor(splitter, screen, (int)(10+(3*view->cursor_x)+(document->cp_first!=0)), (int)(view->cursor_y-view->scroll_y));
-  }
+
+  stream_destroy(&byte_stream);
+  stream_destroy(&text_stream);
+
   splitter_scrollbar(splitter, screen);
-}
-
-// Render one line of data
-void document_hex_render(struct document* base, struct screen* screen, struct splitter* splitter, file_offset_t offset, position_t y, size_t data_size, struct document_hex_char* chars) {
-  struct document_hex* document = (struct document_hex*)base;
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
-  int foreground = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
-  int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
-  int selection = file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
-  int linenumber = file->defaults.colors[VISUAL_FLAG_COLOR_LINENUMBER];
-  int bookmark = file->defaults.colors[VISUAL_FLAG_COLOR_BOOKMARK];
-  int x = 0;
-  char line[1024];
-  sprintf(line, "%08lx", (unsigned long)offset);
-  splitter_drawtext(splitter, screen, x, (int)y, line, 8, linenumber, background);
-  x = 10;
-  size_t data_pos;
-  for (data_pos = 0; data_pos<data_size; data_pos++) {
-    sprintf(line, "%02x ", chars[data_pos].byte);
-    if (!chars[data_pos].selection) {
-      splitter_drawtext(splitter, screen, x, (int)y, line, 2, chars[data_pos].bookmark?bookmark:foreground, background);
-    } else {
-      splitter_drawtext(splitter, screen, x, (int)y, line, data_pos==15?2:3, foreground, selection);
-    }
-    x += 3;
-  }
-  if (document->cp_first!=0 && y==view->cursor_y-view->scroll_y) {
-    splitter_drawchar(splitter, screen, (int)(10+(3*view->cursor_x)), (int)y, &document->cp_first, 1, foreground, background);
-  }
-
-  x = 59;
-  for (data_pos = 0; data_pos<data_size; data_pos++) {
-    for (size_t n = 0; n<chars[data_pos].length; n++) {
-      chars[data_pos].visuals[n] = (file->encoding->visual)(file->encoding, chars[data_pos].codepoints[n]);
-    }
-    document_hex_convert(&chars[data_pos], view->show_invisibles, '.');
-    if (!chars[data_pos].selection) {
-      splitter_drawchar(splitter, screen, x, (int)y, chars[data_pos].visuals, chars[data_pos].length, foreground, background);
-    } else {
-      splitter_drawchar(splitter, screen, x, (int)y, chars[data_pos].visuals, chars[data_pos].length, foreground, selection);
-    }
-    x++;
-  }
 }
 
 // Handle key press
@@ -361,11 +375,16 @@ void document_hex_cursor_from_point(struct document* base, struct splitter* spli
   file_offset_t file_size = range_tree_length(file->buffer);
   if (y<0) *offset = 0;
   if (y>=0 && y<splitter->client_height) {
-    if (x>=8 && x<10) *offset = (file_offset_t)((view->scroll_y+y)*16);
-    if (x>=10 && x<58) *offset = (file_offset_t)(((view->scroll_y+y)*16)+((x-10)/3));
-    if (x>=58 && x<59) *offset = (file_offset_t)(((view->scroll_y+y)*16)+16);
-    if (x>=59 && x<75) *offset = (file_offset_t)(((view->scroll_y+y)*16)+x-59);
-    if (x>=76) *offset = (file_offset_t)(((view->scroll_y+y)*16)+16);
+    int byte = 0;
+    if (x>=view->address_width && x<view->address_width+(3*16)) {
+      byte = (x-view->address_width)/3;
+    } else if (x>=view->address_width+(3*16) && x<view->address_width+(3*16)+16) {
+      byte = (x-(view->address_width+(3*16)));
+    } else if (x>=view->address_width+(3*16)+16) {
+      byte = 16;
+    }
+
+    *offset = (file_offset_t)(((view->scroll_y+y)*16)+byte);
     if (*offset>file_size) *offset = file_size;
   }
 }
@@ -402,8 +421,8 @@ uint8_t document_hex_value_from_string(const char* text, size_t length) {
 }
 
 // Convert invisible characters
-void document_hex_convert(struct document_hex_char* cps, int show_invisibles, codepoint_t cp_default) {
-  codepoint_t cp = cps->codepoints[0];
+void document_hex_convert(codepoint_t* codepoints, size_t* length, codepoint_t* visuals, int show_invisibles, codepoint_t cp_default) {
+  codepoint_t cp = codepoints[0];
   codepoint_t show = -1;
   if (cp=='\n') {
     show = show_invisibles?0x00ac:cp_default;
@@ -413,12 +432,12 @@ void document_hex_convert(struct document_hex_char* cps, int show_invisibles, co
     show = show_invisibles?0x00bb:cp_default;
   } else if (cp==' ') {
     show = show_invisibles?0x22c5:' ';
-  } else if (cp<32 || cps->visuals[0]==0xfffd) {
+  } else if (cp<32 || visuals[0]==0xfffd) {
     show = cp_default;
   }
 
   if (show!=-1) {
-    cps->visuals[0] = show;
-    cps->length = 1;
+    visuals[0] = show;
+    *length = 1;
   }
 }
