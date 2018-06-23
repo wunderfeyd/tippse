@@ -6,6 +6,7 @@
 struct document* document_hex_create(void) {
   struct document_hex* document = (struct document_hex*)malloc(sizeof(struct document_hex));
   document->cp_first = 0;
+  document->mode = DOCUMENT_HEX_MODE_BYTE;
   document->vtbl.reset = document_hex_reset;
   document->vtbl.draw = document_hex_draw;
   document->vtbl.keypress = document_hex_keypress;
@@ -183,7 +184,11 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
         if (document_view_select_active(view)) {
           splitter_cursor(splitter, screen, -1, -1);
         } else {
-          splitter_cursor(splitter, screen, x_bytes+(document->cp_first!=0), y);
+          if (document->mode==DOCUMENT_HEX_MODE_BYTE) {
+            splitter_cursor(splitter, screen, x_bytes+(document->cp_first!=0), y);
+          } else {
+            splitter_cursor(splitter, screen, x_characters, y);
+          }
         }
       }
 
@@ -301,6 +306,9 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     } else {
       document_file_delete(file, view->offset, 1);
     }
+  } else if (command==TIPPSE_CMD_TAB) {
+    document->mode++;
+    document->mode %= DOCUMENT_HEX_MODE_MAX;
   } else if (command==TIPPSE_CMD_RETURN) {
     uint8_t text = file->binary?0:32;
     document_select_delete(splitter);
@@ -308,20 +316,30 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     view->offset--;
   }
 
-  if (command==TIPPSE_CMD_CHARACTER && ((cp>='0' && cp<='9') || (cp>='a' && cp<='f') || (cp>='A' && cp<='F'))) {
-    if (document->cp_first!=0) {
-      uint8_t text = (uint8_t)((document_hex_value(document->cp_first)<<4)+document_hex_value(cp));
-      document_file_insert(file, view->offset, &text, 1, 0);
-      document_file_delete(file, view->offset, 1);
-      document->cp_first = 0;
-    } else {
-      if (selection_low!=FILE_OFFSET_T_MAX) {
-        uint8_t text = file->binary?0:32;
-        document_select_delete(splitter);
-        document_file_insert(file, view->offset, &text, 1, 0);
-        view->offset--;
+  if (command==TIPPSE_CMD_CHARACTER) {
+    if (document->mode==DOCUMENT_HEX_MODE_BYTE) {
+      if ((cp>='0' && cp<='9') || (cp>='a' && cp<='f') || (cp>='A' && cp<='F')) {
+        if (document->cp_first!=0) {
+          uint8_t text = (uint8_t)((document_hex_value(document->cp_first)<<4)+document_hex_value(cp));
+          document_file_insert(file, view->offset, &text, 1, 0);
+          document_file_delete(file, view->offset, 1);
+          document->cp_first = 0;
+        } else {
+          if (selection_low!=FILE_OFFSET_T_MAX) {
+            uint8_t text = file->binary?0:32;
+            document_select_delete(splitter);
+            document_file_insert(file, view->offset, &text, 1, 0);
+            view->offset--;
+          }
+          document->cp_first = cp;
+        }
       }
-      document->cp_first = cp;
+    } else if (document->mode==DOCUMENT_HEX_MODE_CHARACTER) {
+      uint8_t coded[8];
+      size_t size = file->encoding->encode(file->encoding, cp, &coded[0], 8);
+      document_file_delete(file, view->offset, size);
+      document_file_insert(file, view->offset, &coded[0], size, 0);
+      document->cp_first = 0;
     }
   } else if (cp!=TIPPSE_CMD_MOUSE || button!=0) {
     document->cp_first = 0;
@@ -369,6 +387,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
 
 // Return cursor position from point
 void document_hex_cursor_from_point(struct document* base, struct splitter* splitter, int x, int y, file_offset_t* offset) {
+  struct document_hex* document = (struct document_hex*)base;
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
@@ -378,8 +397,10 @@ void document_hex_cursor_from_point(struct document* base, struct splitter* spli
     int byte = 0;
     if (x>=view->address_width && x<view->address_width+(3*16)) {
       byte = (x-view->address_width)/3;
+      document->mode = DOCUMENT_HEX_MODE_BYTE;
     } else if (x>=view->address_width+(3*16) && x<view->address_width+(3*16)+16) {
       byte = (x-(view->address_width+(3*16)));
+      document->mode = DOCUMENT_HEX_MODE_CHARACTER;
     } else if (x>=view->address_width+(3*16)+16) {
       byte = 16;
     }

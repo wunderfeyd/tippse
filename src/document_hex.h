@@ -7,9 +7,14 @@ struct document_hex;
 
 #include "document.h"
 
+#define DOCUMENT_HEX_MODE_BYTE 0
+#define DOCUMENT_HEX_MODE_CHARACTER 1
+#define DOCUMENT_HEX_MODE_MAX 2
+
 struct document_hex {
   struct document vtbl;     // virtual table of document
   codepoint_t cp_first;     // first pressed key
+  int mode;                 // current editor mode
 };
 
 #include "misc.h"
