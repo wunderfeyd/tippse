@@ -263,7 +263,7 @@ void document_file_load(struct document_file* base, const char* filename, int re
             block = TREE_BLOCK_LENGTH_MAX;
           }
 
-          fragment = fragment_create_file(base->cache, offset, (size_t)block, base);
+          fragment = fragment_create_file(base->cache, offset, block, base);
         }
 
         if (block==0) {
@@ -306,7 +306,7 @@ void document_file_load_memory(struct document_file* base, const uint8_t* buffer
   document_file_clear(base, 1);
   file_offset_t offset = 0;
   while (length>0) {
-    size_t max = (length>TREE_BLOCK_LENGTH_MAX)?TREE_BLOCK_LENGTH_MAX:length;
+    size_t max = (length>TREE_BLOCK_LENGTH_MID)?TREE_BLOCK_LENGTH_MID:length;
     uint8_t* copy = (uint8_t*)malloc(max);
     memcpy(copy, buffer, max);
     struct fragment* fragment = fragment_create_memory(copy, max);

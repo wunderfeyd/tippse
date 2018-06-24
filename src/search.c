@@ -461,14 +461,14 @@ struct range_tree_node* search_replacement(struct search* base, struct range_tre
   struct encoding_cache cache;
   encoding_cache_clear(&cache, replacement_encoding, &replacement_stream);
 
-  uint8_t coded[TREE_BLOCK_LENGTH_MAX+1024];
+  uint8_t coded[TREE_BLOCK_LENGTH_MIN+1024];
   size_t size = 0;
 
   size_t offset = 0;
   int escape = 0;
   while (1) {
     codepoint_t cp = encoding_cache_find_codepoint(&cache, offset).cp;
-    if (size>TREE_BLOCK_LENGTH_MAX-8 || cp<=0) {
+    if (size>TREE_BLOCK_LENGTH_MIN-8 || cp<=0) {
       output = range_tree_insert_split(output, range_tree_length(output), &coded[0], size, 0);
       size = 0;
     }

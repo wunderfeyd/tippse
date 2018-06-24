@@ -15,9 +15,8 @@ void stream_from_plain(struct stream* base, const uint8_t* plain, size_t size) {
 void stream_from_page(struct stream* base, struct range_tree_node* buffer, file_offset_t displacement) {
   base->type = STREAM_TYPE_PAGED;
   base->buffer = buffer;
-  base->displacement = displacement;
-  base->page_offset = 0;
-  base->cache_length = 0;
+  base->displacement = displacement%FILE_CACHE_PAGE_SIZE;
+  base->page_offset = displacement-base->displacement;
   stream_reference_page(base);
 }
 
@@ -54,7 +53,7 @@ void stream_clone(struct stream* dst, struct stream* src) {
 
 // Check for page end since the page might be fragmented in cache
 int stream_rereference_page(struct stream* base) {
-  if (base->buffer && base->page_offset+base->displacement<range_tree_length(base->buffer)) {
+  if (base->buffer && stream_combined_offset(base->page_offset, base->displacement)<range_tree_length(base->buffer)) {
     stream_unreference_page(base);
     stream_reference_page(base);
     return 1;
@@ -65,11 +64,9 @@ int stream_rereference_page(struct stream* base) {
 
 // Load page from fragment or file cache
 void stream_reference_page(struct stream* base) {
-  base->cache_length = range_tree_length(base->buffer);
-
   if (base->buffer && base->buffer->buffer && base->buffer->buffer->type==FRAGMENT_FILE) {
     file_offset_t ondisk = base->buffer->buffer->offset+base->buffer->offset;
-    file_offset_t final = ondisk+base->page_offset+base->displacement;
+    file_offset_t final = ondisk+stream_combined_offset(base->page_offset, base->displacement);
 
     file_offset_t page = final-(final%FILE_CACHE_PAGE_SIZE);
     file_offset_t max = page>ondisk?page:ondisk;
@@ -79,10 +76,12 @@ void stream_reference_page(struct stream* base) {
     size_t cache_length;
     base->cache_node = file_cache_invoke(base->buffer->buffer->cache, max, FILE_CACHE_PAGE_SIZE, &base->plain, &cache_length);
 
+    file_offset_t page_size = range_tree_length(base->buffer);
     base->displacement = displacement;
-    base->cache_length = base->cache_length>cache_length?cache_length:base->cache_length;
+    base->cache_length = page_size>cache_length?cache_length:page_size;
   } else {
     base->plain = base->buffer?(base->buffer->buffer->buffer+base->buffer->offset):NULL;
+    base->cache_length = range_tree_length(base->buffer);
   }
 }
 
@@ -163,19 +162,22 @@ void stream_forward_oob(struct stream* base, size_t length) {
     }
 
     stream_unreference_page(base);
-    base->displacement += base->page_offset;
+    file_offset_t displacement = stream_combined_offset(base->page_offset, base->displacement);
     base->page_offset = 0;
     while (base->buffer) {
       struct range_tree_node* buffer = range_tree_next(base->buffer);
       if (!buffer) {
+        base->displacement = displacement%FILE_CACHE_PAGE_SIZE;
+        base->page_offset = displacement-base->displacement;
         stream_reference_page(base);
         return;
       }
 
-      base->displacement -= base->buffer->length;
+      displacement -= base->buffer->length;
       base->buffer = buffer;
-      base->cache_length = base->buffer->length;
-      if (base->displacement<base->buffer->length) {
+      if (displacement<base->buffer->length) {
+        base->displacement = displacement%FILE_CACHE_PAGE_SIZE;
+        base->page_offset = displacement-base->displacement;
         stream_reference_page(base);
         break;
       }
@@ -201,19 +203,22 @@ void stream_reverse_oob(struct stream* base, size_t length) {
     }
 
     stream_unreference_page(base);
-    base->displacement += base->page_offset;
+    file_offset_t displacement = stream_combined_offset(base->page_offset, base->displacement);
     base->page_offset = 0;
     while (base->buffer) {
       struct range_tree_node* buffer = range_tree_prev(base->buffer);
       if (!buffer) {
+        base->displacement = displacement%FILE_CACHE_PAGE_SIZE;
+        base->page_offset = displacement-base->displacement;
         stream_reference_page(base);
         return;
       }
 
       base->buffer = buffer;
-      base->displacement += base->buffer->length;
-      base->cache_length = base->buffer->length;
-      if (base->displacement<base->buffer->length) {
+      displacement += base->buffer->length;
+      if (displacement<base->buffer->length) {
+        base->displacement = displacement%FILE_CACHE_PAGE_SIZE;
+        base->page_offset = displacement-base->displacement;
         stream_reference_page(base);
         break;
       }

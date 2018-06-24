@@ -50,11 +50,11 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   if (view->cursor_y>=view->scroll_y+splitter->client_height) {
     view->scroll_y = view->cursor_y-splitter->client_height+1;
   }
-  view->scroll_y_max = (position_t)((file_size+16)/16);
+  view->scroll_y_max = (position_t)(file_size/16)+1;
   if (view->cursor_y<view->scroll_y) {
     view->scroll_y = view->cursor_y;
   }
-  position_t max_height = (position_t)((file_size+16)/16)-splitter->client_height;
+  position_t max_height = view->scroll_y_max-splitter->client_height;
   if (view->scroll_y>max_height) {
     view->scroll_y = max_height;
   }

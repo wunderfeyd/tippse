@@ -19,7 +19,7 @@ struct stream {
   const uint8_t* plain;                 // address of buffer
   size_t displacement;                  // offset in buffer
   size_t cache_length;                  // length of buffer
-  size_t page_offset;                   // offset in page
+  file_offset_t page_offset;            // offset in page
   struct file_cache_node* cache_node;   // file cache node
 
   union {
@@ -108,4 +108,7 @@ TIPPSE_INLINE void stream_previous(struct stream* base) {
   stream_reverse_oob(base, base->displacement);
 }
 
+TIPPSE_INLINE file_offset_t stream_combined_offset(file_offset_t offset, size_t displacement) {
+  return ((ssize_t)displacement>=0)?offset+displacement:offset-(file_offset_t)((ssize_t)0-(ssize_t)displacement);
+}
 #endif  /* #ifndef TIPPSE_STREAM_H */

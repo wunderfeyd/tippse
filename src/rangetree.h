@@ -10,8 +10,10 @@
 struct fragment;
 struct range_tree_node;
 
-// 1GiB page size for file load
-#define TREE_BLOCK_LENGTH_MAX 1024*1024*1024
+// 1EiB page size for file load
+#define TREE_BLOCK_LENGTH_MAX 1024ull*1024ull*1024ull*1024ull*1024ull
+// 1GiB page size for direct memory access operations
+#define TREE_BLOCK_LENGTH_MID 1024*1024*1024
 // 4kiB page size for file render split
 #define TREE_BLOCK_LENGTH_MIN 4096
 

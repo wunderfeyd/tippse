@@ -877,10 +877,10 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
 
 // Split input buffer into nodes with maximum allowed length
 struct range_tree_node* range_tree_insert_split(struct range_tree_node* root, file_offset_t offset, const uint8_t* text, size_t length, int inserter) {
-  for (size_t pos = 0; pos<length; pos+=TREE_BLOCK_LENGTH_MAX) {
+  for (size_t pos = 0; pos<length; pos+=TREE_BLOCK_LENGTH_MID) {
     size_t size = length-pos;
-    if (size>TREE_BLOCK_LENGTH_MAX) {
-      size = TREE_BLOCK_LENGTH_MAX;
+    if (size>TREE_BLOCK_LENGTH_MID) {
+      size = TREE_BLOCK_LENGTH_MID;
     }
 
     uint8_t* copy = (uint8_t*)malloc(size);
@@ -890,7 +890,7 @@ struct range_tree_node* range_tree_insert_split(struct range_tree_node* root, fi
     root = range_tree_insert(root, offset, buffer, 0, buffer->length, inserter, range_tree_fuse_id, NULL, NULL);
     fragment_dereference(buffer, NULL);
 
-    offset += TREE_BLOCK_LENGTH_MAX;
+    offset += TREE_BLOCK_LENGTH_MID;
   }
 
   return root;
