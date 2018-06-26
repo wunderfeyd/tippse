@@ -910,7 +910,7 @@ int editor_ask_document_action(struct editor* base, struct document_file* file, 
   int modified = document_undo_modified(file);
   int draft = document_file_drafted(file);
 
-  if (!modified && !modified_cache && !draft && !force) {
+  if (!modified && !modified_cache && !force) {
     return 0;
   }
 
@@ -929,7 +929,7 @@ int editor_ask_document_action(struct editor* base, struct document_file* file, 
     return 0;
   }
 
-  if (modified && !force && ask) {
+  if (modified && !draft && !force && ask) {
     editor_task_stop(base);
     editor_menu_clear(base);
     char* title = combine_string("File modified, save? - ", file->filename);
@@ -1004,7 +1004,7 @@ int editor_modified_documents(struct editor* base) {
   struct list_node* it = base->documents->first;
   while (it) {
     struct document_file* file = *(struct document_file**)list_object(it);
-    if (file->save && (document_file_modified_cache(file) || document_undo_modified(file) || document_file_drafted(file))) {
+    if (file->save && (document_file_modified_cache(file) || document_undo_modified(file))) {
       return 1;
     }
     it = it->next;

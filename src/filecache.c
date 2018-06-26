@@ -74,7 +74,7 @@ void file_cache_cleanup(struct file_cache* base) {
     }
 
     if (FILE_CACHE_DEBUG) {
-      fprintf(stderr, "Remove %p %llx\r\n", node, node->offset);
+      fprintf(stderr, "Remove %p %llx\r\n", node, (long long unsigned int)node->offset);
     }
 
     base->index = range_tree_mark(base->index, node->offset, FILE_CACHE_PAGE_SIZE, 0);
@@ -125,7 +125,7 @@ struct file_cache_node* file_cache_invoke(struct file_cache* base, file_offset_t
       file_seek(base->fd, low, TIPPSE_SEEK_START);
       node->length = file_read(base->fd, node->buffer, FILE_CACHE_PAGE_SIZE);
       if (FILE_CACHE_DEBUG) {
-        fprintf(stderr, "Read %p %llx %x\r\n", node, low, node->length);
+        fprintf(stderr, "Read %p %llx %x\r\n", node, (long long unsigned int)low, (unsigned int)node->length);
       }
     }
   }
@@ -139,7 +139,7 @@ struct file_cache_node* file_cache_invoke(struct file_cache* base, file_offset_t
   return node;
 }
 
-// Release reference
+// Clone reference
 void file_cache_clone(struct file_cache* base, struct file_cache_node* node) {
   if (node->count==0) {
     fprintf(stderr, "Node to clone was not in use...");

@@ -114,6 +114,8 @@ struct tippse_ansi_key ansi_keys[] = {
   {"\x1bOB", TIPPSE_KEY_DOWN, 0},
   {"\x1bOC", TIPPSE_KEY_RIGHT, 0},
   {"\x1bOD", TIPPSE_KEY_LEFT, 0},
+  {"\x1bOF", TIPPSE_KEY_LAST, 0},
+  {"\x1bOG", TIPPSE_KEY_FIRST, 0},
   {"\x1bOP", TIPPSE_KEY_F1, 0},
   {"\x1bOQ", TIPPSE_KEY_F2, 0},
   {"\x1bOR", TIPPSE_KEY_F3, 0},

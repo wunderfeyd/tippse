@@ -1174,7 +1174,7 @@ int range_tree_marked(struct range_tree_node* node, file_offset_t offset, file_o
     marked |= range_tree_marked(node->side[0], offset, length0, inserter);
   }
 
-  if (length1>0) {
+  if (length1>0 && !marked) {
     marked |= range_tree_marked(node->side[1], offset-node->side[0]->length, length1, inserter);
   }
 

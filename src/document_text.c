@@ -1397,7 +1397,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
       int size = 0;
       if (out.line!=last_line) {
         last_line = out.line;
-        size = sprintf(line, "%lld", (int64_t)(out.line+1));
+        size = sprintf(line, "%lld", (long long int)(out.line+1));
       }
 
       if (view->address_width>0) {
@@ -1428,7 +1428,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   }
 
   size_t name_length = strlen(file->filename);
-  int modified = (document_undo_modified(file) || document_file_drafted(file))?1:0;
+  int modified = document_undo_modified(file);
   char* title = malloc((name_length+(size_t)modified*2+1)*sizeof(char));
   memcpy(title, file->filename, name_length);
   if (modified) {
@@ -1539,7 +1539,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   const char* newline[TIPPSE_NEWLINE_MAX] = {"Auto", "Lf", "Cr", "CrLf"};
   const char* tabstop[TIPPSE_TABSTOP_MAX] = {"Auto", "Tab", "Space"};
   char status[1024];
-  sprintf(&status[0], "%s%s%lld/%lld:%lld - %lld/%lld byte - %s*%d %s %s/%s %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (file->buffer?file->buffer->visuals.lines+1:0), (cursor.line+1), (cursor.column+1), view->offset, range_tree_length(file->buffer), tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->type->type)(file->type), (*file->encoding->name)());
+  sprintf(&status[0], "%s%s%lld/%lld:%lld - %lld/%lld byte - %s*%d %s %s/%s %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (file->buffer?file->buffer->visuals.lines+1:0), (long long int)(cursor.line+1), (long long int)(cursor.column+1), (long long int)view->offset, (long long int)range_tree_length(file->buffer), tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->type->type)(file->type), (*file->encoding->name)());
   splitter_status(splitter, &status[0]);
 
   view->scroll_y_max = file->buffer?file->buffer->visuals.ys:0;

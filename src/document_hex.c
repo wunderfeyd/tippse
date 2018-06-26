@@ -86,7 +86,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   struct range_tree_node* bookmark = range_tree_find_offset(file->bookmarks, offset, &bookmark_displacement);
 
   size_t name_length = strlen(file->filename);
-  int modified = (document_undo_modified(file) || document_file_drafted(file))?1:0;
+  int modified = document_undo_modified(file);
   char* title = malloc((name_length+(size_t)modified*2+1)*sizeof(char));
   memcpy(title, file->filename, name_length);
   if (modified) {
@@ -98,7 +98,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   free(title);
 
   char status[1024];
-  sprintf(&status[0], "%llu/%llu bytes - %llx - Hex %s", view->offset, file_size, view->offset, (*file->encoding->name)());
+  sprintf(&status[0], "%llu/%llu bytes - %llx - Hex %s", (long long unsigned int)view->offset, (long long unsigned int)file_size, (long long unsigned int)view->offset, (*file->encoding->name)());
   splitter_status(splitter, &status[0]);
 
   size_t char_size = 1;
@@ -124,8 +124,8 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
     }
 
     for (size_t delta = 0; delta<data_size; delta++) {
-      int x_bytes = view->address_width+(delta*3);
-      int x_characters = view->address_width+(16*3)+delta;
+      int x_bytes = view->address_width+(int)(delta*3);
+      int x_characters = view->address_width+(16*3)+(int)delta;
 
       if (offset<file_size) {
         size_t length;

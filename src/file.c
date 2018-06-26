@@ -87,6 +87,9 @@ size_t file_read(struct file* base, void* buffer, size_t length) {
   return (size_t)read;
 #else
   ssize_t ret = read(base->fd, buffer, length);
+  if (errno==EPERM) {
+    ret = (ssize_t)length;
+  }
   return (ret>=0)?(size_t)ret:0;
 #endif
 }
