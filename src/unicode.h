@@ -35,7 +35,7 @@ struct unicode_transform_node* unicode_transform(struct trie* transformation, st
 // Check if codepoint is marked
 TIPPSE_INLINE int unicode_bitfield_check(unsigned int* table, codepoint_t codepoint) {
   if (codepoint>=0 && codepoint<UNICODE_CODEPOINT_MAX) {
-    return (table[codepoint/((int)sizeof(unsigned int)*8)]>>(codepoint&((int)sizeof(unsigned int)*8-1)))&1;
+    return (int)((table[(size_t)codepoint/(sizeof(unsigned int)*8)]>>((size_t)codepoint&(sizeof(unsigned int)*8-1)))&1);
   }
 
   return 0;
@@ -45,9 +45,9 @@ TIPPSE_INLINE int unicode_bitfield_check(unsigned int* table, codepoint_t codepo
 TIPPSE_INLINE void unicode_bitfield_set(unsigned int* table, codepoint_t codepoint, int set) {
   if (codepoint>=0 && codepoint<UNICODE_CODEPOINT_MAX) {
     if (!set) {
-      table[codepoint/((int)sizeof(unsigned int)*8)] &= ~(((unsigned int)1)<<(codepoint&((int)sizeof(unsigned int)*8-1)));
+      table[(size_t)codepoint/(sizeof(unsigned int)*8)] &= ~(((unsigned int)1)<<((size_t)codepoint&(sizeof(unsigned int)*8-1)));
     } else {
-      table[codepoint/((int)sizeof(unsigned int)*8)] |= ((unsigned int)1)<<(codepoint&((int)sizeof(unsigned int)*8-1));
+      table[(size_t)codepoint/(sizeof(unsigned int)*8)] |= ((unsigned int)1)<<((size_t)codepoint&(sizeof(unsigned int)*8-1));
     }
   }
 }

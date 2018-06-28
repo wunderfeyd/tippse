@@ -1482,6 +1482,10 @@ void editor_process_message(struct editor* base, const char* message, file_offse
       indicator = '\\';
     }
 
+    if (length==0) {
+      length = 1;
+    }
+
     char text[1024];
     size_t size = (size_t)snprintf(&text[0], 1023, "%s %3.1f%% %c", message, ((double)position/(double)length)*100.0, indicator);
 

@@ -390,7 +390,7 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
 
       if (cp=='x' || cp=='u' || cp=='U') {
         offset++;
-        size_t index = (size_t)decode_based_unsigned_offset(&cache, 16, &offset, (cp=='x')?2:((cp=='u')?4:8));
+        size_t index = (size_t)decode_based_unsigned_offset(&cache, 16, &offset, (size_t)((cp=='x')?2:((cp=='u')?4:8)));
         if (index<SEARCH_NODE_SET_CODES) {
           struct search_node* next = search_node_create(SEARCH_NODE_TYPE_SET);
           next->min = 1;
@@ -610,7 +610,7 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
 
       if (cp=='x' || cp=='u' || cp=='U') {
         size_t reloc = advance+offset+1;
-        size_t index = (size_t)decode_based_unsigned_offset(cache, 16, &reloc, (cp=='x')?2:((cp=='u')?4:8));
+        size_t index = (size_t)decode_based_unsigned_offset(cache, 16, &reloc, (size_t)((cp=='x')?2:((cp=='u')?4:8)));
         advance = reloc-offset;
         search_node_set(check, index);
         continue;
@@ -1252,7 +1252,7 @@ void search_prepare_skip(struct search* base, struct search_node* node) {
     if (node->plain) {
       for (size_t n = 0; n<node->size && nodes<SEARCH_SKIP_NODES; n++) {
         for (size_t index = 0; index<256; index++) {
-          references[nodes].index[index] = (node->plain[n]==(uint8_t)index)?1:0;
+          references[nodes].index[index] = (size_t)((node->plain[n]==(uint8_t)index)?1:0);
         }
         nodes++;
       }
@@ -1424,7 +1424,7 @@ int search_find_check(struct search* base, struct stream* text) {
 
 // Loop helper to find the bit in the byte set accordingly to the index
 TIPPSE_INLINE int search_node_bitset_check(struct search_node* node, uint8_t index) {
-  return ((node->bitset[index/SEARCH_NODE_SET_BUCKET]>>(index%SEARCH_NODE_SET_BUCKET))&1);
+  return (int)((node->bitset[index/SEARCH_NODE_SET_BUCKET]>>(index%SEARCH_NODE_SET_BUCKET))&1);
 }
 
 // Loop helper to find the code point in the code point set accordingly to the index

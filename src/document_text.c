@@ -379,7 +379,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
   debug_pages_collect++;
 
   int (*mark)(struct document_text_render_info* render_info) = file->type->mark;
-  int (*match)(struct document_text_render_info* render_info) = file->type->bracket_match;
+  size_t (*match)(struct document_text_render_info* render_info) = file->type->bracket_match;
   render_info->file_type = file->type;
 
   if (document_text_split_buffer(render_info->buffer, file)) {
@@ -513,7 +513,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
       render_info->keyword_color = file->defaults.colors[(*mark)(render_info)];
     }
 
-    int bracket_match = (*match)(render_info);
+    size_t bracket_match = (*match)(render_info);
 
     // Character bounds / location based stops
     // bibber *brr*
@@ -756,7 +756,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
 
     if (bracket_match>VISUAL_BRACKET_MASK) {
       if (bracket_match&VISUAL_BRACKET_CLOSE) {
-        int bracket = bracket_match&VISUAL_BRACKET_MASK;
+        size_t bracket = bracket_match&VISUAL_BRACKET_MASK;
         render_info->depth_new[bracket]--;
         int min = render_info->depth_old[bracket]-render_info->depth_new[bracket];
         if (min>render_info->brackets[bracket].min) {
@@ -772,7 +772,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
 
         render_info->brackets_line[bracket].diff--;
       } else {
-        int bracket = bracket_match&VISUAL_BRACKET_MASK;
+        size_t bracket = bracket_match&VISUAL_BRACKET_MASK;
         render_info->depth_new[bracket]++;
         int max = render_info->depth_new[bracket]-render_info->depth_old[bracket];
         if (max>render_info->brackets[bracket].max) {
@@ -1539,7 +1539,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   const char* newline[TIPPSE_NEWLINE_MAX] = {"Auto", "Lf", "Cr", "CrLf"};
   const char* tabstop[TIPPSE_TABSTOP_MAX] = {"Auto", "Tab", "Space"};
   char status[1024];
-  sprintf(&status[0], "%s%s%lld/%lld:%lld - %lld/%lld byte - %s*%d %s %s/%s %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (file->buffer?file->buffer->visuals.lines+1:0), (long long int)(cursor.line+1), (long long int)(cursor.column+1), (long long int)view->offset, (long long int)range_tree_length(file->buffer), tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->type->type)(file->type), (*file->encoding->name)());
+  sprintf(&status[0], "%s%s%lld/%lld:%lld - %lld/%lld byte - %s*%d %s %s/%s %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (long long int)(file->buffer?file->buffer->visuals.lines+1:0), (long long int)(cursor.line+1), (long long int)(cursor.column+1), (long long int)view->offset, (long long int)range_tree_length(file->buffer), tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->type->type)(file->type), (*file->encoding->name)());
   splitter_status(splitter, &status[0]);
 
   view->scroll_y_max = file->buffer?file->buffer->visuals.ys:0;
@@ -1569,7 +1569,6 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   in_line_column.type = VISUAL_SEEK_LINE_COLUMN;
   in_line_column.clip = 0;
 
-  //range_tree_check(document->buffer);
   file_offset_t file_size = range_tree_length(file->buffer);
   file_offset_t offset_old = view->offset;
   int seek = 0;
@@ -1897,7 +1896,6 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       document_file_insert(file, view->offset, (uint8_t*)"\n", 1, 0);
     }
 
-    // --- Begin test auto indentation ... opening bracket
     // Build a binary copy of the previous indentation (one could insert the default indentation style as alternative... to discuss)
     // TODO: Simplify me
     file_offset_t offset = out_indentation_copy.offset;
@@ -1946,7 +1944,6 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
 
     view->bracket_indentation = 1;
-    // --- End test auto indentation ... opening bracket
 
     seek = 1;
   } else if (command==TIPPSE_CMD_CHARACTER) {
@@ -1955,7 +1952,6 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     size_t size = file->encoding->encode(file->encoding, cp, &coded[0], 8);
     document_file_insert(file, view->offset, &coded[0], size, 0);
 
-    // --- Begin test auto indentation ... closing bracket
     struct document_text_position out_bracket;
     in_line_column.line = out.line;
     in_line_column.column = out.column;
@@ -1966,7 +1962,6 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
 
     view->bracket_indentation = 0;
-    // --- End test auto indentation ... closing bracket
 
     seek = 1;
   }

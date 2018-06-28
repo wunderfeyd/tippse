@@ -83,7 +83,7 @@ struct document_text_position {
 
   size_t bracket;                       // bracket number
   int bracket_search;                   // bracket depth to search for
-  int bracket_match;                    // type of bracket below the cursor
+  size_t bracket_match;                 // type of bracket below the cursor
 
   int depth[VISUAL_BRACKET_MAX];        // Bracket information
   int depth_line[VISUAL_BRACKET_MAX];   // Bracket information

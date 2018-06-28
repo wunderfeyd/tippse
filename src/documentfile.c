@@ -410,7 +410,6 @@ void document_file_detect_properties_stream(struct document_file* base, struct s
 
   struct encodings {
     struct encoding* (*create)(void);
-    int scan_binary;
     file_offset_t factor;
   };
 
@@ -418,16 +417,20 @@ void document_file_detect_properties_stream(struct document_file* base, struct s
     file_offset_t good;
     file_offset_t bad;
     file_offset_t chars;
+    int binary;
   };
 
-  struct encodings encodings[] = {{encoding_ascii_create, 1, 1}, {encoding_cp850_create, 1, 1}, {encoding_utf8_create, 1, 2}, {encoding_utf16le_create, 0, 2}, {encoding_utf16be_create, 0, 2}};
+  struct encodings encodings[] = {{encoding_ascii_create, 1}, {encoding_cp850_create, 1}, {encoding_utf8_create, 2}, {encoding_utf16le_create, 2}, {encoding_utf16be_create, 2}};
   struct encoding_stats stats[sizeof(encodings)/sizeof(struct encodings)];
+
+  base->binary = 0;
 
   file_offset_t max_chars = 0;
   for (size_t n = 0; n<sizeof(encodings)/sizeof(struct encodings); n++) {
     stats[n].good = 0;
     stats[n].bad = 0;
     stats[n].chars = 0;
+    stats[n].binary = 0;
 
     struct encoding* encoding = (*(encodings[n].create))();
     stream = *document_stream;
@@ -439,6 +442,10 @@ void document_file_detect_properties_stream(struct document_file* base, struct s
 
       stats[n].chars++;
       if (cp==-1 || visual<0 || visual==0xfffd || visual==0xfffe || (!unicode_letter(visual) && !unicode_digit(visual) && !unicode_whitespace(visual) && cp!=0xfeff)) {
+        if (cp==0) {
+          stats[n].binary = 1;
+        }
+
         stats[n].bad++;
       } else {
         stats[n].good++;
@@ -459,40 +466,23 @@ void document_file_detect_properties_stream(struct document_file* base, struct s
       continue;
     }
     file_offset_t score = (stats[n].good*max_chars*encodings[n].factor)/stats[n].chars;
+    // fprintf(stderr, "%s %d: %d / %d\r\n", base->filename, (int)n, (int)score, stats[n].binary);
     if (score>max_bad) {
       max_bad = score;
       best = n;
       bests = 1;
+      base->binary = stats[n].binary;
     } else if (score==max_bad) {
       bests++;
     }
   }
 
-  if (bests>1 && best==0) { // Default to UTF-8 if ASCII was detected // hacky hack for testing
+  if (base->binary) {
+    document_file_encoding(base, encoding_ascii_create());
+  } else if (bests>1 && best==0) { // Default to UTF-8 if ASCII was detected // hacky hack for testing
     document_file_encoding(base, encoding_utf8_create());
   } else {
     document_file_encoding(base, (*(encodings[best].create))());
-  }
-
-  base->binary = 0;
-
-  if (encodings[best].scan_binary) {
-    stream = *document_stream;
-    int zeros = 0;
-    offset = 0;
-    while (offset<TIPPSE_DOCUMENT_AUTO_LOADMAX && !stream_end(&stream)) {
-      uint8_t byte = stream_read_forward(&stream);
-      if (byte==0x00) {
-        zeros++;
-      }
-
-      offset++;
-    }
-
-    if (zeros>=(int)(offset/512+1)) {
-      base->binary = 1;
-      document_file_encoding(base, encoding_ascii_create());
-    }
   }
 
   stream = *document_stream;

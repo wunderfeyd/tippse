@@ -45,7 +45,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   int bookmarkx = file->defaults.colors[VISUAL_FLAG_COLOR_BOOKMARK];
 
   file_offset_t file_size = range_tree_length(file->buffer);
-  view->cursor_x = view->offset%16;
+  view->cursor_x = (position_t)(view->offset%16);
   view->cursor_y = (position_t)(view->offset/16);
   if (view->cursor_y>=view->scroll_y+splitter->client_height) {
     view->scroll_y = view->cursor_y-splitter->client_height+1;
@@ -105,7 +105,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   for (int y = 0; y<splitter->client_height; y++) {
     size_t data_size = 16;
     char line[1024];
-    int size = sprintf(line, "%llx", offset);
+    int size = sprintf(line, "%llx", (long long unsigned int)offset);
 
     if (view->address_width>0) {
       int x = 0;

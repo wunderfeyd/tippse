@@ -95,8 +95,8 @@ void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie*
     while (runs>=0) {
       struct stream ref = duplicate;
       head = stream_read_forward(&ref);
-      froms = (head>>3)&0x7;
-      tos = (head>>0)&0x7;
+      froms = (size_t)((head>>3)&0x7);
+      tos = (size_t)((head>>0)&0x7);
 
       for (size_t n = 0; n<froms; n++) {
         size_t used = 0;
