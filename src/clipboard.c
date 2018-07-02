@@ -31,7 +31,7 @@ void clipboard_command_set(struct range_tree_node* data, int binary, const char*
     if (binary) {
       fwrite("hexdump plain/text\n", 1, 19, pipe);
       struct stream stream;
-      stream_from_page(&stream, data, 0);
+      stream_from_page(&stream, range_tree_first(data), 0);
       while (!stream_end(&stream)) {
         size_t length = stream_cache_length(&stream)-stream_displacement(&stream);
         char* buffer = (char*)malloc(length*3+1);
@@ -43,7 +43,7 @@ void clipboard_command_set(struct range_tree_node* data, int binary, const char*
       stream_destroy(&stream);
     } else {
       struct stream stream;
-      stream_from_page(&stream, data, 0);
+      stream_from_page(&stream, range_tree_first(data), 0);
       while (!stream_end(&stream)) {
         size_t length = stream_cache_length(&stream)-stream_displacement(&stream);
         fwrite(stream_buffer(&stream), 1, length, pipe);
