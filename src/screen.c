@@ -7,6 +7,7 @@ const char* screen_ansi_init =
   "\x1b[?47h"    // Switch buffer
   "\x1b[?25l"    // Hide cursor
   "\x1b""7"      // Save cursor position
+  "\x1b[2J"      // Clear screen
   "\x1b[?2004h"  // Bracketed past mode (Needed to catch insert key)
   "\x1b[?1002h"  // XTerm mouse mode (fallback/PuTTY)
   "\x1b[?1005h"; // UTF-8 mouse mode
