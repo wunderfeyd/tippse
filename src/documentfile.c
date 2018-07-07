@@ -290,9 +290,9 @@ void document_file_load(struct document_file* base, const char* filename, int re
   if (!reload) {
     document_undo_empty(base, base->undos);
     document_undo_empty(base, base->redos);
-  } else {
-    document_undo_mark_save_point(base);
   }
+
+  document_undo_mark_save_point(base);
 
   if (!reset) {
     document_file_reset_views(base, !reload);
@@ -441,7 +441,7 @@ void document_file_detect_properties_stream(struct document_file* base, struct s
       codepoint_t visual = (*encoding->visual)(encoding, cp);
 
       stats[n].chars++;
-      if (cp==-1 || visual<0 || visual==0xfffd || visual==0xfffe || (!unicode_letter(visual) && !unicode_digit(visual) && !unicode_whitespace(visual) && cp!=0xfeff)) {
+      if (cp==-1 || visual<0 || visual==0xfffd || visual==0xfffe || (!unicode_letter(visual) && !unicode_digit(visual) && !unicode_whitespace(visual) && cp!=0xfeff && cp!='\r' && cp!='\n')) {
         if (cp==0) {
           stats[n].binary = 1;
         }
@@ -698,7 +698,7 @@ void document_file_empty(struct document_file* base) {
   document_file_delete(base, 0, range_tree_length(base->buffer));
 }
 
-// Move offsets from ne range into another
+// Move offsets from one range into another
 void document_file_relocate(file_offset_t* pos, file_offset_t from, file_offset_t to, file_offset_t length) {
   if (*pos>=from && *pos<from+length) {
     *pos = (*pos-from)+to;

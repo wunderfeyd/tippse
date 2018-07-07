@@ -1505,7 +1505,12 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
       }
 
       if (parent && trie_find_codepoint_single(file->autocomplete_last, parent)!=-1) {
-        splitter_drawtext(splitter, screen, (int)(cursor.x-view->scroll_x+view->address_width)-prefix, (int)(cursor.y-view->scroll_y)-1, &text[0], length, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[VISUAL_FLAG_COLOR_BRACKETERROR]);
+        int offset_y = -1;
+        if (cursor.y-view->scroll_y<=0) {
+          offset_y = 1;
+        }
+
+        splitter_drawtext(splitter, screen, (int)(cursor.x-view->scroll_x+view->address_width)-prefix, (int)(cursor.y-view->scroll_y)+offset_y, &text[0], length, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[VISUAL_FLAG_COLOR_BRACKETERROR]);
 
         length = 0;
         while (parent) {
@@ -1531,7 +1536,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
             break;
           }
         }
-        splitter_drawtext(splitter, screen, (int)(cursor.x-view->scroll_x+view->address_width), (int)(cursor.y-view->scroll_y)-1, &text[0], length, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
+        splitter_drawtext(splitter, screen, (int)(cursor.x-view->scroll_x+view->address_width), (int)(cursor.y-view->scroll_y)+offset_y, &text[0], length, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
       }
     }
     stream_destroy(&stream);

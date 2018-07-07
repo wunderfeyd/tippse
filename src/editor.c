@@ -611,11 +611,32 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     document_view_select_invert(base->document->view);
   } else {
     if (base->focus->file==base->tabs_doc || base->focus->file==base->browser_doc || base->focus->file==base->commands_doc || base->focus->file==base->menu_doc || base->focus->file==base->filter_doc) {
-      file_offset_t before = base->filter->file->buffer?base->filter->file->buffer->length:0;
+      int send_panel = 0;
+      int send_filter = 0;
       if (command==TIPPSE_CMD_UP || command==TIPPSE_CMD_DOWN || command==TIPPSE_CMD_PAGEDOWN || command==TIPPSE_CMD_PAGEUP || command==TIPPSE_CMD_HOME || command==TIPPSE_CMD_END || command==TIPPSE_CMD_RETURN) {
-        (*base->panel->document->keypress)(base->panel->document, base->panel, command, arguments, key, cp, button, button_old, x-base->document->x, y-base->focus->y);
+        send_panel = 1;
       } else {
-        (*base->filter->document->keypress)(base->filter->document, base->filter, command, arguments, key, cp, button, button_old, x-base->filter->x, y-base->panel->y);
+        send_filter = 1;
+      }
+
+      if (command==TIPPSE_CMD_MOUSE) {
+        struct splitter* select = splitter_by_coordinate(base->splitters, x, y);
+        send_filter = 0;
+        send_panel = 0;
+        if (select==base->filter) {
+          send_filter = 1;
+        } else {
+          send_panel = 1;
+        }
+      }
+
+      file_offset_t before = base->filter->file->buffer?base->filter->file->buffer->length:0;
+      if (send_panel) {
+        (*base->panel->document->keypress)(base->panel->document, base->panel, command, arguments, key, cp, button, button_old, x-base->panel->x, y-base->panel->y);
+      }
+
+      if (send_filter) {
+        (*base->filter->document->keypress)(base->filter->document, base->filter, command, arguments, key, cp, button, button_old, x-base->filter->x, y-base->filter->y);
       }
 
       int selected = 0;
