@@ -126,6 +126,7 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"closeforce", TIPPSE_CMD_CLOSE_FORCE, "Close document without asking for save options"},
   {"splitnext", TIPPSE_CMD_SPLIT_NEXT, "Select next split view"},
   {"splitprevious", TIPPSE_CMD_SPLIT_PREV, "Select previous split view"},
+  {"shellkill", TIPPSE_CMD_SHELL_KILL, "Stop running shell command"},
   {NULL, 0, ""}
 };
 
@@ -593,6 +594,12 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
       }
     } else {
       splitter_assign_document_file(base->document, base->compiler_doc);
+    }
+#endif
+  } else if (command==TIPPSE_CMD_SHELL_KILL) {
+#ifndef _WINDOWS
+    if (base->document->file->pipefd[1]!=-1) {
+      document_file_kill_pipe(base->document->file);
     }
 #endif
   } else if (command==TIPPSE_CMD_SEARCH_MODE_TEXT) {

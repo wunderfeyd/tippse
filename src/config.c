@@ -90,6 +90,7 @@ const char* config_default =
       "ctrl+a:selectall,"
       "pastestart:paste,"
       "f5:shell compile,"
+      "shift+f5:shellkill,"
       "ctrl+h:replace,"
       "f6:replacenext,"
       "shift+f6:replaceprevious,"

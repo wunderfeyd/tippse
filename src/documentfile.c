@@ -234,6 +234,18 @@ void document_file_close_pipe(struct document_file* base) {
   base->pipefd[0] = -1;
   base->pipefd[1] = -1;
 }
+
+// Close incoming pipe
+void document_file_kill_pipe(struct document_file* base) {
+  if (base->pipefd[0]==-1) {
+    return;
+  }
+
+  kill(base->pid, SIGKILL);
+
+  base->pipefd[0] = -1;
+  base->pipefd[1] = -1;
+}
 #endif
 
 // Load file from file system, up to a certain threshold
