@@ -1330,6 +1330,8 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
   for (size_t n = 0; n<base->groups; n++) {
     base->group_hits[n].start = *text;
     base->group_hits[n].end = *text;
+    base->group_hits[n].node_start->start = *text;
+    base->group_hits[n].node_end->end = *text;
   }
 
   file_offset_t count = left?*left:FILE_OFFSET_T_MAX;
@@ -1412,6 +1414,8 @@ int search_find_check(struct search* base, struct stream* text) {
   for (size_t n = 0; n<base->groups; n++) {
     base->group_hits[n].start = *text;
     base->group_hits[n].end = *text;
+    base->group_hits[n].node_start->start = *text;
+    base->group_hits[n].node_end->end = *text;
   }
 
   if (search_find_loop(base, base->root, text)) {
