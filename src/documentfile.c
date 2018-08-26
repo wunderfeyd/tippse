@@ -204,6 +204,7 @@ void document_file_pipe(struct document_file* base, const char* command) {
     argv[1] = "-c";
     argv[2] = (char*)command;
     argv[3] = NULL;
+    setpgid(0, 0);
     execv(argv[0], &argv[0]);
     exit(0);
   }
@@ -241,7 +242,7 @@ void document_file_kill_pipe(struct document_file* base) {
     return;
   }
 
-  kill(base->pid, SIGKILL);
+  killpg(base->pid, SIGKILL);
 
   base->pipefd[0] = -1;
   base->pipefd[1] = -1;

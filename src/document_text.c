@@ -2272,10 +2272,9 @@ void document_text_raise_indentation(struct document* base, struct splitter* spl
   }
 }
 
-// Move given block up or down
+// Move given block up or down (TODO: not multiselection aware / caller)
 void document_text_move_block(struct document* base, struct splitter* splitter, file_offset_t low, file_offset_t high, int up) {
   struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
 
   struct document_text_position in_offset;
   in_offset.type = VISUAL_SEEK_OFFSET;
@@ -2310,9 +2309,6 @@ void document_text_move_block(struct document* base, struct splitter* splitter, 
   if (out_line_end.offset<out_line_start.offset) {
     return;
   }
-
-  document_view_select_range(view, 0, out_line_start.offset, 0);
-  document_view_select_range(view, out_line_end.offset, range_tree_length(file->buffer), 0);
 
   in_line_column.column = 0;
   in_line_column.line = up?out_line_start.line-1:out_line_end.line+2;
