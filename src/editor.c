@@ -466,7 +466,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     editor_task_append(base, 0, TIPPSE_CMD_QUIT_FORCE, NULL, 0, 0, 0, 0, 0, 0, NULL);
   } else if (command==TIPPSE_CMD_SEARCH) {
     editor_search(base);
-  } else if (command==TIPPSE_CMD_SEARCH_NEXT) {
+  } else if (command==TIPPSE_CMD_SEARCH_NEXT || (command==TIPPSE_CMD_RETURN && !base->search_regex && base->focus->file==base->search_doc)) {
     editor_focus(base, base->document, 1);
     document_search(base->document, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 0, base->search_ignore_case, base->search_regex, 0, 0);
   } else if (command==TIPPSE_CMD_SEARCH_PREV) {
@@ -496,7 +496,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
   } else if (command==TIPPSE_CMD_REPLACE_PREV) {
     editor_focus(base, base->document, 1);
     document_search(base->document, base->search_doc->buffer, base->search_doc->encoding, base->replace_doc->buffer, base->replace_doc->encoding, 1, base->search_ignore_case, base->search_regex, 0, 1);
-  } else if (command==TIPPSE_CMD_REPLACE_ALL) {
+  } else if (command==TIPPSE_CMD_REPLACE_ALL || (command==TIPPSE_CMD_RETURN && !base->search_regex && base->focus->file==base->replace_doc)) {
     editor_focus(base, base->document, 1);
     document_search(base->document, base->search_doc->buffer, base->search_doc->encoding, base->replace_doc->buffer, base->replace_doc->encoding, 0, base->search_ignore_case, base->search_regex, 1, 1);
   } else if (command==TIPPSE_CMD_GOTO) {
