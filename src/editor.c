@@ -480,7 +480,12 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     if (base->document->file->pipefd[1]==-1 && base->document->file==base->search_results_doc) {
       document_file_create_pipe(base->document->file);
       if (base->document->file->pid==0) {
-        document_search_directory(base->base_path, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, base->search_ignore_case, base->search_regex, 0);
+        struct encoding* encoding = encoding_utf8_create();
+        int binary = (int)config_convert_int64(config_find_ascii(base->document->file->config, "/searchfilebinary"));
+        char* pattern_text = (char*)config_convert_encoding(config_find_ascii(base->document->file->config, "/searchfilepattern"), encoding);
+        document_search_directory(base->base_path, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, base->search_ignore_case, base->search_regex, 0, pattern_text, encoding, binary);
+        free(pattern_text);
+        encoding_utf8_destroy(encoding);
         exit(0);
       }
     } else {

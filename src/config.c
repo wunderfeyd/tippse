@@ -35,6 +35,8 @@ const char* config_default =
     "wrapping:1,"
     "invisibles:0,"
     "addresswidth:6,"
+    "searchfilebinary:0,"
+    "searchfilepattern:\"^.*\\\\.(cpp|c|h|hpp|lua|php|js|txt|sql|sh|pas|bas|resx|xml|html|htm|css|cs)$\","
     "shell:{"
       "compile:\"./make.sh\","
     "},"

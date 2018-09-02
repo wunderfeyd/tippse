@@ -205,12 +205,13 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
 }
 
 // Search in directory
-void document_search_directory(const char* path, struct range_tree_node* search_text, struct encoding* search_encoding, struct range_tree_node* replace_text, struct encoding* replace_encoding, int ignore_case, int regex, int replace) {
+void document_search_directory(const char* path, struct range_tree_node* search_text, struct encoding* search_encoding, struct range_tree_node* replace_text, struct encoding* replace_encoding, int ignore_case, int regex, int replace, const char* pattern_text, struct encoding* pattern_encoding, int binary) {
   printf("Scanning %s...\n", path);
   struct list* entries = list_create(sizeof(char*));
   char* copy = strdup(path);
   list_insert(entries, entries->last, &copy);
 
+  int hits = 0;
   while (entries->first) {
     struct list_node* insert = entries->last;
     char* scan = *(char**)list_object(insert);
@@ -229,72 +230,89 @@ void document_search_directory(const char* path, struct range_tree_node* search_
       }
       directory_destroy(directory);
     } else {
-      struct stream needle_stream;
-      stream_from_page(&needle_stream, range_tree_first(search_text), 0);
-      struct document_file* file = document_file_create(0, 0, NULL);
-      struct file_cache* cache = file_cache_create(scan);
-      struct stream stream;
-      stream_from_file(&stream, cache, 0);
-      document_file_detect_properties_stream(file, &stream);
-      struct search* search;
-      if (regex) {
-        search = search_create_regex(ignore_case, 0, needle_stream, search_encoding, file->encoding);
-      } else {
-        search = search_create_plain(ignore_case, 0, needle_stream, search_encoding, file->encoding);
-      }
-      stream_destroy(&needle_stream);
+      struct encoding* utf8 = encoding_utf8_create();
+      struct stream pattern_stream;
+      stream_from_plain(&pattern_stream, (uint8_t*)pattern_text, strlen(pattern_text));
+      struct stream filename_stream;
+      stream_from_plain(&filename_stream, (uint8_t*)scan, strlen(scan));
+      struct search* pattern = search_create_regex(0, 0, pattern_stream, pattern_encoding, utf8);
+      if (search_find(pattern, &filename_stream, NULL)) {
+        struct document_file* file = document_file_create(0, 0, NULL);
+        struct file_cache* cache = file_cache_create(scan);
+        struct stream stream;
+        stream_from_file(&stream, cache, 0);
+        document_file_detect_properties_stream(file, &stream);
+        if (!file->binary || binary) {
+          struct stream needle_stream;
+          stream_from_page(&needle_stream, range_tree_first(search_text), 0);
+          struct search* search;
+          if (regex) {
+            search = search_create_regex(ignore_case, 0, needle_stream, search_encoding, file->encoding);
+          } else {
+            search = search_create_plain(ignore_case, 0, needle_stream, search_encoding, file->encoding);
+          }
+          stream_destroy(&needle_stream);
 
-      file_offset_t line = 1;
-      struct stream newlines;
-      stream_clone(&newlines, &stream);
-      file_offset_t line_hit = line;
-      struct stream line_start;
-      stream_clone(&line_start, &newlines);
-      while (!stream_end(&stream)) {
-        int found = search_find(search, &stream, NULL);
-        if (!found) {
-          break;
-        }
-        file_offset_t hit = stream_offset_file(&search->hit_start);
-        while (stream_offset(&newlines)<=hit) {
-          line_hit = line;
-          stream_destroy(&line_start);
+          file_offset_t line = 1;
+          struct stream newlines;
+          stream_clone(&newlines, &stream);
+          file_offset_t line_hit = line;
+          struct stream line_start;
           stream_clone(&line_start, &newlines);
-          while (!stream_end(&newlines) && stream_read_forward(&newlines)!='\n') {
-          }
-          line++;
-        }
-        printf("%s:%d: ", scan, (int)line_hit);
+          while (!stream_end(&stream)) {
+            int found = search_find(search, &stream, NULL);
+            if (!found) {
+              break;
+            }
+            file_offset_t hit = stream_offset_file(&search->hit_start);
+            while (stream_offset(&newlines)<=hit) {
+              line_hit = line;
+              stream_destroy(&line_start);
+              stream_clone(&line_start, &newlines);
+              while (!stream_end(&newlines) && stream_read_forward(&newlines)!='\n') {
+              }
+              line++;
+            }
+            printf("%s:%d: ", scan, (int)line_hit);
+            hits++;
 
-        int columns = 80;
-        struct stream line_copy;
-        stream_clone(&line_copy, &line_start);
-        while (!stream_end(&line_copy) && columns>0) {
-          columns--;
-          uint8_t index = stream_read_forward(&line_copy);
-          if (index=='\n') {
-            break;
+            int columns = 80;
+            struct stream line_copy;
+            stream_clone(&line_copy, &line_start);
+            while (!stream_end(&line_copy) && columns>0) {
+              columns--;
+              uint8_t index = stream_read_forward(&line_copy);
+              if (index=='\n') {
+                break;
+              }
+              if (index>=0x20 || index=='\t') {
+                printf("%c", index);
+              }
+            }
+            printf("\n");
+            stream_destroy(&line_copy);
           }
-          if (index>=0x20 || index=='\t') {
-            printf("%c", index);
-          }
+          stream_destroy(&newlines);
+          stream_destroy(&line_start);
+
+          search_destroy(search);
         }
-        printf("\n");
-        stream_destroy(&line_copy);
+
+        stream_destroy(&stream);
+        file_cache_dereference(cache);
+        document_file_destroy(file);
       }
-      stream_destroy(&newlines);
-      stream_destroy(&line_start);
 
-      search_destroy(search);
-      stream_destroy(&stream);
-      file_cache_dereference(cache);
-      document_file_destroy(file);
+      search_destroy(pattern);
+      stream_destroy(&pattern_stream);
+      stream_destroy(&filename_stream);
+      encoding_utf8_destroy(utf8);
     }
     free(scan);
     list_remove(entries, insert);
   }
   list_destroy(entries);
-  printf("... done\n");
+  printf("... done (%d hit(s) found)\n", hits);
 }
 
 // Check file properties and return highlight information
