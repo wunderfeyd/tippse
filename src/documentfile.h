@@ -76,7 +76,8 @@ struct document_file {
   int newline;                          // type of newline, e.g. Unix or DOS
   int binary;                           // binary file?
   int line_select;                      // Selection list?
-  int draft;                            // File is draft / new and never saved
+  int draft;                            // file is draft / new and never saved
+  int undo;                             // undo enabled
 
   char* filename;                       // file name
   int save;                             // file can be saved, is real file?

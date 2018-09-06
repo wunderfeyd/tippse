@@ -43,6 +43,7 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->caches = list_create(sizeof(struct document_file_cache));
   base->binary = 0;
   base->draft = 0;
+  base->undo = 1;
   base->undos = list_create(sizeof(struct document_undo));
   base->redos = list_create(sizeof(struct document_undo));
   base->filename = strdup("");

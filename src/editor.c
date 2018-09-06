@@ -163,21 +163,25 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   document_file_name(base->tabs_doc, "Open");
   base->tabs_doc->defaults.wrapping = 0;
   base->tabs_doc->line_select = 1;
+  base->tabs_doc->undo = 0;
 
   base->browser_doc = document_file_create(0, 1, base);
   document_file_name(base->browser_doc, base->base_path);
   base->browser_doc->defaults.wrapping = 0;
   base->browser_doc->line_select = 1;
+  base->browser_doc->undo = 0;
 
   base->commands_doc = document_file_create(0, 1, base);
   document_file_name(base->commands_doc, base->base_path);
   base->commands_doc->defaults.wrapping = 0;
   base->commands_doc->line_select = 1;
+  base->commands_doc->undo = 0;
 
   base->menu_doc = document_file_create(0, 1, base);
   document_file_name(base->menu_doc, base->base_path);
   base->menu_doc->defaults.wrapping = 0;
   base->menu_doc->line_select = 1;
+  base->menu_doc->undo = 0;
 
   base->document = splitter_create(0, 0, NULL, NULL,  "");
 
@@ -189,8 +193,10 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   document_file_name(base->goto_doc, "Goto");
 
   base->compiler_doc = document_file_create(0, 1, base);
+  base->compiler_doc->undo = 0;
 
   base->search_results_doc = document_file_create(0, 1, base);
+  base->search_results_doc->undo = 0;
 
   base->filter_doc = document_file_create(0, 1, base);
   document_file_name(base->filter_doc, "Filter");
@@ -935,10 +941,6 @@ void editor_reload_document(struct editor* base, struct document_file* file) {
 
 // Ask user for file action if needed
 int editor_ask_document_action(struct editor* base, struct document_file* file, int force, int ask) {
-  if (!file->save) {
-    //return 0;
-  }
-
   int modified_cache = document_file_modified_cache(file);
   int modified = document_undo_modified(file);
   int draft = document_file_drafted(file);
@@ -1058,10 +1060,8 @@ void editor_close_document(struct editor* base, struct document_file* file) {
     struct document_file* doc = *(struct document_file**)list_object(docs);
     if (doc==file) {
       remove = docs;
-    } else {
-      if (doc->save) {
-        assign = doc;
-      }
+    } else if (doc->save) {
+      assign = doc;
     }
 
     docs = docs->next;
