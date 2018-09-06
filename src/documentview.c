@@ -2,6 +2,9 @@
 
 #include "documentview.h"
 
+#include "documentfile.h"
+#include "rangetree.h"
+
 // Create view
 struct document_view* document_view_create(void) {
   struct document_view* base = malloc(sizeof(struct document_view));

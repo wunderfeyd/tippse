@@ -1,7 +1,11 @@
 // Tippse - Clipboard - Holds and sets clipboard data (interfaces to the system if possible)
 
 #include "clipboard.h"
+
 #include "document_hex.h"
+#include "fragment.h"
+#include "rangetree.h"
+#include "stream.h"
 
 struct range_tree_node* clipboard = NULL;
 

@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "types.h"
+
 #include "list.h"
-struct trie;
 
 struct config_argument {
   codepoint_t* codepoints;  // argument codepoints
@@ -38,11 +38,6 @@ struct config_cache {
   int64_t value;            // value
   const char* description;  // description
 };
-
-#include "trie.h"
-#include "rangetree.h"
-#include "encoding.h"
-#include "documentfile.h"
 
 void config_command_create(struct config_command* base);
 void config_command_destroy_inplace(struct config_command* base);

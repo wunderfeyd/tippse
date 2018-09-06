@@ -2,9 +2,7 @@
 #define TIPPSE_FILETYPE_SQL_H
 
 #include <stdlib.h>
-
-struct file_type_sql;
-struct trie_node;
+#include "../types.h"
 
 #include "../filetype.h"
 
@@ -13,8 +11,6 @@ struct file_type_sql {
 
   struct trie_node* keywords;
 };
-
-#include "../trie.h"
 
 struct file_type* file_type_sql_create(struct config* config, const char* file_type);
 void file_type_sql_destroy(struct file_type* base);

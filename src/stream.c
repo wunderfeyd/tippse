@@ -2,6 +2,9 @@
 
 #include "stream.h"
 
+#include "filecache.h"
+#include "fragment.h"
+
 // Build streaming view into plain memory
 void stream_from_plain(struct stream* base, const uint8_t* plain, size_t size) {
   base->type = STREAM_TYPE_PLAIN;
@@ -231,14 +234,4 @@ void stream_reverse_oob(struct stream* base, size_t length) {
       base->cache_node = file_cache_invoke(base->file.cache, base->file.offset, FILE_CACHE_PAGE_SIZE, &base->plain, &base->cache_length);
     }
   }
-}
-
-// Helper for range tree end check (TODO: clean include files to allow inline usage of range_tree_next)
-int stream_end_oob(struct stream* base) {
-  return ((base->type==STREAM_TYPE_PAGED && ((!base->buffer || !range_tree_next(base->buffer)) && base->page_offset+base->displacement>=range_tree_length(base->buffer))) || (base->type==STREAM_TYPE_FILE && base->cache_length<FILE_CACHE_PAGE_SIZE))?1:0;
-}
-
-// Helper for range tree start check (TODO: clean include files to allow inline usage of range_tree_prev)
-int stream_start_oob(struct stream* base) {
-  return ((base->type==STREAM_TYPE_PAGED && ((!base->buffer || !range_tree_prev(base->buffer)) && base->page_offset+base->displacement<=0)) || (base->type==STREAM_TYPE_FILE && base->file.offset==0))?1:0;
 }

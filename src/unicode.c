@@ -10,6 +10,10 @@
 #include "unicode_whitespace.h"
 #include "unicode_digits.h"
 
+#include "encoding.h"
+#include "encoding/utf8.h"
+#include "trie.h"
+
 unsigned int unicode_marks[UNICODE_BITFIELD_MAX];
 unsigned int unicode_invisibles[UNICODE_BITFIELD_MAX];
 unsigned int unicode_widths[UNICODE_BITFIELD_MAX];

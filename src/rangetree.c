@@ -2,6 +2,8 @@
 
 #include "rangetree.h"
 
+#include "fragment.h"
+
 int64_t range_tree_fuse_id = 1;
 
 // Debug: Recursively print tree nodes

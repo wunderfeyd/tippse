@@ -2,6 +2,8 @@
 
 #include "trie.h"
 
+#include "list.h"
+
 // Return pointer to new trie instance
 struct trie* trie_create(size_t node_size) {
   struct trie* base = malloc(sizeof(struct trie));

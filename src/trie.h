@@ -6,10 +6,6 @@
 #include <ctype.h>
 #include "types.h"
 
-struct trie_node;
-struct trie;
-struct list;
-
 // Maximum nodes per bucket
 #define TRIE_NODES_PER_BUCKET 1024
 // Number of bits are used to represent a unicode codepoint
@@ -30,8 +26,6 @@ struct trie {
   size_t fill;                // Fill level of current bucket
   size_t node_size;           // User object size
 };
-
-#include "list.h"
 
 struct trie* trie_create(size_t node_size);
 void trie_destroy(struct trie* base);

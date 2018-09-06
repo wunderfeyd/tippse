@@ -2,9 +2,6 @@
 #define TIPPSE_ENCODING_UTF8_H
 
 #include <stdlib.h>
-
-struct encoding_utf8;
-
 #include "../encoding.h"
 
 struct encoding_utf8 {

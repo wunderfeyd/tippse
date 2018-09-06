@@ -2,6 +2,14 @@
 
 #include "misc.h"
 
+#include "directory.h"
+#include "encoding.h"
+#include "encoding/native.h"
+#include "encoding/utf8.h"
+#include "encoding/utf16le.h"
+#include "file.h"
+#include "unicode.h"
+
 // Sort an array with merge sort, second array is a temporary buffer
 char** merge_sort(char** sort1, char** sort2, size_t count) {
   for (size_t m = 1; m<count; m<<=1) {

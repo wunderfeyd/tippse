@@ -2,6 +2,8 @@
 
 #include "file.h"
 
+#include "misc.h"
+
 // Open a file and create base structure if opening succeded
 struct file* file_create(const char* path, int flags) {
 #ifdef _WINDOWS

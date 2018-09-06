@@ -2,9 +2,7 @@
 #define TIPPSE_FILETYPE_PHP_H
 
 #include <stdlib.h>
-
-struct file_type_php;
-struct trie_node;
+#include "../types.h"
 
 #include "../filetype.h"
 
@@ -13,8 +11,6 @@ struct file_type_php {
 
   struct trie_node* keywords;
 };
-
-#include "../trie.h"
 
 struct file_type* file_type_php_create(struct config* config, const char* file_type);
 void file_type_php_destroy(struct file_type* base);

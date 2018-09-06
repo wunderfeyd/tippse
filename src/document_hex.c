@@ -2,6 +2,20 @@
 
 #include "document_hex.h"
 
+#include "clipboard.h"
+#include "documentfile.h"
+#include "documentundo.h"
+#include "documentview.h"
+#include "editor.h"
+#include "encoding.h"
+#include "filetype.h"
+#include "misc.h"
+#include "rangetree.h"
+#include "screen.h"
+#include "splitter.h"
+#include "trie.h"
+#include "unicode.h"
+
 // Create document
 struct document* document_hex_create(void) {
   struct document_hex* document = (struct document_hex*)malloc(sizeof(struct document_hex));

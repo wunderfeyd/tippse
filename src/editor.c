@@ -2,6 +2,21 @@
 
 #include "editor.h"
 
+#include "config.h"
+#include "document.h"
+#include "document_text.h"
+#include "documentfile.h"
+#include "documentundo.h"
+#include "documentview.h"
+#include "encoding.h"
+#include "encoding/utf8.h"
+#include "list.h"
+#include "misc.h"
+#include "screen.h"
+#include "search.h"
+#include "splitter.h"
+#include "trie.h"
+
 const char* editor_key_names[TIPPSE_KEY_MAX] = {
   "",
   "up",

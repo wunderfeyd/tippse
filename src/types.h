@@ -28,4 +28,35 @@ inline void unused_result(int result) {}
 #define TIPPSE_INLINE inline
 #endif
 
+// Forward declarations
+struct config;
+struct config_command;
+struct document;
+struct document_file;
+struct document_hex;
+struct document_text;
+struct document_text_render_info;
+struct document_undo;
+struct document_view;
+struct directory;
+struct editor;
+struct encoding;
+struct encoding_cache;
+struct encoding_cache_codepoint;
+struct file;
+struct file_type;
+struct file_cache;
+struct file_cache_node;
+struct fragment;
+struct list;
+struct list_node;
+struct range_tree_node;
+struct screen;
+struct screen_char;
+struct search;
+struct splitter;
+struct stream;
+struct trie;
+struct trie_node;
+
 #endif /* #ifndef TIPPSE_TYPES_H */

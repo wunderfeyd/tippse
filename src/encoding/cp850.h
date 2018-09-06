@@ -2,9 +2,6 @@
 #define TIPPSE_ENCODING_CP850_H
 
 #include <stdlib.h>
-
-struct encoding_cp850;
-
 #include "../encoding.h"
 
 struct encoding_cp850 {

@@ -2,6 +2,13 @@
 
 #include "screen.h"
 
+#include "config.h"
+#include "encoding/utf8.h"
+#include "encoding/cp850.h"
+#include "encoding/ascii.h"
+#include "encoding/utf16le.h"
+#include "unicode.h"
+
 // Screen ANSI initialization
 const char* screen_ansi_init =
   "\x1b[?47h"    // Switch buffer

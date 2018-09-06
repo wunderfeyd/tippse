@@ -4,11 +4,6 @@
 #include <stdlib.h>
 #include "types.h"
 
-struct encoding;
-struct encoding_cache;
-struct encoding_cache_codepoint;
-struct stream;
-
 #define ENCODING_CACHE_SIZE 1024
 
 struct encoding_cache_node {

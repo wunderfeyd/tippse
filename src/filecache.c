@@ -2,6 +2,9 @@
 
 #include "filecache.h"
 
+#include "file.h"
+#include "rangetree.h"
+
 #define FILE_CACHE_DEBUG 0
 
 // Create file cache

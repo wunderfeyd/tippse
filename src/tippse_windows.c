@@ -4,12 +4,13 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <windows.h>
+#include "types.h"
 
-#include "screen.h"
-#include "encoding/utf8.h"
-#include "unicode.h"
 #include "editor.h"
+#include "encoding/utf8.h"
+#include "screen.h"
 #include "search.h"
+#include "unicode.h"
 
 struct tippse_window {
   struct screen* screen;    // screen handler for painting

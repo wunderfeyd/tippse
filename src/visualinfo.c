@@ -2,6 +2,8 @@
 
 #include "visualinfo.h"
 
+#include "config.h"
+
 // color entry names
 struct config_cache visual_color_codes[VISUAL_FLAG_COLOR_MAX+1] = {
   {"background", VISUAL_FLAG_COLOR_BACKGROUND, NULL},

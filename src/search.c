@@ -2,6 +2,16 @@
 
 #include "search.h"
 
+#include "encoding.h"
+#include "encoding/utf8.h"
+#include "encoding/native.h"
+#include "file.h"
+#include "filecache.h"
+#include "list.h"
+#include "misc.h"
+#include "rangetree.h"
+#include "unicode.h"
+
 extern struct trie* unicode_transform_lower;
 extern struct trie* unicode_transform_upper;
 extern uint16_t unicode_letters_rle[];

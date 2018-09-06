@@ -2,6 +2,13 @@
 
 #include "config.h"
 
+#include "documentfile.h"
+#include "encoding.h"
+#include "encoding/native.h"
+#include "misc.h"
+#include "rangetree.h"
+#include "trie.h"
+
 const char* config_filename = ".tippse";
 
 // Default configuration

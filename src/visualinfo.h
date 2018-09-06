@@ -106,8 +106,6 @@ struct visual_info {
   struct visual_bracket brackets_line[VISUAL_BRACKET_MAX]; // Bracket depth of line
 };
 
-#include "config.h"
-
 void visual_info_clear(struct visual_info* visuals);
 void visual_info_combine(struct visual_info* visuals, const struct visual_info* left, const struct visual_info* right);
 

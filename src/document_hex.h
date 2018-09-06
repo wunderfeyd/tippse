@@ -2,8 +2,7 @@
 #define TIPPSE_DOCUMENT_HEX_H
 
 #include <stdlib.h>
-
-struct document_hex;
+#include "types.h"
 
 #include "document.h"
 
@@ -16,20 +15,6 @@ struct document_hex {
   codepoint_t cp_first;     // first pressed key
   int mode;                 // current editor mode
 };
-
-#include "misc.h"
-#include "trie.h"
-#include "filetype.h"
-#include "rangetree.h"
-#include "screen.h"
-#include "clipboard.h"
-#include "documentview.h"
-#include "documentfile.h"
-#include "encoding.h"
-#include "unicode.h"
-#include "splitter.h"
-#include "documentundo.h"
-#include "editor.h"
 
 struct document* document_hex_create(void);
 void document_hex_destroy(struct document* base);

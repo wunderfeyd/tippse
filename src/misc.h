@@ -18,13 +18,6 @@
 #include <pwd.h>
 #endif
 #include "types.h"
-#include "encoding.h"
-#include "encoding/native.h"
-#include "encoding/utf8.h"
-#include "encoding/utf16le.h"
-#include "unicode.h"
-#include "directory.h"
-#include "file.h"
 
 char** merge_sort(char** sort1, char** sort2, size_t count);
 

@@ -2,16 +2,13 @@
 #define TIPPSE_FILETYPE_TEXT_H
 
 #include <stdlib.h>
-
-struct file_type_text;
+#include "../types.h"
 
 #include "../filetype.h"
 
 struct file_type_text {
   struct file_type vtbl;
 };
-
-#include "../trie.h"
 
 struct file_type* file_type_text_create(struct config* config, const char* file_type);
 void file_type_text_destroy(struct file_type* base);

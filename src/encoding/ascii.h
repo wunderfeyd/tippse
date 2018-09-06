@@ -2,9 +2,6 @@
 #define TIPPSE_ENCODING_ASCII_H
 
 #include <stdlib.h>
-
-struct encoding_ascii;
-
 #include "../encoding.h"
 
 struct encoding_ascii {

@@ -2,6 +2,13 @@
 
 #include "documentundo.h"
 
+#include "document.h"
+#include "documentfile.h"
+#include "documentview.h"
+#include "list.h"
+#include "rangetree.h"
+
+
 // Add an undo step
 void document_undo_add(struct document_file* file, struct document_view* view, file_offset_t offset, file_offset_t length, int type) {
   if (length==0 || !file->undo) {

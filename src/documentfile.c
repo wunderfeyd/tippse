@@ -2,6 +2,33 @@
 
 #include "documentfile.h"
 
+#include "config.h"
+#include "documentundo.h"
+#include "documentview.h"
+#include "encoding.h"
+#include "encoding/utf8.h"
+#include "encoding/utf16le.h"
+#include "encoding/utf16be.h"
+#include "encoding/cp850.h"
+#include "encoding/ascii.h"
+#include "editor.h"
+#include "file.h"
+#include "filecache.h"
+#include "filetype.h"
+#include "filetype/c.h"
+#include "filetype/sql.h"
+#include "filetype/text.h"
+#include "filetype/lua.h"
+#include "filetype/patch.h"
+#include "filetype/php.h"
+#include "filetype/xml.h"
+#include "fragment.h"
+#include "list.h"
+#include "misc.h"
+#include "rangetree.h"
+#include "trie.h"
+#include "unicode.h"
+
 extern struct config_cache screen_color_codes[];
 extern struct config_cache visual_color_codes[VISUAL_FLAG_COLOR_MAX+1];
 

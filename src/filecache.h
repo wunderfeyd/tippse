@@ -14,16 +14,11 @@
 #endif
 #include "types.h"
 
-struct file_cache;
-struct file_cache_node;
-struct list_node;
+#include "list.h"
 
 // One megabyte of cache
 #define FILE_CACHE_PAGE_SIZE (65536)
 #define FILE_CACHE_SIZE (1024*1024)
-
-#include "rangetree.h"
-#include "file.h"
 
 struct file_cache_node {
   int count;                                // number of references

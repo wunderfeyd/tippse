@@ -1,10 +1,6 @@
 #ifndef TIPPSE_SCREEN_H
 #define TIPPSE_SCREEN_H
 
-struct screen_char;
-struct screen;
-struct encoding;
-
 #include <stdlib.h>
 #ifdef _WINDOWS
 #include <windows.h>
@@ -17,6 +13,7 @@ struct encoding;
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#include <signal.h>
 #endif
 #include "types.h"
 
@@ -59,12 +56,6 @@ struct screen {
 #endif
   struct encoding* encoding;        // Terminal encoding
 };
-
-#include "encoding/utf8.h"
-#include "encoding/cp850.h"
-#include "encoding/ascii.h"
-#include "encoding/utf16le.h"
-#include "config.h"
 
 void screen_destroy(struct screen* base);
 struct screen* screen_create(void);

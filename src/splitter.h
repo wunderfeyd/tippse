@@ -4,11 +4,6 @@
 #include <stdlib.h>
 #include "types.h"
 
-struct document_file;
-struct document_view;
-struct document;
-struct splitter;
-
 // Splitter flags
 #define TIPPSE_SPLITTER_HORZ 1
 #define TIPPSE_SPLITTER_VERT 2
@@ -44,12 +39,6 @@ struct splitter {
   struct document* document_text; // Text editor handler
   struct document* document_hex;  // Hex editor handler
 };
-
-#include "list.h"
-#include "screen.h"
-#include "document.h"
-#include "document_text.h"
-#include "document_hex.h"
 
 // TODO: reorder drawing functions and exchange screen & splitter
 struct splitter* splitter_create(int type, int split, struct splitter* side0, struct splitter* side1, const char* name);

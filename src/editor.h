@@ -5,12 +5,6 @@
 #include <string.h>
 #include "types.h"
 
-struct screen;
-struct list;
-struct trie;
-struct document_file;
-struct splitter;
-
 #define CONSOLE_TYPE_NORMAL 0
 #define CONSOLE_TYPE_WARNING 1
 #define CONSOLE_TYPE_ERROR 2
@@ -227,17 +221,6 @@ struct editor {
 
   struct list* menu;                  // menu selections
 };
-
-#include "misc.h"
-#include "documentfile.h"
-#include "documentview.h"
-#include "screen.h"
-#include "splitter.h"
-#include "list.h"
-#include "trie.h"
-#include "search.h"
-#include "config.h"
-#include "encoding.h"
 
 struct editor* editor_create(const char* base_path, struct screen* screen, int argc, const char** argv);
 void editor_destroy(struct editor* base);

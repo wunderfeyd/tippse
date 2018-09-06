@@ -4,12 +4,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "types.h"
-#include "misc.h"
+
 #include "list.h"
-#include "unicode.h"
-#include "encoding.h"
-#include "encoding/native.h"
-#include "rangetree.h"
+#include "stream.h"
 
 #define SEARCH_NODE_TYPE_SET 1
 #define SEARCH_NODE_TYPE_BRANCH 2

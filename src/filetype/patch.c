@@ -2,6 +2,10 @@
 
 #include "patch.h"
 
+#include "../document_text.h"
+#include "../trie.h"
+#include "../visualinfo.h"
+
 struct file_type* file_type_patch_create(struct config* config, const char* file_type) {
   struct file_type_patch* self = malloc(sizeof(struct file_type_patch));
   self->vtbl.file_type = strdup(file_type);

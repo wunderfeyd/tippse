@@ -2,6 +2,9 @@
 
 #include "fragment.h"
 
+#include "documentfile.h"
+#include "filecache.h"
+
 // Return referenced fragment to a memory location
 struct fragment* fragment_create_memory(uint8_t* buffer, size_t length) {
   struct fragment* base = malloc(sizeof(struct fragment));

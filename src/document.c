@@ -2,6 +2,26 @@
 
 #include "document.h"
 
+#include "clipboard.h"
+#include "config.h"
+#include "directory.h"
+#include "document_text.h"
+#include "documentfile.h"
+#include "documentundo.h"
+#include "documentview.h"
+#include "editor.h"
+#include "encoding.h"
+#include "encoding/utf8.h"
+#include "filetype.h"
+#include "filecache.h"
+#include "misc.h"
+#include "rangetree.h"
+#include "screen.h"
+#include "search.h"
+#include "splitter.h"
+#include "trie.h"
+#include "unicode.h"
+
 // Search in document
 int document_search(struct splitter* splitter, struct range_tree_node* search_text, struct encoding* search_encoding, struct range_tree_node* replace_text, struct encoding* replace_encoding, int reverse, int ignore_case, int regex, int all, int replace) {
   struct document_file* file = splitter->file;

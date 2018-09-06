@@ -40,8 +40,6 @@ struct file {
 #endif
 };
 
-#include "misc.h"
-
 struct file* file_create(const char* path, int flags);
 size_t file_read(struct file* base, void* buffer, size_t length);
 size_t file_write(struct file* base, void* buffer, size_t length);

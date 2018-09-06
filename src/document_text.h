@@ -2,10 +2,12 @@
 #define TIPPSE_DOCUMENT_TEXT_H
 
 #include <stdlib.h>
-
-struct document_text;
+#include "types.h"
 
 #include "document.h"
+#include "encoding.h"
+#include "stream.h"
+#include "visualinfo.h"
 
 // Scan at max the first 2MiB of the file for autocomplete information
 #define TIPPSE_AUTOCOMPLETE_MAX (1024*1024*2)
@@ -91,22 +93,6 @@ struct document_text_position {
   position_t lines;                     // number of lines rendered in this page
   int indented;                         // cursor in indentation area
 };
-
-#include "misc.h"
-#include "trie.h"
-#include "filetype.h"
-#include "rangetree.h"
-#include "screen.h"
-#include "clipboard.h"
-#include "documentview.h"
-#include "documentfile.h"
-#include "encoding.h"
-#include "unicode.h"
-#include "document.h"
-#include "splitter.h"
-#include "documentundo.h"
-#include "editor.h"
-#include "config.h"
 
 struct document* document_text_create(void);
 void document_text_destroy(struct document* base);

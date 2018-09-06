@@ -7,9 +7,6 @@
 
 #include "types.h"
 
-struct fragment;
-struct range_tree_node;
-
 // 1EiB page size for file load
 #define TREE_BLOCK_LENGTH_MAX 1024ull*1024ull*1024ull*1024ull*1024ull
 // 1GiB page size for direct memory access operations
@@ -44,7 +41,7 @@ struct range_tree_node {
   struct visual_info visuals;       // Visual information
 };
 
-#include "fragment.h"
+struct fragment;
 
 void range_tree_print(struct range_tree_node* node, int depth, int side);
 void range_tree_check(struct range_tree_node* node);

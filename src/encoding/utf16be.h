@@ -2,9 +2,6 @@
 #define TIPPSE_ENCODING_UTF16BE_H
 
 #include <stdlib.h>
-
-struct encoding_utf16be;
-
 #include "../encoding.h"
 
 struct encoding_utf16be {

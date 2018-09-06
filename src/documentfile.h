@@ -14,15 +14,6 @@
 #include <signal.h>
 #endif
 
-struct document_file;
-struct document_view;
-struct file_type;
-struct range_tree_node;
-struct list;
-struct encoding;
-struct config;
-struct editor;
-
 #include "visualinfo.h"
 
 #define TIPPSE_DOCUMENT_MEMORY_LOADMAX 1024*1024
@@ -99,30 +90,6 @@ struct document_file {
   pid_t pid;                            // Child process id
 #endif
 };
-
-#include "misc.h"
-#include "list.h"
-#include "rangetree.h"
-#include "documentundo.h"
-#include "documentview.h"
-#include "config.h"
-#include "filecache.h"
-#include "filetype.h"
-#include "filetype/c.h"
-#include "filetype/sql.h"
-#include "filetype/text.h"
-#include "filetype/lua.h"
-#include "filetype/patch.h"
-#include "filetype/php.h"
-#include "filetype/xml.h"
-#include "encoding.h"
-#include "encoding/utf8.h"
-#include "encoding/utf16le.h"
-#include "encoding/utf16be.h"
-#include "encoding/cp850.h"
-#include "encoding/ascii.h"
-#include "editor.h"
-#include "unicode.h"
 
 struct document_file* document_file_create(int save, int config, struct editor* editor);
 void document_file_clear(struct document_file* base, int all);

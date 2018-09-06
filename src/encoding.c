@@ -1,6 +1,7 @@
 // Tippse - Encoding - Base for different encoding schemes (characters <-> bytes)
 
 #include "encoding.h"
+#include "encoding/utf8.h"
 
 // Reset code point cache
 void encoding_cache_clear(struct encoding_cache* base, struct encoding* encoding, struct stream* stream) {

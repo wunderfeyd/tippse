@@ -24,8 +24,6 @@ struct directory {
 #endif
 };
 
-#include "misc.h"
-
 struct directory* directory_create(const char* path);
 const char* directory_next(struct directory* base);
 void directory_destroy(struct directory* base);

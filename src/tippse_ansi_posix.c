@@ -10,12 +10,17 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include "types.h"
 
-#include "screen.h"
-#include "encoding/utf8.h"
-#include "unicode.h"
+#include "clipboard.h"
+#include "documentfile.h"
 #include "editor.h"
+#include "encoding/utf8.h"
+#include "file.h"
+#include "misc.h"
+#include "screen.h"
 #include "search.h"
+#include "unicode.h"
 
 struct tippse_ansi_key {
   const char* text; // text in input stream

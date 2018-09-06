@@ -2,9 +2,6 @@
 #define TIPPSE_ENCODING_NATIVE_H
 
 #include <stdlib.h>
-
-struct encoding_native;
-
 #include "../encoding.h"
 
 struct encoding_native {

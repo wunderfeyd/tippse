@@ -4,10 +4,8 @@
 #include <stdlib.h>
 #include "types.h"
 
-struct range_tree_node;
-struct stream;
-struct file_cache;
-struct file_cache_node;
+#include "filecache.h"
+#include "rangetree.h"
 
 #define STREAM_TYPE_PLAIN 0
 #define STREAM_TYPE_PAGED 1
@@ -30,8 +28,6 @@ struct stream {
     } file;
   };
 };
-
-#include "rangetree.h"
 
 void stream_from_plain(struct stream* base, const uint8_t* plain, size_t size);
 void stream_from_page(struct stream* base, struct range_tree_node* buffer, file_offset_t displacement);
@@ -89,8 +85,16 @@ TIPPSE_INLINE void stream_reverse(struct stream* base, size_t length) {
   }
 }
 
-int stream_end_oob(struct stream* base);
-int stream_start_oob(struct stream* base);
+
+// Helper for range tree end check
+TIPPSE_INLINE int stream_end_oob(struct stream* base) {
+  return ((base->type==STREAM_TYPE_PAGED && ((!base->buffer || !range_tree_next(base->buffer)) && base->page_offset+base->displacement>=range_tree_length(base->buffer))) || (base->type==STREAM_TYPE_FILE && base->cache_length<FILE_CACHE_PAGE_SIZE))?1:0;
+}
+
+// Helper for range tree start check
+TIPPSE_INLINE int stream_start_oob(struct stream* base) {
+  return ((base->type==STREAM_TYPE_PAGED && ((!base->buffer || !range_tree_prev(base->buffer)) && base->page_offset+base->displacement<=0)) || (base->type==STREAM_TYPE_FILE && base->file.offset==0))?1:0;
+}
 
 TIPPSE_INLINE int stream_end(struct stream* base) {
   return (base->displacement>=base->cache_length && (base->type==STREAM_TYPE_PLAIN || stream_end_oob(base)))?1:0;

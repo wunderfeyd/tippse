@@ -4,11 +4,6 @@
 #include <stdlib.h>
 #include "types.h"
 
-struct file_type;
-struct encoding_cache;
-struct config;
-struct document_text_render_info;
-
 struct file_type {
   struct file_type* (*create)(struct config* config, const char* file_type);
   void (*destroy)(struct file_type* base);
@@ -21,13 +16,6 @@ struct file_type {
   struct config* config;
   char* file_type;
 };
-
-#include "trie.h"
-#include "visualinfo.h"
-#include "rangetree.h"
-#include "encoding.h"
-#include "config.h"
-#include "document_text.h"
 
 struct trie_node* file_type_config_base(struct file_type* base, const char* suffix);
 int file_type_keyword_config(struct file_type* base, struct encoding_cache* cache, struct trie_node* parent, int* keyword_length, int nocase);

@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include "types.h"
 
-struct range_tree_node;
-
 struct document_view {
   file_offset_t offset;                 // file offset
   file_offset_t offset_calculated;      // last offset calcuted by renderer
@@ -33,9 +31,6 @@ struct document_view {
   int wrapping;                         // show word wrapping?
   int line_select;                      // show whole line selected?
 };
-
-#include "rangetree.h"
-#include "documentfile.h"
 
 struct document_view* document_view_create(void);
 void document_view_destroy(struct document_view* base);

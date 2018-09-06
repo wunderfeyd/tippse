@@ -2,9 +2,7 @@
 #define TIPPSE_FILETYPE_C_H
 
 #include <stdlib.h>
-
-struct file_type_c;
-struct trie_node;
+#include "../types.h"
 
 #include "../filetype.h"
 
@@ -15,8 +13,6 @@ struct file_type_c {
   struct trie_node* keywords;
   struct trie_node* keywords_preprocessor;
 };
-
-#include "../trie.h"
 
 struct file_type* file_type_c_create(struct config* config, const char* file_type);
 void file_type_c_destroy(struct file_type* base);
