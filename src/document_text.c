@@ -1841,10 +1841,26 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     selection_keep = 1;
   } else if (command==TIPPSE_CMD_WORD_NEXT || command==TIPPSE_CMD_SELECT_WORD_NEXT) {
     view->offset = document_text_word_transition_next(base, splitter, view->offset);
+    if (selection_low==selection_high && command==TIPPSE_CMD_SELECT_WORD_NEXT) {
+      offset_old = document_text_word_transition_prev(base, splitter, view->offset);
+    }
     seek = 1;
   } else if (command==TIPPSE_CMD_WORD_PREV || command==TIPPSE_CMD_SELECT_WORD_PREV) {
     view->offset = document_text_word_transition_prev(base, splitter, view->offset);
+    if (selection_low==selection_high && command==TIPPSE_CMD_SELECT_WORD_PREV) {
+      offset_old = document_text_word_transition_next(base, splitter, view->offset);
+    }
     seek = 1;
+  } else if (command==TIPPSE_CMD_DELETE_WORD_NEXT) {
+    file_offset_t end = document_text_word_transition_next(base, splitter, view->offset);
+    document_file_delete(file, view->offset, end-view->offset);
+    seek = 1;
+    selection_keep = 1;
+  } else if (command==TIPPSE_CMD_DELETE_WORD_PREV) {
+    file_offset_t start = document_text_word_transition_prev(base, splitter, view->offset);
+    document_file_delete(file, start, view->offset-start);
+    seek = 1;
+    selection_keep = 1;
   } else if (command==TIPPSE_CMD_SELECT_ALL) {
     offset_old = view->selection_start = 0;
     view->offset = view->selection_end = file_size;

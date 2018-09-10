@@ -63,6 +63,8 @@ const char* config_default =
       "shift+pagedown:selectpagedown,"
       "backspace:backspace,"
       "delete:delete,"
+      "ctrl+delete:deletewordnext,"
+      "shift+ctrl+delete:deletewordprev,"
       "insert:insert,"
       "shift+delete:cut,"
       "shift+insert:paste,"

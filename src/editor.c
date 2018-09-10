@@ -142,6 +142,8 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"splitnext", TIPPSE_CMD_SPLIT_NEXT, "Select next split view"},
   {"splitprevious", TIPPSE_CMD_SPLIT_PREV, "Select previous split view"},
   {"shellkill", TIPPSE_CMD_SHELL_KILL, "Stop running shell command"},
+  {"deletewordnext", TIPPSE_CMD_DELETE_WORD_NEXT, "Remove word or whitespace after current location"},
+  {"deletewordprev", TIPPSE_CMD_DELETE_WORD_PREV, "Remove word or whitespace before current location"},
   {NULL, 0, ""}
 };
 
