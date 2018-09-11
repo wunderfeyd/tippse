@@ -123,6 +123,8 @@ void document_text_raise_indentation(struct document* base, struct splitter* spl
 
 void document_text_move_block(struct document* base, struct splitter* splitter, file_offset_t low, file_offset_t high, int up);
 
+void document_text_select_line(struct document* base, struct splitter* splitter);
+
 int document_text_mark_brackets(struct document* base, struct screen* screen, struct splitter* splitter, struct document_text_position* cursor);
 
 void document_text_goto(struct document* base, struct splitter* splitter, position_t line);

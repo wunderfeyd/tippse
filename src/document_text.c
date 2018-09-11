@@ -1864,6 +1864,9 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   } else if (command==TIPPSE_CMD_SELECT_ALL) {
     offset_old = view->selection_start = 0;
     view->offset = view->selection_end = file_size;
+  } else if (command==TIPPSE_CMD_SELECT_LINE) {
+    document_text_select_line(base, splitter);
+    selection_keep = 1;
   } else if (command==TIPPSE_CMD_CUTLINE) {
     document_undo_chain(file, file->undos);
 
@@ -2384,6 +2387,43 @@ void document_text_move_block(struct document* base, struct splitter* splitter, 
       document_file_relocate(&offset_return, offset_text, offset_insert_base, length_text);
       document_file_move(file, offset_return, offset_insert, length_return);
     }
+  }
+}
+
+// Extend selection to whole line
+void document_text_select_line(struct document* base, struct splitter* splitter) {
+  struct document_view* view = splitter->view;
+
+  struct document_text_position in_offset;
+  in_offset.type = VISUAL_SEEK_OFFSET;
+  in_offset.clip = 0;
+
+  struct document_text_position in_line_column;
+  in_line_column.type = VISUAL_SEEK_LINE_COLUMN;
+  in_line_column.clip = 0;
+
+  file_offset_t low;
+  file_offset_t high = 0;
+  while (document_view_select_next(view, high, &low, &high)) {
+    struct document_text_position out_start;
+    struct document_text_position out_end;
+    in_offset.offset = low;
+    document_text_cursor_position(splitter, &in_offset, &out_start, 0, 1);
+    in_offset.offset = high;
+    document_text_cursor_position(splitter, &in_offset, &out_end, 0, 1);
+
+    struct document_text_position out_line_start;
+    struct document_text_position out_line_end;
+    in_line_column.column = 0;
+    in_line_column.line = out_start.line;
+    document_text_cursor_position(splitter, &in_line_column, &out_line_start, 0, 1);
+
+    in_line_column.column = 0;
+    in_line_column.line = out_end.line+1;
+    document_text_cursor_position(splitter, &in_line_column, &out_line_end, 0, 1);
+
+    document_view_select_range(view, out_line_start.offset, out_line_end.offset, TIPPSE_INSERTER_MARK);
+    high = out_line_end.offset;
   }
 }
 

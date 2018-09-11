@@ -1127,9 +1127,12 @@ struct range_tree_node* range_tree_mark(struct range_tree_node* root, file_offse
 
   root = range_tree_split(root, &first, split, NULL);
 
+  struct range_tree_node* after = NULL;
   struct range_tree_node* last = range_tree_find_offset(root, offset+length, &split);
-  struct range_tree_node* after = last;
-  root = range_tree_split(root, &after, split, NULL);
+  if (offset+length<range_tree_length(root)) {
+    after = last;
+    root = range_tree_split(root, &after, split, NULL);
+  }
 
   range_tree_fuse_id++;
 
@@ -1137,17 +1140,17 @@ struct range_tree_node* range_tree_mark(struct range_tree_node* root, file_offse
     first->inserter = inserter|TIPPSE_INSERTER_LEAF;
     first->fuse_id = range_tree_fuse_id;
     root = range_tree_update(first);
-    if (first==last) {
+    if (first==after) {
       break;
     }
 
     first = range_tree_next(first);
-    if (first==last) {
+    if (first==after) {
       break;
     }
   }
 
-  return range_tree_fuse(root, before, after, NULL);
+  return range_tree_fuse(root, before, last, NULL);
 }
 
 // Check for marked attribute
