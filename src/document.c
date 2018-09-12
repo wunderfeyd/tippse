@@ -106,6 +106,8 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
           offset = (first && replace)?selection_high:selection_low;
           if (offset==0) {
             offset = file->buffer->length;
+          } else {
+            offset--;
           }
         }
       }
@@ -152,8 +154,9 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
         }
         file_offset_t start = stream_offset_page(&search->hit_start);
         file_offset_t end = stream_offset_page(&search->hit_end);
-        if (((!reverse && start>=offset) || (reverse && end<=offset)) && end-start<=left) {
+        if ((!reverse && start>=offset) || (reverse && start<=offset)) {
           view->offset = reverse?start:end;
+          offset = view->offset;
 
           if (replace || !all) {
             document_view_select_nothing(view, file);

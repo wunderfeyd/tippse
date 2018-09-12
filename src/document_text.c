@@ -2402,9 +2402,20 @@ void document_text_select_line(struct document* base, struct splitter* splitter)
   in_line_column.type = VISUAL_SEEK_LINE_COLUMN;
   in_line_column.clip = 0;
 
+  int64_t lines = 0;
   file_offset_t low;
   file_offset_t high = 0;
-  while (document_view_select_next(view, high, &low, &high)) {
+  while (1) {
+    int found = document_view_select_next(view, high, &low, &high);
+    if (found==0) {
+      if (lines!=0) {
+        break;
+      }
+      low = view->offset;
+      high = low;
+    }
+
+    lines++;
     struct document_text_position out_start;
     struct document_text_position out_end;
     in_offset.offset = low;
