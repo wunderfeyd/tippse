@@ -2514,13 +2514,13 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
 }
 
 // Jump to specified line
-void document_text_goto(struct document* base, struct splitter* splitter, position_t line) {
+void document_text_goto(struct document* base, struct splitter* splitter, position_t line, position_t column) {
   struct document_view* view = splitter->view;
 
   struct document_text_position in_line_column;
   in_line_column.type = VISUAL_SEEK_LINE_COLUMN;
   in_line_column.clip = 0;
-  in_line_column.column = 0;
+  in_line_column.column = column;
   in_line_column.line = line;
 
   struct document_text_position out;

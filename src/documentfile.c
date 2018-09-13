@@ -76,6 +76,7 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->filename = strdup("");
   base->views = list_create(sizeof(struct document_view*));
   base->save = save;
+  base->save_skip = 0;
   base->line_select = 0;
   base->encoding = encoding_utf8_create();
   base->tabstop = TIPPSE_TABSTOP_AUTO;
@@ -429,6 +430,11 @@ int document_file_save(struct document_file* base, const char* filename) {
   }
 
   return success;
+}
+
+// Toggle "save skip" flag
+void document_file_save_skip(struct document_file* base) {
+  base->save_skip ^= 1;
 }
 
 // Detect file properties

@@ -71,7 +71,8 @@ struct document_file {
   int undo;                             // undo enabled
 
   char* filename;                       // file name
-  int save;                             // file can be saved, is real file?
+  int save;                             // is real file?
+  int save_skip;                        // user doesn't permit save?
   size_t undo_save_point;               // last save point in undo information
 
   struct document_file_defaults defaults; // configuration
@@ -107,6 +108,7 @@ void document_file_load(struct document_file* base, const char* filename, int re
 void document_file_load_memory(struct document_file* base, const uint8_t* buffer, size_t length);
 int document_file_save_plain(struct document_file* base, const char* filename);
 int document_file_save(struct document_file* base, const char* filename);
+void document_file_save_skip(struct document_file* base);
 
 void document_file_detect_properties(struct document_file* base);
 void document_file_detect_properties_stream(struct document_file* base, struct stream* document_stream);

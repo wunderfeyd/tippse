@@ -230,6 +230,7 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
 // Search in directory
 void document_search_directory(const char* path, struct range_tree_node* search_text, struct encoding* search_encoding, struct range_tree_node* replace_text, struct encoding* replace_encoding, int ignore_case, int regex, int replace, const char* pattern_text, struct encoding* pattern_encoding, int binary) {
   printf("Scanning %s...\n", path);
+  fflush(stdout);
   struct list* entries = list_create(sizeof(char*));
   char* copy = strdup(path);
   list_insert(entries, entries->last, &copy);
@@ -313,6 +314,7 @@ void document_search_directory(const char* path, struct range_tree_node* search_
               }
             }
             printf("\n");
+            fflush(stdout);
             stream_destroy(&line_copy);
           }
           stream_destroy(&newlines);

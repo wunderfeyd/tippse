@@ -145,6 +145,7 @@ struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"deletewordnext", TIPPSE_CMD_DELETE_WORD_NEXT, "Remove word or whitespace after current location"},
   {"deletewordprev", TIPPSE_CMD_DELETE_WORD_PREV, "Remove word or whitespace before current location"},
   {"selectline", TIPPSE_CMD_SELECT_LINE, "Extend selection to whole line"},
+  {"saveskip", TIPPSE_CMD_SAVE_SKIP, "Skip file when saving documents"},
   {NULL, 0, ""}
 };
 
@@ -336,6 +337,12 @@ void editor_draw(struct editor* base) {
 
   if (document_file_modified_cache(base->document->file)) {
     codepoint_t cp = 'M';
+    screen_setchar(base->screen, x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], background);
+    x++;
+  }
+
+  if (base->document->file->save_skip) {
+    codepoint_t cp = 'S';
     screen_setchar(base->screen, x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], background);
     x++;
   }
@@ -570,7 +577,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     } else {
       position_t line = (position_t)decode_based_unsigned(&cache, 10, SIZE_T_MAX);
       if (line>0) {
-        document_text_goto(base->document->document, base->document, line-1);
+        document_text_goto(base->document->document, base->document, line-1, 0);
         document_select_nothing(base->document);
       }
     }
@@ -599,6 +606,8 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     editor_save_document(base, file?file:base->document->file, 1, 0);
   } else if (command==TIPPSE_CMD_SAVE_ASK) {
     editor_save_document(base, file?file:base->document->file, 0, 1);
+  } else if (command==TIPPSE_CMD_SAVE_SKIP) {
+    document_file_save_skip(file?file:base->document->file);
   } else if (command==TIPPSE_CMD_NULL) {
     editor_task_remove_stop(base);
   } else if (command==TIPPSE_CMD_SAVEALL) {
@@ -847,7 +856,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
       struct stream text_stream;
       stream_from_page(&text_stream, buffer, displacement);
 
-      const char* filter = "\\s*([^\\n\\r]*?)\\s*\\:\\s*(\\d+)\\s*\\:";
+      const char* filter = "\\s*([^\\n\\r]*?)\\s*\\:(\\d+)\\:((\\d+)\\:)?";
       struct stream filter_stream;
       stream_from_plain(&filter_stream, (uint8_t*)filter, strlen(filter));
 
@@ -861,8 +870,10 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
           struct encoding_cache cache;
           encoding_cache_clear(&cache, base->focus->file->encoding, &search->group_hits[1].start);
           position_t line = (position_t)decode_based_unsigned(&cache, 10, SIZE_T_MAX);
+          encoding_cache_clear(&cache, base->focus->file->encoding, &search->group_hits[3].start);
+          position_t column = (position_t)decode_based_unsigned(&cache, 10, SIZE_T_MAX);
           if (line>0) {
-            document_text_goto(node->document, node, line-1);
+            document_text_goto(node->document, node, line-1, (column>0)?column-1:0);
             document_select_nothing(node);
           }
         }
@@ -963,9 +974,11 @@ int editor_ask_document_action(struct editor* base, struct document_file* file, 
   int modified = document_undo_modified(file);
   int draft = document_file_drafted(file);
 
-  if (!modified && !modified_cache && !force) {
+  if ((!modified && !modified_cache && !force) || (file->save_skip && !force)) {
     return 0;
   }
+
+  file->save_skip = 0;
 
   if (modified_cache && !force) {
     editor_task_stop(base);
@@ -976,6 +989,7 @@ int editor_ask_document_action(struct editor* base, struct document_file* file, 
     editor_menu_append(base, "Yes, overwrite file", TIPPSE_CMD_SAVE_FORCE, NULL, 0, 0, 0, 0, 0, 0, file);
     editor_menu_append(base, "No, go back", TIPPSE_CMD_ESCAPE, NULL, 0, 0, 0, 0, 0, 0, NULL);
     editor_menu_append(base, "Skip file", TIPPSE_CMD_NULL, NULL, 0, 0, 0, 0, 0, 0, NULL);
+    editor_menu_append(base, "Never", TIPPSE_CMD_SAVE_SKIP, NULL, 0, 0, 0, 0, 0, 0, file);
     editor_focus(base, base->document, 1);
     editor_view_menu(base, NULL, NULL);
     base->task_focus = base->menu_doc;
@@ -991,6 +1005,7 @@ int editor_ask_document_action(struct editor* base, struct document_file* file, 
     editor_menu_append(base, "Yes, save it", TIPPSE_CMD_SAVE_FORCE, NULL, 0, 0, 0, 0, 0, 0, file);
     editor_menu_append(base, "No, go back", TIPPSE_CMD_ESCAPE, NULL, 0, 0, 0, 0, 0, 0, NULL);
     editor_menu_append(base, "Skip file", TIPPSE_CMD_NULL, NULL, 0, 0, 0, 0, 0, 0, NULL);
+    editor_menu_append(base, "Never", TIPPSE_CMD_SAVE_SKIP, NULL, 0, 0, 0, 0, 0, 0, file);
     editor_focus(base, base->document, 1);
     editor_view_menu(base, NULL, NULL);
     base->task_focus = base->menu_doc;
@@ -1006,6 +1021,7 @@ int editor_ask_document_action(struct editor* base, struct document_file* file, 
     editor_menu_append(base, "Yes, save it", TIPPSE_CMD_SAVEAS, NULL, 0, 0, 0, 0, 0, 0, file);
     editor_menu_append(base, "No, go back", TIPPSE_CMD_ESCAPE, NULL, 0, 0, 0, 0, 0, 0, NULL);
     editor_menu_append(base, "Skip file", TIPPSE_CMD_NULL, NULL, 0, 0, 0, 0, 0, 0, NULL);
+    editor_menu_append(base, "Never", TIPPSE_CMD_SAVE_SKIP, NULL, 0, 0, 0, 0, 0, 0, file);
     editor_focus(base, base->document, 1);
     editor_view_menu(base, NULL, NULL);
     base->task_focus = base->menu_doc;
@@ -1057,7 +1073,7 @@ int editor_modified_documents(struct editor* base) {
   struct list_node* it = base->documents->first;
   while (it) {
     struct document_file* file = *(struct document_file**)list_object(it);
-    if (file->save && (document_file_modified_cache(file) || document_undo_modified(file))) {
+    if (file->save && !file->save_skip && (document_file_modified_cache(file) || document_undo_modified(file))) {
       return 1;
     }
     it = it->next;
