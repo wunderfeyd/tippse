@@ -1374,9 +1374,9 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
                 return 0;
               } else {
                 *left = count-base->skip_length;
-                return 1;
               }
             }
+            return 1;
           }
           hit = size+1;
           break;
