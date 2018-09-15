@@ -605,7 +605,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
           stop = 1;
         }
 
-        if (set /*&& (drawn&(2|8))*/) {
+        if (set) {
           out->type = in->type;
           out->x = render_info->x;
           out->y = render_info->y_view;
@@ -1673,18 +1673,14 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     int seek_first = 1;
 
     if (first) {
-      struct document_text_position in;
-      in.type = VISUAL_SEEK_INDENTATION_LAST;
-      in.clip = 0;
-      in.offset = range_tree_offset(first);
-      in.line = out.line;
+      struct document_text_position in_last;
+      in_last.type = VISUAL_SEEK_INDENTATION_LAST;
+      in_last.clip = 0;
+      in_last.offset = range_tree_offset(first);
+      in_last.line = out.line;
 
       struct document_text_position out_first;
-      struct document_text_render_info render_info;
-      document_text_render_clear(&render_info, splitter->client_width-view->address_width, view->selection);
-      document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
-      document_text_collect_span(&render_info, NULL, splitter, view, file, &in, &out_first, ~0, 1);
-      document_text_render_destroy(&render_info);
+      document_text_cursor_position(splitter, &in_last, &out_first, 0, 1);
 
       if (out_first.type!=VISUAL_SEEK_NONE) {
         view->cursor_x = out_first.x;
@@ -1841,13 +1837,13 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     selection_keep = 1;
   } else if (command==TIPPSE_CMD_WORD_NEXT || command==TIPPSE_CMD_SELECT_WORD_NEXT) {
     view->offset = document_text_word_transition_next(base, splitter, view->offset);
-    if (selection_low==selection_high && command==TIPPSE_CMD_SELECT_WORD_NEXT) {
+    if (selection_low!=FILE_OFFSET_T_MAX && command==TIPPSE_CMD_SELECT_WORD_NEXT) {
       offset_old = document_text_word_transition_prev(base, splitter, view->offset);
     }
     seek = 1;
   } else if (command==TIPPSE_CMD_WORD_PREV || command==TIPPSE_CMD_SELECT_WORD_PREV) {
     view->offset = document_text_word_transition_prev(base, splitter, view->offset);
-    if (selection_low==selection_high && command==TIPPSE_CMD_SELECT_WORD_PREV) {
+    if (selection_low!=FILE_OFFSET_T_MAX && command==TIPPSE_CMD_SELECT_WORD_PREV) {
       offset_old = document_text_word_transition_next(base, splitter, view->offset);
     }
     seek = 1;
@@ -1915,20 +1911,37 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     view->wrapping ^= 1;
     (*base->reset)(base, splitter);
   } else if (command==TIPPSE_CMD_RETURN) {
-    if (out.lines==0 && range_tree_first(file->buffer)!=out.buffer) {
-      range_tree_find_bracket_lowest(out.buffer, out.min_line, out.buffer?out.buffer:range_tree_last(file->buffer));
+    document_select_delete(splitter);
+
+    struct document_text_position out_begin;
+    in_offset.offset = view->offset;
+    document_text_cursor_position(splitter, &in_offset, &out_begin, 1, 1);
+
+    if (out_begin.lines==0 && range_tree_first(file->buffer)!=out_begin.buffer) {
+      range_tree_find_bracket_lowest(out_begin.buffer, out_begin.min_line, out_begin.buffer?out_begin.buffer:range_tree_last(file->buffer));
     }
 
     struct document_text_position out_indentation_copy;
-    if (out.column!=0) {
-      in_line_column.line = out.line;
+    struct document_text_position out_indentation_last;
+    if (out_begin.column!=0) {
+      in_line_column.line = out_begin.line;
       in_line_column.column = 0;
       document_text_cursor_position(splitter, &in_line_column, &out_indentation_copy, 0, 1);
-    } else {
-      out_indentation_copy = out;
-    }
 
-    document_select_delete(splitter);
+      struct document_text_position in_last;
+      in_last.type = VISUAL_SEEK_INDENTATION_LAST;
+      in_last.clip = 0;
+      in_last.offset = out_indentation_copy.offset;
+      in_last.line = out_begin.line;
+
+      document_text_cursor_position(splitter, &in_last, &out_indentation_last, 0, 1);
+      if (out_indentation_last.offset>view->offset) {
+        out_indentation_last.offset = view->offset;
+      }
+    } else {
+      out_indentation_copy = out_begin;
+      out_indentation_last = out_begin;
+    }
 
     if (file->newline==TIPPSE_NEWLINE_CRLF) {
       document_file_insert(file, view->offset, (uint8_t*)"\r\n", 2, 0);
@@ -1939,44 +1952,21 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
 
     // Build a binary copy of the previous indentation (one could insert the default indentation style as alternative... to discuss)
-    // TODO: Simplify me
-    file_offset_t offset = out_indentation_copy.offset;
-    file_offset_t displacement;
-    struct range_tree_node* buffer = range_tree_find_offset(file->buffer, offset, &displacement);
-    file_offset_t displacement_start = displacement;
-    while (buffer && offset!=out.offset) {
-      if (displacement>=buffer->length || !buffer->buffer) {
-        if (displacement!=displacement_start) {
-          document_file_insert(file, view->offset, buffer->buffer->buffer+buffer->offset+displacement_start, displacement-displacement_start, 0);
-        }
-
-        // Brrr... reresearch next node since it could have been fused by the last insert
-        buffer = range_tree_find_offset(file->buffer, offset, &displacement);
-        displacement_start = displacement;
-        continue;
-      }
-
-      const uint8_t* text = buffer->buffer->buffer+buffer->offset+displacement;
-      if (*text!='\t' && *text!=' ') {
-        break;
-      }
-
-      displacement++;
-      offset++;
-    }
-
-    if (buffer && displacement!=displacement_start) {
-      document_file_insert(file, view->offset, buffer->buffer->buffer+buffer->offset+displacement_start, displacement-displacement_start, 0);
+    if (out_indentation_copy.offset<out_indentation_last.offset) {
+      file_offset_t length = out_indentation_last.offset-out_indentation_copy.offset;
+      struct range_tree_node* copy = range_tree_copy(file->buffer, out_indentation_copy.offset, length);
+      document_file_insert_buffer(file, view->offset, copy);
+      range_tree_destroy(copy, NULL);
     }
 
     int diff = 0;
     for (size_t bracket = 0; bracket<VISUAL_BRACKET_MAX; bracket++) {
-      int add = out.depth[bracket]-out_indentation_copy.depth[bracket];
+      int add = out_begin.depth[bracket]-out_indentation_copy.depth[bracket];
       if (add>0) {
         diff += add;
       }
 
-      if (add==0 && out.min_line[bracket]>0) {
+      if (add==0 && out_begin.min_line[bracket]>0) {
         diff++;
       }
     }
@@ -2225,33 +2215,24 @@ void document_text_lower_indentation(struct document* base, struct splitter* spl
     in_line_column.line = out_end.line;
     document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
 
-    struct range_tree_node* buffer = out.buffer;
-    file_offset_t displacement = out.displacement;
-    file_offset_t offset = out.offset;
-
+    struct stream stream;
+    stream_from_page(&stream, out.buffer, out.displacement);
     file_offset_t length = 0;
-    while (buffer) {
-      if (displacement>=buffer->length || !buffer->buffer) {
-        buffer = range_tree_next(buffer);
-        displacement = 0;
-        continue;
-      }
-
-      const uint8_t* text = buffer->buffer->buffer+buffer->offset+displacement;
-      if (*text!='\t' && *text!=' ') {
+    while (!stream_end(&stream)) {
+      uint8_t text = stream_read_forward(&stream);
+      if (text!='\t' && text!=' ') {
         break;
       }
 
       length++;
-      if (*text=='\t' || (int)length>=file->tabstop_width) {
+      if (text=='\t' || (int)length>=file->tabstop_width) {
         break;
       }
-
-      displacement++;
     }
+    stream_destroy(&stream);
 
     if (length>0) {
-      document_file_delete(splitter->file, offset, length);
+      document_file_delete(splitter->file, out.offset, length);
     }
 
     out_end.line--;
@@ -2270,9 +2251,10 @@ void document_text_raise_indentation(struct document* base, struct splitter* spl
   in_line_column.type = VISUAL_SEEK_LINE_COLUMN;
   in_line_column.clip = 0;
 
-  struct document_text_position out;
   struct document_text_position out_start;
   struct document_text_position out_end;
+  struct document_text_position out_line_start;
+  struct document_text_position out_line_end;
 
   in_offset.offset = low;
   document_text_cursor_position(splitter, &in_offset, &out_start, 0, 1);
@@ -2282,11 +2264,11 @@ void document_text_raise_indentation(struct document* base, struct splitter* spl
   while (out_end.line>=out_start.line) {
     in_line_column.column = 0;
     in_line_column.line = out_end.line;
-    document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    document_text_cursor_position(splitter, &in_line_column, &out_line_start, 0, 1);
 
-    struct range_tree_node* buffer = out.buffer;
-    file_offset_t displacement = out.displacement;
-    file_offset_t offset = out.offset;
+    in_line_column.column = POSITION_T_MAX;
+    in_line_column.line = out_end.line;
+    document_text_cursor_position(splitter, &in_line_column, &out_line_end, 0, 1);
 
     uint8_t utf8[8];
     file_offset_t size;
@@ -2300,9 +2282,8 @@ void document_text_raise_indentation(struct document* base, struct splitter* spl
       utf8[0] = '\t';
     }
 
-    const uint8_t* text = buffer?buffer->buffer->buffer+buffer->offset+displacement:NULL;
-    if (!buffer || (*text!='\r' && *text!='\n') || !empty_lines) {
-      document_file_insert(splitter->file, offset, &utf8[0], size, 0);
+    if (!empty_lines || out_line_start.offset!=out_line_end.offset) {
+      document_file_insert(splitter->file, out_line_start.offset, &utf8[0], size, 0);
     }
 
     out_end.line--;
@@ -2475,6 +2456,7 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
     }
 
     if (rendered==-1) {
+      document_text_render_destroy(&render_info);
       document_text_render_clear(&render_info, splitter->client_width-view->address_width, view->selection);
       document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
       if (cursor->bracket_match&VISUAL_BRACKET_OPEN) {
