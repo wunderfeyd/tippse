@@ -1837,13 +1837,13 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     selection_keep = 1;
   } else if (command==TIPPSE_CMD_WORD_NEXT || command==TIPPSE_CMD_SELECT_WORD_NEXT) {
     view->offset = document_text_word_transition_next(base, splitter, view->offset);
-    if (selection_low!=FILE_OFFSET_T_MAX && command==TIPPSE_CMD_SELECT_WORD_NEXT) {
+    if (selection_low==FILE_OFFSET_T_MAX && command==TIPPSE_CMD_SELECT_WORD_NEXT) {
       offset_old = document_text_word_transition_prev(base, splitter, view->offset);
     }
     seek = 1;
   } else if (command==TIPPSE_CMD_WORD_PREV || command==TIPPSE_CMD_SELECT_WORD_PREV) {
     view->offset = document_text_word_transition_prev(base, splitter, view->offset);
-    if (selection_low!=FILE_OFFSET_T_MAX && command==TIPPSE_CMD_SELECT_WORD_PREV) {
+    if (selection_low==FILE_OFFSET_T_MAX && command==TIPPSE_CMD_SELECT_WORD_PREV) {
       offset_old = document_text_word_transition_next(base, splitter, view->offset);
     }
     seek = 1;

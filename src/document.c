@@ -349,6 +349,7 @@ TIPPSE_INLINE int document_directory_highlight(const char* path) {
   }
   return 0;
 }
+
 // Read directory into document, sort by file name
 void document_directory(struct document_file* file, struct stream* filter_stream, struct encoding* filter_encoding, const char* predefined) {
   struct directory* directory = directory_create(file->filename);
@@ -395,12 +396,15 @@ void document_directory(struct document_file* file, struct stream* filter_stream
   }
 
   for (size_t n = 0; n<files->count; n++) {
-    if (file->buffer) {
-      document_file_insert(file, range_tree_length(file->buffer), (uint8_t*)"\n", 1, TIPPSE_INSERTER_NOFUSE);
-    }
-
     char* combined = combine_path_file(file->filename, sort[n]);
-    document_file_insert(file, range_tree_length(file->buffer), (uint8_t*)sort[n], strlen(sort[n]), TIPPSE_INSERTER_NOFUSE|document_directory_highlight(combined));
+    size_t length = strlen(sort[n]);
+
+    struct stream text_stream;
+    stream_from_plain(&text_stream, (uint8_t*)sort[n], length);
+    if (!search || search_find(search, &text_stream, NULL)) {
+      document_insert_search(file, search, sort[n], length, document_directory_highlight(combined));
+    }
+    stream_destroy(&text_stream);
     free(combined);
     free(sort[n]);
   }
@@ -413,6 +417,24 @@ void document_directory(struct document_file* file, struct stream* filter_stream
   }
 
   list_destroy(files);
+}
+
+// Document insert search string
+void document_insert_search(struct document_file* file, struct search* search, const char* output, size_t length, int inserter) {
+  if (file->buffer) {
+    document_file_insert(file, range_tree_length(file->buffer), (uint8_t*)"\n", 1, TIPPSE_INSERTER_NOFUSE);
+  }
+
+  inserter |= TIPPSE_INSERTER_NOFUSE;
+  if (search) {
+    size_t start = (size_t)stream_offset(&search->hit_start);
+    size_t end = (size_t)stream_offset(&search->hit_end);
+    document_file_insert(file, range_tree_length(file->buffer), (uint8_t*)&output[0], start, inserter);
+    document_file_insert(file, range_tree_length(file->buffer), (uint8_t*)&output[start], end-start, TIPPSE_INSERTER_NOFUSE|TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_STRING<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT));
+    document_file_insert(file, range_tree_length(file->buffer), (uint8_t*)&output[end], length-end, inserter);
+  } else {
+    document_file_insert(file, range_tree_length(file->buffer), (uint8_t*)&output[0],  length, inserter);
+  }
 }
 
 // Select whole document

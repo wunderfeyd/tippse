@@ -1182,15 +1182,11 @@ void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct 
   struct list_node* doc = base->documents->first;
   while (doc) {
     struct document_file* file = *(struct document_file**)list_object(doc);
+    size_t length = strlen(file->filename);
     struct stream text_stream;
-    stream_from_plain(&text_stream, (uint8_t*)file->filename, strlen(file->filename));
+    stream_from_plain(&text_stream, (uint8_t*)file->filename, length);
     if (file->save && (!search || search_find(search, &text_stream, NULL))) {
-      if (base->tabs_doc->buffer) {
-        document_file_insert(base->tabs_doc, range_tree_length(base->tabs_doc->buffer), (uint8_t*)"\n", 1, TIPPSE_INSERTER_NOFUSE);
-      }
-
-      int highlight = document_undo_modified(file)?TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_MODIFIED<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT):0;
-      document_file_insert(base->tabs_doc, range_tree_length(base->tabs_doc->buffer), (uint8_t*)file->filename, strlen(file->filename), TIPPSE_INSERTER_NOFUSE|highlight);
+      document_insert_search(base->tabs_doc, search, file->filename, length, document_undo_modified(file)?TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_MODIFIED<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT):0);
     }
     stream_destroy(&text_stream);
 
@@ -1225,14 +1221,11 @@ void editor_view_commands(struct editor* base, struct stream* filter_stream, str
     // TODO: Encoding may destroy equal width ... build string in a different way
     sprintf(&output[0], "%-16s | %-16s | %s", editor_commands[n].text, base->command_map[n]?base->command_map[n]:"<none>", editor_commands[n].description);
 
+    size_t length = strlen(&output[0]);
     struct stream text_stream;
-    stream_from_plain(&text_stream, (uint8_t*)&output[0], strlen(&output[0]));
+    stream_from_plain(&text_stream, (uint8_t*)&output[0], length);
     if (!search || search_find(search, &text_stream, NULL)) {
-      if (base->commands_doc->buffer) {
-        document_file_insert(base->commands_doc, range_tree_length(base->commands_doc->buffer), (uint8_t*)"\n", 1, 0);
-      }
-
-      document_file_insert(base->commands_doc, range_tree_length(base->commands_doc->buffer), (uint8_t*)&output[0], strlen(&output[0]), 0);
+      document_insert_search(base->commands_doc, search, &output[0], length, 0);
     }
     stream_destroy(&text_stream);
   }
@@ -1264,14 +1257,11 @@ void editor_view_menu(struct editor* base, struct stream* filter_stream, struct 
   while (it) {
     struct editor_menu* entry = (struct editor_menu*)list_object(it);
 
+    size_t length = strlen(entry->title);
     struct stream text_stream;
-    stream_from_plain(&text_stream, (uint8_t*)entry->title, strlen(entry->title));
+    stream_from_plain(&text_stream, (uint8_t*)entry->title, length);
     if (!search || search_find(search, &text_stream, NULL)) {
-      if (base->menu_doc->buffer) {
-        document_file_insert(base->menu_doc, range_tree_length(base->menu_doc->buffer), (uint8_t*)"\n", 1, 0);
-      }
-
-      document_file_insert(base->menu_doc, range_tree_length(base->menu_doc->buffer), (uint8_t*)entry->title, strlen(entry->title), 0);
+      document_insert_search(base->menu_doc, search, entry->title, length, 0);
     }
     stream_destroy(&text_stream);
 
