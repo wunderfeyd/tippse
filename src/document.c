@@ -373,10 +373,6 @@ void document_directory(struct document_file* file, struct stream* filter_stream
 
   directory_destroy(directory);
 
-  if (search) {
-    search_destroy(search);
-  }
-
   char** sort1 = malloc(sizeof(char*)*files->count);
   char** sort2 = malloc(sizeof(char*)*files->count);
   struct list_node* name = files->first;
@@ -414,6 +410,10 @@ void document_directory(struct document_file* file, struct stream* filter_stream
 
   while (files->first) {
     list_remove(files, files->first);
+  }
+
+  if (search) {
+    search_destroy(search);
   }
 
   list_destroy(files);
