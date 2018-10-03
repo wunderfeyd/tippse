@@ -99,6 +99,7 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->defaults.invisibles = 0;
   base->defaults.wrapping = 0;
   base->defaults.address_width = 6;
+  base->defaults.line_width = 80;
   document_file_reset_views(base, 1);
   document_undo_mark_save_point(base);
   document_file_reload_config(base);
@@ -858,6 +859,7 @@ void document_file_reload_config(struct document_file* base) {
   base->defaults.wrapping = (int)config_convert_int64(config_find_ascii(base->config, "/wrapping"));
   base->defaults.invisibles = (int)config_convert_int64(config_find_ascii(base->config, "/invisibles"));
   base->defaults.address_width = (int)config_convert_int64(config_find_ascii(base->config, "/addresswidth"));
+  base->defaults.line_width = (int)config_convert_int64(config_find_ascii(base->config, "/linewidth"));
 
   const char* search = base->filename;
   const char* last = base->filename;

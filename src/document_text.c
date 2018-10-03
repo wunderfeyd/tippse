@@ -155,10 +155,21 @@ file_offset_t document_text_cursor_position_partial(struct document_text_render_
   return out->offset;
 }
 
+// Return best fitting line width
+position_t document_text_line_width(struct splitter* splitter) {
+  position_t max = splitter->client_width-splitter->view->address_width;
+  position_t selected = splitter->file->defaults.line_width;
+  if (selected==0 || max<selected) {
+    return max;
+  }
+
+  return selected;
+}
+
 // Goto specified position
 file_offset_t document_text_cursor_position(struct splitter* splitter, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel) {
   struct document_text_render_info render_info;
-  document_text_render_clear(&render_info, splitter->client_width-splitter->view->address_width, splitter->view->selection);
+  document_text_render_clear(&render_info, document_text_line_width(splitter), splitter->view->selection);
   file_offset_t offset = document_text_cursor_position_partial(&render_info, splitter, in, out, wrap, cancel);
   document_text_render_destroy(&render_info);
   return offset;
@@ -1211,7 +1222,7 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
     in.clip = 0;
 
     struct document_text_render_info render_info;
-    document_text_render_clear(&render_info, splitter->client_width-view->address_width, view->selection);
+    document_text_render_clear(&render_info, document_text_line_width(splitter), view->selection);
     document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
     document_text_collect_span(&render_info, NULL, NULL, view, file, &in, NULL, 16, 1);
     document_text_render_destroy(&render_info);
@@ -1342,7 +1353,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     prerender++;
 
     struct document_text_render_info render_info;
-    document_text_render_clear(&render_info, splitter->client_width-view->address_width, view->selection);
+    document_text_render_clear(&render_info, document_text_line_width(splitter), view->selection);
     in.type = VISUAL_SEEK_X_Y;
     in.clip = 0;
     in.x = view->scroll_x+splitter->client_width;
@@ -1364,7 +1375,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   }
 
   struct document_text_render_info render_info;
-  document_text_render_clear(&render_info, splitter->client_width-view->address_width, view->selection);
+  document_text_render_clear(&render_info, document_text_line_width(splitter), view->selection);
   in.type = VISUAL_SEEK_X_Y;
   in.clip = 1;
   in.x = view->scroll_x;
@@ -2447,7 +2458,7 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
     }
   }
 
-  document_text_render_clear(&render_info, splitter->client_width-view->address_width, view->selection);
+  document_text_render_clear(&render_info, document_text_line_width(splitter), view->selection);
   while (1) {
     document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
     int rendered = document_text_collect_span(&render_info, NULL, splitter, view, file, &in, &out, ~0, 1);
@@ -2457,7 +2468,7 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
 
     if (rendered==-1) {
       document_text_render_destroy(&render_info);
-      document_text_render_clear(&render_info, splitter->client_width-view->address_width, view->selection);
+      document_text_render_clear(&render_info, document_text_line_width(splitter), view->selection);
       document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
       if (cursor->bracket_match&VISUAL_BRACKET_OPEN) {
         struct range_tree_node* node = range_tree_find_bracket_forward(render_info.buffer, in.bracket, in.bracket_search);
@@ -2548,7 +2559,7 @@ file_offset_t document_text_word_transition_next(struct document* base, struct s
     in.offset = offset;
 
     struct document_text_render_info render_info;
-    document_text_render_clear(&render_info, splitter->client_width-view->address_width, view->selection);
+    document_text_render_clear(&render_info, document_text_line_width(splitter), view->selection);
     document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
     int rendered = document_text_collect_span(&render_info, NULL, splitter, view, file, &in, &out, ~0, 1);
     offset = render_info.offset;
@@ -2578,7 +2589,7 @@ file_offset_t document_text_word_transition_prev(struct document* base, struct s
     in.offset = offset;
 
     struct document_text_render_info render_info;
-    document_text_render_clear(&render_info, splitter->client_width-view->address_width, view->selection);
+    document_text_render_clear(&render_info, document_text_line_width(splitter), view->selection);
     document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
     int rendered = document_text_collect_span(&render_info, NULL, splitter, view, file, &in, &out, ~0, 1);
 

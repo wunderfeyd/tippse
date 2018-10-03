@@ -54,6 +54,16 @@ void range_tree_check(struct range_tree_node* node) {
   if (node->side[1]) {
     range_tree_check(node->side[1]);
   }
+
+  if (node->buffer->type==FRAGMENT_FILE) {
+    if (!(node->inserter&TIPPSE_INSERTER_FILE)) {
+      printf("fragment from file not marked\r\n");
+    }
+  } else {
+    if ((node->inserter&TIPPSE_INSERTER_FILE)) {
+      printf("fragment from memory not marked\r\n");
+    }
+  }
 }
 
 // Debug: Search root and print
@@ -72,14 +82,6 @@ void range_tree_update_calc(struct range_tree_node* node) {
     node->depth = ((node->side[0]->depth>node->side[1]->depth)?node->side[0]->depth:node->side[1]->depth)+1;
     node->inserter = ((node->side[0]?node->side[0]->inserter:0)|(node->side[1]?node->side[1]->inserter:0))&~TIPPSE_INSERTER_LEAF;
     visual_info_combine(&node->visuals, &node->side[0]->visuals, &node->side[1]->visuals);
-  } else {
-    if (node->buffer) {
-      if (node->buffer->type==FRAGMENT_FILE) {
-        node->inserter |= TIPPSE_INSERTER_FILE;
-      } else {
-        node->inserter &= ~TIPPSE_INSERTER_FILE;
-      }
-    }
   }
 }
 
@@ -118,6 +120,9 @@ struct range_tree_node* range_tree_create(struct range_tree_node* parent, struct
   node->prev = NULL;
   if (node->buffer) {
     fragment_reference(node->buffer, file);
+    if (node->buffer->type==FRAGMENT_FILE) {
+      inserter |= TIPPSE_INSERTER_FILE;
+    }
   }
 
   node->offset = offset;
@@ -804,8 +809,6 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
       range_tree_exchange(build0->parent, node, build0);
       range_tree_shrink(build1);
       range_tree_shrink(node);
-      range_tree_update_calc(build1);
-      range_tree_update_calc(node);
       root = range_tree_update(build0);
       before = range_tree_prev(build1);
       after = range_tree_next(node);
@@ -825,8 +828,6 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
       range_tree_exchange(build0->parent, node, build0);
       range_tree_shrink(build1);
       range_tree_shrink(node);
-      range_tree_update_calc(build1);
-      range_tree_update_calc(node);
       root = range_tree_update(build0);
       before = range_tree_prev(build1);
       after = range_tree_next(node);
@@ -857,10 +858,7 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
       range_tree_shrink(build1);
       range_tree_shrink(node);
 
-      range_tree_update_calc(build2);
-      range_tree_update_calc(build1);
       range_tree_update_calc(build0);
-      range_tree_update_calc(node);
       root = range_tree_update(build3);
 
       before = range_tree_prev(build2);
@@ -871,7 +869,6 @@ struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_off
   } else {
     root = range_tree_create(NULL, NULL, NULL, buffer, buffer_offset, buffer_length, inserter|TIPPSE_INSERTER_LEAF, fuse_id, file, user_data);
     range_tree_shrink(root);
-    range_tree_update_calc(root);
   }
 
   return root;

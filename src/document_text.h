@@ -98,6 +98,8 @@ struct document* document_text_create(void);
 void document_text_destroy(struct document* base);
 
 void document_text_reset(struct document* base, struct splitter* splitter);
+
+position_t document_text_line_width(struct splitter* splitter);
 int document_text_incremental_update(struct document* base, struct splitter* splitter);
 void document_text_draw(struct document* base, struct screen* screen, struct splitter* splitter);
 void document_text_keypress(struct document* base, struct splitter* splitter, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y);
