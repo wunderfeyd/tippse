@@ -189,7 +189,7 @@ void document_text_render_destroy(struct document_text_render_info* render_info)
 }
 
 // Update renderer state to restart at the given position or to continue if possible
-void document_text_render_seek(struct document_text_render_info* render_info, struct range_tree_node* buffer, struct encoding* encoding, struct document_text_position* in) {
+void document_text_render_seek(struct document_text_render_info* render_info, struct range_tree_node* buffer, struct encoding* encoding, const struct document_text_position* in) {
   int64_t t = tick_count();
   file_offset_t offset_new = 0;
   position_t x_new = 0;
@@ -304,7 +304,7 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
 }
 
 // Get word length from specified position
-position_t document_text_render_lookahead_word_wrap(struct document_file* file, struct encoding_cache* cache, position_t max) {
+position_t document_text_render_lookahead_word_wrap(struct encoding_cache* cache, position_t max) {
   position_t count = 0;
   size_t advanced = 0;
   position_t width0 = 0;
@@ -372,7 +372,7 @@ int document_text_split_buffer(struct range_tree_node* buffer, struct document_f
 
 // Render some pages until the position is found or pages are no longer dirty
 // TODO: find better visualization for debugging, find unnecessary render iterations and then optimize (as soon the code is "feature complete")
-int document_text_collect_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
+int document_text_collect_span(struct document_text_render_info* render_info, struct screen* screen, const struct splitter* splitter, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
   // TODO: Following initializations shouldn't be needed since the caller should check the type / verify
   int64_t t = tick_count();
   if (out) {
@@ -408,7 +408,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
   debug_pages_collect++;
 
   int (*mark)(struct document_text_render_info* render_info) = file->type->mark;
-  size_t (*match)(struct document_text_render_info* render_info) = file->type->bracket_match;
+  size_t (*match)(const struct document_text_render_info* render_info) = file->type->bracket_match;
   render_info->file_type = file->type;
 
   if (document_text_split_buffer(render_info->buffer, file)) {
@@ -734,7 +734,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
     position_t word_length = 0;
     if (view->wrapping && cp<=' ') {
       position_t row_width = render_info->width-render_info->indentation-file->tabstop_width;
-      word_length = document_text_render_lookahead_word_wrap(file, &render_info->cache, row_width+1);
+      word_length = document_text_render_lookahead_word_wrap(&render_info->cache, row_width+1);
     }
 
     if (cp==newline_cp1 || (view->wrapping && render_info->x+word_length>=render_info->width)) {
@@ -824,7 +824,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
   return rendered;
 }
 
-int document_text_prerender_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
+int document_text_prerender_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
   // TODO: Following initializations shouldn't be needed since the caller should check the type / verify
   int64_t t = tick_count();
   if (out) {
@@ -948,7 +948,7 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
     position_t word_length = 0;
     if (view->wrapping && cp<=' ') {
       position_t row_width = render_info->width-render_info->indentation-file->tabstop_width;
-      word_length = document_text_render_lookahead_word_wrap(file, &render_info->cache, row_width+1);
+      word_length = document_text_render_lookahead_word_wrap(&render_info->cache, row_width+1);
     }
 
     if (cp==newline_cp1 || (view->wrapping && render_info->x+word_length>=render_info->width)) {
@@ -979,7 +979,7 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
   return rendered;
 }
 
-int document_text_render_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
+int document_text_render_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
   // TODO: Following initializations shouldn't be needed since the caller should check the type / verify
   int64_t t = tick_count();
 
@@ -1163,7 +1163,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     position_t word_length = 0;
     if (view->wrapping && cp<=' ') {
       position_t row_width = render_info->width-render_info->indentation-file->tabstop_width;
-      word_length = document_text_render_lookahead_word_wrap(file, &render_info->cache, row_width+1);
+      word_length = document_text_render_lookahead_word_wrap(&render_info->cache, row_width+1);
     }
 
     if (cp==newline_cp1 || (view->wrapping && render_info->x+word_length>=render_info->width)) {

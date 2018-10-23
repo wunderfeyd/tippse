@@ -62,5 +62,7 @@ void splitter_draw_multiple_recursive(struct splitter* base, struct screen* scre
 void splitter_draw_multiple(struct splitter* base, struct screen* screen, int incremental);
 struct splitter* splitter_by_coordinate(struct splitter* base, int x, int y);
 struct splitter* splitter_next(struct splitter* base, int side);
+void splitter_split(struct splitter* base);
+struct splitter* splitter_unsplit(struct splitter* base, struct splitter* root);
 
 #endif /* #ifndef TIPPSE_SPLITTER_H */

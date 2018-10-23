@@ -21,7 +21,7 @@ struct stream {
   struct file_cache_node* cache_node;   // file cache node
 
   union {
-    struct range_tree_node* buffer;     // page in tree, if paged stream
+    const struct range_tree_node* buffer; // page in tree, if paged stream
     struct {
       struct file_cache* cache;         // file cache itself
       file_offset_t offset;             // current file position
@@ -30,7 +30,7 @@ struct stream {
 };
 
 void stream_from_plain(struct stream* base, const uint8_t* plain, size_t size);
-void stream_from_page(struct stream* base, struct range_tree_node* buffer, file_offset_t displacement);
+void stream_from_page(struct stream* base, const struct range_tree_node* buffer, file_offset_t displacement);
 void stream_from_file(struct stream* base, struct file_cache* cache, file_offset_t offset);
 void stream_destroy(struct stream* base);
 void stream_clone(struct stream* base, struct stream* src);
@@ -39,14 +39,14 @@ int stream_rereference_page(struct stream* base);
 void stream_reference_page(struct stream* base);
 void stream_unreference_page(struct stream* base);
 
-size_t stream_offset_plain(struct stream* base);
-file_offset_t stream_offset_page(struct stream* base);
-file_offset_t stream_offset_file(struct stream* base);
-file_offset_t stream_offset(struct stream* base);
+size_t stream_offset_plain(const struct stream* base);
+file_offset_t stream_offset_page(const struct stream* base);
+file_offset_t stream_offset_file(const struct stream* base);
+file_offset_t stream_offset(const struct stream* base);
 
-TIPPSE_INLINE size_t stream_cache_length(struct stream* base) {return base->cache_length;}
-TIPPSE_INLINE size_t stream_displacement(struct stream* base) {return base->displacement;}
-TIPPSE_INLINE const uint8_t* stream_buffer(struct stream* base) {return base->plain+base->displacement;}
+TIPPSE_INLINE size_t stream_cache_length(const struct stream* base) {return base->cache_length;}
+TIPPSE_INLINE size_t stream_displacement(const struct stream* base) {return base->displacement;}
+TIPPSE_INLINE const uint8_t* stream_buffer(const struct stream* base) {return base->plain+base->displacement;}
 
 uint8_t stream_read_forward_oob(struct stream* base);
 TIPPSE_INLINE uint8_t stream_read_forward(struct stream* base) {

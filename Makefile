@@ -23,6 +23,9 @@ debug: $(TARGET)
 minify: CFLAGSEXTRA=-s -flto
 minify: $(TARGET)
 
+perf: CFLAGSEXTRA=-D_PERFORMANCE
+perf: $(TARGET)
+
 clean:
 	@rm -rf $(OBJDIR)
 

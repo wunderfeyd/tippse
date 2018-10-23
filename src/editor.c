@@ -755,51 +755,12 @@ void editor_focus_next(struct editor* base, struct splitter* node, int side) {
 
 // Split view
 void editor_split(struct editor* base, struct splitter* node) {
-  struct splitter* parent = node->parent;
-  struct splitter* split = splitter_create(0, 0, NULL, NULL, "Document");
-
-  splitter_assign_document_file(split, node->file);
-
-  struct splitter* splitter = splitter_create(TIPPSE_SPLITTER_HORZ, 50, node, split, "");
-  if (parent->side[0]==node) {
-    parent->side[0] = splitter;
-  } else {
-    parent->side[1] = splitter;
-  }
-  splitter->parent = parent;
+  splitter_split(node);
 }
 
 // Combine splitted view
 struct splitter* editor_unsplit(struct editor* base, struct splitter* node) {
-  if (node->side[0] || node->side[1]) {
-    return node;
-  }
-
-  struct splitter* parent = node->parent;
-  if (base->splitters==parent) {
-    return node;
-  }
-
-  struct splitter* parentup = parent->parent;
-  if (!parentup) {
-    return node;
-  }
-
-  struct splitter* other = (node!=parent->side[0])?parent->side[0]:parent->side[1];
-
-  if (parentup->side[0]==parent) {
-    parentup->side[0] = other;
-  } else {
-    parentup->side[1] = other;
-  }
-
-  other->parent = parentup;
-
-  parent->side[0] = NULL;
-  parent->side[1] = NULL;
-  splitter_destroy(parent);
-  splitter_destroy(node);
-  return other;
+  return splitter_unsplit(node, base->splitters);
 }
 
 // Use selection from specified view to open a new document

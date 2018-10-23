@@ -428,3 +428,52 @@ struct splitter* splitter_next(struct splitter* base, int side) {
 
   return target->side[0]?NULL:target;
 }
+
+// Half a splitter and clone
+void splitter_split(struct splitter* base) {
+  struct splitter* parent = base->parent;
+  struct splitter* split = splitter_create(0, 0, NULL, NULL, "Document");
+
+  splitter_assign_document_file(split, base->file);
+
+  struct splitter* splitter = splitter_create(TIPPSE_SPLITTER_HORZ, 50, base, split, "");
+  if (parent->side[0]==base) {
+    parent->side[0] = splitter;
+  } else {
+    parent->side[1] = splitter;
+  }
+  splitter->parent = parent;
+}
+
+// Combine two neighbor splitters
+struct splitter* splitter_unsplit(struct splitter* base, struct splitter* root) {
+  if (base->side[0] || base->side[1]) {
+    return base;
+  }
+
+  struct splitter* parent = base->parent;
+  if (root==parent) {
+    return base;
+  }
+
+  struct splitter* parentup = parent->parent;
+  if (!parentup) {
+    return base;
+  }
+
+  struct splitter* other = (base!=parent->side[0])?parent->side[0]:parent->side[1];
+
+  if (parentup->side[0]==parent) {
+    parentup->side[0] = other;
+  } else {
+    parentup->side[1] = other;
+  }
+
+  other->parent = parentup;
+
+  parent->side[0] = NULL;
+  parent->side[1] = NULL;
+  splitter_destroy(parent);
+  splitter_destroy(base);
+  return other;
+}

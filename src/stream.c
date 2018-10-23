@@ -15,7 +15,7 @@ void stream_from_plain(struct stream* base, const uint8_t* plain, size_t size) {
 }
 
 // Build streaming view onto a range tree
-void stream_from_page(struct stream* base, struct range_tree_node* buffer, file_offset_t displacement) {
+void stream_from_page(struct stream* base, const struct range_tree_node* buffer, file_offset_t displacement) {
   base->type = STREAM_TYPE_PAGED;
   base->buffer = buffer;
   base->displacement = displacement%FILE_CACHE_PAGE_SIZE;
@@ -96,22 +96,22 @@ void stream_unreference_page(struct stream* base) {
 }
 
 // Return stream offset (plain stream)
-size_t stream_offset_plain(struct stream* base) {
+size_t stream_offset_plain(const struct stream* base) {
   return base->displacement;
 }
 
 // Return stream offset (page stream)
-file_offset_t stream_offset_page(struct stream* base) {
+file_offset_t stream_offset_page(const struct stream* base) {
   return range_tree_offset(base->buffer)+base->page_offset+base->displacement;
 }
 
 // Return stream offset (file stream)
-file_offset_t stream_offset_file(struct stream* base) {
+file_offset_t stream_offset_file(const struct stream* base) {
   return base->file.offset+base->displacement;
 }
 
 // Return stream offset (generalization)
-file_offset_t stream_offset(struct stream* base) {
+file_offset_t stream_offset(const struct stream* base) {
   if (base->type==STREAM_TYPE_PLAIN) {
     return (file_offset_t)stream_offset_plain(base);
   } else if (base->type==STREAM_TYPE_PAGED) {

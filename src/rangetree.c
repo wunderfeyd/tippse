@@ -7,7 +7,7 @@
 int64_t range_tree_fuse_id = 1;
 
 // Debug: Recursively print tree nodes
-void range_tree_print(struct range_tree_node* node, int depth, int side) {
+void range_tree_print(const struct range_tree_node* node, int depth, int side) {
   int tab = depth;
   while (tab>0) {
     fprintf(stderr, "  ");
@@ -26,7 +26,7 @@ void range_tree_print(struct range_tree_node* node, int depth, int side) {
 }
 
 // Debug: Check tree for consistency (TODO: Next/Prev fields are not covered)
-void range_tree_check(struct range_tree_node* node) {
+void range_tree_check(const struct range_tree_node* node) {
   if (!node) {
     return;
   }
@@ -67,7 +67,7 @@ void range_tree_check(struct range_tree_node* node) {
 }
 
 // Debug: Search root and print
-void range_tree_print_root(struct range_tree_node* node, int depth, int side) {
+void range_tree_print_root(const struct range_tree_node* node, int depth, int side) {
   while(node->parent) {
     node = node->parent;
   }
@@ -350,7 +350,7 @@ struct range_tree_node* range_tree_find_visual(struct range_tree_node* node, int
 }
 
 // Return bracket depth
-int range_tree_find_bracket(struct range_tree_node* node, size_t bracket) {
+int range_tree_find_bracket(const struct range_tree_node* node, size_t bracket) {
   int depth = 0;
   while (node->parent) {
     if (node->parent->side[1]==node) {
@@ -440,7 +440,7 @@ struct range_tree_node* range_tree_find_bracket_backward(struct range_tree_node*
 }
 
 // Check for lowest bracket depth
-void range_tree_find_bracket_lowest(struct range_tree_node* node, int* mins, struct range_tree_node* last) {
+void range_tree_find_bracket_lowest(const struct range_tree_node* node, int* mins, const struct range_tree_node* last) {
   if (!node) {
     if (!last) {
       return;
@@ -571,7 +571,7 @@ struct range_tree_node* range_tree_find_indentation_last(struct range_tree_node*
 }
 
 // Check for identation reaching given node
-int range_tree_find_indentation(struct range_tree_node* node) {
+int range_tree_find_indentation(const struct range_tree_node* node) {
   if (!node || !node->parent) {
     return 0;
   }
@@ -609,7 +609,7 @@ int range_tree_find_indentation(struct range_tree_node* node) {
 }
 
 // Check if whitespacing stops at line end
-int range_tree_find_whitespaced(struct range_tree_node* node) {
+int range_tree_find_whitespaced(const struct range_tree_node* node) {
   if (node->visuals.detail_after&VISUAL_DETAIL_WHITESPACED_START) {
     return 1;
   }
@@ -645,7 +645,7 @@ int range_tree_find_whitespaced(struct range_tree_node* node) {
 }
 
 // Return base offset of given node
-file_offset_t range_tree_offset(struct range_tree_node* node) {
+file_offset_t range_tree_offset(const struct range_tree_node* node) {
   file_offset_t offset = 0;
   while (node->parent) {
     if (node->parent->side[1]==node) {
@@ -1151,7 +1151,7 @@ struct range_tree_node* range_tree_mark(struct range_tree_node* root, file_offse
 }
 
 // Check for marked attribute
-int range_tree_marked(struct range_tree_node* node, file_offset_t offset, file_offset_t length, int inserter) {
+int range_tree_marked(const struct range_tree_node* node, file_offset_t offset, file_offset_t length, int inserter) {
   if (!node) {
     return 0;
   }
@@ -1200,7 +1200,7 @@ struct range_tree_node* range_tree_invert_mark(struct range_tree_node* node, int
 int range_tree_marked_next(struct range_tree_node* root, file_offset_t offset, file_offset_t* low, file_offset_t* high, int skip_first) {
   if (root) {
     file_offset_t displacement;
-    struct range_tree_node* node = range_tree_find_offset(root, offset, &displacement);
+    const struct range_tree_node* node = range_tree_find_offset(root, offset, &displacement);
     while (node && displacement<node->length) {
       if (node->inserter&TIPPSE_INSERTER_MARK && !skip_first) {
         *low = offset;
@@ -1223,7 +1223,7 @@ int range_tree_marked_next(struct range_tree_node* root, file_offset_t offset, f
 int range_tree_marked_prev(struct range_tree_node* root, file_offset_t offset, file_offset_t* low, file_offset_t* high, int skip_first) {
   if (root) {
     file_offset_t displacement;
-    struct range_tree_node* node = range_tree_find_offset(root, offset, &displacement);
+    const struct range_tree_node* node = range_tree_find_offset(root, offset, &displacement);
     while (node && offset>0) {
       if (node->inserter&TIPPSE_INSERTER_MARK && !skip_first) {
         *low = offset;

@@ -31,7 +31,7 @@ struct unicode_transform_node* unicode_lower(struct encoding_cache* cache, size_
 struct unicode_transform_node* unicode_transform(struct trie* transformation, struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length);
 
 // Check if codepoint is marked
-TIPPSE_INLINE int unicode_bitfield_check(unsigned int* table, codepoint_t codepoint) {
+TIPPSE_INLINE int unicode_bitfield_check(const unsigned int* table, codepoint_t codepoint) {
   if (codepoint>=0 && codepoint<UNICODE_CODEPOINT_MAX) {
     return (int)((table[(size_t)codepoint/(sizeof(unsigned int)*8)]>>((size_t)codepoint&(sizeof(unsigned int)*8-1)))&1);
   }
@@ -58,7 +58,7 @@ unsigned int unicode_whitespaces[UNICODE_BITFIELD_MAX];
 unsigned int unicode_digits[UNICODE_BITFIELD_MAX];
 
 // Check visual width of unicode sequence
-TIPPSE_INLINE int unicode_width(codepoint_t* codepoints, size_t max) {
+TIPPSE_INLINE int unicode_width(const codepoint_t* codepoints, size_t max) {
   if (max<=0) {
     return 1;
   }
