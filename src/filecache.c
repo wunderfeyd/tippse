@@ -61,7 +61,7 @@ void file_cache_empty(struct file_cache* base, struct list* nodes) {
     struct file_cache_node* node = (struct file_cache_node*)list_object(nodes->first);
     free(node->buffer);
     if (node->count!=0) {
-      fprintf(stderr, "Hmm, a cached node is still in use! (%d-%lld) \r\n", node->count, node->offset);
+      fprintf(stderr, "Hmm, a cached node is still in use! (%d-%llud) \r\n", node->count, (long long unsigned int)node->offset);
     }
     list_remove(nodes, nodes->first);
   }
@@ -72,7 +72,7 @@ void file_cache_cleanup(struct file_cache* base) {
   while (base->size>base->max) {
     struct file_cache_node* node = (struct file_cache_node*)list_object(base->inactive.last);
     if (node->count!=0) {
-      fprintf(stderr, "Hmm, a cached node is still in use in inactive list (%d-%lld)!\r\n", node->count, node->offset);
+      fprintf(stderr, "Hmm, a cached node is still in use in inactive list (%d-%llud)!\r\n", node->count, (long long unsigned int)node->offset);
       break;
     }
 
@@ -128,7 +128,7 @@ struct file_cache_node* file_cache_invoke(struct file_cache* base, file_offset_t
       file_seek(base->fd, low, TIPPSE_SEEK_START);
       node->length = file_read(base->fd, node->buffer, FILE_CACHE_PAGE_SIZE);
       if (FILE_CACHE_DEBUG) {
-        fprintf(stderr, "Read %p %llx %x\r\n", node, (long long unsigned int)low, (unsigned int)node->length);
+        fprintf(stderr, "Read %p %llux %x\r\n", node, (long long unsigned int)low, (unsigned int)node->length);
       }
     }
   }
