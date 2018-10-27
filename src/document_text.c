@@ -34,8 +34,6 @@ int debug_pages_collect = 0;
 int debug_pages_prerender = 0;
 int debug_pages_render = 0;
 int debug_chars = 0;
-int64_t debug_span_time = 0;
-int64_t debug_seek_time = 0;
 struct screen* debug_screen = NULL;
 struct splitter* debug_splitter = NULL;
 
@@ -190,7 +188,6 @@ void document_text_render_destroy(struct document_text_render_info* render_info)
 
 // Update renderer state to restart at the given position or to continue if possible
 void document_text_render_seek(struct document_text_render_info* render_info, struct range_tree_node* buffer, struct encoding* encoding, const struct document_text_position* in) {
-  int64_t t = tick_count();
   file_offset_t offset_new = 0;
   position_t x_new = 0;
   position_t y_new = 0;
@@ -299,8 +296,6 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
   } else {
     render_info->y = render_info->y_view;
   }
-
-  debug_seek_time += tick_count()-t;
 }
 
 // Get word length from specified position
@@ -374,7 +369,6 @@ int document_text_split_buffer(struct range_tree_node* buffer, struct document_f
 // TODO: find better visualization for debugging, find unnecessary render iterations and then optimize (as soon the code is "feature complete")
 int document_text_collect_span(struct document_text_render_info* render_info, struct screen* screen, const struct splitter* splitter, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
   // TODO: Following initializations shouldn't be needed since the caller should check the type / verify
-  int64_t t = tick_count();
   if (out) {
     out->type = VISUAL_SEEK_NONE;
     out->offset = 0;
@@ -580,6 +574,9 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
       } else if (in->type==VISUAL_SEEK_INDENTATION_LAST) {
         if (render_info->line==in->line) {
           drawn = ((render_info->visual_detail&VISUAL_DETAIL_NEWLINE) || (render_info->indented))?(0|1):0;
+          if (!(render_info->visual_detail&VISUAL_DETAIL_INDENTATION)) {
+            drawn |= 1|2;
+          }
         } else if (render_info->line>in->line) {
           drawn = 4;
         }
@@ -608,7 +605,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
         int set = 1;
         if (drawn&2) {
           if (cancel && out->type!=VISUAL_SEEK_NONE) {
-            if ((in->type==VISUAL_SEEK_OFFSET && render_info->offset>in->offset) || (in->type==VISUAL_SEEK_X_Y && render_info->x>in->x) || (in->type==VISUAL_SEEK_LINE_COLUMN && render_info->column>in->column) || (in->type==VISUAL_SEEK_INDENTATION_LAST)) {
+            if ((in->type==VISUAL_SEEK_OFFSET && render_info->offset>in->offset) || (in->type==VISUAL_SEEK_X_Y && render_info->x>in->x) || (in->type==VISUAL_SEEK_LINE_COLUMN && render_info->column>in->column)) {
               set = 0;
             }
           }
@@ -715,10 +712,6 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
       render_info->xs += fill;
     }
 
-    render_info->column++;
-    render_info->columns++;
-    render_info->character++;
-    render_info->characters++;
     encoding_cache_advance(&render_info->cache, render_info->advance);
 
     render_info->displacement += render_info->length;
@@ -727,8 +720,15 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
 
     render_info->keyword_length--;
 
-    if (render_info->keyword_length<=0 && !(render_info->visual_detail&VISUAL_DETAIL_CONTROLCHARACTER)) {
-      render_info->offset_sync = render_info->offset;
+    if (!(render_info->visual_detail&VISUAL_DETAIL_CONTROLCHARACTER)) {
+      render_info->column++;
+      render_info->columns++;
+      render_info->character++;
+      render_info->characters++;
+
+      if (render_info->keyword_length<=0) {
+        render_info->offset_sync = render_info->offset;
+      }
     }
 
     position_t word_length = 0;
@@ -783,7 +783,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
       render_info->visual_detail &= ~VISUAL_DETAIL_WHITESPACED_COMPLETE;
     }
 
-    if (bracket_match>VISUAL_BRACKET_MASK) {
+    if (bracket_match && bracket_match>VISUAL_BRACKET_MASK) {
       if (bracket_match&VISUAL_BRACKET_CLOSE) {
         size_t bracket = bracket_match&VISUAL_BRACKET_MASK;
         render_info->depth_new[bracket]--;
@@ -820,13 +820,11 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
     }
   }
 
-  debug_span_time += tick_count()-t;
   return rendered;
 }
 
 int document_text_prerender_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
   // TODO: Following initializations shouldn't be needed since the caller should check the type / verify
-  int64_t t = tick_count();
   if (out) {
     out->type = VISUAL_SEEK_NONE;
     out->offset = 0;
@@ -975,14 +973,11 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
     }
   }
 
-  debug_span_time += tick_count()-t;
   return rendered;
 }
 
 int document_text_render_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
   // TODO: Following initializations shouldn't be needed since the caller should check the type / verify
-  int64_t t = tick_count();
-
   int rendered = 1;
   int stop = render_info->buffer?0:1;
 
@@ -1206,7 +1201,6 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     }
   }
 
-  debug_span_time += tick_count()-t;
   return rendered;
 }
 
@@ -1386,8 +1380,6 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     debug_pages_prerender = 0;
     debug_pages_render = 0;
     debug_chars = 0;
-    debug_span_time = 0;
-    debug_seek_time = 0;
     in.y = y+view->scroll_y;
     int64_t t1 = tick_count();
 
@@ -1446,7 +1438,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 
     int64_t te = tick_count();
     if (debug&DEBUG_LINERENDERTIMING) {
-      fprintf(stderr, "%d: %d | %d/%d/%d | %d-%d (%d, %d) @ %d + %d / %d + %d\r\n", (int)y, (int)debug_relocates, (int)debug_pages_collect, (int)debug_pages_prerender, (int)debug_pages_render, (int)debug_chars, (int)debug_seek_chars, start_x, end_x, (int)(te-t1), (int)(t3-t2), (int)debug_seek_time, (int)debug_span_time);
+      fprintf(stderr, "%d: %d | %d/%d/%d | %d-%d (%d, %d) @ %d + %d\r\n", (int)y, (int)debug_relocates, (int)debug_pages_collect, (int)debug_pages_prerender, (int)debug_pages_render, (int)debug_chars, (int)debug_seek_chars, start_x, end_x, (int)(te-t1), (int)(t3-t2));
     }
   }
 
