@@ -458,7 +458,7 @@ uint8_t document_hex_value_from_string(const char* text, size_t length) {
 // Convert invisible characters
 void document_hex_convert(codepoint_t* codepoints, size_t* length, codepoint_t* visuals, int show_invisibles, codepoint_t cp_default) {
   codepoint_t cp = codepoints[0];
-  codepoint_t show = -1;
+  codepoint_t show = UNICODE_CODEPOINT_BAD;
   if (cp=='\n') {
     show = show_invisibles?0x00ac:cp_default;
   } else if (cp=='\r') {
@@ -471,7 +471,7 @@ void document_hex_convert(codepoint_t* codepoints, size_t* length, codepoint_t* 
     show = cp_default;
   }
 
-  if (show!=-1) {
+  if (show!=UNICODE_CODEPOINT_BAD) {
     visuals[0] = show;
     *length = 1;
   }

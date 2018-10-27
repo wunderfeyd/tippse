@@ -31,7 +31,7 @@ size_t encoding_ascii_character_length(struct encoding* base) {
 
 codepoint_t encoding_ascii_visual(struct encoding* base, codepoint_t cp) {
   if (cp<0 || cp>255) {
-    return -1;
+    return UNICODE_CODEPOINT_BAD;
   } else if (cp<0x20) {
     return cp+0x2400;
   } else if (cp==0x7f) {

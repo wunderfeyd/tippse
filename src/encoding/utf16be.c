@@ -31,7 +31,7 @@ size_t encoding_utf16be_character_length(struct encoding* base) {
 
 codepoint_t encoding_utf16be_visual(struct encoding* base, codepoint_t cp) {
   if (cp<0) {
-    return -1;
+    return UNICODE_CODEPOINT_BAD;
   } else if (cp<0x20) {
     return cp+0x2400;
   }

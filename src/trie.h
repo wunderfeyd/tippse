@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <ctype.h>
 #include "types.h"
+#include "unicode.h"
 
 // Maximum nodes per bucket
 #define TRIE_NODES_PER_BUCKET 1024

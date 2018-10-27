@@ -67,5 +67,6 @@ size_t encoding_seek(struct encoding* base, struct stream* stream, size_t pos);
 size_t encoding_seek_based(struct encoding* base, size_t (*next)(struct encoding*, struct stream*), struct stream* stream, size_t pos);
 
 #include "stream.h"
+#include "unicode.h"
 
 #endif  /* #ifndef TIPPSE_ENCODING_H */

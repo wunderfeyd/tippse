@@ -138,7 +138,7 @@ codepoint_t trie_find_codepoint_single(struct trie* base, struct trie_node* pare
   if (!parent) {
     parent = base->root;
     if (!parent) {
-      return -1;
+      return UNICODE_CODEPOINT_BAD;
     }
   }
 
@@ -155,12 +155,12 @@ codepoint_t trie_find_codepoint_single(struct trie* base, struct trie_node* pare
     }
 
     if (found==16) {
-      return -1;
+      return UNICODE_CODEPOINT_BAD;
     }
 
     struct trie_node* node = parent->side[found];
     if (!node) {
-      return -1;
+      return UNICODE_CODEPOINT_BAD;
     }
 
     parent = node;

@@ -415,7 +415,7 @@ void editor_keypress(struct editor* base, int key, codepoint_t cp, int button, i
 
   if (!parent || !parent->end) {
     if (cp>0x0) {
-      editor_task_append(base, 1, TIPPSE_CMD_CHARACTER, NULL, key, cp, button, button_old, x, y, NULL);
+      editor_task_append(base, 3, TIPPSE_CMD_CHARACTER, NULL, key, cp, button, button_old, x, y, NULL);
     }
   } else {
     struct config_value* value = (struct config_value*)list_object(*(struct list_node**)trie_object(parent));
@@ -424,7 +424,7 @@ void editor_keypress(struct editor* base, int key, codepoint_t cp, int button, i
       struct config_command* arguments = (struct config_command*)list_object(it);
       int command = (int)config_command_cache(arguments, &editor_commands[0]);
       if (command!=TIPPSE_CMD_CHARACTER) {
-        editor_task_append(base, 1, command, arguments, key, cp, button, button_old, x, y, NULL);
+        editor_task_append(base, 3, command, arguments, key, cp, button, button_old, x, y, NULL);
       }
       it = it->next;
     }
@@ -1373,6 +1373,8 @@ struct editor_task* editor_task_append(struct editor* base, int front, int comma
     }
   } else if (front==2) {
     prev = base->tasks->first;
+  } else if (front==3) {
+    prev = NULL;
   }
 
   struct editor_task* task = (struct editor_task*)list_object(list_insert_empty(base->tasks, prev));

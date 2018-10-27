@@ -253,7 +253,7 @@ void screen_draw_char(struct screen* base, char** pos, int n, int* w, int* foreg
     *pos += sprintf(*pos, "\x1b[7m");
   }
 
-  if (c->length==0 || c->codepoints[0]!=-1) {
+  if (c->length==0 || c->codepoints[0]!=UNICODE_CODEPOINT_BAD) {
     size_t copy;
     for (copy = 0; copy<c->length; copy++) {
       *pos += (*base->encoding->encode)(NULL, c->codepoints[copy], (uint8_t*)*pos, SIZE_T_MAX);
@@ -464,7 +464,7 @@ void screen_drawtext(const struct screen* base, int x, int y, int clip_x, int cl
       break;
     }
 
-    if (cp==-1) {
+    if (cp==UNICODE_CODEPOINT_BAD) {
       cp = 0xfffd;
     }
 
@@ -493,9 +493,9 @@ void screen_setchar(const struct screen* base, int x, int y, int clip_x, int cli
 
   int pos = y*base->width+x;
   struct screen_char* c = &base->buffer[pos];
-  if (c->codepoints[0]==-1 && pos>0) {
+  if (c->codepoints[0]==UNICODE_CODEPOINT_BAD && pos>0) {
     struct screen_char* prev = &base->buffer[pos-1];
-    if (prev->codepoints[0]!=-1 && unicode_width(&prev->codepoints[0], prev->length)>1) {
+    if (prev->codepoints[0]!=UNICODE_CODEPOINT_BAD && unicode_width(&prev->codepoints[0], prev->length)>1) {
       prev->length = 1;
       prev->codepoints[0] = '?';
     }

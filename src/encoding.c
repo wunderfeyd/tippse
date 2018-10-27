@@ -47,7 +47,7 @@ struct range_tree_node* encoding_transform_stream(struct stream* stream, struct 
 
     codepoint_t cp = encoding_cache_find_codepoint(&cache, 0).cp;
     encoding_cache_advance(&cache, 1);
-    if (cp==-1) {
+    if (cp==UNICODE_CODEPOINT_BAD) {
       continue;
     }
 

@@ -4,10 +4,12 @@
 #include <stdlib.h>
 #include "types.h"
 
-#include "encoding.h"
-
+#define UNICODE_CODEPOINT_BAD -1
+#define UNICODE_CODEPOINT_BOM 0xfeff
 #define UNICODE_CODEPOINT_MAX 0x110000
 #define UNICODE_BITFIELD_MAX ((UNICODE_CODEPOINT_MAX/sizeof(unsigned int))+1)
+
+#include "encoding.h"
 
 struct unicode_transform_node {
   size_t length;        // Number of codepoint

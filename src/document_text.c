@@ -523,7 +523,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
 
     codepoint_t cp = render_info->codepoints[0];
 
-    if (cp==0xfeff) {
+    if (cp==UNICODE_CODEPOINT_BOM) {
       render_info->visual_detail |= VISUAL_DETAIL_CONTROLCHARACTER;
     } else if (cp!=newline_cp1 || newline_cp2==0) {
       render_info->visual_detail &= ~VISUAL_DETAIL_CONTROLCHARACTER;
@@ -660,7 +660,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
       if (cp=='\t') {
         fill = file->tabstop_width-(render_info->x%file->tabstop_width);
       } else {
-        codepoint_t show = -1;
+        codepoint_t show = UNICODE_CODEPOINT_BAD;
         if (cp==newline_cp1) {
           show = 0x00ac;
         } else if (cp==newline_cp2 && newline_cp2!=0) {
@@ -669,14 +669,14 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
           show = 0x22c5;
         } else if (cp==0x7f) {
           show = 0xfffd;
-        } else if (cp==0xfeff) {
+        } else if (cp==UNICODE_CODEPOINT_BOM) {
           show = 0x2433;
         } else if (cp<0) {
           show = 0xfffd;
         }
 
         fill = unicode_width(&render_info->codepoints[0], render_info->read);
-        if (show!=-1 || fill<=0) {
+        if (show!=UNICODE_CODEPOINT_BAD || fill<=0) {
           fill = 1;
         }
       }
@@ -687,8 +687,10 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
         fill = 1;
       } else if (cp==newline_cp2 && newline_cp2!=0) {
         fill = 0;
-      } else if (cp==0xfeff) {
+      } else if (cp==UNICODE_CODEPOINT_BOM) {
         fill = 0;
+      } else if (cp<0) {
+        fill = 1;
       } else {
         fill = unicode_width(&render_info->codepoints[0], render_info->read);
       }
@@ -887,7 +889,7 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
       if (cp=='\t') {
         fill = file->tabstop_width-(render_info->x%file->tabstop_width);
       } else {
-        codepoint_t show = -1;
+        codepoint_t show = UNICODE_CODEPOINT_BAD;
         if (cp==newline_cp1) {
           show = 0x00ac;
         } else if (cp==newline_cp2 && newline_cp2!=0) {
@@ -896,14 +898,14 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
           show = 0x22c5;
         } else if (cp==0x7f) {
           show = 0xfffd;
-        } else if (cp==0xfeff) {
+        } else if (cp==UNICODE_CODEPOINT_BOM) {
           show = 0x2433;
         } else if (cp<0) {
           show = 0xfffd;
         }
 
         fill = unicode_width(&render_info->codepoints[0], render_info->read);
-        if (show!=-1 || fill<=0) {
+        if (show!=UNICODE_CODEPOINT_BAD || fill<=0) {
           fill = 1;
         }
       }
@@ -914,8 +916,10 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
         fill = 1;
       } else if (cp==newline_cp2 && newline_cp2!=0) {
         fill = 0;
-      } else if (cp==0xfeff) {
+      } else if (cp==UNICODE_CODEPOINT_BOM) {
         fill = 0;
+      } else if (cp<0) {
+        fill = 1;
       } else {
         fill = unicode_width(&render_info->codepoints[0], render_info->read);
       }
@@ -1022,9 +1026,9 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       render_info->keyword_color = file->defaults.colors[(*mark)(render_info)];
     }
 
-    codepoint_t show = -1;
+    codepoint_t show = UNICODE_CODEPOINT_BAD;
     int fill;
-    codepoint_t fill_code = -1;
+    codepoint_t fill_code = UNICODE_CODEPOINT_BAD;
     codepoint_t cp = render_info->codepoints[0];
     if (view->show_invisibles) {
       if (cp=='\t') {
@@ -1040,14 +1044,14 @@ int document_text_render_span(struct document_text_render_info* render_info, str
           show = 0x22c5;
         } else if (cp==0x7f) {
           show = 0xfffd;
-        } else if (cp==0xfeff) {
+        } else if (cp==UNICODE_CODEPOINT_BOM) {
           show = 0x2433;
         } else if (cp<0) {
           show = 0xfffd;
         }
 
         fill = unicode_width(&render_info->codepoints[0], render_info->read);
-        if (show!=-1 || fill<=0) {
+        if (show!=UNICODE_CODEPOINT_BAD || fill<=0) {
           fill = 1;
         }
       }
@@ -1061,8 +1065,11 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         fill = 1;
       } else if (cp==newline_cp2 && newline_cp2!=0) {
         fill = 0;
-      } else if (cp==0xfeff) {
+      } else if (cp==UNICODE_CODEPOINT_BOM) {
         fill = 0;
+      } else if (cp<0) {
+        show = 0xfffd;
+        fill = 1;
       } else {
         fill = unicode_width(&render_info->codepoints[0], render_info->read);
       }
@@ -1116,7 +1123,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         whitespace_max = x+((cp!=newline_cp1)?fill:0);
         whitespace_y = y;
 
-        if (show!=-1) {
+        if (show!=UNICODE_CODEPOINT_BAD) {
           splitter_drawchar(splitter, screen, (int)x, (int)y, &show, 1, color, background);
         } else {
           codepoint_t codepoints_visual[8];
