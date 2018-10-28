@@ -649,7 +649,6 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
     // TODO: only check codepoints that are actually transform instead of bruteforce all codepoints (speed improvement)
     struct range_tree_node* source = check->set;
     check->set = range_tree_copy(check->set, 0, check->set->length);
-    struct encoding* native_encoding = encoding_native_create();
     struct range_tree_node* range = range_tree_first(source);
     size_t codepoint = 0;
     while (range) {
@@ -660,7 +659,7 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
           stream_from_plain(&native_stream, (uint8_t*)&from, sizeof(codepoint_t));
 
           struct encoding_cache native_cache;
-          encoding_cache_clear(&native_cache, native_encoding, &native_stream);
+          encoding_cache_clear(&native_cache, encoding_native_static(), &native_stream);
 
           search_append_unicode(last, ignore_case, &native_cache, 0, check, 2);
 
@@ -670,7 +669,6 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
       codepoint += range->length;
       range = range_tree_next(range);
     }
-    native_encoding->destroy(native_encoding);
     range_tree_destroy(source, NULL);
   }
 
@@ -1725,8 +1723,8 @@ void search_test(void) {
   //const char* needle_text = "schnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappischnappi";
   struct stream needle_stream;
   stream_from_plain(&needle_stream, (uint8_t*)needle_text, strlen(needle_text));
-  struct encoding* needle_encoding = encoding_utf8_create();
-  struct encoding* output_encoding = encoding_utf8_create();
+  struct encoding* needle_encoding = encoding_utf8_static();
+  struct encoding* output_encoding = encoding_utf8_static();
   struct search* search = search_create_regex(1, 0, needle_stream, needle_encoding, output_encoding);
   search_debug_tree(search, search->root, 0, 0, 0);
 
@@ -1845,7 +1843,4 @@ void search_test(void) {
 
     search_destroy(search);
   }
-
-  needle_encoding->destroy(needle_encoding);
-  output_encoding->destroy(output_encoding);
 }

@@ -663,7 +663,7 @@ void document_file_expand_all(struct document_file* base, file_offset_t offset, 
 }
 
 void document_file_insert(struct document_file* base, file_offset_t offset, const uint8_t* text, size_t length, int inserter) {
-  if (base->buffer && offset>base->buffer->length) {
+  if (offset>range_tree_length(base->buffer)) {
     return;
   }
 
@@ -679,14 +679,27 @@ void document_file_insert(struct document_file* base, file_offset_t offset, cons
   document_undo_empty(base, base->redos);
 }
 
+void document_file_insert_utf8(struct document_file* base, file_offset_t offset, const char* text, size_t length, int inserter) {
+  if (offset>range_tree_length(base->buffer)) {
+    return;
+  }
+
+  struct stream stream;
+  stream_from_plain(&stream, (uint8_t*)text, length);
+  struct range_tree_node* buffer = encoding_transform_stream(&stream, encoding_utf8_static(), base->encoding);
+  stream_destroy(&stream);
+  document_file_insert_buffer(base, offset, buffer);
+  range_tree_destroy(buffer, NULL);
+}
+
 void document_file_insert_buffer(struct document_file* base, file_offset_t offset, struct range_tree_node* buffer) {
   if (!buffer) {
     return;
   }
 
-  file_offset_t length = buffer->length;
+  file_offset_t length = range_tree_length(buffer);
 
-  if (base->buffer && offset>base->buffer->length) {
+  if (offset>range_tree_length(base->buffer)) {
     return;
   }
 
@@ -881,9 +894,7 @@ void document_file_reload_config(struct document_file* base) {
   }
 
   if (node && node->end) {
-    struct encoding* encoding = encoding_utf8_create();
-    char* file_type = (char*)config_convert_encoding(node, encoding);
-    encoding_utf8_destroy(encoding);
+    char* file_type = (char*)config_convert_encoding(node, encoding_utf8_static());
 
     node = config_find_ascii(base->config, "/filetypes/");
     if (node) {
@@ -896,9 +907,7 @@ void document_file_reload_config(struct document_file* base) {
       node = config_advance_ascii(base->config, node_file_type, "/parser");
 
       if (node && node->end) {
-        struct encoding* encoding = encoding_utf8_create();
-        char* parser = (char*)config_convert_encoding(node, encoding);
-        encoding_utf8_destroy(encoding);
+        char* parser = (char*)config_convert_encoding(node, encoding_utf8_static());
 
         for (size_t n = 0; document_file_parsers[n].name; n++) {
           if (strcmp(document_file_parsers[n].name, parser)==0) {

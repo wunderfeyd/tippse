@@ -183,6 +183,7 @@ int main(int argc, const char** argv) {
   char* base_path = realpath(".", NULL);
 
   unicode_init();
+  encoding_init();
 
   if (0) {
     search_test();
@@ -387,6 +388,7 @@ int main(int argc, const char** argv) {
   screen_destroy(screen);
   clipboard_free();
   unicode_free();
+  encoding_free();
   free(base_path);
 
   return 0;

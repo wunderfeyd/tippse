@@ -8,12 +8,15 @@
 #define UNICODE_CODEPOINT_BOM 0xfeff
 #define UNICODE_CODEPOINT_MAX 0x110000
 #define UNICODE_BITFIELD_MAX ((UNICODE_CODEPOINT_MAX/sizeof(unsigned int))+1)
+#define UNICODE_TRANSFORM_MAX 8
 
 #include "encoding.h"
 
 struct unicode_transform_node {
-  size_t length;        // Number of codepoint
-  codepoint_t cp[8];    // Codepoints
+  size_t length;                            // Number of codepoints in cp[]
+  codepoint_t cp[UNICODE_TRANSFORM_MAX];    // Codepoints
+  size_t advance;                           // Number of codepoints read
+  size_t size;                              // Length in bytes
 };
 
 void unicode_init(void);
@@ -75,27 +78,29 @@ TIPPSE_INLINE int unicode_width(const codepoint_t* codepoints, size_t max) {
 }
 
 // Return contents and length of combining character sequence
-TIPPSE_INLINE size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offset, codepoint_t* codepoints, size_t max, size_t* advance, size_t* length) {
-  size_t pos = 0;
-  size_t read = 0;
-  codepoint_t codepoint = encoding_cache_find_codepoint(cache, offset+read++).cp;
-  if (unicode_bitfield_check(&unicode_marks[0], codepoint)) {
-    codepoints[pos++] = 'o';
-  }
+TIPPSE_INLINE void unicode_read_combined_sequence(struct encoding_cache* cache, size_t offset, struct unicode_transform_node* transform) {
+  codepoint_t* codepoints = &transform->cp[0];
+  codepoints[0] = encoding_cache_find_codepoint(cache, offset).cp;
+  size_t length = 1;
+  size_t advance = 1;
+  if (codepoints[0]>0x20) {
+    if (unicode_bitfield_check(&unicode_marks[0], codepoints[0])) {
+      codepoints[length] = codepoints[length-1];
+      codepoints[length-1] = 'o';
+      length++;
+    }
 
-  codepoints[pos++] = codepoint;
-  if (codepoint>0x20) {
-    while (pos<max) {
-      codepoint = encoding_cache_find_codepoint(cache, offset+read).cp;
-      if (unicode_bitfield_check(&unicode_marks[0], codepoint)) {
-        codepoints[pos++] = codepoint;
-        read++;
+    while (length<UNICODE_TRANSFORM_MAX) {
+      codepoints[length] = encoding_cache_find_codepoint(cache, offset+advance).cp;
+      if (unicode_bitfield_check(&unicode_marks[0], codepoints[length])) {
+        length++;
+        advance++;
         continue;
-      } else if (codepoint==0x200d) { // Zero width joiner
-        if (pos+1<max) {
-          codepoints[pos++] = codepoint;
-          read++;
-          codepoints[pos++] = encoding_cache_find_codepoint(cache, offset+read++).cp;
+      } else if (codepoints[length]==0x200d) { // Zero width joiner
+        if (length+1<UNICODE_TRANSFORM_MAX) {
+          length++;
+          advance++;
+          codepoints[length++] = encoding_cache_find_codepoint(cache, offset+advance++).cp;
         }
         continue;
       }
@@ -104,13 +109,16 @@ TIPPSE_INLINE size_t unicode_read_combined_sequence(struct encoding_cache* cache
     }
   }
 
-  *advance = read;
-  *length = 0;
-  for (size_t check = 0; check<read; check++) {
-    *length += encoding_cache_find_codepoint(cache, offset+check).length;
-  }
+  transform->length = length;
+  transform->advance = advance;
+}
 
-  return pos;
+TIPPSE_INLINE void unicode_read_combined_sequence_size(struct encoding_cache* cache, size_t offset, struct unicode_transform_node* transform) {
+  size_t size = 0;
+  for (size_t check = 0; check<transform->advance; check++) {
+    size += encoding_cache_find_codepoint(cache, offset+check).length;
+  }
+  transform->size = size;
 }
 
 #endif /* #ifndef TIPPSE_UNICODE_H */

@@ -37,7 +37,7 @@ int file_type_lua_mark(struct document_text_render_info* render_info) {
   struct file_type_lua* self = (struct file_type_lua*)render_info->file_type;
 
   // TODO: check for different block comments in future
-  codepoint_t cp1 = render_info->codepoints[0];
+  codepoint_t cp1 = render_info->transform.cp[0];
   codepoint_t cp2 = encoding_cache_find_codepoint(&render_info->cache, 1).cp;
 
   render_info->keyword_length = 1;

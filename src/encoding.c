@@ -2,6 +2,7 @@
 
 #include "encoding.h"
 #include "encoding/utf8.h"
+#include "encoding/native.h"
 
 // Reset code point cache
 void encoding_cache_clear(struct encoding_cache* base, struct encoding* encoding, struct stream* stream) {
@@ -9,6 +10,31 @@ void encoding_cache_clear(struct encoding_cache* base, struct encoding* encoding
   base->end = 0;
   base->encoding = encoding;
   base->stream = stream;
+}
+
+struct encoding* encoding_native_base = NULL;
+struct encoding* encoding_utf8_base = NULL;
+
+// Initialize static encodings
+void encoding_init(void) {
+  encoding_native_base = encoding_native_create();
+  encoding_utf8_base = encoding_utf8_create();
+}
+
+// Free static encodings
+void encoding_free(void) {
+  encoding_utf8_base->destroy(encoding_utf8_base);
+  encoding_native_base->destroy(encoding_native_base);
+}
+
+// Get native encoding
+struct encoding* encoding_native_static() {
+  return encoding_native_base;
+}
+
+// Get UTF-8 encoding
+struct encoding* encoding_utf8_static() {
+  return encoding_utf8_base;
 }
 
 // Invert lookup table for unicode and codepage translation

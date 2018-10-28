@@ -11,6 +11,7 @@
 
 // Scan at max the first 2MiB of the file for autocomplete information
 #define TIPPSE_AUTOCOMPLETE_MAX (1024*1024*2)
+#define TIPPSE_TAB_MAX (64)
 
 struct document_text {
   struct document vtbl;             // virtual table of document
@@ -41,10 +42,7 @@ struct document_text_render_info {
   file_offset_t character;          // number of characters in whole document
   int visual_detail;                // flags for visual details
   position_t width;                 // screen width for rendering
-  size_t advance;
-  size_t length;
-  size_t read;
-  codepoint_t codepoints[8];
+  struct unicode_transform_node transform;
   int keyword_color;                // keyword color
   int keyword_length;               // keyword length remaining
   int indented;                     // begin of line is indentation only?

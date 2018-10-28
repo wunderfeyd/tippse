@@ -254,12 +254,11 @@ void document_search_directory(const char* path, struct range_tree_node* search_
       }
       directory_destroy(directory);
     } else {
-      struct encoding* utf8 = encoding_utf8_create();
       struct stream pattern_stream;
       stream_from_plain(&pattern_stream, (uint8_t*)pattern_text, strlen(pattern_text));
       struct stream filename_stream;
       stream_from_plain(&filename_stream, (uint8_t*)scan, strlen(scan));
-      struct search* pattern = search_create_regex(0, 0, pattern_stream, pattern_encoding, utf8);
+      struct search* pattern = search_create_regex(0, 0, pattern_stream, pattern_encoding, encoding_utf8_static());
       if (search_find(pattern, &filename_stream, NULL)) {
         struct document_file* file = document_file_create(0, 0, NULL);
         struct file_cache* cache = file_cache_create(scan);
@@ -331,7 +330,6 @@ void document_search_directory(const char* path, struct range_tree_node* search_
       search_destroy(pattern);
       stream_destroy(&pattern_stream);
       stream_destroy(&filename_stream);
-      encoding_utf8_destroy(utf8);
     }
     free(scan);
     list_remove(entries, insert);
@@ -352,7 +350,18 @@ TIPPSE_INLINE int document_directory_highlight(const char* path) {
 
 // Read directory into document, sort by file name
 void document_directory(struct document_file* file, struct stream* filter_stream, struct encoding* filter_encoding, const char* predefined) {
-  struct directory* directory = directory_create(file->filename);
+
+  char* dir_name = file->filename;
+/*  if (filter_stream) {
+    struct encoding* utf8 = encoding_utf8_create();
+    struct range_tree_node* root = encoding_transform_stream(*filter_stream, filter_encoding, utf8);
+    encoding_utf8_destroy(utf8);
+    char* subpath = (char*)range_tree_raw(root, 0, range_tree_length(root));
+    range_tree_destroy(root, NULL);
+    fprintf(stderr, "%s\r\n", subpath);
+  }*/
+
+  struct directory* directory = directory_create(dir_name);
   struct search* search = filter_stream?search_create_plain(1, 0, *filter_stream, filter_encoding, file->encoding):NULL;
 
   struct list* files = list_create(sizeof(char*));
@@ -422,7 +431,7 @@ void document_directory(struct document_file* file, struct stream* filter_stream
 // Document insert search string
 void document_insert_search(struct document_file* file, struct search* search, const char* output, size_t length, int inserter) {
   if (file->buffer) {
-    document_file_insert(file, range_tree_length(file->buffer), (uint8_t*)"\n", 1, TIPPSE_INSERTER_NOFUSE);
+    document_file_insert_utf8(file, range_tree_length(file->buffer), "\n", 1, TIPPSE_INSERTER_NOFUSE);
   }
 
   inserter |= TIPPSE_INSERTER_NOFUSE;

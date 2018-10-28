@@ -511,12 +511,10 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     if (base->document->file->pipefd[1]==-1 && base->document->file==base->search_results_doc) {
       document_file_create_pipe(base->document->file);
       if (base->document->file->pid==0) {
-        struct encoding* encoding = encoding_utf8_create();
         int binary = (int)config_convert_int64(config_find_ascii(base->document->file->config, "/searchfilebinary"));
-        char* pattern_text = (char*)config_convert_encoding(config_find_ascii(base->document->file->config, "/searchfilepattern"), encoding);
-        document_search_directory(base->base_path, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, base->search_ignore_case, base->search_regex, 0, pattern_text, encoding, binary);
+        char* pattern_text = (char*)config_convert_encoding(config_find_ascii(base->document->file->config, "/searchfilepattern"), encoding_utf8_static());
+        document_search_directory(base->base_path, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, base->search_ignore_case, base->search_regex, 0, pattern_text, encoding_utf8_static(), binary);
         free(pattern_text);
-        encoding_utf8_destroy(encoding);
         exit(0);
       }
     } else {
@@ -623,11 +621,9 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
 
         if (parent && parent->end) {
           // TODO: Use current shell encoding (get it somewhere)
-          struct encoding* utf8 = encoding_utf8_create();
-          char* shell = (char*)config_convert_encoding(parent, utf8);
+          char* shell = (char*)config_convert_encoding(parent, encoding_utf8_static());
           document_file_pipe(base->document->file, shell);
           free(shell);
-          encoding_utf8_destroy(utf8);
         }
       }
     } else {

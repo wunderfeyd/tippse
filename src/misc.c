@@ -302,17 +302,15 @@ int64_t tick_ms(int64_t ms) {
   return ms*(int64_t)1000;
 }
 
-// Convert human readable number into internal reprensentation
+// Convert human readable number into internal representation
 uint64_t decode_based_unsigned_offset(struct encoding_cache* cache, int base, size_t* offset, size_t count) {
   uint64_t output = 0;
   size_t advanced = *offset;
   while (count>0) {
     count--;
-    codepoint_t codepoints[8];
-    size_t advance = 1;
-    size_t length = 1;
-    unicode_read_combined_sequence(cache, advanced, &codepoints[0], 8, &advance, &length);
-    codepoint_t cp = codepoints[0];
+    struct unicode_transform_node transform;
+    unicode_read_combined_sequence(cache, advanced, &transform);
+    codepoint_t cp = transform.cp[0];
     if (cp==0) {
       break;
     }
@@ -334,7 +332,7 @@ uint64_t decode_based_unsigned_offset(struct encoding_cache* cache, int base, si
 
     output *= (uint64_t)base;
     output += (uint64_t)value;
-    advanced += advance;
+    advanced += transform.advance;
   }
   *offset = advanced;
 
@@ -349,12 +347,10 @@ uint64_t decode_based_unsigned(struct encoding_cache* cache, int base, size_t co
 int64_t decode_based_signed_offset(struct encoding_cache* cache, int base, size_t* offset, size_t count) {
   int negate = 1;
   if (count>0) {
-    codepoint_t codepoints[8];
-    size_t advance = 1;
-    size_t length = 1;
-    unicode_read_combined_sequence(cache, *offset, &codepoints[0], 8, &advance, &length);
-    codepoint_t cp = codepoints[0];
-    *offset = (*offset)+advance;
+    struct unicode_transform_node transform;
+    unicode_read_combined_sequence(cache, *offset, &transform);
+    codepoint_t cp = transform.cp[0];
+    *offset = (*offset)+transform.advance;
     count--;
     negate = (cp=='-')?1:0;
   }
@@ -397,7 +393,6 @@ char* strndup(const char* src, size_t length) {
 }
 
 wchar_t* string_system(const char* convert) {
-  struct encoding* utf8 = encoding_utf8_create();
   struct encoding* utf16 = encoding_utf16le_create();
 
   const char* end = convert;
@@ -407,13 +402,12 @@ wchar_t* string_system(const char* convert) {
 
   struct stream stream;
   stream_from_plain(&stream, (uint8_t*)convert, (size_t)((uint8_t*)end-(uint8_t*)convert));
-  struct range_tree_node* root = encoding_transform_stream(&stream, utf8, utf16);
+  struct range_tree_node* root = encoding_transform_stream(&stream, encoding_utf8_static(), utf16);
   wchar_t null = 0;
   root = range_tree_insert_split(root, range_tree_length(root), (uint8_t*)&null, sizeof(null), 0);
   wchar_t* output = (wchar_t*)range_tree_raw(root, 0, range_tree_length(root));
   range_tree_destroy(root, NULL);
 
-  utf8->destroy(utf8);
   utf16->destroy(utf16);
   stream_destroy(&stream);
 
@@ -421,7 +415,6 @@ wchar_t* string_system(const char* convert) {
 }
 
 char* string_internal(const wchar_t* convert) {
-  struct encoding* utf8 = encoding_utf8_create();
   struct encoding* utf16 = encoding_utf16le_create();
 
   const wchar_t* end = convert;
@@ -431,13 +424,12 @@ char* string_internal(const wchar_t* convert) {
 
   struct stream stream;
   stream_from_plain(&stream, (uint8_t*)convert, (size_t)((uint8_t*)end-(uint8_t*)convert));
-  struct range_tree_node* root = encoding_transform_stream(&stream, utf16, utf8);
+  struct range_tree_node* root = encoding_transform_stream(&stream, utf16, encoding_utf8_static());
   char null = 0;
   root = range_tree_insert_split(root, range_tree_length(root), (uint8_t*)&null, sizeof(null), 0);
   char* output = (char*)range_tree_raw(root, 0, range_tree_length(root));
   range_tree_destroy(root, NULL);
 
-  utf8->destroy(utf8);
   utf16->destroy(utf16);
   stream_destroy(&stream);
   return output;

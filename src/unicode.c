@@ -1,14 +1,14 @@
 // Tippse - Unicode helpers - Unicode character information, combination, (de-)composition and transformations
 
 #include "unicode.h"
-#include "unicode_widths.h"
-#include "unicode_invisibles.h"
-#include "unicode_marks.h"
-#include "unicode_case_folding.h"
-#include "unicode_normalization.h"
-#include "unicode_letters.h"
-#include "unicode_whitespace.h"
-#include "unicode_digits.h"
+#include "unicode/unicode_widths.h"
+#include "unicode/unicode_invisibles.h"
+#include "unicode/unicode_marks.h"
+#include "unicode/unicode_case_folding.h"
+#include "unicode/unicode_normalization.h"
+#include "unicode/unicode_letters.h"
+#include "unicode/unicode_whitespace.h"
+#include "unicode/unicode_digits.h"
 
 #include "encoding.h"
 #include "encoding/utf8.h"

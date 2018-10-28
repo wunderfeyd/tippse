@@ -54,6 +54,11 @@ TIPPSE_INLINE struct encoding_cache_node encoding_cache_find_codepoint(struct en
   return base->nodes[(base->start+offset)%ENCODING_CACHE_SIZE];
 }
 
+void encoding_init(void);
+void encoding_free(void);
+struct encoding* encoding_native_static();
+struct encoding* encoding_utf8_static();
+
 uint16_t* encoding_reverse_table(uint16_t* table, size_t length, size_t max);
 
 struct range_tree_node* encoding_transform_stream(struct stream* stream, struct encoding* from, struct encoding* to);

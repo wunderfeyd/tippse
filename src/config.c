@@ -854,10 +854,7 @@ uint8_t* config_convert_encoding_plain(struct config_argument* argument, struct 
     return (uint8_t*)strdup("");
   }
 
-  struct encoding* native = encoding_native_create();
-  uint8_t* string = encoding_transform_plain((uint8_t*)argument->codepoints, argument->length*sizeof(codepoint_t), native, encoding);
-  encoding_native_destroy(native);
-  return string;
+  return encoding_transform_plain((uint8_t*)argument->codepoints, argument->length*sizeof(codepoint_t), encoding_native_static(), encoding);
 }
 
 // Convert value to encoding
