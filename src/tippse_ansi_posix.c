@@ -180,10 +180,10 @@ int tippse_check_inputs(struct editor* editor, fd_set* set_read, fd_set* set_wri
 }
 
 int main(int argc, const char** argv) {
+  encoding_init();
   char* base_path = realpath(".", NULL);
 
   unicode_init();
-  encoding_init();
 
   if (0) {
     search_test();
@@ -388,8 +388,8 @@ int main(int argc, const char** argv) {
   screen_destroy(screen);
   clipboard_free();
   unicode_free();
-  encoding_free();
   free(base_path);
+  encoding_free();
 
   return 0;
 }

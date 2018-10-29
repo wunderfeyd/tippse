@@ -1,19 +1,28 @@
-CC=gcc
-CFLAGS=-std=gnu99 -O2 -Wall -Wextra -Wno-unused-parameter -Wsign-conversion -D_FILE_OFFSET_BITS=64
+ifeq ($(OS),windows)
+	CC=i686-w64-mingw32-gcc
+	CFLAGS=-std=gnu99 -O2 -Wall -Wextra -Wno-unused-parameter -Wsign-conversion -D_WINDOWS -D_FILE_OFFSET_BITS=64
+	LIBS=-lshell32 -lgdi32 -Wl,--subsystem,console
+	TARGET=tippse.exe
+else
+	CC=gcc
+	CFLAGS=-std=gnu99 -O2 -Wall -Wextra -Wno-unused-parameter -Wsign-conversion -D_FILE_OFFSET_BITS=64
+	LIBS=
+	TARGET=tippse
+endif
+
 CFLAGSEXTRA=-s
 OBJDIR=tmp
 SRCS=$(wildcard src/*.c) $(wildcard src/filetype/*.c)  $(wildcard src/encoding/*.c)
 OBJS=$(addprefix $(OBJDIR)/,$(addsuffix .o,$(basename $(SRCS))))
-TARGET=tippse
 
 tmp/%.o: %.c
 	@mkdir -p $(dir $@)
 	@echo CC $<
-	@$(CC) $(CFLAGS) $(CFLAGSEXTRA) -c $< -o $@
+	@$(CC) $(CFLAGS) $(CFLAGSEXTRA) $(LIBS) -c $< -o $@
 
 $(TARGET): $(OBJS)
 	@echo LD $(TARGET)
-	@$(CC) $(CFLAGS) $(CFLAGSEXTRA) $(OBJS) -o $(TARGET)
+	@$(CC) $(CFLAGS) $(CFLAGSEXTRA) $(OBJS) $(LIBS) -o $(TARGET)
 
 all: $(TARGET)
 

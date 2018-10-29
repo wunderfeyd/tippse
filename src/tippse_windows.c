@@ -205,6 +205,7 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
 }
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, char* command_line, int show) {
+  encoding_init();
   char* base_path = realpath(".", NULL);
 
   printf("Base: %s\r\n", base_path);
@@ -298,6 +299,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, char* command_li
   clipboard_free();
   unicode_free();
   free(base_path);
+  encoding_free();
 
   return 0;
 }

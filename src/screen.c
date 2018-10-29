@@ -55,8 +55,6 @@ struct config_cache screen_color_codes[] = {
 // rgb colors for index colors - TODO: copy this into the config (Tango config Gnome Terminal Linux)
 struct screen_rgb rgb_index[] = {
   {0x00, 0x00, 0x00},
-  {0xff, 0xff, 0xff},
-  {0x00, 0x00, 0x00},
   {0xcc, 0x00, 0x00},
   {0x4e, 0x9a, 0x06},
   {0xc4, 0xa0, 0x00},
@@ -313,6 +311,9 @@ void screen_draw(struct screen* base, HDC context, int redraw, int cursor) {
   empty.codes[0] = ' ';
   empty.pos = (uint8_t*)&empty.codes[1];
 
+  DWORD background_system = GetSysColor(COLOR_WINDOW);
+  DWORD foreground_system = GetSysColor(COLOR_WINDOWTEXT);
+
   int n = 0;
   for (int y = 0; y<=base->height; y++) {
     for (int x = 0; x<=base->width; x++) {
@@ -346,22 +347,37 @@ void screen_draw(struct screen* base, HDC context, int redraw, int cursor) {
         }
       }
 
+      int reversed = (c->background==-1 || c->foreground==-2)?1:0;
+      int index_background = reversed?-1:c->background;
       int index_foreground = c->foreground;
-      int index_background = c->background;
+
       if (cursor && x==base->cursor_x && y==base->cursor_y) {
-        index_foreground = VISUAL_FLAG_COLOR_BACKGROUND;
-        index_background = c->foreground;
+        reversed ^= cursor;
+      }
+
+      if (reversed) {
+        int swap = index_background;
+        index_background = index_foreground;
+        index_foreground = swap;
       }
 
       if (modified || v->foreground!=index_foreground || v->background!=index_background || redraw) {
         v->foreground = index_foreground;
         v->background = index_background;
 
-        struct screen_rgb* foreground = &rgb_index[v->foreground+2];
-        struct screen_rgb* background = &rgb_index[v->background+2];
+        if (index_foreground<0) {
+          SetTextColor(context, reversed?background_system:foreground_system);
+        } else {
+          struct screen_rgb* foreground = &rgb_index[index_foreground];
+          SetTextColor(context, RGB(foreground->r, foreground->g, foreground->b));
+        }
 
-        SetTextColor(context, RGB(foreground->r, foreground->g, foreground->b));
-        SetBkColor(context, RGB(background->r, background->g, background->b));
+        if (index_background<0) {
+          SetBkColor(context, reversed?foreground_system:background_system);
+        } else {
+          struct screen_rgb* background = &rgb_index[index_background];
+          SetBkColor(context, RGB(background->r, background->g, background->b));
+        }
         TextOutW(context, x*base->font_width, y*base->font_height, &v->codes[0], (v->pos-(uint8_t*)&v->codes[0])/(int)sizeof(wchar_t));
       }
     }
