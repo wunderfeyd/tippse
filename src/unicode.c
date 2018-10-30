@@ -20,6 +20,7 @@ unsigned int unicode_widths[UNICODE_BITFIELD_MAX];
 unsigned int unicode_letters[UNICODE_BITFIELD_MAX];
 unsigned int unicode_whitespaces[UNICODE_BITFIELD_MAX];
 unsigned int unicode_digits[UNICODE_BITFIELD_MAX];
+unsigned int unicode_words[UNICODE_BITFIELD_MAX];
 struct trie* unicode_transform_lower;
 struct trie* unicode_transform_upper;
 struct trie* unicode_transform_nfd_nfc;
@@ -35,6 +36,11 @@ void unicode_init(void) {
   unicode_decode_rle(&unicode_digits[0], &unicode_digits_rle[0]);
   unicode_decode_transform(&unicode_case_folding[0], &unicode_transform_lower, &unicode_transform_upper);
   unicode_decode_transform(&unicode_normalization[0], &unicode_transform_nfc_nfd, &unicode_transform_nfd_nfc);
+  unicode_bitfield_clear(&unicode_words[0]);
+  unicode_bitfield_combine(&unicode_words[0], &unicode_marks[0]);
+  unicode_bitfield_combine(&unicode_words[0], &unicode_letters[0]);
+  unicode_bitfield_combine(&unicode_words[0], &unicode_digits[0]);
+  unicode_bitfield_set(&unicode_words[0], '_', 1);
 }
 
 // Free resources
@@ -153,7 +159,7 @@ void unicode_decode_transform_append(struct trie* forward, size_t froms, codepoi
 
 // Initialise static table from rle stream
 void unicode_decode_rle(unsigned int* table, uint16_t* rle) {
-  memset(table, 0, UNICODE_BITFIELD_MAX);
+  unicode_bitfield_clear(table);
   codepoint_t codepoint = 0;
   while (1) {
     int codes = (int)*rle++;
@@ -212,17 +218,14 @@ struct unicode_sequence* unicode_transform(struct trie* transformation, struct e
   return (struct unicode_sequence*)trie_object(parent);
 }
 
-// Test if codepoint is a letter
-int unicode_letter(codepoint_t codepoint) {
-  return unicode_bitfield_check(&unicode_letters[0], codepoint);
+// Reset bitfield
+void unicode_bitfield_clear(unsigned int* table) {
+  memset(table, 0, UNICODE_BITFIELD_MAX);
 }
 
-// Test if codepoint is a sigit
-int unicode_digit(codepoint_t codepoint) {
-  return unicode_bitfield_check(&unicode_digits[0], codepoint);
-}
-
-// Test if codepoint is a whitespace
-int unicode_whitespace(codepoint_t codepoint) {
-  return unicode_bitfield_check(&unicode_whitespaces[0], codepoint);
+// Enable codepoints from the other table
+void unicode_bitfield_combine(unsigned int* table, unsigned int* other) {
+  for (size_t n = 0; n<UNICODE_BITFIELD_MAX; n++) {
+    table[n] |= other[n];
+  }
 }

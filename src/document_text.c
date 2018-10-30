@@ -1258,7 +1258,7 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
         break;
       }
 
-      int literal = ((cp>='A' && cp<='Z') || (cp>='a' && cp<='z') || (cp>='0' && cp<='9') || (cp=='_'))?1:0;
+      int literal = unicode_word(cp);
       if (count>10000 && (!literal || (!parent_last && !parent_build))) {
         break;
       }
@@ -1505,15 +1505,21 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     struct encoding_cache cache;
     encoding_cache_clear(&cache, file->encoding, &stream);
     codepoint_t cp = encoding_cache_find_codepoint(&cache, 0).cp;
-    if (!((cp>='A' && cp<='Z') || (cp>='a' && cp<='z') || (cp>='0' && cp<='9') || (cp=='_'))) {
+    if (!unicode_word(cp)) {
       stream_destroy(&stream);
+
       stream_from_page(&stream, buffer, displacement);
       while (!stream_start(&stream)) {
-        uint8_t index = stream_read_reverse(&stream);
-        if (!((index>='A' && index<='Z') || (index>='a' && index<='z') || (index>='0' && index<='9') || (index=='_'))) {
+        stream_reverse(&stream, 1); // TODO: this might not work with UTF16 for example ... introduce a smallest element per encoding (we go with 1 here)
+        struct stream copy;
+        stream_clone(&copy, &stream);
+        encoding_cache_clear(&cache, file->encoding, &copy);
+        codepoint_t cp = encoding_cache_find_codepoint(&cache, 0).cp;
+        if (cp!=-1 && !unicode_word(cp)) {
           stream_forward(&stream, 1);
           break;
         }
+        stream_destroy(&copy);
       }
 
       encoding_cache_clear(&cache, file->encoding, &stream);

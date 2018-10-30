@@ -19,6 +19,14 @@ struct unicode_sequence {
 
 #include "encoding.h"
 
+unsigned int unicode_marks[UNICODE_BITFIELD_MAX];
+unsigned int unicode_invisibles[UNICODE_BITFIELD_MAX];
+unsigned int unicode_widths[UNICODE_BITFIELD_MAX];
+unsigned int unicode_letters[UNICODE_BITFIELD_MAX];
+unsigned int unicode_whitespaces[UNICODE_BITFIELD_MAX];
+unsigned int unicode_digits[UNICODE_BITFIELD_MAX];
+unsigned int unicode_words[UNICODE_BITFIELD_MAX];
+
 void unicode_init(void);
 void unicode_free(void);
 void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie** reverse);
@@ -28,9 +36,6 @@ void unicode_update_combining_mark(codepoint_t codepoint);
 int unicode_combining_mark(codepoint_t codepoint);
 //size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offset, codepoint_t* codepoints, size_t max, size_t* advance, size_t* length);
 void unicode_width_adjust(codepoint_t cp, int width);
-int unicode_letter(codepoint_t codepoint);
-int unicode_digit(codepoint_t codepoint);
-int unicode_whitespace(codepoint_t codepoint);
 struct unicode_sequence* unicode_upper(struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length);
 struct unicode_sequence* unicode_lower(struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length);
 struct unicode_sequence* unicode_transform(struct trie* transformation, struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length);
@@ -55,12 +60,28 @@ TIPPSE_INLINE void unicode_bitfield_set(unsigned int* table, codepoint_t codepoi
   }
 }
 
-unsigned int unicode_marks[UNICODE_BITFIELD_MAX];
-unsigned int unicode_invisibles[UNICODE_BITFIELD_MAX];
-unsigned int unicode_widths[UNICODE_BITFIELD_MAX];
-unsigned int unicode_letters[UNICODE_BITFIELD_MAX];
-unsigned int unicode_whitespaces[UNICODE_BITFIELD_MAX];
-unsigned int unicode_digits[UNICODE_BITFIELD_MAX];
+void unicode_bitfield_clear(unsigned int* table);
+void unicode_bitfield_combine(unsigned int* table, unsigned int* other);
+
+// Test if codepoint is a letter
+TIPPSE_INLINE int unicode_letter(codepoint_t codepoint) {
+  return unicode_bitfield_check(&unicode_letters[0], codepoint);
+}
+
+// Test if codepoint is a sigit
+TIPPSE_INLINE int unicode_digit(codepoint_t codepoint) {
+  return unicode_bitfield_check(&unicode_digits[0], codepoint);
+}
+
+// Test if codepoint is a whitespace
+TIPPSE_INLINE int unicode_whitespace(codepoint_t codepoint) {
+  return unicode_bitfield_check(&unicode_whitespaces[0], codepoint);
+}
+
+// Test if codepoint is a whitespace
+TIPPSE_INLINE int unicode_word(codepoint_t codepoint) {
+  return unicode_bitfield_check(&unicode_words[0], codepoint);
+}
 
 // Check visual width of unicode sequence
 TIPPSE_INLINE int unicode_width(const codepoint_t* codepoints, size_t max) {

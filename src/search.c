@@ -645,7 +645,7 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
   }
 
   if (ignore_case) {
-    // TODO: Ummm... very hacky ... we sequence from pure codepoints ... what about multi codepoint sequenceations?
+    // TODO: Ummm... very hacky ... we sequence from pure codepoints ... what about sequences?
     // TODO: only check codepoints that are actually sequence instead of bruteforce all codepoints (speed improvement)
     struct range_tree_node* source = check->set;
     check->set = range_tree_copy(check->set, 0, check->set->length);
