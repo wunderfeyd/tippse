@@ -142,16 +142,16 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
       int x_characters = view->address_width+(16*3)+(int)delta;
 
       if (offset<file_size) {
-        struct unicode_transform_node transform;
+        struct unicode_sequence sequence;
         char_size--;
         if (char_size==0) {
-          unicode_read_combined_sequence(&text_cache, 0, &transform);
-          unicode_read_combined_sequence_size(&text_cache, 0, &transform);
-          char_size = transform.size;
-          encoding_cache_advance(&text_cache, transform.advance);
+          unicode_read_combined_sequence(&text_cache, 0, &sequence);
+          unicode_read_combined_sequence_size(&text_cache, 0, &sequence);
+          char_size = sequence.size;
+          encoding_cache_advance(&text_cache, sequence.advance);
         } else {
-          transform.cp[0] = 0;
-          transform.length = 1;
+          sequence.cp[0] = 0;
+          sequence.length = 1;
         }
 
         uint8_t byte = stream_read_forward(&byte_stream);
@@ -176,16 +176,14 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
           splitter_drawtext(splitter, screen, x_bytes, y, line, (size_t)size, foreground, selectionx);
         }
 
-        codepoint_t visuals[8];
-        for (size_t n = 0; n<transform.length; n++) {
-          visuals[n] = (file->encoding->visual)(file->encoding, transform.cp[n]);
-        }
-        document_hex_convert(&transform.cp[0], &transform.length, &visuals[0], view->show_invisibles, '.');
+        struct unicode_sequence visuals;
+        encoding_visuals(file->encoding, &sequence, &visuals);
+        document_hex_convert(&sequence.cp[0], &sequence.length, &visuals.cp[0], view->show_invisibles, '.');
 
         if (!selected) {
-          splitter_drawchar(splitter, screen, x_characters, y, visuals, transform.length, marked?bookmarkx:foreground, background);
+          splitter_drawunicode(splitter, screen, x_characters, y, &visuals, marked?bookmarkx:foreground, background);
         } else {
-          splitter_drawchar(splitter, screen, x_characters, y, visuals, transform.length, foreground, selectionx);
+          splitter_drawunicode(splitter, screen, x_characters, y, &visuals, foreground, selectionx);
         }
       }
 

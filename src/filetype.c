@@ -78,7 +78,7 @@ int file_type_keyword_config(struct file_type* base, struct encoding_cache* cach
 
 size_t file_type_bracket_match(const struct document_text_render_info* render_info) {
   if ((render_info->visual_detail&(VISUAL_DETAIL_STRING0|VISUAL_DETAIL_STRING1|VISUAL_DETAIL_COMMENT0|VISUAL_DETAIL_COMMENT1))==0) {
-    codepoint_t cp = render_info->transform.cp[0];
+    codepoint_t cp = render_info->sequence.cp[0];
     if (cp=='{') {
       return 0|VISUAL_BRACKET_OPEN;
     } else if (cp=='[') {

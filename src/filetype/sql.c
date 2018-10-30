@@ -36,7 +36,7 @@ int file_type_sql_mark(struct document_text_render_info* render_info) {
   int flags = 0;
   struct file_type_sql* self = (struct file_type_sql*)render_info->file_type;
 
-  codepoint_t cp1 = render_info->transform.cp[0];
+  codepoint_t cp1 = render_info->sequence.cp[0];
   codepoint_t cp2 = encoding_cache_find_codepoint(&render_info->cache, 1).cp;
 
   render_info->keyword_length = 1;

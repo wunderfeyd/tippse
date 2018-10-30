@@ -73,8 +73,13 @@ void splitter_destroy(struct splitter* base) {
 }
 
 // Draw character
-void splitter_drawchar(const struct splitter* base, struct screen* screen, int x, int y, codepoint_t* codepoints, size_t length, int foreground, int background) {
+void splitter_drawchar(const struct splitter* base, struct screen* screen, int x, int y, const codepoint_t* codepoints, const size_t length, int foreground, int background) {
   screen_setchar(screen, base->x+x, base->y+y, base->x, base->y, base->client_width, base->client_height, codepoints, length, foreground, background);
+}
+
+// Draw unicode character
+void splitter_drawunicode(const struct splitter* base, struct screen* screen, int x, int y, const struct unicode_sequence* sequence, int foreground, int background) {
+  screen_setunicode(screen, base->x+x, base->y+y, base->x, base->y, base->client_width, base->client_height, sequence, foreground, background);
 }
 
 // Draw text

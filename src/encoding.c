@@ -54,7 +54,7 @@ uint16_t* encoding_reverse_table(uint16_t* table, size_t length, size_t max) {
   return output;
 }
 
-// Transform stream to different encoding
+// sequence stream to different encoding
 struct range_tree_node* encoding_transform_stream(struct stream* stream, struct encoding* from, struct encoding* to) {
   uint8_t recoded[1024];
   size_t recode = 0;
@@ -83,7 +83,7 @@ struct range_tree_node* encoding_transform_stream(struct stream* stream, struct 
   return root;
 }
 
-// Transform plain text to different encoding
+// sequence plain text to different encoding
 uint8_t* encoding_transform_plain(const uint8_t* buffer, size_t length, struct encoding* from, struct encoding* to) {
   struct stream stream;
   stream_from_plain(&stream, buffer, length);

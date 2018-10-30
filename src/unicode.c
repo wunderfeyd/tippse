@@ -57,8 +57,8 @@ void unicode_free(void) {
 //  if code point is below 0x20 then its delta to the previous code point at this location is encoded with offset 0x10
 // The result is good but not perfect (there seem to be some repetitions in the whole base data set)
 void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie** reverse) {
-  *forward = trie_create(sizeof(struct unicode_transform_node));
-  *reverse = trie_create(sizeof(struct unicode_transform_node));
+  *forward = trie_create(sizeof(struct unicode_sequence));
+  *reverse = trie_create(sizeof(struct unicode_sequence));
   struct stream stream;
   stream_from_plain(&stream, data, SIZE_T_MAX);
 
@@ -143,10 +143,10 @@ void unicode_decode_transform_append(struct trie* forward, size_t froms, codepoi
 
   if (!parent->end) {
     parent->end = 1;
-    struct unicode_transform_node* transform_from = (struct unicode_transform_node*)trie_object(parent);
-    transform_from->length = tos;
+    struct unicode_sequence* sequence_from = (struct unicode_sequence*)trie_object(parent);
+    sequence_from->length = tos;
     for (size_t n = 0; n<tos; n++) {
-      transform_from->cp[n] = to[n];
+      sequence_from->cp[n] = to[n];
     }
   }
 }
@@ -179,17 +179,17 @@ void unicode_width_adjust(codepoint_t cp, int width) {
 }
 
 // Transform to uppercase
-struct unicode_transform_node* unicode_upper(struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length) {
+struct unicode_sequence* unicode_upper(struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length) {
   return unicode_transform(unicode_transform_upper, cache, offset, advance, length);
 }
 
 // Transform to lowercase
-struct unicode_transform_node* unicode_lower(struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length) {
+struct unicode_sequence* unicode_lower(struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length) {
   return unicode_transform(unicode_transform_upper, cache, offset, advance, length);
 }
 
 // Apply transformation if possible
-struct unicode_transform_node* unicode_transform(struct trie* transformation, struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length) {
+struct unicode_sequence* unicode_transform(struct trie* transformation, struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length) {
   size_t read = 0;
   struct trie_node* parent = NULL;
   while (1) {
@@ -209,7 +209,7 @@ struct unicode_transform_node* unicode_transform(struct trie* transformation, st
   }
 
   *advance = read;
-  return (struct unicode_transform_node*)trie_object(parent);
+  return (struct unicode_sequence*)trie_object(parent);
 }
 
 // Test if codepoint is a letter

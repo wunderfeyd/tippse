@@ -8,16 +8,16 @@
 #define UNICODE_CODEPOINT_BOM 0xfeff
 #define UNICODE_CODEPOINT_MAX 0x110000
 #define UNICODE_BITFIELD_MAX ((UNICODE_CODEPOINT_MAX/sizeof(unsigned int))+1)
-#define UNICODE_TRANSFORM_MAX 8
+#define UNICODE_SEQUENCE_MAX 8
 
-#include "encoding.h"
-
-struct unicode_transform_node {
+struct unicode_sequence {
   size_t length;                            // Number of codepoints in cp[]
-  codepoint_t cp[UNICODE_TRANSFORM_MAX];    // Codepoints
+  codepoint_t cp[UNICODE_SEQUENCE_MAX];     // Codepoints
   size_t advance;                           // Number of codepoints read
   size_t size;                              // Length in bytes
 };
+
+#include "encoding.h"
 
 void unicode_init(void);
 void unicode_free(void);
@@ -31,9 +31,9 @@ void unicode_width_adjust(codepoint_t cp, int width);
 int unicode_letter(codepoint_t codepoint);
 int unicode_digit(codepoint_t codepoint);
 int unicode_whitespace(codepoint_t codepoint);
-struct unicode_transform_node* unicode_upper(struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length);
-struct unicode_transform_node* unicode_lower(struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length);
-struct unicode_transform_node* unicode_transform(struct trie* transformation, struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length);
+struct unicode_sequence* unicode_upper(struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length);
+struct unicode_sequence* unicode_lower(struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length);
+struct unicode_sequence* unicode_transform(struct trie* transformation, struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length);
 
 // Check if codepoint is marked
 TIPPSE_INLINE int unicode_bitfield_check(const unsigned int* table, codepoint_t codepoint) {
@@ -78,8 +78,8 @@ TIPPSE_INLINE int unicode_width(const codepoint_t* codepoints, size_t max) {
 }
 
 // Return contents and length of combining character sequence
-TIPPSE_INLINE void unicode_read_combined_sequence(struct encoding_cache* cache, size_t offset, struct unicode_transform_node* transform) {
-  codepoint_t* codepoints = &transform->cp[0];
+TIPPSE_INLINE void unicode_read_combined_sequence(struct encoding_cache* cache, size_t offset, struct unicode_sequence* sequence) {
+  codepoint_t* codepoints = &sequence->cp[0];
   codepoints[0] = encoding_cache_find_codepoint(cache, offset).cp;
   size_t length = 1;
   size_t advance = 1;
@@ -90,14 +90,14 @@ TIPPSE_INLINE void unicode_read_combined_sequence(struct encoding_cache* cache, 
       length++;
     }
 
-    while (length<UNICODE_TRANSFORM_MAX) {
+    while (length<UNICODE_SEQUENCE_MAX) {
       codepoints[length] = encoding_cache_find_codepoint(cache, offset+advance).cp;
       if (unicode_bitfield_check(&unicode_marks[0], codepoints[length])) {
         length++;
         advance++;
         continue;
       } else if (codepoints[length]==0x200d) { // Zero width joiner
-        if (length+1<UNICODE_TRANSFORM_MAX) {
+        if (length+1<UNICODE_SEQUENCE_MAX) {
           length++;
           advance++;
           codepoints[length++] = encoding_cache_find_codepoint(cache, offset+advance++).cp;
@@ -109,16 +109,16 @@ TIPPSE_INLINE void unicode_read_combined_sequence(struct encoding_cache* cache, 
     }
   }
 
-  transform->length = length;
-  transform->advance = advance;
+  sequence->length = length;
+  sequence->advance = advance;
 }
 
-TIPPSE_INLINE void unicode_read_combined_sequence_size(struct encoding_cache* cache, size_t offset, struct unicode_transform_node* transform) {
+TIPPSE_INLINE void unicode_read_combined_sequence_size(struct encoding_cache* cache, size_t offset, struct unicode_sequence* sequence) {
   size_t size = 0;
-  for (size_t check = 0; check<transform->advance; check++) {
+  for (size_t check = 0; check<sequence->advance; check++) {
     size += encoding_cache_find_codepoint(cache, offset+check).length;
   }
-  transform->size = size;
+  sequence->size = size;
 }
 
 #endif /* #ifndef TIPPSE_UNICODE_H */

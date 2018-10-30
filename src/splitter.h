@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include "types.h"
+#include "unicode.h"
 
 // Splitter flags
 #define TIPPSE_SPLITTER_HORZ 1
@@ -43,7 +44,8 @@ struct splitter {
 // TODO: reorder drawing functions and exchange screen & splitter
 struct splitter* splitter_create(int type, int split, struct splitter* side0, struct splitter* side1, const char* name);
 void splitter_destroy(struct splitter* base);
-void splitter_drawchar(const struct splitter* base, struct screen* screen, int x, int y, codepoint_t* codepoints, size_t length, int foreground, int background);
+void splitter_drawchar(const struct splitter* base, struct screen* screen, int x, int y, const codepoint_t* codepoints, const size_t length, int foreground, int background);
+void splitter_drawunicode(const struct splitter* base, struct screen* screen, int x, int y, const struct unicode_sequence* sequence, int foreground, int background);
 void splitter_drawtext(const struct splitter* base, struct screen* screen, int x, int y, const char* text, size_t length, int foreground, int background);
 void splitter_name(struct splitter* base, const char* name);
 void splitter_status(struct splitter* base, const char* status);

@@ -153,15 +153,15 @@ void screen_check(struct screen* base) {
     for (int y = 0; y<base->height; y++) {
       for (int x = 0; x<base->width; x++) {
         struct screen_char* c = &base->buffer[y*base->width+x];
-        c->length = 0;
-        c->codepoints[0] = 0x20;
+        c->sequence.length = 0;
+        c->sequence.cp[0] = 0x20;
         c->foreground = 15;
         c->background = 0;
         c->modified = 1;
 
         c = &base->visible[y*base->width+x];
-        c->length = 0;
-        c->codepoints[0] = 0x20;
+        c->sequence.length = 0;
+        c->sequence.cp[0] = 0x20;
         c->foreground = 15;
         c->background = 0;
       }
@@ -251,10 +251,10 @@ void screen_draw_char(struct screen* base, char** pos, int n, int* w, int* foreg
     *pos += sprintf(*pos, "\x1b[7m");
   }
 
-  if (c->length==0 || c->codepoints[0]!=UNICODE_CODEPOINT_BAD) {
+  if (c->sequence.length==0 || c->sequence.cp[0]!=UNICODE_CODEPOINT_BAD) {
     size_t copy;
-    for (copy = 0; copy<c->length; copy++) {
-      *pos += (*base->encoding->encode)(NULL, c->codepoints[copy], (uint8_t*)*pos, SIZE_T_MAX);
+    for (copy = 0; copy<c->sequence.length; copy++) {
+      *pos += (*base->encoding->encode)(NULL, c->sequence.cp[copy], (uint8_t*)*pos, SIZE_T_MAX);
     }
 
     if (copy==0) {
@@ -304,8 +304,8 @@ void screen_cursor(struct screen* base, int x, int y) {
 void screen_draw(struct screen* base, HDC context, int redraw, int cursor) {
   SelectObject(context, base->font);
   struct screen_char empty;
-  empty.codepoints[0] = ' ';
-  empty.length = 1;
+  empty.sequence.cp[0] = ' ';
+  empty.sequence.length = 1;
   empty.background = VISUAL_FLAG_COLOR_BACKGROUND;
   empty.foreground = VISUAL_FLAG_COLOR_TEXT;
   empty.codes[0] = ' ';
@@ -325,8 +325,8 @@ void screen_draw(struct screen* base, HDC context, int redraw, int cursor) {
         if (v->length!=c->length) {
           modified = 1;
         } else {
-          for (size_t check = 0; check<c->length; check++) {
-            if (v->codepoints[check]!=c->codepoints[check]) {
+          for (size_t check = 0; check<c->sequence.length; check++) {
+            if (v->sequence.cp[check]!=c->sequence.cp[check]) {
               modified = 1;
               break;
             }
@@ -418,11 +418,11 @@ void screen_draw(struct screen* base) {
     v = &base->visible[n];
     int modified = c->modified;
     if (modified) {
-      if (v->length!=c->length) {
+      if (v->sequence.length!=c->sequence.length) {
         modified = 1;
       } else {
-        for (size_t check = 0; check<c->length; check++) {
-          if (v->codepoints[check]!=c->codepoints[check]) {
+        for (size_t check = 0; check<c->sequence.length; check++) {
+          if (v->sequence.cp[check]!=c->sequence.cp[check]) {
             modified = 1;
             break;
           }
@@ -435,11 +435,11 @@ void screen_draw(struct screen* base) {
       old = n+1;
       screen_draw_char(base, &pos, n, &w, &foreground_old, &background_old);
       c->modified = 0;
-      v->length = c->length;
+      v->sequence.length = c->sequence.length;
       v->foreground = c->foreground;
       v->background = c->background;
-      for (size_t copy = 0; copy<c->length; copy++) {
-        v->codepoints[copy] = c->codepoints[copy];
+      for (size_t copy = 0; copy<c->sequence.length; copy++) {
+        v->sequence.cp[copy] = c->sequence.cp[copy];
       }
     }
   }
@@ -498,37 +498,37 @@ codepoint_t screen_getchar(const struct screen* base, int x, int y) {
     return 0;
   }
 
-  return base->buffer[y*base->width+x].codepoints[0];
+  return base->buffer[y*base->width+x].sequence.cp[0];
 }
 
 // Update screen location with variable codepoint
-void screen_setchar(const struct screen* base, int x, int y, int clip_x, int clip_y, int clip_width, int clip_height, codepoint_t* codepoints, size_t length, int foreground, int background) {
+void screen_setchar(const struct screen* base, int x, int y, int clip_x, int clip_y, int clip_width, int clip_height, const codepoint_t* codepoints, const size_t length, int foreground, int background) {
   if (y<clip_y || y>=clip_y+clip_height || x<clip_x || x>=clip_x+clip_width) {
     return;
   }
 
   int pos = y*base->width+x;
   struct screen_char* c = &base->buffer[pos];
-  if (c->codepoints[0]==UNICODE_CODEPOINT_BAD && pos>0) {
+  if (c->sequence.cp[0]==UNICODE_CODEPOINT_BAD && pos>0) {
     struct screen_char* prev = &base->buffer[pos-1];
-    if (prev->codepoints[0]!=UNICODE_CODEPOINT_BAD && unicode_width(&prev->codepoints[0], prev->length)>1) {
-      prev->length = 1;
-      prev->codepoints[0] = '?';
+    if (prev->sequence.cp[0]!=UNICODE_CODEPOINT_BAD && unicode_width(&prev->sequence.cp[0], prev->sequence.length)>1) {
+      prev->sequence.length = 1;
+      prev->sequence.cp[0] = '?';
     }
   }
 
   c->modified = 1;
   if (x==base->width-1 && unicode_width(&codepoints[0], length)>1) {
-    c->length = 1;
-    c->codepoints[0] = '?';
+    c->sequence.length = 1;
+    c->sequence.cp[0] = '?';
     c->foreground = foreground;
     c->background = background;
   } else {
     for (size_t copy = 0; copy<length; copy++) {
-      c->codepoints[copy] = codepoints[copy];
+      c->sequence.cp[copy] = codepoints[copy];
     }
 
-    c->length = length;
+    c->sequence.length = length;
     c->foreground = foreground;
     c->background = background;
   }

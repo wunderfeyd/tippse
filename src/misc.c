@@ -308,9 +308,9 @@ uint64_t decode_based_unsigned_offset(struct encoding_cache* cache, int base, si
   size_t advanced = *offset;
   while (count>0) {
     count--;
-    struct unicode_transform_node transform;
-    unicode_read_combined_sequence(cache, advanced, &transform);
-    codepoint_t cp = transform.cp[0];
+    struct unicode_sequence sequence;
+    unicode_read_combined_sequence(cache, advanced, &sequence);
+    codepoint_t cp = sequence.cp[0];
     if (cp==0) {
       break;
     }
@@ -332,7 +332,7 @@ uint64_t decode_based_unsigned_offset(struct encoding_cache* cache, int base, si
 
     output *= (uint64_t)base;
     output += (uint64_t)value;
-    advanced += transform.advance;
+    advanced += sequence.advance;
   }
   *offset = advanced;
 
@@ -347,10 +347,10 @@ uint64_t decode_based_unsigned(struct encoding_cache* cache, int base, size_t co
 int64_t decode_based_signed_offset(struct encoding_cache* cache, int base, size_t* offset, size_t count) {
   int negate = 1;
   if (count>0) {
-    struct unicode_transform_node transform;
-    unicode_read_combined_sequence(cache, *offset, &transform);
-    codepoint_t cp = transform.cp[0];
-    *offset = (*offset)+transform.advance;
+    struct unicode_sequence sequence;
+    unicode_read_combined_sequence(cache, *offset, &sequence);
+    codepoint_t cp = sequence.cp[0];
+    *offset = (*offset)+sequence.advance;
     count--;
     negate = (cp=='-')?1:0;
   }

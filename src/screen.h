@@ -16,17 +16,17 @@
 #include <signal.h>
 #endif
 #include "types.h"
+#include "unicode.h"
 
 // Single display character (usally fits into a terminal character cell)
 struct screen_char {
-  codepoint_t codepoints[8];  // Codepoints used for encoding the character
-  size_t length;              // Number of codepoints used in this structure
+  int modified;               // Character was touched
   int foreground;             // Foreground color
   int background;             // Background color
-  int modified;               // Character was touched
+  struct unicode_sequence sequence;  // Unicode sequence
 #ifdef _WINDOWS
   wchar_t codes[16];          // transformed output
-  uint8_t* pos;               // transformation end
+  uint8_t* pos;               // sequenceation end
 #endif
 };
 
@@ -74,6 +74,10 @@ void screen_draw(struct screen* base);
 void screen_update(struct screen* base);
 void screen_drawtext(const struct screen* base, int x, int y, int clip_x, int clip_y, int clip_width, int clip_height, const char* text, size_t length, int foreground, int background);
 codepoint_t screen_getchar(const struct screen* base, int x, int y);
-void screen_setchar(const struct screen* base, int x, int y, int clip_x, int clip_y, int clip_width, int clip_height, codepoint_t* codepoints, size_t length, int foreground, int background);
+void screen_setchar(const struct screen* base, int x, int y, int clip_x, int clip_y, int clip_width, int clip_height, const codepoint_t* codepoints, const size_t length, int foreground, int background);
+
+TIPPSE_INLINE void screen_setunicode(const struct screen* base, int x, int y, int clip_x, int clip_y, int clip_width, int clip_height, const struct unicode_sequence* sequence, int foreground, int background) {
+  screen_setchar(base, x, y, clip_x, clip_y, clip_width, clip_height, &sequence->cp[0], sequence->length, foreground, background);
+}
 
 #endif /* #ifndef TIPPSE_SCREEN_H */

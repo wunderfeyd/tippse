@@ -74,4 +74,12 @@ size_t encoding_seek_based(struct encoding* base, size_t (*next)(struct encoding
 #include "stream.h"
 #include "unicode.h"
 
+// Construct visual characters
+TIPPSE_INLINE void encoding_visuals(struct encoding* base, const struct unicode_sequence* in, struct unicode_sequence* out) {
+  out->length = in->length;
+  for (size_t n = 0; n<in->length; n++) {
+    out->cp[n] = (base->visual)(base, in->cp[n]);
+  }
+}
+
 #endif  /* #ifndef TIPPSE_ENCODING_H */

@@ -645,8 +645,8 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
   }
 
   if (ignore_case) {
-    // TODO: Ummm... very hacky ... we transform from pure codepoints ... what about multi codepoint transformations?
-    // TODO: only check codepoints that are actually transform instead of bruteforce all codepoints (speed improvement)
+    // TODO: Ummm... very hacky ... we sequence from pure codepoints ... what about multi codepoint sequenceations?
+    // TODO: only check codepoints that are actually sequence instead of bruteforce all codepoints (speed improvement)
     struct range_tree_node* source = check->set;
     check->set = range_tree_copy(check->set, 0, check->set->length);
     struct range_tree_node* range = range_tree_first(source);
@@ -679,23 +679,23 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
   return advance;
 }
 
-// Try to append unicode character to the current set of the node, if a transformation into multiple characters has been made add a branch
+// Try to append unicode character to the current set of the node, if a sequenceation into multiple characters has been made add a branch
 size_t search_append_unicode(struct search_node* last, int ignore_case, struct encoding_cache* cache, size_t offset, struct search_node* shorten, size_t min) {
   size_t advance = 1;
   if (ignore_case) {
     advance = 0;
     size_t length = 0;
-    struct unicode_transform_node* transform = unicode_transform(unicode_transform_upper, cache, offset, &advance, &length);
-    if (!transform)
-      transform = unicode_transform(unicode_transform_lower, cache, offset, &advance, &length);
+    struct unicode_sequence* sequence = unicode_transform(unicode_transform_upper, cache, offset, &advance, &length);
+    if (!sequence)
+      sequence = unicode_transform(unicode_transform_lower, cache, offset, &advance, &length);
 
-    if (transform) {
-      if (transform->length==1 && shorten && (shorten!=last || advance==1)) {
+    if (sequence) {
+      if (sequence->length==1 && shorten && (shorten!=last || advance==1)) {
         shorten->type &= ~SEARCH_NODE_TYPE_BRANCH;
         shorten->type |= SEARCH_NODE_TYPE_SET;
-        search_node_set(shorten, (size_t)transform->cp[0]);
+        search_node_set(shorten, (size_t)sequence->cp[0]);
       } else {
-        search_append_next_codepoint(last, &transform->cp[0], transform->length);
+        search_append_next_codepoint(last, &sequence->cp[0], sequence->length);
       }
     } else {
       advance = 1;

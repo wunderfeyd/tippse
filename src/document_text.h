@@ -42,7 +42,7 @@ struct document_text_render_info {
   file_offset_t character;          // number of characters in whole document
   int visual_detail;                // flags for visual details
   position_t width;                 // screen width for rendering
-  struct unicode_transform_node transform;
+  struct unicode_sequence sequence;
   int keyword_color;                // keyword color
   int keyword_length;               // keyword length remaining
   int indented;                     // begin of line is indentation only?

@@ -304,18 +304,18 @@ position_t document_text_render_lookahead_word_wrap(struct encoding_cache* cache
   size_t advanced = 0;
   position_t width0 = 0;
   while (count<max) {
-    struct unicode_transform_node transform;
-    unicode_read_combined_sequence(cache, advanced, &transform);
+    struct unicode_sequence sequence;
+    unicode_read_combined_sequence(cache, advanced, &sequence);
 
-    if (transform.cp[0]<=' ') {
+    if (sequence.cp[0]<=' ') {
       break;
     }
 
-    count += unicode_width(&transform.cp[0], transform.length);
+    count += unicode_width(&sequence.cp[0], sequence.length);
     if (advanced==0) {
       width0 = count>0?count-1:0;
     }
-    advanced += transform.advance;
+    advanced += sequence.advance;
   }
 
   if (count>=max) {
@@ -511,8 +511,8 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
       editor_process_message(file->editor, "Locating...", render_info->offset, range_tree_length(file->buffer));
     }
 
-    unicode_read_combined_sequence(&render_info->cache, 0, &render_info->transform);
-    unicode_read_combined_sequence_size(&render_info->cache, 0, &render_info->transform);
+    unicode_read_combined_sequence(&render_info->cache, 0, &render_info->sequence);
+    unicode_read_combined_sequence_size(&render_info->cache, 0, &render_info->sequence);
     /*codepoints[0] = stream_read_forward(&render_info->stream);
     length = 1;
     advance = 1;
@@ -520,7 +520,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
 
     debug_chars++;
 
-    codepoint_t cp = render_info->transform.cp[0];
+    codepoint_t cp = render_info->sequence.cp[0];
 
     if (cp==UNICODE_CODEPOINT_BOM) {
       render_info->visual_detail |= VISUAL_DETAIL_CONTROLCHARACTER;
@@ -674,7 +674,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
           show = 0xfffd;
         }
 
-        fill = unicode_width(&render_info->transform.cp[0], render_info->transform.length);
+        fill = unicode_width(&render_info->sequence.cp[0], render_info->sequence.length);
         if (show!=UNICODE_CODEPOINT_BAD || fill<=0) {
           fill = 1;
         }
@@ -691,7 +691,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
       } else if (cp<0) {
         fill = 1;
       } else {
-        fill = unicode_width(&render_info->transform.cp[0], render_info->transform.length);
+        fill = unicode_width(&render_info->sequence.cp[0], render_info->sequence.length);
       }
     }
 
@@ -713,11 +713,11 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
       render_info->xs += fill;
     }
 
-    encoding_cache_advance(&render_info->cache, render_info->transform.advance);
+    encoding_cache_advance(&render_info->cache, render_info->sequence.advance);
 
-    render_info->displacement += render_info->transform.size;
-    render_info->offset += render_info->transform.size;
-    render_info->selection_displacement += render_info->transform.size;
+    render_info->displacement += render_info->sequence.size;
+    render_info->offset += render_info->sequence.size;
+    render_info->selection_displacement += render_info->sequence.size;
 
     render_info->keyword_length--;
 
@@ -874,8 +874,8 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
       break;
     }
 
-    unicode_read_combined_sequence(&render_info->cache, 0, &render_info->transform);
-    unicode_read_combined_sequence_size(&render_info->cache, 0, &render_info->transform);
+    unicode_read_combined_sequence(&render_info->cache, 0, &render_info->sequence);
+    unicode_read_combined_sequence_size(&render_info->cache, 0, &render_info->sequence);
 
     debug_chars++;
 
@@ -884,7 +884,7 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
     }
 
     int fill;
-    codepoint_t cp = render_info->transform.cp[0];
+    codepoint_t cp = render_info->sequence.cp[0];
     if (view->show_invisibles) {
       if (cp=='\t') {
         fill = file->tabstop_width-(render_info->x%file->tabstop_width);
@@ -904,7 +904,7 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
           show = 0xfffd;
         }
 
-        fill = unicode_width(&render_info->transform.cp[0], render_info->transform.length);
+        fill = unicode_width(&render_info->sequence.cp[0], render_info->sequence.length);
         if (show!=UNICODE_CODEPOINT_BAD || fill<=0) {
           fill = 1;
         }
@@ -921,7 +921,7 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
       } else if (cp<0) {
         fill = 1;
       } else {
-        fill = unicode_width(&render_info->transform.cp[0], render_info->transform.length);
+        fill = unicode_width(&render_info->sequence.cp[0], render_info->sequence.length);
       }
     }
 
@@ -940,11 +940,11 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
       render_info->indentation += fill;
     }
 
-    encoding_cache_advance(&render_info->cache, render_info->transform.advance);
+    encoding_cache_advance(&render_info->cache, render_info->sequence.advance);
 
-    render_info->displacement += render_info->transform.size;
-    render_info->offset += render_info->transform.size;
-    render_info->selection_displacement += render_info->transform.size;
+    render_info->displacement += render_info->sequence.size;
+    render_info->offset += render_info->sequence.size;
+    render_info->selection_displacement += render_info->sequence.size;
     render_info->keyword_length--;
 
     position_t word_length = 0;
@@ -1018,8 +1018,8 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       break;
     }
 
-    unicode_read_combined_sequence(&render_info->cache, 0, &render_info->transform);
-    unicode_read_combined_sequence_size(&render_info->cache, 0, &render_info->transform);
+    unicode_read_combined_sequence(&render_info->cache, 0, &render_info->sequence);
+    unicode_read_combined_sequence_size(&render_info->cache, 0, &render_info->sequence);
 
     debug_chars++;
 
@@ -1030,7 +1030,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     codepoint_t show = UNICODE_CODEPOINT_BAD;
     int fill;
     codepoint_t fill_code = UNICODE_CODEPOINT_BAD;
-    codepoint_t cp = render_info->transform.cp[0];
+    codepoint_t cp = render_info->sequence.cp[0];
     if (view->show_invisibles) {
       if (cp=='\t') {
         fill = file->tabstop_width-(render_info->x%file->tabstop_width);
@@ -1051,7 +1051,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
           show = 0xfffd;
         }
 
-        fill = unicode_width(&render_info->transform.cp[0], render_info->transform.length);
+        fill = unicode_width(&render_info->sequence.cp[0], render_info->sequence.length);
         if (show!=UNICODE_CODEPOINT_BAD || fill<=0) {
           fill = 1;
         }
@@ -1072,7 +1072,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         show = 0xfffd;
         fill = 1;
       } else {
-        fill = unicode_width(&render_info->transform.cp[0], render_info->transform.length);
+        fill = unicode_width(&render_info->sequence.cp[0], render_info->sequence.length);
       }
     }
 
@@ -1127,12 +1127,10 @@ int document_text_render_span(struct document_text_render_info* render_info, str
         if (show!=UNICODE_CODEPOINT_BAD) {
           splitter_drawchar(splitter, screen, (int)x, (int)y, &show, 1, color, background);
         } else {
-          codepoint_t codepoints_visual[8];
-          for (size_t code = 0; code<render_info->transform.length; code++) {
-            codepoints_visual[code] = (file->encoding->visual)(file->encoding, render_info->transform.cp[code]);
-          }
+          struct unicode_sequence visuals;
+          encoding_visuals(file->encoding, &render_info->sequence, &visuals);
 
-          splitter_drawchar(splitter, screen, (int)x, (int)y, &codepoints_visual[0], render_info->transform.length, color, background);
+          splitter_drawunicode(splitter, screen, (int)x, (int)y, &visuals, color, background);
         }
 
         for (int pos = 1; pos<fill; pos++) {
@@ -1156,11 +1154,11 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       render_info->indentation += fill;
     }
 
-    encoding_cache_advance(&render_info->cache, render_info->transform.advance);
+    encoding_cache_advance(&render_info->cache, render_info->sequence.advance);
 
-    render_info->displacement += render_info->transform.size;
-    render_info->offset += render_info->transform.size;
-    render_info->selection_displacement += render_info->transform.size;
+    render_info->displacement += render_info->sequence.size;
+    render_info->offset += render_info->sequence.size;
+    render_info->selection_displacement += render_info->sequence.size;
     render_info->keyword_length--;
 
     position_t word_length = 0;
@@ -2625,7 +2623,7 @@ file_offset_t document_text_word_transition_prev(struct document* base, struct s
   return offset;
 }
 
-// Transform text // TODO: move to encoding.c
+// sequence text // TODO: move to encoding.c
 void document_text_transform(struct document* base, struct trie* transformation, struct document_file* file, file_offset_t from, file_offset_t to) {
   int seek = 1;
   size_t offset = 0;
@@ -2653,8 +2651,8 @@ void document_text_transform(struct document* base, struct trie* transformation,
 
     size_t advance = 0;
     size_t length = 0;
-    struct unicode_transform_node* transform = unicode_transform(transformation, &cache, offset, &advance, &length);
-    if (recode>512 || (!transform && recode>256)) {
+    struct unicode_sequence* sequence = unicode_transform(transformation, &cache, offset, &advance, &length);
+    if (recode>512 || (!sequence && recode>256)) {
       document_file_delete(file, recode_from, from-recode_from);
       document_file_reduce(&to, recode_from, from-recode_from);
       document_file_insert(file, recode_from, &recoded[0], recode, 0);
@@ -2663,7 +2661,7 @@ void document_text_transform(struct document* base, struct trie* transformation,
       seek = 1;
     }
 
-    if (!transform) {
+    if (!sequence) {
       struct encoding_cache_node node = encoding_cache_find_codepoint(&cache, offset);
       if (recode>0) {
         // TODO: this might change the original encoded characters due to decode and reencode (just copy the old things if possible)
@@ -2679,8 +2677,8 @@ void document_text_transform(struct document* base, struct trie* transformation,
       from += length;
       offset += advance;
 
-      for (size_t n = 0; n<transform->length; n++) {
-        recode += file->encoding->encode(file->encoding, transform->cp[n], &recoded[recode], 8);
+      for (size_t n = 0; n<sequence->length; n++) {
+        recode += file->encoding->encode(file->encoding, sequence->cp[n], &recoded[recode], 8);
       }
     }
   }
