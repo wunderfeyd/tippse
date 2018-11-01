@@ -37,7 +37,8 @@ int file_type_patch_mark(struct document_text_render_info* render_info) {
   int after = before&~(VISUAL_DETAIL_INDENTATION|VISUAL_DETAIL_WORD);
 
   if (before&VISUAL_DETAIL_NEWLINE) {
-    after &= ~(VISUAL_DETAIL_STRING0|VISUAL_DETAIL_STRING1|VISUAL_DETAIL_STRING2|VISUAL_DETAIL_COMMENT0);
+    before &= ~(VISUAL_DETAIL_STRING0|VISUAL_DETAIL_STRING1|VISUAL_DETAIL_STRING2|VISUAL_DETAIL_COMMENT0);
+    after &= before;
     if (cp1=='@') {
       after |= VISUAL_DETAIL_COMMENT0;
     } else if (cp1==' ') {

@@ -5,9 +5,10 @@
 #include "types.h"
 
 #define UNICODE_CODEPOINT_BAD -1
+#define UNICODE_CODEPOINT_UNASSIGNED -2
 #define UNICODE_CODEPOINT_BOM 0xfeff
 #define UNICODE_CODEPOINT_MAX 0x110000
-#define UNICODE_BITFIELD_MAX ((UNICODE_CODEPOINT_MAX/sizeof(unsigned int))+1)
+#define UNICODE_BITFIELD_MAX ((UNICODE_CODEPOINT_MAX/sizeof(codepoint_table_t))+1)
 #define UNICODE_SEQUENCE_MAX 8
 
 struct unicode_sequence {
@@ -19,19 +20,19 @@ struct unicode_sequence {
 
 #include "encoding.h"
 
-unsigned int unicode_marks[UNICODE_BITFIELD_MAX];
-unsigned int unicode_invisibles[UNICODE_BITFIELD_MAX];
-unsigned int unicode_widths[UNICODE_BITFIELD_MAX];
-unsigned int unicode_letters[UNICODE_BITFIELD_MAX];
-unsigned int unicode_whitespaces[UNICODE_BITFIELD_MAX];
-unsigned int unicode_digits[UNICODE_BITFIELD_MAX];
-unsigned int unicode_words[UNICODE_BITFIELD_MAX];
+codepoint_table_t unicode_marks[UNICODE_BITFIELD_MAX];
+codepoint_table_t unicode_invisibles[UNICODE_BITFIELD_MAX];
+codepoint_table_t unicode_widths[UNICODE_BITFIELD_MAX];
+codepoint_table_t unicode_letters[UNICODE_BITFIELD_MAX];
+codepoint_table_t unicode_whitespaces[UNICODE_BITFIELD_MAX];
+codepoint_table_t unicode_digits[UNICODE_BITFIELD_MAX];
+codepoint_table_t unicode_words[UNICODE_BITFIELD_MAX];
 
 void unicode_init(void);
 void unicode_free(void);
 void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie** reverse);
 void unicode_decode_transform_append(struct trie* forward, size_t froms, codepoint_t* from, size_t tos, codepoint_t* to);
-void unicode_decode_rle(unsigned int* table, uint16_t* rle);
+void unicode_decode_rle(codepoint_table_t* table, uint16_t* rle);
 void unicode_update_combining_mark(codepoint_t codepoint);
 int unicode_combining_mark(codepoint_t codepoint);
 //size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offset, codepoint_t* codepoints, size_t max, size_t* advance, size_t* length);
@@ -41,27 +42,27 @@ struct unicode_sequence* unicode_lower(struct encoding_cache* cache, size_t offs
 struct unicode_sequence* unicode_transform(struct trie* transformation, struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length);
 
 // Check if codepoint is marked
-TIPPSE_INLINE int unicode_bitfield_check(const unsigned int* table, codepoint_t codepoint) {
+TIPPSE_INLINE int unicode_bitfield_check(const codepoint_table_t* table, codepoint_t codepoint) {
   if (codepoint>=0 && codepoint<UNICODE_CODEPOINT_MAX) {
-    return (int)((table[(size_t)codepoint/(sizeof(unsigned int)*8)]>>((size_t)codepoint&(sizeof(unsigned int)*8-1)))&1);
+    return (int)((table[(size_t)codepoint/(sizeof(codepoint_table_t)*8)]>>((size_t)codepoint&(sizeof(codepoint_table_t)*8-1)))&1);
   }
 
   return 0;
 }
 
 // Mark or reset bit for specific codepoint
-TIPPSE_INLINE void unicode_bitfield_set(unsigned int* table, codepoint_t codepoint, int set) {
+TIPPSE_INLINE void unicode_bitfield_set(codepoint_table_t* table, codepoint_t codepoint, int set) {
   if (codepoint>=0 && codepoint<UNICODE_CODEPOINT_MAX) {
     if (!set) {
-      table[(size_t)codepoint/(sizeof(unsigned int)*8)] &= ~(((unsigned int)1)<<((size_t)codepoint&(sizeof(unsigned int)*8-1)));
+      table[(size_t)codepoint/(sizeof(codepoint_table_t)*8)] &= ~(((codepoint_table_t)1)<<((size_t)codepoint&(sizeof(codepoint_table_t)*8-1)));
     } else {
-      table[(size_t)codepoint/(sizeof(unsigned int)*8)] |= ((unsigned int)1)<<((size_t)codepoint&(sizeof(unsigned int)*8-1));
+      table[(size_t)codepoint/(sizeof(codepoint_table_t)*8)] |= ((codepoint_table_t)1)<<((size_t)codepoint&(sizeof(codepoint_table_t)*8-1));
     }
   }
 }
 
-void unicode_bitfield_clear(unsigned int* table);
-void unicode_bitfield_combine(unsigned int* table, unsigned int* other);
+void unicode_bitfield_clear(codepoint_table_t* table);
+void unicode_bitfield_combine(codepoint_table_t* table, codepoint_table_t* other);
 
 // Test if codepoint is a letter
 TIPPSE_INLINE int unicode_letter(codepoint_t codepoint) {

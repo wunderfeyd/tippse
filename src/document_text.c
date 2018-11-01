@@ -513,10 +513,6 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
 
     unicode_read_combined_sequence(&render_info->cache, 0, &render_info->sequence);
     unicode_read_combined_sequence_size(&render_info->cache, 0, &render_info->sequence);
-    /*codepoints[0] = stream_read_forward(&render_info->stream);
-    length = 1;
-    advance = 1;
-    size_t read = 1;*/
 
     debug_chars++;
 
@@ -530,7 +526,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
 
     int visual_detail_before = render_info->visual_detail;
 
-    if (render_info->buffer && render_info->keyword_length<=0) {
+    if (render_info->keyword_length<=0) {
       // 100ms
       render_info->keyword_color = file->defaults.colors[(*mark)(render_info)];
     }
@@ -695,7 +691,6 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
       }
     }
 
-    render_info->x += fill;
     if (render_info->visual_detail&VISUAL_DETAIL_NEWLINE) {
       render_info->visual_detail &= ~VISUAL_DETAIL_NEWLINE;
       render_info->indented = 1;
@@ -712,6 +707,8 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
     } else {
       render_info->xs += fill;
     }
+
+    render_info->x += fill;
 
     encoding_cache_advance(&render_info->cache, render_info->sequence.advance);
 
@@ -732,13 +729,16 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
       }
     }
 
-    position_t word_length = 0;
     if (view->wrapping && cp<=' ') {
       position_t row_width = render_info->width-render_info->indentation-file->tabstop_width;
-      word_length = document_text_render_lookahead_word_wrap(&render_info->cache, row_width+1);
+      position_t word_length = document_text_render_lookahead_word_wrap(&render_info->cache, row_width+1);
+      if (render_info->x+word_length>=render_info->width) {
+        goto wrap;
+      }
     }
 
-    if (cp==newline_cp1 || (view->wrapping && render_info->x+word_length>=render_info->width)) {
+    if (cp==newline_cp1) {
+wrap:;
       if (cp==newline_cp1) {
         render_info->indentations = 0;
         render_info->indentations_extra = 0;
@@ -947,13 +947,16 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
     render_info->selection_displacement += render_info->sequence.size;
     render_info->keyword_length--;
 
-    position_t word_length = 0;
     if (view->wrapping && cp<=' ') {
       position_t row_width = render_info->width-render_info->indentation-file->tabstop_width;
-      word_length = document_text_render_lookahead_word_wrap(&render_info->cache, row_width+1);
+      position_t word_length = document_text_render_lookahead_word_wrap(&render_info->cache, row_width+1);
+      if (render_info->x+word_length>=render_info->width) {
+        goto wrap;
+      }
     }
 
-    if (cp==newline_cp1 || (view->wrapping && render_info->x+word_length>=render_info->width)) {
+    if (cp==newline_cp1) {
+wrap:;
       if (cp==newline_cp1) {
         render_info->indentation = 0;
         render_info->indentation_extra = 0;
@@ -1161,13 +1164,16 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     render_info->selection_displacement += render_info->sequence.size;
     render_info->keyword_length--;
 
-    position_t word_length = 0;
     if (view->wrapping && cp<=' ') {
       position_t row_width = render_info->width-render_info->indentation-file->tabstop_width;
-      word_length = document_text_render_lookahead_word_wrap(&render_info->cache, row_width+1);
+      position_t word_length = document_text_render_lookahead_word_wrap(&render_info->cache, row_width+1);
+      if (render_info->x+word_length>=render_info->width) {
+        goto wrap;
+      }
     }
 
-    if (cp==newline_cp1 || (view->wrapping && render_info->x+word_length>=render_info->width)) {
+    if (cp==newline_cp1) {
+wrap:;
       if (cp==newline_cp1) {
         render_info->indentation = 0;
         render_info->indentation_extra = 0;
@@ -1494,7 +1500,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   }
 
   // Auto complete hint
-  if (file->autocomplete_last && range_tree_length(file->buffer)>0) {
+  if (file->autocomplete_last && range_tree_length(file->buffer)>0 && 0) {
     char text[1024];
     size_t length = 0;
 
@@ -1515,11 +1521,11 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
         stream_clone(&copy, &stream);
         encoding_cache_clear(&cache, file->encoding, &copy);
         codepoint_t cp = encoding_cache_find_codepoint(&cache, 0).cp;
+        stream_destroy(&copy);
         if (cp!=-1 && !unicode_word(cp)) {
           stream_forward(&stream, 1);
           break;
         }
-        stream_destroy(&copy);
       }
 
       encoding_cache_clear(&cache, file->encoding, &stream);

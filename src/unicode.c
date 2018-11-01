@@ -14,13 +14,13 @@
 #include "encoding/utf8.h"
 #include "trie.h"
 
-unsigned int unicode_marks[UNICODE_BITFIELD_MAX];
-unsigned int unicode_invisibles[UNICODE_BITFIELD_MAX];
-unsigned int unicode_widths[UNICODE_BITFIELD_MAX];
-unsigned int unicode_letters[UNICODE_BITFIELD_MAX];
-unsigned int unicode_whitespaces[UNICODE_BITFIELD_MAX];
-unsigned int unicode_digits[UNICODE_BITFIELD_MAX];
-unsigned int unicode_words[UNICODE_BITFIELD_MAX];
+codepoint_table_t unicode_marks[UNICODE_BITFIELD_MAX];
+codepoint_table_t unicode_invisibles[UNICODE_BITFIELD_MAX];
+codepoint_table_t unicode_widths[UNICODE_BITFIELD_MAX];
+codepoint_table_t unicode_letters[UNICODE_BITFIELD_MAX];
+codepoint_table_t unicode_whitespaces[UNICODE_BITFIELD_MAX];
+codepoint_table_t unicode_digits[UNICODE_BITFIELD_MAX];
+codepoint_table_t unicode_words[UNICODE_BITFIELD_MAX];
 struct trie* unicode_transform_lower;
 struct trie* unicode_transform_upper;
 struct trie* unicode_transform_nfd_nfc;
@@ -158,7 +158,7 @@ void unicode_decode_transform_append(struct trie* forward, size_t froms, codepoi
 }
 
 // Initialise static table from rle stream
-void unicode_decode_rle(unsigned int* table, uint16_t* rle) {
+void unicode_decode_rle(codepoint_table_t* table, uint16_t* rle) {
   unicode_bitfield_clear(table);
   codepoint_t codepoint = 0;
   while (1) {
@@ -167,11 +167,11 @@ void unicode_decode_rle(unsigned int* table, uint16_t* rle) {
       break;
     }
 
-    unsigned int set = (unsigned int)(codes&1);
+    codepoint_table_t set = (codepoint_table_t)(codes&1);
     codes >>= 1;
     while (codes-->0) {
       if (codepoint<UNICODE_CODEPOINT_MAX) {
-        table[codepoint/((int)sizeof(unsigned int)*8)] |= set<<(codepoint&((int)sizeof(unsigned int)*8-1));
+        table[codepoint/((int)sizeof(codepoint_table_t)*8)] |= set<<(codepoint&((int)sizeof(codepoint_table_t)*8-1));
       }
       codepoint++;
     }
@@ -219,12 +219,12 @@ struct unicode_sequence* unicode_transform(struct trie* transformation, struct e
 }
 
 // Reset bitfield
-void unicode_bitfield_clear(unsigned int* table) {
+void unicode_bitfield_clear(codepoint_table_t* table) {
   memset(table, 0, UNICODE_BITFIELD_MAX);
 }
 
 // Enable codepoints from the other table
-void unicode_bitfield_combine(unsigned int* table, unsigned int* other) {
+void unicode_bitfield_combine(codepoint_table_t* table, codepoint_table_t* other) {
   for (size_t n = 0; n<UNICODE_BITFIELD_MAX; n++) {
     table[n] |= other[n];
   }

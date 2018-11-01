@@ -13,6 +13,9 @@ typedef int64_t position_t;
 // Type for code points (signed type needed at the moment)
 typedef int32_t codepoint_t;
 
+// Type for unicode bit tables
+typedef unsigned long codepoint_table_t;
+
 // Max and min
 #define FILE_OFFSET_T_MAX (~(file_offset_t)0)
 #define POSITION_T_MAX ((position_t)((~(uint64_t)0)>>1))
