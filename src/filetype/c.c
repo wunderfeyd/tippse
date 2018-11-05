@@ -33,7 +33,7 @@ const char* file_type_c_name(void) {
   return "C";
 }
 
-int file_type_c_mark(struct document_text_render_info* render_info ) {
+void file_type_c_mark(struct document_text_render_info* render_info ) {
   int flags = 0;
   struct file_type_c* self = (struct file_type_c*)render_info->file_type;
 
@@ -136,5 +136,5 @@ int file_type_c_mark(struct document_text_render_info* render_info ) {
   }
 
   render_info->visual_detail = after;
-  return flags;
+  render_info->keyword_color = flags;
 }

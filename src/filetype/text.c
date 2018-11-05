@@ -29,7 +29,7 @@ const char* file_type_text_name(void) {
   return "Text";
 }
 
-int file_type_text_mark(struct document_text_render_info* render_info) {
+void file_type_text_mark(struct document_text_render_info* render_info) {
   codepoint_t cp1 = render_info->sequence.cp[0];
 
   int before = render_info->visual_detail;
@@ -42,5 +42,4 @@ int file_type_text_mark(struct document_text_render_info* render_info) {
   }
 
   render_info->visual_detail = after;
-  return 0;
 }

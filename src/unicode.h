@@ -43,7 +43,7 @@ struct unicode_sequence* unicode_transform(struct trie* transformation, struct e
 
 // Check if codepoint is marked
 TIPPSE_INLINE int unicode_bitfield_check(const codepoint_table_t* table, codepoint_t codepoint) {
-  if (codepoint>=0 && codepoint<UNICODE_CODEPOINT_MAX) {
+  if (LIKELY(codepoint>=0) && LIKELY(codepoint<UNICODE_CODEPOINT_MAX)) {
     return (int)((table[(size_t)codepoint/(sizeof(codepoint_table_t)*8)]>>((size_t)codepoint&(sizeof(codepoint_table_t)*8-1)))&1);
   }
 
@@ -106,7 +106,7 @@ TIPPSE_INLINE void unicode_read_combined_sequence(struct encoding_cache* cache, 
   size_t length = 1;
   size_t advance = 1;
   if (codepoints[0]>0x20) {
-    if (unicode_bitfield_check(&unicode_marks[0], codepoints[0])) {
+    if (UNLIKELY(unicode_bitfield_check(&unicode_marks[0], codepoints[0]))) {
       codepoints[length] = codepoints[length-1];
       codepoints[length-1] = 'o';
       length++;
@@ -119,7 +119,7 @@ TIPPSE_INLINE void unicode_read_combined_sequence(struct encoding_cache* cache, 
         advance++;
         continue;
       } else if (codepoints[length]==0x200d) { // Zero width joiner
-        if (length+1<UNICODE_SEQUENCE_MAX) {
+        if (UNLIKELY(length+1<UNICODE_SEQUENCE_MAX)) {
           length++;
           advance++;
           codepoints[length++] = encoding_cache_find_codepoint(cache, offset+advance++).cp;

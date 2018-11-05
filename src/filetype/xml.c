@@ -28,7 +28,7 @@ const char* file_type_xml_name(void) {
   return "XML";
 }
 
-int file_type_xml_mark(struct document_text_render_info* render_info) {
+void file_type_xml_mark(struct document_text_render_info* render_info) {
   int flags = 0;
   codepoint_t cp1 = render_info->sequence.cp[0];
   codepoint_t cp2 = encoding_cache_find_codepoint(&render_info->cache, 1).cp;
@@ -107,5 +107,5 @@ int file_type_xml_mark(struct document_text_render_info* render_info) {
   }
 
   render_info->visual_detail = after;
-  return flags;
+  render_info->keyword_color = flags;
 }

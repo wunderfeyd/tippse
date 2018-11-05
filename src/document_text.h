@@ -19,7 +19,7 @@ struct document_text {
 
 // Saved state between two render calls
 struct document_text_render_info {
-  int append;                       // continue status?
+  bool_t append;                    // continue status?
   position_t x;                     // virtual screen X position, without scroll offset
   position_t y;                     // virtual screen Y position, without scroll offset
   position_t y_view;                // virtual screen Y position for rendering, without scroll offset
@@ -45,7 +45,7 @@ struct document_text_render_info {
   struct unicode_sequence sequence;
   int keyword_color;                // keyword color
   int keyword_length;               // keyword length remaining
-  int indented;                     // begin of line is indentation only?
+  bool_t indented;                  // begin of line is indentation only?
   struct range_tree_node* selection_root; // root of selection buffer
   const struct range_tree_node* selection; // access to selection buffer, current page in tree
   file_offset_t selection_displacement; // position in current selection page
@@ -53,6 +53,7 @@ struct document_text_render_info {
   int depth_old[VISUAL_BRACKET_MAX]; //depth of bracket matching at page start
   int depth_line[VISUAL_BRACKET_MAX]; //depth of bracket matching at line
   struct visual_bracket brackets[VISUAL_BRACKET_MAX]; // block structure for bracket matching
+  bool_t bracketed_line;            // bracket found on current line
   struct visual_bracket brackets_line[VISUAL_BRACKET_MAX]; // block structure for bracket matching at line
   struct stream stream;    // access to byte stream
   struct encoding_cache cache;      // access to Unicode cache
@@ -83,7 +84,7 @@ struct document_text_position {
 
   size_t bracket;                       // bracket number
   int bracket_search;                   // bracket depth to search for
-  size_t bracket_match;                 // type of bracket below the cursor
+  int bracket_match;                    // type of bracket below the cursor
 
   int depth[VISUAL_BRACKET_MAX];        // Bracket information
   int depth_line[VISUAL_BRACKET_MAX];   // Bracket information
@@ -110,7 +111,7 @@ void document_text_render_destroy(struct document_text_render_info* render_info)
 void document_text_render_seek(struct document_text_render_info* render_info, struct range_tree_node* buffer, struct encoding* encoding, const struct document_text_position* in);
 position_t document_text_render_lookahead_word_wrap(struct encoding_cache* cache, position_t max);
 int document_text_split_buffer(struct range_tree_node* buffer, struct document_file* file);
-int document_text_collect_span(struct document_text_render_info* render_info, struct screen* screen, const struct splitter* splitter, const struct document_view* view, struct document_file* file, const struct document_text_position* restrict in, struct document_text_position* out, int dirty_pages, int cancel);
+int document_text_collect_span(struct document_text_render_info* render_info, const struct document_view* view, struct document_file* file, const struct document_text_position* restrict in, struct document_text_position* out, int dirty_pages, int cancel);
 int document_text_prerender_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel);
 int document_text_render_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel);
 

@@ -28,7 +28,7 @@ const char* file_type_patch_name(void) {
   return "Patch";
 }
 
-int file_type_patch_mark(struct document_text_render_info* render_info) {
+void file_type_patch_mark(struct document_text_render_info* render_info) {
   int flags = 0;
   codepoint_t cp1 = render_info->sequence.cp[0];
 
@@ -72,5 +72,5 @@ int file_type_patch_mark(struct document_text_render_info* render_info) {
   }
 
   render_info->visual_detail = after;
-  return flags;
+  render_info->keyword_color = flags;
 }

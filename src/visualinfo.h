@@ -75,9 +75,7 @@
 #define VISUAL_BRACKET_MASK 0xffff
 #define VISUAL_BRACKET_OPEN 0x10000
 #define VISUAL_BRACKET_CLOSE 0x20000
-#define VISUAL_BRACKET_MAX 4
-
-#define VISUAL_BRACKET_USED_LINE 0x100
+#define VISUAL_BRACKET_MAX 3
 
 // Block structure for bracket matching and code folding
 struct visual_bracket {

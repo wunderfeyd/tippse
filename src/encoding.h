@@ -32,14 +32,6 @@ struct encoding {
 };
 
 void encoding_cache_clear(struct encoding_cache* base, struct encoding* encoding, struct stream* stream);
-// Fill code point cache
-TIPPSE_INLINE size_t encoding_cache_buffer(struct encoding_cache* base, size_t offset) {
-  size_t pos = base->end%ENCODING_CACHE_SIZE;
-  base->nodes[pos].cp = (*base->encoding->decode)(base->encoding, base->stream, &base->nodes[pos].length);
-  base->end++;
-  return pos;
-}
-
 // Skip code points and rebase absolute offset
 TIPPSE_INLINE void encoding_cache_advance(struct encoding_cache* base, size_t advance) {
   base->start += advance;
@@ -47,11 +39,13 @@ TIPPSE_INLINE void encoding_cache_advance(struct encoding_cache* base, size_t ad
 
 // Returned code point from relative offset
 TIPPSE_INLINE struct encoding_cache_node encoding_cache_find_codepoint(struct encoding_cache* base, size_t offset) {
+  size_t pos = (offset+base->start)&(ENCODING_CACHE_SIZE-1);
   if (offset+base->start>=base->end) {
-    return base->nodes[encoding_cache_buffer(base, offset)];
+    base->nodes[pos].cp = (*base->encoding->decode)(base->encoding, base->stream, &base->nodes[pos].length);
+    base->end++;
   }
 
-  return base->nodes[(base->start+offset)%ENCODING_CACHE_SIZE];
+  return base->nodes[pos];
 }
 
 void encoding_init(void);

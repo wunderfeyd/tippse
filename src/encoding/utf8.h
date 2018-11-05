@@ -18,4 +18,6 @@ codepoint_t encoding_utf8_decode(struct encoding* base, struct stream* stream, s
 size_t encoding_utf8_encode(struct encoding* base, codepoint_t cp, uint8_t* text, size_t size);
 size_t encoding_utf8_next(struct encoding* base, struct stream* stream);
 
+void encoding_utf8_build_tables();
+
 #endif  /* #ifndef TIPPSE_ENCODING_UTF8_H */

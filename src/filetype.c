@@ -76,7 +76,7 @@ int file_type_keyword_config(struct file_type* base, struct encoding_cache* cach
   return (int)config_convert_int64_cache(last, &visual_color_codes[0]);
 }
 
-size_t file_type_bracket_match(const struct document_text_render_info* render_info) {
+int file_type_bracket_match(const struct document_text_render_info* render_info) {
   if ((render_info->visual_detail&(VISUAL_DETAIL_STRING0|VISUAL_DETAIL_STRING1|VISUAL_DETAIL_COMMENT0|VISUAL_DETAIL_COMMENT1))==0) {
     codepoint_t cp = render_info->sequence.cp[0];
     if (cp=='{') {

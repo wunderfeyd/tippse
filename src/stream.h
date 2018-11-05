@@ -35,7 +35,7 @@ void stream_from_file(struct stream* base, struct file_cache* cache, file_offset
 void stream_destroy(struct stream* base);
 void stream_clone(struct stream* base, struct stream* src);
 
-int stream_rereference_page(struct stream* base);
+bool_t stream_rereference_page(struct stream* base);
 void stream_reference_page(struct stream* base);
 void stream_unreference_page(struct stream* base);
 
@@ -47,10 +47,12 @@ file_offset_t stream_offset(const struct stream* base);
 TIPPSE_INLINE size_t stream_cache_length(const struct stream* base) {return base->cache_length;}
 TIPPSE_INLINE size_t stream_displacement(const struct stream* base) {return base->displacement;}
 TIPPSE_INLINE const uint8_t* stream_buffer(const struct stream* base) {return base->plain+base->displacement;}
+TIPPSE_INLINE ssize_t stream_left(const struct stream* base) {return (ssize_t)base->cache_length-(ssize_t)base->displacement;}
 
 uint8_t stream_read_forward_oob(struct stream* base);
 TIPPSE_INLINE uint8_t stream_read_forward(struct stream* base) {
-  if (base->displacement<base->cache_length) {
+  if (LIKELY(base->displacement<base->cache_length)) {
+    PREFETCH(base->plain+base->displacement+1, 0, 0);
     return *(base->plain+base->displacement++);
   } else {
     return stream_read_forward_oob(base);
@@ -60,7 +62,7 @@ TIPPSE_INLINE uint8_t stream_read_forward(struct stream* base) {
 uint8_t stream_read_reverse_oob(struct stream* base);
 TIPPSE_INLINE uint8_t stream_read_reverse(struct stream* base) {
   base->displacement--;
-  if (base->displacement<base->cache_length) {
+  if (LIKELY(base->displacement<base->cache_length)) {
     return *(base->plain+base->displacement);
   } else {
     return stream_read_reverse_oob(base);
@@ -69,7 +71,7 @@ TIPPSE_INLINE uint8_t stream_read_reverse(struct stream* base) {
 
 void stream_forward_oob(struct stream* base, size_t length);
 TIPPSE_INLINE void stream_forward(struct stream* base, size_t length) {
-  if (base->displacement+length<=base->cache_length) {
+  if (LIKELY(base->displacement+length<=base->cache_length)) {
     base->displacement += length;
   } else {
     stream_forward_oob(base, length);
@@ -78,7 +80,7 @@ TIPPSE_INLINE void stream_forward(struct stream* base, size_t length) {
 
 void stream_reverse_oob(struct stream* base, size_t length);
 TIPPSE_INLINE void stream_reverse(struct stream* base, size_t length) {
-  if (base->displacement>=length) {
+  if (LIKELY(base->displacement>=length)) {
     base->displacement -= length;
   } else {
     stream_reverse_oob(base, length);
@@ -87,20 +89,20 @@ TIPPSE_INLINE void stream_reverse(struct stream* base, size_t length) {
 
 
 // Helper for range tree end check
-TIPPSE_INLINE int stream_end_oob(struct stream* base) {
+TIPPSE_INLINE bool_t stream_end_oob(struct stream* base) {
   return ((base->type==STREAM_TYPE_PAGED && ((!base->buffer || !range_tree_next(base->buffer)) && base->page_offset+base->displacement>=range_tree_length(base->buffer))) || (base->type==STREAM_TYPE_FILE && base->cache_length<FILE_CACHE_PAGE_SIZE))?1:0;
 }
 
 // Helper for range tree start check
-TIPPSE_INLINE int stream_start_oob(struct stream* base) {
+TIPPSE_INLINE bool_t stream_start_oob(struct stream* base) {
   return ((base->type==STREAM_TYPE_PAGED && ((!base->buffer || !range_tree_prev(base->buffer)) && base->page_offset+base->displacement<=0)) || (base->type==STREAM_TYPE_FILE && base->file.offset==0))?1:0;
 }
 
-TIPPSE_INLINE int stream_end(struct stream* base) {
+TIPPSE_INLINE bool_t stream_end(struct stream* base) {
   return (base->displacement>=base->cache_length && (base->type==STREAM_TYPE_PLAIN || stream_end_oob(base)))?1:0;
 }
 
-TIPPSE_INLINE int stream_start(struct stream* base) {
+TIPPSE_INLINE bool_t stream_start(struct stream* base) {
   return ((ssize_t)base->displacement<=0 && (base->type==STREAM_TYPE_PLAIN || stream_start_oob(base)))?1:0;
 }
 

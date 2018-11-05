@@ -55,7 +55,7 @@ void stream_clone(struct stream* dst, struct stream* src) {
 }
 
 // Check for page end since the page might be fragmented in cache
-int stream_rereference_page(struct stream* base) {
+bool_t stream_rereference_page(struct stream* base) {
   if (base->buffer && stream_combined_offset(base->page_offset, base->displacement)<range_tree_length(base->buffer)) {
     stream_unreference_page(base);
     stream_reference_page(base);

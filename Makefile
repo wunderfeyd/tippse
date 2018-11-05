@@ -29,7 +29,7 @@ all: $(TARGET)
 debug: CFLAGSEXTRA=-g
 debug: $(TARGET)
 
-minify: CFLAGSEXTRA=-s -flto
+minify: CFLAGSEXTRA=-s -flto -Os -D__SMALLEST__
 minify: $(TARGET)
 
 perf: CFLAGSEXTRA=-D_PERFORMANCE

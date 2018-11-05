@@ -203,6 +203,7 @@ int main(int argc, const char** argv) {
   int mouse_x = 0;
   int mouse_y = 0;
 
+  //encoding_utf8_build_tables();
 #ifndef _PERFORMANCE // allow human input :)
   unsigned char input_buffer[1024];
   size_t input_pos = 0;
@@ -370,6 +371,7 @@ int main(int argc, const char** argv) {
     }
   }
 #else
+  {
     int64_t tick = tick_count();
     for (int n = 0; n<900; n++) {
       editor_keypress(editor, TIPPSE_KEY_RIGHT, 0, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
@@ -381,7 +383,13 @@ int main(int argc, const char** argv) {
       //editor_tick(editor);
       //editor_draw(editor);
     }
-    fprintf(stderr, "Time: %d\r\n", (int)(tick_count()-tick));
+    fprintf(stderr, "FTime: %d\r\n", (int)(tick_count()-tick));
+  }
+  {
+    int64_t tick = tick_count();
+    editor_keypress(editor, TIPPSE_KEY_LAST|TIPPSE_KEY_MOD_CTRL, 0, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
+    fprintf(stderr, "CTime: %d\r\n", (int)(tick_count()-tick));
+  }
 #endif
 
   editor_destroy(editor);
