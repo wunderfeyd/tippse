@@ -30,8 +30,8 @@ const char* file_type_xml_name(void) {
 
 void file_type_xml_mark(struct document_text_render_info* render_info) {
   int flags = 0;
-  codepoint_t cp1 = render_info->sequence.cp[0];
-  codepoint_t cp2 = encoding_cache_find_codepoint(&render_info->cache, 1).cp;
+  codepoint_t cp1 = render_info->sequencex->cp[0];
+  codepoint_t cp2 = unicode_sequencer_find(&render_info->sequencer, 1)->cp[0];
 
   render_info->keyword_length = 1;
   int before = render_info->visual_detail;

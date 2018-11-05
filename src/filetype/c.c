@@ -37,8 +37,8 @@ void file_type_c_mark(struct document_text_render_info* render_info ) {
   int flags = 0;
   struct file_type_c* self = (struct file_type_c*)render_info->file_type;
 
-  codepoint_t cp1 = render_info->sequence.cp[0];
-  codepoint_t cp2 = encoding_cache_find_codepoint(&render_info->cache, 1).cp;
+  codepoint_t cp1 = render_info->sequencex->cp[0];
+  codepoint_t cp2 = unicode_sequencer_find(&render_info->sequencer, 1)->cp[0];
 
   render_info->keyword_length = 1;
   int before = render_info->visual_detail;
@@ -112,7 +112,7 @@ void file_type_c_mark(struct document_text_render_info* render_info ) {
       if (cp1>' ' && (before&VISUAL_DETAIL_PREPROCESSOR)) {
         after &= ~VISUAL_DETAIL_PREPROCESSOR;
         render_info->keyword_length = 0;
-        flags = file_type_keyword_config(render_info->file_type, &render_info->cache, self->keywords_preprocessor, &render_info->keyword_length, 0);
+        flags = file_type_keyword_config(render_info->file_type, &render_info->sequencer, self->keywords_preprocessor, &render_info->keyword_length, 0);
       }
 
       if (flags==0) {
@@ -126,7 +126,7 @@ void file_type_c_mark(struct document_text_render_info* render_info ) {
     } else {
       if (!(before&VISUAL_DETAIL_WORD) && (after&VISUAL_DETAIL_WORD)) {
         render_info->keyword_length = 0;
-        flags = file_type_keyword_config(render_info->file_type, &render_info->cache, self->keywords, &render_info->keyword_length, 0);
+        flags = file_type_keyword_config(render_info->file_type, &render_info->sequencer, self->keywords, &render_info->keyword_length, 0);
       }
 
       if (flags==0) {

@@ -229,3 +229,22 @@ void unicode_bitfield_combine(codepoint_table_t* table, codepoint_table_t* other
     table[n] |= other[n];
   }
 }
+
+// Unicode sequence decoder from stream and encoding
+void unicode_sequencer_clear(struct unicode_sequencer* base, struct encoding* encoding, struct stream* stream) {
+  base->start = 0;
+  base->end = 0;
+  base->encoding = encoding;
+  base->stream = stream;
+  unicode_sequencer_read(base);
+}
+
+// Clone unicode sequencer into another datastructure
+void unicode_sequencer_clone(struct unicode_sequencer* dst, struct unicode_sequencer* src) {
+  dst->start = src->start;
+  dst->end = src->end;
+  dst->encoding = src->encoding;
+  dst->stream = src->stream;
+  dst->last_cp = src->last_cp;
+  dst->last_size = src->last_size;
+}

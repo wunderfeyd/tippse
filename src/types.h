@@ -84,5 +84,7 @@ struct splitter;
 struct stream;
 struct trie;
 struct trie_node;
+struct unicode_sequence;
+struct unicode_sequencer;
 
 #endif /* #ifndef TIPPSE_TYPES_H */

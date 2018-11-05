@@ -13,9 +13,21 @@
 
 struct unicode_sequence {
   size_t length;                            // Number of codepoints in cp[]
+  size_t size;                              // Length in bytes
   codepoint_t cp[UNICODE_SEQUENCE_MAX];     // Codepoints
   size_t advance;                           // Number of codepoints read
-  size_t size;                              // Length in bytes
+};
+
+#define UNICODE_SEQUENCER_MAX 32
+
+struct unicode_sequencer {
+  codepoint_t last_cp;                  // last read codepoint
+  size_t last_size;                     // last read codepoint size
+  size_t start;                         // current position in cache
+  size_t end;                           // last position in cache
+  struct encoding* encoding;            // encoding used for stream
+  struct stream* stream;                // input stream
+  struct unicode_sequence nodes[UNICODE_SEQUENCER_MAX];  // cache with lengths of codepoints
 };
 
 #include "encoding.h"
@@ -143,4 +155,90 @@ TIPPSE_INLINE void unicode_read_combined_sequence_size(struct encoding_cache* ca
   sequence->size = size;
 }
 
+void unicode_sequencer_clear(struct unicode_sequencer* base, struct encoding* encoding, struct stream* stream);
+void unicode_sequencer_clone(struct unicode_sequencer* dst, struct unicode_sequencer* src);
+
+// Read next codepoint from stream
+TIPPSE_INLINE void unicode_sequencer_read(struct unicode_sequencer* base) {
+  base->last_cp = (*base->encoding->decode)(base->encoding, base->stream, &base->last_size);
+}
+
+// Decode sequence (combined unicodes with marks or joiner)
+TIPPSE_INLINE void unicode_sequencer_decode(struct unicode_sequencer* base, struct unicode_sequence* sequence) {
+
+  codepoint_t* codepoints = &sequence->cp[0];
+  codepoints[0] = base->last_cp;
+  size_t size = base->last_size;
+  unicode_sequencer_read(base);
+
+  size_t length = 1;
+  if (codepoints[0]>0x20) {
+    if (UNLIKELY(unicode_bitfield_check(&unicode_marks[0], codepoints[0]))) {
+      codepoints[length] = codepoints[length-1];
+      codepoints[length-1] = 'o';
+      length++;
+    }
+
+    while (length<UNICODE_SEQUENCE_MAX) {
+      if (unicode_bitfield_check(&unicode_marks[0], base->last_cp)) {
+        codepoints[length] = base->last_cp;
+        size += base->last_size;
+        length++;
+        unicode_sequencer_read(base);
+        continue;
+      } else if (base->last_cp==0x200d) { // Zero width joiner
+        if (UNLIKELY(length+1<UNICODE_SEQUENCE_MAX)) {
+          codepoints[length] = base->last_cp;
+          size += base->last_size;
+          length++;
+          unicode_sequencer_read(base);
+          codepoints[length] = base->last_cp;
+          size += base->last_size;
+          length++;
+          unicode_sequencer_read(base);
+        }
+        continue;
+      }
+
+      break;
+    }
+  }
+
+  sequence->length = length;
+  sequence->size = size;
+}
+
+// Return sequence from cache or lookup next sequence
+TIPPSE_INLINE struct unicode_sequence* unicode_sequencer_find(struct unicode_sequencer* base, size_t offset) {
+
+  size_t pos = (offset+base->start)&(UNICODE_SEQUENCER_MAX-1);
+  if (offset+base->start>=base->end) {
+    unicode_sequencer_decode(base, &base->nodes[pos]);
+    base->end++;
+  }
+
+  return &base->nodes[pos];
+}
+
+// Move to next sequence in cache
+TIPPSE_INLINE void unicode_sequencer_advance(struct unicode_sequencer* base, size_t advance) {
+  base->start += advance;
+}
+
+// Since the sequencer can hold some sequences only, the sequencer can be copied and used in forward mode then and we can switch back to the original cached sequence later
+TIPPSE_INLINE void unicode_sequencer_alternate(struct unicode_sequencer** base, size_t advance, struct unicode_sequencer* alt_sequencer, struct stream* alt_stream) {
+  if (advance==UNICODE_SEQUENCER_MAX-1) {
+    unicode_sequencer_clone(alt_sequencer, *base);
+    *base = alt_sequencer;
+    stream_clone(alt_stream, (*base)->stream);
+    (*base)->stream = alt_stream;
+  }
+}
+
+// Restore state from forward mode
+TIPPSE_INLINE void unicode_sequencer_drop_alternate(struct unicode_sequencer* base, size_t advance, struct unicode_sequencer* alt_sequencer, struct stream* alt_stream) {
+  if (advance>UNICODE_SEQUENCER_MAX-1) {
+    stream_destroy(alt_stream);
+  }
+}
 #endif /* #ifndef TIPPSE_UNICODE_H */
