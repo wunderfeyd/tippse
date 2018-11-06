@@ -559,11 +559,11 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
   } else if (command==TIPPSE_CMD_RETURN && base->focus->file==base->goto_doc) {
     struct stream stream;
     stream_from_page(&stream, base->focus->file->buffer, 0);
-    struct encoding_cache cache;
-    encoding_cache_clear(&cache, base->focus->file->encoding, &stream);
+    struct unicode_sequencer sequencer;
+    unicode_sequencer_clear(&sequencer, base->focus->file->encoding, &stream);
     // TODO: this should be handled by the specialized document classes
     if (base->document->document==base->document->document_hex) {
-      file_offset_t offset = (file_offset_t)decode_based_unsigned(&cache, 16, SIZE_T_MAX);
+      file_offset_t offset = (file_offset_t)decode_based_unsigned(&sequencer, 16, SIZE_T_MAX);
       file_offset_t length = base->document->file->buffer?base->document->file->buffer->length:0;
       if (offset>length) {
         offset = length;
@@ -573,7 +573,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
       base->document->view->show_scrollbar = 1;
       document_select_nothing(base->document);
     } else {
-      position_t line = (position_t)decode_based_unsigned(&cache, 10, SIZE_T_MAX);
+      position_t line = (position_t)decode_based_unsigned(&sequencer, 10, SIZE_T_MAX);
       if (line>0) {
         document_text_goto(base->document->document, base->document, line-1, 0);
         document_select_nothing(base->document);
@@ -824,11 +824,11 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
           editor_focus(base, destination, 1);
           done = 1;
           editor_open_document(base, name, NULL, destination, TIPPSE_BROWSERTYPE_OPEN);
-          struct encoding_cache cache;
-          encoding_cache_clear(&cache, base->focus->file->encoding, &search->group_hits[1].start);
-          position_t line = (position_t)decode_based_unsigned(&cache, 10, SIZE_T_MAX);
-          encoding_cache_clear(&cache, base->focus->file->encoding, &search->group_hits[3].start);
-          position_t column = (position_t)decode_based_unsigned(&cache, 10, SIZE_T_MAX);
+          struct unicode_sequencer sequencer;
+          unicode_sequencer_clear(&sequencer, base->focus->file->encoding, &search->group_hits[1].start);
+          position_t line = (position_t)decode_based_unsigned(&sequencer, 10, SIZE_T_MAX);
+          unicode_sequencer_clear(&sequencer, base->focus->file->encoding, &search->group_hits[3].start);
+          position_t column = (position_t)decode_based_unsigned(&sequencer, 10, SIZE_T_MAX);
           if (line>0) {
             document_text_goto(node->document, node, line-1, (column>0)?column-1:0);
             document_select_nothing(node);

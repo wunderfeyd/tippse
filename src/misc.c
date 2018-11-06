@@ -303,14 +303,13 @@ int64_t tick_ms(int64_t ms) {
 }
 
 // Convert human readable number into internal representation
-uint64_t decode_based_unsigned_offset(struct encoding_cache* cache, int base, size_t* offset, size_t count) {
+uint64_t decode_based_unsigned_offset(struct unicode_sequencer* sequencer, int base, size_t* offset, size_t count) {
   uint64_t output = 0;
   size_t advanced = *offset;
   while (count>0) {
     count--;
-    struct unicode_sequence sequence;
-    unicode_read_combined_sequence(cache, advanced, &sequence);
-    codepoint_t cp = sequence.cp[0];
+    struct unicode_sequence* sequence = unicode_sequencer_find(sequencer, advanced);
+    codepoint_t cp = sequence->cp[0];
     if (cp==0) {
       break;
     }
@@ -332,43 +331,44 @@ uint64_t decode_based_unsigned_offset(struct encoding_cache* cache, int base, si
 
     output *= (uint64_t)base;
     output += (uint64_t)value;
-    advanced += sequence.advance;
+    advanced ++;
   }
   *offset = advanced;
 
   return output;
 }
 
-uint64_t decode_based_unsigned(struct encoding_cache* cache, int base, size_t count) {
+uint64_t decode_based_unsigned(struct unicode_sequencer* sequencer, int base, size_t count) {
   size_t offset = 0;
-  return decode_based_unsigned_offset(cache, base, &offset, count);
+  return decode_based_unsigned_offset(sequencer, base, &offset, count);
 }
 
-int64_t decode_based_signed_offset(struct encoding_cache* cache, int base, size_t* offset, size_t count) {
-  int negate = 1;
+int64_t decode_based_signed_offset(struct unicode_sequencer* sequencer, int base, size_t* offset, size_t count) {
+  bool_t negate = 0;
   if (count>0) {
-    struct unicode_sequence sequence;
-    unicode_read_combined_sequence(cache, *offset, &sequence);
-    codepoint_t cp = sequence.cp[0];
-    *offset = (*offset)+sequence.advance;
-    count--;
-    negate = (cp=='-')?1:0;
+    struct unicode_sequence* sequence = unicode_sequencer_find(sequencer, *offset);
+    codepoint_t cp = sequence->cp[0];
+    if (cp=='-') {
+      *offset = (*offset)+1;
+      count--;
+      negate = 1;
+    }
   }
 
   int64_t output;
-  uint64_t abs = decode_based_unsigned_offset(cache, base, offset, count);
+  uint64_t abs = decode_based_unsigned_offset(sequencer, base, offset, count);
   uint64_t max = ((uint64_t)1)<<(8*sizeof(uint64_t)-1);
   if (negate) {
-    output = abs>=max?((int64_t)max-1):(int64_t)abs;
-  } else {
     output = abs>max?(-((int64_t)max-1))-1:-((int64_t)abs);
+  } else {
+    output = abs>=max?((int64_t)max-1):(int64_t)abs;
   }
   return output;
 }
 
-int64_t decode_based_signed(struct encoding_cache* cache, int base, size_t count) {
+int64_t decode_based_signed(struct unicode_sequencer* sequencer, int base, size_t count) {
   size_t offset = 0;
-  return decode_based_signed_offset(cache, base, &offset, count);
+  return decode_based_signed_offset(sequencer, base, &offset, count);
 }
 
 #ifdef _WINDOWS

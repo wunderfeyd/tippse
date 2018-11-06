@@ -175,13 +175,14 @@ struct search* search_create_plain(int ignore_case, int reverse, struct stream n
   //int64_t tick = tick_count();
   struct search* base = search_create(reverse, output_encoding);
 
-  struct encoding_cache cache;
-  encoding_cache_clear(&cache, needle_encoding, &needle);
+  struct unicode_sequencer sequencer;
+  unicode_sequencer_clear(&sequencer, needle_encoding, &needle);
 
   struct search_node* last = NULL;
   size_t offset = 0;
   while (1) {
-    codepoint_t cp = encoding_cache_find_codepoint(&cache, offset).cp;
+    // TODO: codepoint!=sequence
+    codepoint_t cp = unicode_sequencer_find(&sequencer, offset)->cp[0];
     if (cp<=0) {
       break;
     }
@@ -197,7 +198,7 @@ struct search* search_create_plain(int ignore_case, int reverse, struct stream n
 
     last = next;
 
-    offset += search_append_unicode(last, ignore_case, &cache, offset, last, 0);
+    offset += search_append_unicode(last, ignore_case, &sequencer, offset, last, 0);
   }
 
   //int64_t tick2 = tick_count();
@@ -223,8 +224,8 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
   group[0] = base->root;
   group_index[0] = SIZE_T_MAX;
 
-  struct encoding_cache cache;
-  encoding_cache_clear(&cache, needle_encoding, &needle);
+  struct unicode_sequencer sequencer;
+  unicode_sequencer_clear(&sequencer, needle_encoding, &needle);
 
   struct search_node* last = search_node_create(SEARCH_NODE_TYPE_BRANCH);
   last->min = 1;
@@ -234,7 +235,8 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
   size_t offset = 0;
   int escape = 0;
   while (1) {
-    codepoint_t cp = encoding_cache_find_codepoint(&cache, offset).cp;
+    // TODO: codepoint!=sequence
+    codepoint_t cp = unicode_sequencer_find(&sequencer, offset)->cp[0];
     if (cp<=0) {
       break;
     }
@@ -248,12 +250,12 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
 
       if (cp=='{') {
         offset++;
-        size_t min = (size_t)decode_based_unsigned_offset(&cache, 10, &offset, SIZE_T_MAX);
+        size_t min = (size_t)decode_based_unsigned_offset(&sequencer, 10, &offset, SIZE_T_MAX);
         last->min = min;
         last->max = min;
-        if (encoding_cache_find_codepoint(&cache, offset).cp==',') {
+        if (unicode_sequencer_find(&sequencer, offset)->cp[0]==',') {
           offset++;
-          size_t max = (size_t)decode_based_unsigned_offset(&cache, 10, &offset, SIZE_T_MAX);
+          size_t max = (size_t)decode_based_unsigned_offset(&sequencer, 10, &offset, SIZE_T_MAX);
           offset++;
           last->max = (max==0)?SIZE_T_MAX:max;
         } else {
@@ -365,7 +367,7 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
         last->next = next;
         last = next;
         offset++;
-        offset += search_append_set(last, ignore_case, &cache, offset);
+        offset += search_append_set(last, ignore_case, &sequencer, offset);
         continue;
       }
 
@@ -400,7 +402,7 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
 
       if (cp=='x' || cp=='u' || cp=='U') {
         offset++;
-        size_t index = (size_t)decode_based_unsigned_offset(&cache, 16, &offset, (size_t)((cp=='x')?2:((cp=='u')?4:8)));
+        size_t index = (size_t)decode_based_unsigned_offset(&sequencer, 16, &offset, (size_t)((cp=='x')?2:((cp=='u')?4:8)));
         if (index<SEARCH_NODE_SET_CODES) {
           struct search_node* next = search_node_create(SEARCH_NODE_TYPE_SET);
           next->min = 1;
@@ -440,7 +442,7 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
     last->next = next;
     last = next;
 
-    offset += search_append_unicode(last, ignore_case, &cache, offset, last, 0);
+    offset += search_append_unicode(last, ignore_case, &sequencer, offset, last, 0);
   }
 
   if (base->groups>0) {
@@ -468,8 +470,8 @@ struct range_tree_node* search_replacement(struct search* base, struct range_tre
   struct stream replacement_stream;
   stream_from_page(&replacement_stream, range_tree_first(replacement_root), 0);
 
-  struct encoding_cache cache;
-  encoding_cache_clear(&cache, replacement_encoding, &replacement_stream);
+  struct unicode_sequencer sequencer;
+  unicode_sequencer_clear(&sequencer, replacement_encoding, &replacement_stream);
 
   uint8_t coded[TREE_BLOCK_LENGTH_MIN+1024];
   size_t size = 0;
@@ -477,7 +479,8 @@ struct range_tree_node* search_replacement(struct search* base, struct range_tre
   size_t offset = 0;
   int escape = 0;
   while (1) {
-    codepoint_t cp = encoding_cache_find_codepoint(&cache, offset).cp;
+    // TODO: codepoint!=sequence
+    codepoint_t cp = unicode_sequencer_find(&sequencer, offset)->cp[0];
     if (size>TREE_BLOCK_LENGTH_MIN-8 || cp<=0) {
       output = range_tree_insert_split(output, range_tree_length(output), &coded[0], size, 0);
       size = 0;
@@ -575,7 +578,7 @@ struct search_node* search_append_class(struct search_node* last, codepoint_t cp
 }
 
 // Interpret regular expression user character classes for exmaple [^abc]
-size_t search_append_set(struct search_node* last, int ignore_case, struct encoding_cache* cache, size_t offset) {
+size_t search_append_set(struct search_node* last, int ignore_case, struct unicode_sequencer* sequencer, size_t offset) {
   struct search_node* check = search_node_create(SEARCH_NODE_TYPE_SET);
   check->min = 1;
   check->max = 1;
@@ -587,7 +590,8 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
   int invert = 0;
   size_t advance = 0;
   while (1) {
-    codepoint_t cp = encoding_cache_find_codepoint(cache, offset+advance).cp;
+    // TODO: codepoint!=sequence
+    codepoint_t cp = unicode_sequencer_find(sequencer, offset+advance)->cp[0];
     if (cp<=0) {
       break;
     }
@@ -620,26 +624,26 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
 
       if (cp=='x' || cp=='u' || cp=='U') {
         size_t reloc = advance+offset+1;
-        size_t index = (size_t)decode_based_unsigned_offset(cache, 16, &reloc, (size_t)((cp=='x')?2:((cp=='u')?4:8)));
+        size_t index = (size_t)decode_based_unsigned_offset(sequencer, 16, &reloc, (size_t)((cp=='x')?2:((cp=='u')?4:8)));
         advance = reloc-offset;
         search_node_set(check, index);
         continue;
       }
     }
 
-    if (encoding_cache_find_codepoint(cache, offset+advance+1).cp=='-' && from<=0) {
-      from = encoding_cache_find_codepoint(cache, offset+advance).cp;
+    if (unicode_sequencer_find(sequencer, offset+advance+1)->cp[0]=='-' && from<=0) {
+      from = unicode_sequencer_find(sequencer, offset+advance)->cp[0];
       advance += 2;
     } else {
       if (from>0) {
-        codepoint_t to = encoding_cache_find_codepoint(cache, offset+advance).cp;
+        codepoint_t to = unicode_sequencer_find(sequencer, offset+advance)->cp[0];
         advance++;
         while (from<=to) {
           search_node_set(check, (size_t)from);
           from++;
         }
       } else {
-        advance += search_append_unicode(last, ignore_case, cache, offset+advance, check, 0);
+        advance += search_append_unicode(last, ignore_case, sequencer, offset+advance, check, 0);
       }
     }
   }
@@ -658,10 +662,10 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
           struct stream native_stream;
           stream_from_plain(&native_stream, (uint8_t*)&from, sizeof(codepoint_t));
 
-          struct encoding_cache native_cache;
-          encoding_cache_clear(&native_cache, encoding_native_static(), &native_stream);
+          struct unicode_sequencer native_sequencer;
+          unicode_sequencer_clear(&native_sequencer, encoding_native_static(), &native_stream);
 
-          search_append_unicode(last, ignore_case, &native_cache, 0, check, 2);
+          search_append_unicode(last, ignore_case, &native_sequencer, 0, check, 2);
 
           stream_destroy(&native_stream);
         }
@@ -680,14 +684,14 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct encod
 }
 
 // Try to append unicode character to the current set of the node, if a sequenceation into multiple characters has been made add a branch
-size_t search_append_unicode(struct search_node* last, int ignore_case, struct encoding_cache* cache, size_t offset, struct search_node* shorten, size_t min) {
+size_t search_append_unicode(struct search_node* last, int ignore_case, struct unicode_sequencer* sequencer, size_t offset, struct search_node* shorten, size_t min) {
   size_t advance = 1;
   if (ignore_case) {
     advance = 0;
     size_t length = 0;
-    struct unicode_sequence* sequence = unicode_transform(unicode_transform_upper, cache, offset, &advance, &length);
+    struct unicode_sequence* sequence = unicode_transform(unicode_transform_upper, sequencer, offset, &advance, &length);
     if (!sequence)
-      sequence = unicode_transform(unicode_transform_lower, cache, offset, &advance, &length);
+      sequence = unicode_transform(unicode_transform_lower, sequencer, offset, &advance, &length);
 
     if (sequence) {
       if (sequence->length==1 && shorten && (shorten!=last || advance==1)) {
@@ -706,11 +710,11 @@ size_t search_append_unicode(struct search_node* last, int ignore_case, struct e
     if (advance==1 && shorten) {
       shorten->type &= ~SEARCH_NODE_TYPE_BRANCH;
       shorten->type |= SEARCH_NODE_TYPE_SET;
-      search_node_set(shorten, (size_t)encoding_cache_find_codepoint(cache, offset).cp);
+      search_node_set(shorten, (size_t)unicode_sequencer_find(sequencer, offset)->cp[0]);
     } else {
       codepoint_t cp[8];
       for (size_t n = 0; n<advance; n++) {
-        cp[n] = encoding_cache_find_codepoint(cache, offset+n).cp;
+        cp[n] = unicode_sequencer_find(sequencer, offset+n)->cp[0];
       }
       search_append_next_codepoint(last, &cp[0], advance);
     }

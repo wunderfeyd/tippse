@@ -15,7 +15,6 @@ struct unicode_sequence {
   size_t length;                            // Number of codepoints in cp[]
   size_t size;                              // Length in bytes
   codepoint_t cp[UNICODE_SEQUENCE_MAX];     // Codepoints
-  size_t advance;                           // Number of codepoints read
 };
 
 #define UNICODE_SEQUENCER_MAX 32
@@ -49,9 +48,9 @@ void unicode_update_combining_mark(codepoint_t codepoint);
 int unicode_combining_mark(codepoint_t codepoint);
 //size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offset, codepoint_t* codepoints, size_t max, size_t* advance, size_t* length);
 void unicode_width_adjust(codepoint_t cp, int width);
-struct unicode_sequence* unicode_upper(struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length);
-struct unicode_sequence* unicode_lower(struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length);
-struct unicode_sequence* unicode_transform(struct trie* transformation, struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length);
+struct unicode_sequence* unicode_upper(struct unicode_sequencer* sequencer, size_t offset, size_t* advance, size_t* length);
+struct unicode_sequence* unicode_lower(struct unicode_sequencer* sequencer, size_t offset, size_t* advance, size_t* length);
+struct unicode_sequence* unicode_transform(struct trie* transformation, struct unicode_sequencer* sequencer, size_t offset, size_t* advance, size_t* length);
 
 // Check if codepoint is marked
 TIPPSE_INLINE int unicode_bitfield_check(const codepoint_table_t* table, codepoint_t codepoint) {
@@ -109,50 +108,6 @@ TIPPSE_INLINE int unicode_width(const codepoint_t* codepoints, size_t max) {
 
   // Check if we have CJK ideographs (which are displayed in two columns each)
   return unicode_bitfield_check(&unicode_widths[0], codepoints[0])+1;
-}
-
-// Return contents and length of combining character sequence
-TIPPSE_INLINE void unicode_read_combined_sequence(struct encoding_cache* cache, size_t offset, struct unicode_sequence* sequence) {
-  codepoint_t* codepoints = &sequence->cp[0];
-  codepoints[0] = encoding_cache_find_codepoint(cache, offset).cp;
-  size_t length = 1;
-  size_t advance = 1;
-  if (codepoints[0]>0x20) {
-    if (UNLIKELY(unicode_bitfield_check(&unicode_marks[0], codepoints[0]))) {
-      codepoints[length] = codepoints[length-1];
-      codepoints[length-1] = 'o';
-      length++;
-    }
-
-    while (length<UNICODE_SEQUENCE_MAX) {
-      codepoints[length] = encoding_cache_find_codepoint(cache, offset+advance).cp;
-      if (unicode_bitfield_check(&unicode_marks[0], codepoints[length])) {
-        length++;
-        advance++;
-        continue;
-      } else if (codepoints[length]==0x200d) { // Zero width joiner
-        if (UNLIKELY(length+1<UNICODE_SEQUENCE_MAX)) {
-          length++;
-          advance++;
-          codepoints[length++] = encoding_cache_find_codepoint(cache, offset+advance++).cp;
-        }
-        continue;
-      }
-
-      break;
-    }
-  }
-
-  sequence->length = length;
-  sequence->advance = advance;
-}
-
-TIPPSE_INLINE void unicode_read_combined_sequence_size(struct encoding_cache* cache, size_t offset, struct unicode_sequence* sequence) {
-  size_t size = 0;
-  for (size_t check = 0; check<sequence->advance; check++) {
-    size += encoding_cache_find_codepoint(cache, offset+check).length;
-  }
-  sequence->size = size;
 }
 
 void unicode_sequencer_clear(struct unicode_sequencer* base, struct encoding* encoding, struct stream* stream);

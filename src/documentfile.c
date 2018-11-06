@@ -514,7 +514,7 @@ void document_file_detect_properties_stream(struct document_file* base, struct s
       continue;
     }
     file_offset_t score = (stats[n].good*max_chars*encodings[n].factor)/stats[n].chars;
-    // fprintf(stderr, "%s %d: %d / %d\r\n", base->filename, (int)n, (int)score, stats[n].binary);
+    //fprintf(stderr, "%s %d: %d / %d\r\n", base->filename, (int)n, (int)score, stats[n].binary);
     if (score>max_bad) {
       max_bad = score;
       best = n;

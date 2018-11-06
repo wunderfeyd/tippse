@@ -67,8 +67,6 @@ struct document_view;
 struct directory;
 struct editor;
 struct encoding;
-struct encoding_cache;
-struct encoding_cache_codepoint;
 struct file;
 struct file_type;
 struct file_cache;

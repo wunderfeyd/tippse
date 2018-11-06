@@ -4,14 +4,6 @@
 #include "encoding/utf8.h"
 #include "encoding/native.h"
 
-// Reset code point cache
-void encoding_cache_clear(struct encoding_cache* base, struct encoding* encoding, struct stream* stream) {
-  base->start = 0;
-  base->end = 0;
-  base->encoding = encoding;
-  base->stream = stream;
-}
-
 struct encoding* encoding_native_base = NULL;
 struct encoding* encoding_utf8_base = NULL;
 
@@ -59,8 +51,6 @@ struct range_tree_node* encoding_transform_stream(struct stream* stream, struct 
   uint8_t recoded[1024];
   size_t recode = 0;
 
-  struct encoding_cache cache;
-  encoding_cache_clear(&cache, from, stream);
   struct range_tree_node* root = NULL;
   while (1) {
     if (stream_end(stream) || recode>512) {
@@ -71,13 +61,13 @@ struct range_tree_node* encoding_transform_stream(struct stream* stream, struct 
       }
     }
 
-    codepoint_t cp = encoding_cache_find_codepoint(&cache, 0).cp;
-    encoding_cache_advance(&cache, 1);
+    size_t length;
+    codepoint_t cp = from->decode(from, stream, &length);
     if (cp==UNICODE_CODEPOINT_BAD) {
       continue;
     }
 
-    recode += to->encode(to, cp, &recoded[recode], 8);
+    recode += to->encode(to, cp, &recoded[recode], sizeof(recoded)-recode);
   }
 
   return root;

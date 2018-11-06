@@ -185,28 +185,29 @@ void unicode_width_adjust(codepoint_t cp, int width) {
 }
 
 // Transform to uppercase
-struct unicode_sequence* unicode_upper(struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length) {
-  return unicode_transform(unicode_transform_upper, cache, offset, advance, length);
+struct unicode_sequence* unicode_upper(struct unicode_sequencer* sequencer, size_t offset, size_t* advance, size_t* length) {
+  return unicode_transform(unicode_transform_upper, sequencer, offset, advance, length);
 }
 
 // Transform to lowercase
-struct unicode_sequence* unicode_lower(struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length) {
-  return unicode_transform(unicode_transform_upper, cache, offset, advance, length);
+struct unicode_sequence* unicode_lower(struct unicode_sequencer* sequencer, size_t offset, size_t* advance, size_t* length) {
+  return unicode_transform(unicode_transform_upper, sequencer, offset, advance, length);
 }
 
 // Apply transformation if possible
-struct unicode_sequence* unicode_transform(struct trie* transformation, struct encoding_cache* cache, size_t offset, size_t* advance, size_t* length) {
+struct unicode_sequence* unicode_transform(struct trie* transformation, struct unicode_sequencer* sequencer, size_t offset, size_t* advance, size_t* length) {
   size_t read = 0;
   struct trie_node* parent = NULL;
   while (1) {
-    struct encoding_cache_node node = encoding_cache_find_codepoint(cache, offset+read);
-    parent = trie_find_codepoint(transformation, parent, node.cp);
+    struct unicode_sequence* sequence = unicode_sequencer_find(sequencer, offset+read);
+    // TODO: codepoint!=sequence
+    parent = trie_find_codepoint(transformation, parent, sequence->cp[0]);
 
     if (!parent) {
       return NULL;
     }
 
-    *length += node.length;
+    *length += sequence->size;
     read++;
 
     if (parent->end) {

@@ -175,8 +175,7 @@ file_offset_t document_text_cursor_position(struct splitter* splitter, struct do
 
 // Clear renderer state to ensure a restart at next seek
 void document_text_render_clear(struct document_text_render_info* render_info, position_t width, struct range_tree_node* selection) {
-  //memset(render_info, 0, sizeof(struct document_text_render_info));
-  memset(render_info, 0, (void*)&render_info->stream-(void*)&render_info);
+  memset(render_info, 0, (void*)&render_info->stream-(void*)render_info);
   render_info->width = width;
   render_info->selection_root = selection;
   stream_from_plain(&render_info->stream, NULL, 0);
@@ -289,7 +288,6 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
 
     stream_destroy(&render_info->stream);
     stream_from_page(&render_info->stream, render_info->buffer, render_info->displacement);
-    //encoding_cache_clear(&render_info->cache, encoding, &render_info->stream);
     unicode_sequencer_clear(&render_info->sequencer, encoding, &render_info->stream);
   }
 
@@ -424,7 +422,6 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
   if (document_text_split_buffer(render_info->buffer, file)) {
     stream_destroy(&render_info->stream);
     stream_from_page(&render_info->stream, render_info->buffer, render_info->displacement);
-    //encoding_cache_clear(&render_info->cache, file->encoding, &render_info->stream);
     unicode_sequencer_clear(&render_info->sequencer, file->encoding, &render_info->stream);
     page_dirty = 1;
   }
@@ -532,7 +529,6 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
       stream_destroy(&render_info->stream);
       stream_from_page(&render_info->stream, render_info->buffer, render_info->displacement);
       unicode_sequencer_clear(&render_info->sequencer, file->encoding, &render_info->stream);
-      //encoding_cache_clear(&render_info->cache, file->encoding, &render_info->stream);
 
 /*      if (page_dirty && render_info->buffer) {
         size_t count = encoding_cache_range(&render_info->cache, &big_buffer[0], render_info->buffer->length+2048);
@@ -1305,8 +1301,8 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
     struct range_tree_node* buffer = range_tree_find_offset(file->buffer, file->autocomplete_offset, &displacement);
     struct stream stream;
     stream_from_page(&stream, buffer, displacement);
-    struct encoding_cache cache;
-    encoding_cache_clear(&cache, file->encoding, &stream);
+    struct unicode_sequencer sequencer;
+    unicode_sequencer_clear(&sequencer, file->encoding, &stream);
     size_t count = 0;
 
     if (!file->autocomplete_build) {
@@ -1320,7 +1316,7 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
     struct trie_node* parent_build = NULL;
     struct trie_node* parent_last = NULL;
     while (1) {
-      codepoint_t cp = encoding_cache_find_codepoint(&cache, 0).cp;
+      codepoint_t cp = unicode_sequencer_find(&sequencer, 0)->cp[0];
       if (cp<=0) {
         break;
       }
@@ -1340,10 +1336,11 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
           parent_build = NULL;
         }
       } else {
+        // TODO: codepoint!=sequence
         parent_last = trie_append_codepoint(file->autocomplete_last, parent_last, cp, 0);
         parent_build = trie_append_codepoint(file->autocomplete_build, parent_build, cp, 0);
       }
-      encoding_cache_advance(&cache, 1);
+      unicode_sequencer_advance(&sequencer, 1);
       count++;
     }
     file->autocomplete_offset = stream_offset(&stream);
@@ -1365,6 +1362,7 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
 
 // Draw entire visible screen space
 void document_text_draw(struct document* base, struct screen* screen, struct splitter* splitter) {
+
   debug_screen = screen;
   debug_splitter = splitter;
   struct document_file* file = splitter->file;
@@ -1569,9 +1567,9 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     struct range_tree_node* buffer = range_tree_find_offset(file->buffer, view->offset, &displacement);
     struct stream stream;
     stream_from_page(&stream, buffer, displacement);
-    struct encoding_cache cache;
-    encoding_cache_clear(&cache, file->encoding, &stream);
-    codepoint_t cp = encoding_cache_find_codepoint(&cache, 0).cp;
+    struct unicode_sequencer sequencer;
+    unicode_sequencer_clear(&sequencer, file->encoding, &stream);
+    codepoint_t cp = unicode_sequencer_find(&sequencer, 0)->cp[0];
     if (!unicode_word(cp)) {
       stream_destroy(&stream);
 
@@ -1580,8 +1578,9 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
         stream_reverse(&stream, 1); // TODO: this might not work with UTF16 for example ... introduce a smallest element per encoding (we go with 1 here)
         struct stream copy;
         stream_clone(&copy, &stream);
-        encoding_cache_clear(&cache, file->encoding, &copy);
-        codepoint_t cp = encoding_cache_find_codepoint(&cache, 0).cp;
+        unicode_sequencer_clear(&sequencer, file->encoding, &copy);
+        // TODO: codepoint!=sequence
+        codepoint_t cp = unicode_sequencer_find(&sequencer, 0)->cp[0];
         stream_destroy(&copy);
         if (cp!=-1 && !unicode_word(cp)) {
           stream_forward(&stream, 1);
@@ -1589,18 +1588,19 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
         }
       }
 
-      encoding_cache_clear(&cache, file->encoding, &stream);
+      unicode_sequencer_clear(&sequencer, file->encoding, &stream);
       int prefix = 0;
       struct trie_node* parent = NULL;
       while (stream_offset(&stream)<view->offset) {
-        codepoint_t cp = encoding_cache_find_codepoint(&cache, 0).cp;
+        // TODO: codepoint!=sequence
+        codepoint_t cp = unicode_sequencer_find(&sequencer, 0)->cp[0];
         length += encoding_utf8_encode(NULL, cp, (uint8_t*)&text[length], sizeof(text)-length);
         parent = trie_find_codepoint(file->autocomplete_last, parent, cp);
         if (!parent) {
           break;
         }
 
-        encoding_cache_advance(&cache, 1);
+        unicode_sequencer_advance(&sequencer, 1);
         prefix++;
       }
 
@@ -1641,8 +1641,10 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     }
     stream_destroy(&stream);
   }
+
   const char* newline[TIPPSE_NEWLINE_MAX] = {"Auto", "Lf", "Cr", "CrLf"};
   const char* tabstop[TIPPSE_TABSTOP_MAX] = {"Auto", "Tab", "Space"};
+
   char status[1024];
   sprintf(&status[0], "%s%s%lld/%lld:%lld - %lld/%lld byte - %s*%d %s %s/%s %s", (file->buffer?file->buffer->visuals.dirty:0)?"? ":"", (file->buffer?(file->buffer->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (long long int)(file->buffer?file->buffer->visuals.lines+1:0), (long long int)(cursor.line+1), (long long int)(cursor.column+1), (long long int)view->offset, (long long int)range_tree_length(file->buffer), tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->type->type)(file->type), (*file->encoding->name)());
   splitter_status(splitter, &status[0]);
@@ -2702,7 +2704,7 @@ void document_text_transform(struct document* base, struct trie* transformation,
   size_t offset = 0;
   struct stream stream;
   stream_from_plain(&stream, NULL, 0);
-  struct encoding_cache cache;
+  struct unicode_sequencer sequencer;
 
   uint8_t recoded[1024];
   size_t recode = 0;
@@ -2719,12 +2721,12 @@ void document_text_transform(struct document* base, struct trie* transformation,
 
       stream_destroy(&stream);
       stream_from_page(&stream, buffer, displacement);
-      encoding_cache_clear(&cache, file->encoding, &stream);
+      unicode_sequencer_clear(&sequencer, file->encoding, &stream);
     }
 
     size_t advance = 0;
     size_t length = 0;
-    struct unicode_sequence* sequence = unicode_transform(transformation, &cache, offset, &advance, &length);
+    struct unicode_sequence* sequence = unicode_transform(transformation, &sequencer, offset, &advance, &length);
     if (recode>512 || (!sequence && recode>256)) {
       document_file_delete(file, recode_from, from-recode_from);
       document_file_reduce(&to, recode_from, from-recode_from);
@@ -2735,13 +2737,15 @@ void document_text_transform(struct document* base, struct trie* transformation,
     }
 
     if (!sequence) {
-      struct encoding_cache_node node = encoding_cache_find_codepoint(&cache, offset);
+      struct unicode_sequence* sequence = unicode_sequencer_find(&sequencer, offset);
       if (recode>0) {
         // TODO: this might change the original encoded characters due to decode and reencode (just copy the old things if possible)
-        recode += file->encoding->encode(file->encoding, node.cp, &recoded[recode], 8);
+        for (size_t n = 0; n<sequence->length; n++) {
+          recode += file->encoding->encode(file->encoding, sequence->cp[n], &recoded[recode], 8);
+        }
       }
 
-      from += node.length;
+      from += sequence->size;
       offset++;
     } else {
       if (recode==0) {

@@ -90,8 +90,8 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
 
   struct stream text_stream;
   stream_from_page(&text_stream, buffer, displacement);
-  struct encoding_cache text_cache;
-  encoding_cache_clear(&text_cache, file->encoding, &text_stream);
+  struct unicode_sequencer text_sequence;
+  unicode_sequencer_clear(&text_sequence, file->encoding, &text_stream);
 
   file_offset_t selection_displacement;
   struct range_tree_node* selection = range_tree_find_offset(view->selection, offset, &selection_displacement);
@@ -137,21 +137,23 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
       splitter_drawtext(splitter, screen, x, (int)y, line+start, (size_t)size, file->defaults.colors[marked?VISUAL_FLAG_COLOR_BOOKMARK:VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
     }
 
+    struct unicode_sequence default_sequence;
+    default_sequence.length = 1;
+    default_sequence.cp[0] = 0;
+
     for (size_t delta = 0; delta<data_size; delta++) {
       int x_bytes = view->address_width+(int)(delta*3);
       int x_characters = view->address_width+(16*3)+(int)delta;
 
       if (offset<file_size) {
-        struct unicode_sequence sequence;
+        struct unicode_sequence* sequence;
         char_size--;
         if (char_size==0) {
-          unicode_read_combined_sequence(&text_cache, 0, &sequence);
-          unicode_read_combined_sequence_size(&text_cache, 0, &sequence);
-          char_size = sequence.size;
-          encoding_cache_advance(&text_cache, sequence.advance);
+          sequence = unicode_sequencer_find(&text_sequence, 0);
+          char_size = sequence->size;
+          unicode_sequencer_advance(&text_sequence, 1);
         } else {
-          sequence.cp[0] = 0;
-          sequence.length = 1;
+          sequence = &default_sequence;
         }
 
         uint8_t byte = stream_read_forward(&byte_stream);
@@ -177,8 +179,8 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
         }
 
         struct unicode_sequence visuals;
-        encoding_visuals(file->encoding, &sequence, &visuals);
-        document_hex_convert(&sequence.cp[0], &sequence.length, &visuals.cp[0], view->show_invisibles, '.');
+        encoding_visuals(file->encoding, sequence, &visuals);
+        document_hex_convert(&sequence->cp[0], &sequence->length, &visuals.cp[0], view->show_invisibles, '.');
 
         if (!selected) {
           splitter_drawunicode(splitter, screen, x_characters, y, &visuals, marked?bookmarkx:foreground, background);

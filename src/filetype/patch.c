@@ -30,7 +30,7 @@ const char* file_type_patch_name(void) {
 
 void file_type_patch_mark(struct document_text_render_info* render_info) {
   int flags = 0;
-  codepoint_t cp1 = render_info->sequence.cp[0];
+  codepoint_t cp1 = render_info->sequencex->cp[0];
 
   render_info->keyword_length = 1;
   int before = render_info->visual_detail;

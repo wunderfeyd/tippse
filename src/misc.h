@@ -34,11 +34,11 @@ int is_file(const char* path);
 int64_t tick_count(void);
 int64_t tick_ms(int64_t ms);
 
-uint64_t decode_based_unsigned_offset(struct encoding_cache* cache, int base, size_t* offset, size_t count);
-uint64_t decode_based_unsigned(struct encoding_cache* cache, int base, size_t count);
+uint64_t decode_based_unsigned_offset(struct unicode_sequencer* sequencer, int base, size_t* offset, size_t count);
+uint64_t decode_based_unsigned(struct unicode_sequencer* sequencer, int base, size_t count);
 
-int64_t decode_based_signed_offset(struct encoding_cache* cache, int base, size_t* offset, size_t count);
-int64_t decode_based_signed(struct encoding_cache* cache, int base, size_t count);
+int64_t decode_based_signed_offset(struct unicode_sequencer* sequencer, int base, size_t* offset, size_t count);
+int64_t decode_based_signed(struct unicode_sequencer* sequencer, int base, size_t count);
 
 #ifdef _WINDOWS
 char* realpath(const char* path, char* resolved_path);

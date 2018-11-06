@@ -99,8 +99,8 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
 struct range_tree_node* search_replacement(struct search* base, struct range_tree_node* root, struct encoding* replacement_encoding, struct range_tree_node* document_root);
 void search_destroy(struct search* base);
 struct search_node* search_append_class(struct search_node* last, codepoint_t cp, int create);
-size_t search_append_set(struct search_node* last, int ignore_case, struct encoding_cache* cache, size_t offset);
-size_t search_append_unicode(struct search_node* last, int ignore_case, struct encoding_cache* cache, size_t offset, struct search_node* shorten, size_t min);
+size_t search_append_set(struct search_node* last, int ignore_case, struct unicode_sequencer* sequencer, size_t offset);
+size_t search_append_unicode(struct search_node* last, int ignore_case, struct unicode_sequencer* sequencer, size_t offset, struct search_node* shorten, size_t min);
 struct search_node* search_append_next_index(struct search_node* last, size_t index, int type);
 void search_append_next_codepoint(struct search_node* last, codepoint_t* buffer, size_t size);
 void search_append_next_byte(struct search_node* last, uint8_t* buffer, size_t size);
