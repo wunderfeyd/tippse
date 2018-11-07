@@ -252,7 +252,7 @@ char* home_path(void) {
 }
 
 // Check for directory
-int is_directory(const char* path) {
+bool_t is_directory(const char* path) {
 #ifdef _WINDOWS
   wchar_t* os = string_system(path);
   DWORD attributes = GetFileAttributesW(os);
@@ -269,7 +269,7 @@ int is_directory(const char* path) {
 }
 
 // Check for file
-int is_file(const char* path) {
+bool_t is_file(const char* path) {
 #ifdef _WINDOWS
   wchar_t* os = string_system(path);
   DWORD attributes = GetFileAttributesW(os);

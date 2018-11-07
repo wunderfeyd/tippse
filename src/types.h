@@ -11,13 +11,13 @@ typedef uint64_t file_offset_t;
 typedef int64_t position_t;
 
 // Type for code points (signed type needed at the moment)
-typedef int32_t codepoint_t;
+typedef uint32_t codepoint_t;
 
 // Type for unicode bit tables
 typedef unsigned long codepoint_table_t;
 
-// Type for boolean values
-typedef int bool_t;
+// Type for boolean values (stdbool.h seems to degrade the performance ... TODO: check why)
+typedef long bool_t;
 
 // Max and min
 #define FILE_OFFSET_T_MAX (~(file_offset_t)0)

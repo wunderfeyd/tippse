@@ -89,7 +89,7 @@ void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie*
       break;
     }
 
-    int exact = (head>>7)&0x1;
+    bool_t exact = (head>>7)&0x1;
     int runs = 0;
     if (exact) {
       duplicate = copy[head&0xf];

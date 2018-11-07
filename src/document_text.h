@@ -19,35 +19,31 @@ struct document_text {
 
 // Saved state between two render calls
 struct document_text_render_info {
-  bool_t append;                    // continue status?
-  position_t x;                     // virtual screen X position, without scroll offset
-  position_t y;                     // virtual screen Y position, without scroll offset
-  position_t y_view;                // virtual screen Y position for rendering, without scroll offset
+  int visual_detail;                // flags for visual details
+  struct unicode_sequence* sequence;
   struct range_tree_node* buffer;   // access to document buffer, current page in tree
-  struct file_type* file_type;
+  long indentations;                 // number of normal identations in block
+  long indentations_extra;           // number of extra identations in block, e.g. line wrapping
+  long indentation;                  // number of normal identation in whole document
+  long indentation_extra;            // number of extra identation in whole document
   file_offset_t displacement;       // displacement for next Unicode character
   file_offset_t offset;             // file offset
   file_offset_t offset_sync;        // last position for keyword
+  position_t x;                     // virtual screen X position, without scroll offset
+  position_t y;                     // virtual screen Y position, without scroll offset
+  position_t y_view;                // virtual screen Y position for rendering, without scroll offset
   position_t xs;                    // relative screen X position
   position_t ys;                    // relative screen Y position
-  int indentations;                 // number of normal identations in block
-  int indentations_extra;           // number of extra identations in block, e.g. line wrapping
-  int indentation;                  // number of normal identation in whole document
-  int indentation_extra;            // number of extra identation in whole document
   position_t lines;                 // line in block
   position_t line;                  // line in whole document
   position_t columns;               // column in block
   position_t column;                // column in whole document
   file_offset_t characters;         // number of characters in block
   file_offset_t character;          // number of characters in whole document
-  int visual_detail;                // flags for visual details
   position_t width;                 // screen width for rendering
-  struct unicode_sequence* sequencex;
   int keyword_color;                // keyword color
-  int keyword_length;               // keyword length remaining
+  long keyword_length;               // keyword length remaining
   bool_t indented;                  // begin of line is indentation only?
-  struct range_tree_node* selection_root; // root of selection buffer
-  const struct range_tree_node* selection; // access to selection buffer, current page in tree
   file_offset_t selection_displacement; // position in current selection page
   int depth_new[VISUAL_BRACKET_MAX]; //depth of bracket matching at cursor position
   int depth_old[VISUAL_BRACKET_MAX]; //depth of bracket matching at page start
@@ -57,11 +53,15 @@ struct document_text_render_info {
   struct visual_bracket brackets_line[VISUAL_BRACKET_MAX]; // block structure for bracket matching at line
   struct stream stream;    // access to byte stream
   struct unicode_sequencer sequencer; // access to Unicode sequencer cache
+  bool_t append;                    // continue status?
+  struct file_type* file_type;
+  struct range_tree_node* selection_root; // root of selection buffer
+  const struct range_tree_node* selection; // access to selection buffer, current page in tree
 };
 
 // Document position structure
 struct document_text_position {
-  int type;                             // visual seek type
+  long type;                            // visual seek type
   int clip;                             // clip to screen
 
   struct range_tree_node* buffer;       // access to document buffer, current page in tree
@@ -90,7 +90,7 @@ struct document_text_position {
   int depth_line[VISUAL_BRACKET_MAX];   // Bracket information
   int min_line[VISUAL_BRACKET_MAX];     // Bracket information
   position_t lines;                     // number of lines rendered in this page
-  int indented;                         // cursor in indentation area
+  bool_t indented;                      // cursor in indentation area
 };
 
 struct document* document_text_create(void);

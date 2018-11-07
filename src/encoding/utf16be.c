@@ -30,7 +30,7 @@ size_t encoding_utf16be_character_length(struct encoding* base) {
 }
 
 codepoint_t encoding_utf16be_visual(struct encoding* base, codepoint_t cp) {
-  if (cp<0) {
+  if (cp>UNICODE_CODEPOINT_MAX) {
     return UNICODE_CODEPOINT_BAD;
   } else if (cp<0x20) {
     return cp+0x2400;
@@ -42,13 +42,13 @@ codepoint_t encoding_utf16be_visual(struct encoding* base, codepoint_t cp) {
 codepoint_t encoding_utf16be_decode(struct encoding* base, struct stream* stream, size_t* used) {
   uint8_t c1 = stream_read_forward(stream);
   uint8_t c2 = stream_read_forward(stream);
-  codepoint_t cp = (c1<<8)|c2;
+  codepoint_t cp = (codepoint_t)((c1<<8)|c2);
   if (cp>=0xd800 && cp<0xdc00) {
     uint8_t c1 = stream_read_forward(stream);
     uint8_t c2 = stream_read_forward(stream);
     if (cp>=0xdc00 && cp<0xe000) {
       cp <<= 10;
-      cp |= (c1<<8)|c2;
+      cp |= (codepoint_t)((c1<<8)|c2);
       cp += 0x10000;
       *used = 4;
     } else {

@@ -12,7 +12,7 @@
 #define STREAM_TYPE_FILE 2
 
 struct stream {
-  int type;                             // type of stream
+  int type;                            // type of stream
 
   const uint8_t* plain;                 // address of buffer
   size_t displacement;                  // offset in buffer
@@ -52,7 +52,6 @@ TIPPSE_INLINE ssize_t stream_left(const struct stream* base) {return (ssize_t)ba
 uint8_t stream_read_forward_oob(struct stream* base);
 TIPPSE_INLINE uint8_t stream_read_forward(struct stream* base) {
   if (LIKELY(base->displacement<base->cache_length)) {
-    PREFETCH(base->plain+base->displacement+1, 0, 0);
     return *(base->plain+base->displacement++);
   } else {
     return stream_read_forward_oob(base);

@@ -4,11 +4,13 @@
 #include <stdlib.h>
 #include "types.h"
 
-#define UNICODE_CODEPOINT_BAD -1
-#define UNICODE_CODEPOINT_UNASSIGNED -2
 #define UNICODE_CODEPOINT_BOM 0xfeff
 #define UNICODE_CODEPOINT_MAX 0x110000
-#define UNICODE_BITFIELD_MAX ((UNICODE_CODEPOINT_MAX/sizeof(codepoint_table_t))+1)
+#define UNICODE_CODEPOINT_BAD UNICODE_CODEPOINT_MAX+1
+#define UNICODE_CODEPOINT_UNASSIGNED UNICODE_CODEPOINT_MAX+2
+#define UNICODE_CODEPOINT_MAX_BAD 0x110000+4
+
+#define UNICODE_BITFIELD_MAX ((UNICODE_CODEPOINT_MAX_BAD/sizeof(codepoint_table_t))+1)
 #define UNICODE_SEQUENCE_MAX 8
 
 struct unicode_sequence {
@@ -53,17 +55,13 @@ struct unicode_sequence* unicode_lower(struct unicode_sequencer* sequencer, size
 struct unicode_sequence* unicode_transform(struct trie* transformation, struct unicode_sequencer* sequencer, size_t offset, size_t* advance, size_t* length);
 
 // Check if codepoint is marked
-TIPPSE_INLINE int unicode_bitfield_check(const codepoint_table_t* table, codepoint_t codepoint) {
-  if (LIKELY(codepoint>=0) && LIKELY(codepoint<UNICODE_CODEPOINT_MAX)) {
-    return (int)((table[(size_t)codepoint/(sizeof(codepoint_table_t)*8)]>>((size_t)codepoint&(sizeof(codepoint_table_t)*8-1)))&1);
-  }
-
-  return 0;
+TIPPSE_INLINE bool_t unicode_bitfield_check(const codepoint_table_t* table, codepoint_t codepoint) {
+  return (bool_t)((table[(size_t)codepoint/(sizeof(codepoint_table_t)*8)]>>((size_t)codepoint&(sizeof(codepoint_table_t)*8-1)))&1);
 }
 
 // Mark or reset bit for specific codepoint
-TIPPSE_INLINE void unicode_bitfield_set(codepoint_table_t* table, codepoint_t codepoint, int set) {
-  if (codepoint>=0 && codepoint<UNICODE_CODEPOINT_MAX) {
+TIPPSE_INLINE void unicode_bitfield_set(codepoint_table_t* table, codepoint_t codepoint, bool_t set) {
+  if (codepoint<UNICODE_CODEPOINT_MAX) {
     if (!set) {
       table[(size_t)codepoint/(sizeof(codepoint_table_t)*8)] &= ~(((codepoint_table_t)1)<<((size_t)codepoint&(sizeof(codepoint_table_t)*8-1)));
     } else {
@@ -76,22 +74,22 @@ void unicode_bitfield_clear(codepoint_table_t* table);
 void unicode_bitfield_combine(codepoint_table_t* table, codepoint_table_t* other);
 
 // Test if codepoint is a letter
-TIPPSE_INLINE int unicode_letter(codepoint_t codepoint) {
+TIPPSE_INLINE bool_t unicode_letter(codepoint_t codepoint) {
   return unicode_bitfield_check(&unicode_letters[0], codepoint);
 }
 
 // Test if codepoint is a sigit
-TIPPSE_INLINE int unicode_digit(codepoint_t codepoint) {
+TIPPSE_INLINE bool_t unicode_digit(codepoint_t codepoint) {
   return unicode_bitfield_check(&unicode_digits[0], codepoint);
 }
 
 // Test if codepoint is a whitespace
-TIPPSE_INLINE int unicode_whitespace(codepoint_t codepoint) {
+TIPPSE_INLINE bool_t unicode_whitespace(codepoint_t codepoint) {
   return unicode_bitfield_check(&unicode_whitespaces[0], codepoint);
 }
 
 // Test if codepoint is a whitespace
-TIPPSE_INLINE int unicode_word(codepoint_t codepoint) {
+TIPPSE_INLINE bool_t unicode_word(codepoint_t codepoint) {
   return unicode_bitfield_check(&unicode_words[0], codepoint);
 }
 
@@ -120,7 +118,6 @@ TIPPSE_INLINE void unicode_sequencer_read(struct unicode_sequencer* base) {
 
 // Decode sequence (combined unicodes with marks or joiner)
 TIPPSE_INLINE void unicode_sequencer_decode(struct unicode_sequencer* base, struct unicode_sequence* sequence) {
-
   codepoint_t* codepoints = &sequence->cp[0];
   codepoints[0] = base->last_cp;
   size_t size = base->last_size;

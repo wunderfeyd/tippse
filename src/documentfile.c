@@ -489,7 +489,7 @@ void document_file_detect_properties_stream(struct document_file* base, struct s
       codepoint_t visual = (*encoding->visual)(encoding, cp);
 
       stats[n].chars++;
-      if (cp==-1 || visual<0 || visual==0xfffd || visual==0xfffe || (!unicode_letter(visual) && !unicode_digit(visual) && !unicode_whitespace(visual) && cp!=0xfeff && cp!='\r' && cp!='\n')) {
+      if (cp==UNICODE_CODEPOINT_BAD || visual>UNICODE_CODEPOINT_MAX || visual==0xfffd || visual==0xfffe || (!unicode_letter(visual) && !unicode_digit(visual) && !unicode_whitespace(visual) && cp!=0xfeff && cp!='\r' && cp!='\n')) {
         if (cp==0) {
           stats[n].binary = 1;
         }

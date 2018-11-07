@@ -59,7 +59,7 @@ size_t encoding_cp850_character_length(struct encoding* base) {
 }
 
 codepoint_t encoding_cp850_visual(struct encoding* base, codepoint_t cp) {
-  if (cp<0 || cp>=0x20) {
+  if (cp>=0x20 && cp<UNICODE_CODEPOINT_MAX) {
     return cp;
   }
 
@@ -77,7 +77,7 @@ codepoint_t encoding_cp850_decode(struct encoding* base, struct stream* stream, 
 }
 
 size_t encoding_cp850_encode(struct encoding* base, codepoint_t cp, uint8_t* text, size_t size) {
-  if (cp>=0 && cp<CODEPOINT_MAX_CP850) {
+  if (cp<CODEPOINT_MAX_CP850) {
     uint16_t converted = translate_unicode_cp850[cp];
     if (converted!=(uint16_t)~0u) {
       *text = (uint8_t)translate_unicode_cp850[cp];

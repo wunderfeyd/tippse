@@ -17,8 +17,8 @@ struct file_type {
   char* file_type;
 };
 
-struct trie_node* file_type_config_base(struct file_type* base, const char* suffix);
-int file_type_keyword_config(struct file_type* base, struct unicode_sequencer* sequencer, struct trie_node* parent, int* keyword_length, int nocase);
+struct trie_node* file_type_config_base(const struct file_type* base, const char* suffix);
+int file_type_keyword_config(const struct file_type* base, struct unicode_sequencer* sequencer, struct trie_node* parent, long* keyword_length, int nocase);
 int file_type_bracket_match(const struct document_text_render_info* render_info);
 const char* file_type_file_type(struct file_type* base);
 

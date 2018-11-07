@@ -116,7 +116,7 @@ struct trie_node* trie_find_codepoint_recursive(struct trie* base, struct trie_n
   for (int set = 0; set<16; set++) {
     if (parent->side[set]) {
       codepoint_t new = build|((codepoint_t)set<<bit);
-      if (new+(1<<bit)-1>cp) {
+      if (new+(codepoint_t)((1<<bit)-1)>cp) {
         if (bit==0) {
           *out = new;
           return parent->side[set];
@@ -148,7 +148,7 @@ codepoint_t trie_find_codepoint_single(struct trie* base, struct trie_node* pare
     for (size_t set = 0; set<16; set++) {
       if (parent->side[set]) {
         if (found!=16) {
-          return -2;
+          return UNICODE_CODEPOINT_UNASSIGNED;
         }
         found = set;
       }

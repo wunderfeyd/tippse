@@ -352,7 +352,7 @@ int main(int argc, const char** argv) {
         struct stream stream;
         stream_from_plain(&stream, (const uint8_t*)&input_buffer[check], (size_t)((const uint8_t*)&input_buffer[input_pos]-(const uint8_t*)&input_buffer[check]));
         codepoint_t cp = (*screen->encoding->decode)(NULL, &stream, &used);
-        if (!bracket_paste && cp!=-1) {
+        if (!bracket_paste && cp<UNICODE_CODEPOINT_MAX) {
           editor_keypress(editor, TIPPSE_KEY_CHARACTER, cp, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
         }
         stream_destroy(&stream);

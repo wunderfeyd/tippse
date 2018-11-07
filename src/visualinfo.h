@@ -91,12 +91,12 @@ struct visual_info {
   position_t lines;         // Lines in page
   position_t xs;            // Size of last screen row in page
   position_t ys;            // Screen rows in page
-  int indentation;          // Common indentation of last screen row in page
-  int indentation_extra;    // Extra indentation of last screen row in page (for indentation marker)
+  long indentation;         // Common indentation of last screen row in page
+  long indentation_extra;   // Extra indentation of last screen row in page (for indentation marker)
   int detail_before;        // Visual details after last page
   int detail_after;         // Visual details after current page
   int keyword_color;        // Color for current active keyword
-  int keyword_length;       // Length of current active keyword
+  long keyword_length;       // Length of current active keyword
   file_offset_t displacement; // Offset to begin of first character
   file_offset_t rewind;     // Relative offset (backwards) to begin of the last keyword/character
   int dirty;                // Mark page as dirty (not completely rendered yet)

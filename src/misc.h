@@ -28,8 +28,8 @@ char* combine_path_file(const char* path, const char* file);
 char* correct_path(const char* path);
 char* relativate_path(const char* base, const char* path);
 char* home_path(void);
-int is_directory(const char* path);
-int is_file(const char* path);
+bool_t is_directory(const char* path);
+bool_t is_file(const char* path);
 
 int64_t tick_count(void);
 int64_t tick_ms(int64_t ms);

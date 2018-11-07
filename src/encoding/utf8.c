@@ -30,7 +30,7 @@ size_t encoding_utf8_character_length(struct encoding* base) {
 }
 
 codepoint_t encoding_utf8_visual(struct encoding* base, codepoint_t cp) {
-  if (cp<0) {
+  if (cp>UNICODE_CODEPOINT_MAX) {
     return UNICODE_CODEPOINT_BAD;
   } else if (cp<0x20) {
     return cp+0x2400;
@@ -1001,7 +1001,7 @@ void encoding_utf8_build_tables() {
       //fprintf(stderr, "> Table %d (%d)\r\n", (int)tables[n].rename, (int)n);
       for (size_t v = 0; v<256; v++) {
         fprintf(stderr, "0x%04x|%d%d, ", (int)(tables[n].jump[v].add)|
-          (int)(tables[tables[n].jump[v].next].rename<<8), tables[n].jump[v].end, tables[n].jump[v].bad);
+          (int)(tables[tables[n].jump[v].next].rename<<8), (int)tables[n].jump[v].end, (int)tables[n].jump[v].bad);
         if ((v&7)==7) {
           fprintf(stderr, "\r\n");
         } else {

@@ -1461,7 +1461,7 @@ TIPPSE_INLINE int search_node_bitset_check(struct search_node* node, uint8_t ind
 
 // Loop helper to find the code point in the code point set accordingly to the index
 TIPPSE_INLINE int search_node_set_check(struct search_node* node, codepoint_t index) {
-  return index>=0 && range_tree_marked(node->set, (file_offset_t)index, 1, TIPPSE_INSERTER_MARK);
+  return range_tree_marked(node->set, (file_offset_t)index, 1, TIPPSE_INSERTER_MARK);
 }
 
 // Next stack entry, create new stack and frame if needed
