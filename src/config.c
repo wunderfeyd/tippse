@@ -877,7 +877,7 @@ int64_t config_convert_int64_plain(struct config_argument* argument) {
       negate = 1;
     } else if (cp>='0' && cp<='9') {
       value *= 10;
-      value += cp-'0';
+      value += (int64_t)cp-'0';
     }
   }
 

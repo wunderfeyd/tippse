@@ -253,6 +253,11 @@ void screen_draw_char(struct screen* base, char** pos, int n, int* w, int* foreg
 
   if (c->sequence.length==0 || c->sequence.cp[0]!=UNICODE_CODEPOINT_BAD) {
     size_t copy;
+    if (unicode_bitfield_check(&unicode_marks[0], c->sequence.cp[0])) {
+      **pos = 'o';
+      *pos += 1;
+    }
+
     for (copy = 0; copy<c->sequence.length; copy++) {
       *pos += (*base->encoding->encode)(NULL, c->sequence.cp[copy], (uint8_t*)*pos, SIZE_T_MAX);
     }

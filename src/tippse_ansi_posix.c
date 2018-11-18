@@ -22,6 +22,10 @@
 #include "search.h"
 #include "unicode.h"
 
+#ifdef _PERFORMANCE
+#include "splitter.h"
+#endif
+
 struct tippse_ansi_key {
   const char* text; // text in input stream
   int key;          // associated key
@@ -373,6 +377,59 @@ int main(int argc, const char** argv) {
 #else
   {
     int64_t tick = tick_count();
+    struct stream stream;
+    stream_from_page(&stream, range_tree_first(editor->document->file->buffer), 0);
+    size_t length = range_tree_length(editor->document->file->buffer);
+    uint8_t sum = 0;
+    while (length-- >0) {
+      sum += stream_read_forward(&stream);
+    }
+    stream_destroy(&stream);
+    fprintf(stderr, "       Stream: %d   / %d\r\n", (int)(tick_count()-tick), (int)sum);
+  }
+  {
+    int64_t tick = tick_count();
+    struct stream stream;
+    stream_from_page(&stream, range_tree_first(editor->document->file->buffer), 0);
+    size_t length = range_tree_length(editor->document->file->buffer);
+    codepoint_t sum = 0;
+    struct encoding* encoding = editor->document->file->encoding;
+    while (length >0) {
+      size_t size;
+      sum += (*encoding->decode)(encoding, &stream, &size);
+      if (size>=length) {
+        break;
+      }
+
+      length -= size;
+    }
+    stream_destroy(&stream);
+    fprintf(stderr, "       Decode: %d   / %d\r\n", (int)(tick_count()-tick), (int)sum);
+  }
+  {
+    int64_t tick = tick_count();
+    struct stream stream;
+    stream_from_page(&stream, range_tree_first(editor->document->file->buffer), 0);
+    size_t length = range_tree_length(editor->document->file->buffer);
+    codepoint_t sum = 0;
+    struct encoding* encoding = editor->document->file->encoding;
+    struct unicode_sequencer sequencer;
+    unicode_sequencer_clear(&sequencer, encoding, &stream);
+    while (length >0) {
+      struct unicode_sequence* sequence = unicode_sequencer_find(&sequencer, 0);
+      sum += sequence->cp[0];
+      if (sequence->size>=length) {
+        break;
+      }
+
+      length -= sequence->size;
+      unicode_sequencer_advance(&sequencer, 1);
+    }
+    stream_destroy(&stream);
+    fprintf(stderr, "    Sequenced: %d   / %d\r\n", (int)(tick_count()-tick), (int)sum);
+  }
+  {
+    int64_t tick = tick_count();
     for (int n = 0; n<900; n++) {
       editor_keypress(editor, TIPPSE_KEY_RIGHT, 0, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
       //editor_tick(editor);
@@ -383,12 +440,12 @@ int main(int argc, const char** argv) {
       //editor_tick(editor);
       //editor_draw(editor);
     }
-    fprintf(stderr, "FTime: %d\r\n", (int)(tick_count()-tick));
+    fprintf(stderr, "    Move Time: %d\r\n", (int)(tick_count()-tick));
   }
   {
     int64_t tick = tick_count();
     editor_keypress(editor, TIPPSE_KEY_LAST|TIPPSE_KEY_MOD_CTRL, 0, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
-    fprintf(stderr, "CTime: %d\r\n", (int)(tick_count()-tick));
+    fprintf(stderr, "Last location: %d\r\n", (int)(tick_count()-tick));
   }
 #endif
 

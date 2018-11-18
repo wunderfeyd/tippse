@@ -299,12 +299,11 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
 }
 
 // Get word length from specified position
-position_t document_text_render_lookahead_word_wrap(struct unicode_sequencer* sequencer, position_t max) {
+TIPPSE_INLINE int document_text_render_lookahead_word_wrap(struct unicode_sequencer* sequencer, int max, int width0) {
   struct unicode_sequencer alt_sequencer;
   struct stream alt_stream;
-  position_t count = 0;
-  size_t advance = 0;
-  position_t width0 = 0;
+  int count = width0;
+  size_t advance = 1;
   while (count<max) {
     struct unicode_sequence* sequence = unicode_sequencer_find(sequencer, advance);
 
@@ -313,9 +312,6 @@ position_t document_text_render_lookahead_word_wrap(struct unicode_sequencer* se
     }
 
     count += unicode_width(&sequence->cp[0], sequence->length);
-    if (advance==0) {
-      width0 = count>0?count-1:0;
-    }
 
     unicode_sequencer_alternate(&sequencer, advance, &alt_sequencer, &alt_stream);
     advance++;
@@ -378,6 +374,119 @@ int document_text_split_buffer(struct range_tree_node* buffer, struct document_f
   return 1;
 }
 
+// Get character size depending on various render states
+TIPPSE_INLINE int document_text_fill_width(position_t x, bool_t show_invisibles, int tabstop_width, struct unicode_sequence* sequence, codepoint_t newline_cp1, codepoint_t newline_cp2, codepoint_t* show, codepoint_t* fill_code) {
+  int fill;
+  codepoint_t cp = sequence->cp[0];
+  if (UNLIKELY(show_invisibles)) {
+    if (cp=='\t') {
+      fill = tabstop_width-(x%tabstop_width);
+      *fill_code = ' ';
+      *show = 0x00bb;
+    } else {
+      if (cp==newline_cp1) {
+        *show = 0x00ac;
+      } else if (cp==newline_cp2) {
+        *show = 0x00ac;
+      } else if (cp==' ') {
+        *show = 0x22c5;
+      } else if (cp==0x7f) {
+        *show = 0xfffd;
+      } else if (cp==UNICODE_CODEPOINT_BOM) {
+        *show = 0x2433;
+      } else if (cp>UNICODE_CODEPOINT_MAX) {
+        *show = 0xfffd;
+      } else {
+        *show = UNICODE_CODEPOINT_BAD;
+      }
+
+      fill = unicode_width(&sequence->cp[0], sequence->length);
+      if (*show!=UNICODE_CODEPOINT_BAD || fill<=0) {
+        fill = 1;
+      }
+
+      *fill_code = UNICODE_CODEPOINT_BAD;
+    }
+  } else {
+    if (cp=='\t') {
+      fill = tabstop_width-(x%tabstop_width);
+      *fill_code = ' ';
+      *show = ' ';
+    } else if (cp==newline_cp1) {
+      fill = 1;
+      *fill_code = UNICODE_CODEPOINT_BAD;
+      *show = ' ';
+    } else if (cp==newline_cp2 && newline_cp2!=0) {
+      fill = 0;
+      *fill_code = UNICODE_CODEPOINT_BAD;
+      *show = UNICODE_CODEPOINT_BAD;
+    } else if (cp==UNICODE_CODEPOINT_BOM) {
+      fill = 0;
+      *fill_code = UNICODE_CODEPOINT_BAD;
+      *show = UNICODE_CODEPOINT_BAD;
+    } else if (cp>UNICODE_CODEPOINT_MAX) {
+      fill = 1;
+      *fill_code = UNICODE_CODEPOINT_BAD;
+      *show = 0xfffd;
+    } else {
+      fill = unicode_width(&sequence->cp[0], sequence->length);
+      *fill_code = UNICODE_CODEPOINT_BAD;
+      *show = UNICODE_CODEPOINT_BAD;
+    }
+  }
+  return fill;
+}
+
+// Get character size depending on various render states
+TIPPSE_INLINE int document_text_fill_width_fillonly(position_t x, bool_t show_invisibles, int tabstop_width, struct unicode_sequence* sequence, codepoint_t newline_cp1, codepoint_t newline_cp2) {
+  int fill;
+  codepoint_t cp = sequence->cp[0];
+  if (show_invisibles) {
+    if (cp=='\t') {
+      fill = tabstop_width-(x%tabstop_width);
+    } else {
+      codepoint_t show = UNICODE_CODEPOINT_BAD;
+      if (cp==newline_cp1) {
+        show = 0x00ac;
+      } else if (cp==newline_cp2) {
+        show = 0x00ac;
+      } else if (cp==' ') {
+        show = 0x22c5;
+      } else if (cp==0x7f) {
+        show = 0xfffd;
+      } else if (cp==UNICODE_CODEPOINT_BOM) {
+        show = 0x2433;
+      } else if (cp>UNICODE_CODEPOINT_MAX) {
+        show = 0xfffd;
+      } else {
+        show = UNICODE_CODEPOINT_BAD;
+      }
+
+      fill = unicode_width(&sequence->cp[0], sequence->length);
+      if (show!=UNICODE_CODEPOINT_BAD || fill<=0) {
+        fill = 1;
+      }
+    }
+  } else {
+    if (cp=='\t') {
+      fill = tabstop_width-(x%tabstop_width);
+    } else if (cp==newline_cp1) {
+      fill = 1;
+    } else if (cp==newline_cp2) {
+      fill = 0;
+    } else if (cp==UNICODE_CODEPOINT_BOM) {
+      fill = 0;
+    } else if (cp==0) {
+      fill = 1;
+    } else if (cp>UNICODE_CODEPOINT_MAX) {
+      fill = 1;
+    } else {
+      fill = unicode_width(&sequence->cp[0], sequence->length);
+    }
+  }
+  return fill;
+}
+
 // Render some pages until the position is found or pages are no longer dirty
 // TODO: find better visualization for debugging, find unnecessary render iterations and then optimize (as soon the code is "feature complete")
 int document_text_collect_span_base(struct document_text_render_info* render_info, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
@@ -433,6 +542,8 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
   bool_t show_invisibles = view->show_invisibles;
   bool_t indented = render_info->indented;
   int tabstop_width = file->tabstop_width;
+  render_info->sequence_next = NULL;
+  render_info->fill_next = -1;
   while (1) {
     bool_t boundary = 0;
     while (render_info->buffer && UNLIKELY(render_info->displacement>=render_info->buffer->length)) {
@@ -530,6 +641,8 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
       stream_destroy(&render_info->stream);
       stream_from_page(&render_info->stream, render_info->buffer, render_info->displacement);
       unicode_sequencer_clear(&render_info->sequencer, file->encoding, &render_info->stream);
+      render_info->sequence_next = NULL;
+      render_info->fill_next = -1;
 
 /*      if (page_dirty && render_info->buffer) {
         size_t count = encoding_cache_range(&render_info->cache, &big_buffer[0], render_info->buffer->length+2048);
@@ -541,7 +654,7 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
       editor_process_message(file->editor, "Locating...", render_info->offset, range_tree_length(file->buffer));
     }
 
-    render_info->sequence = unicode_sequencer_find(&render_info->sequencer, 0);
+    render_info->sequence = render_info->sequence_next?render_info->sequence_next:unicode_sequencer_find(&render_info->sequencer, 0);
 
     codepoint_t cp = render_info->sequence->cp[0];
 
@@ -692,46 +805,7 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
       break;
     }
 
-    int fill;
-    if (UNLIKELY(show_invisibles)) {
-      if (cp=='\t') {
-        fill = tabstop_width-(render_info->x%tabstop_width);
-      } else {
-        codepoint_t show = UNICODE_CODEPOINT_BAD;
-        if (cp==newline_cp1) {
-          show = 0x00ac;
-        } else if (cp==newline_cp2) {
-          show = 0x00ac;
-        } else if (cp==' ') {
-          show = 0x22c5;
-        } else if (cp==0x7f) {
-          show = 0xfffd;
-        } else if (cp==UNICODE_CODEPOINT_BOM) {
-          show = 0x2433;
-        } else if (cp>UNICODE_CODEPOINT_MAX) {
-          show = 0xfffd;
-        }
-
-        fill = unicode_width(&render_info->sequence->cp[0], render_info->sequence->length);
-        if (show!=UNICODE_CODEPOINT_BAD || fill<=0) {
-          fill = 1;
-        }
-      }
-    } else {
-      if (cp=='\t') {
-        fill = tabstop_width-(render_info->x%tabstop_width);
-      } else if (cp==newline_cp1) {
-        fill = 1;
-      } else if (cp==newline_cp2) {
-        fill = 0;
-      } else if (cp==UNICODE_CODEPOINT_BOM) {
-        fill = 0;
-      } else if (cp>UNICODE_CODEPOINT_MAX) {
-        fill = 1;
-      } else {
-        fill = unicode_width(&render_info->sequence->cp[0], render_info->sequence->length);
-      }
-    }
+    int fill = render_info->fill_next>=0?render_info->fill_next:document_text_fill_width_fillonly(render_info->x, show_invisibles, tabstop_width, render_info->sequence, newline_cp1, newline_cp2);
 
     if (render_info->visual_detail&VISUAL_DETAIL_NEWLINE) {
       render_info->visual_detail &= ~VISUAL_DETAIL_NEWLINE;
@@ -756,6 +830,7 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
     render_info->offset += render_info->sequence->size;
     render_info->selection_displacement += render_info->sequence->size;
 
+    render_info->sequence_next = unicode_sequencer_find(&render_info->sequencer, 1);
     unicode_sequencer_advance(&render_info->sequencer, 1);
 
     render_info->keyword_length--;
@@ -771,16 +846,13 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
       }
     }
 
-    if (wrapping && cp<=' ') {
+    int width0 = render_info->fill_next = document_text_fill_width_fillonly(render_info->x, show_invisibles, tabstop_width, render_info->sequence_next, newline_cp1, newline_cp2);
+    if (wrapping && cp<=' ' && render_info->sequence_next->cp[0]>' ') {
       position_t row_width = render_info->width-render_info->indentation-tabstop_width;
-      position_t word_length = document_text_render_lookahead_word_wrap(&render_info->sequencer, row_width+1);
-      if (render_info->x+word_length>=render_info->width) {
-        goto wrap;
-      }
+      width0 = document_text_render_lookahead_word_wrap(&render_info->sequencer, row_width+1, render_info->fill_next);
     }
 
-    if (cp==newline_cp1 || (wrapping && render_info->x>=render_info->width)) {
-wrap:;
+    if (cp==newline_cp1 || (wrapping && render_info->x+width0>render_info->width)) {
       if (cp==newline_cp1) {
         render_info->indentations = 0;
         render_info->indentations_extra = 0;
@@ -823,6 +895,9 @@ wrap:;
       render_info->y_view++;
       render_info->x = render_info->indentation+render_info->indentation_extra;
       render_info->xs = 0;
+      if (render_info->sequence_next && render_info->sequence_next->cp[0]=='\t') {
+        render_info->fill_next = tabstop_width;
+      }
     }
 
     if (cp!='\t' && cp!=' ' && cp!=newline_cp2) {
@@ -896,12 +971,13 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
   int stop = render_info->buffer?0:1;
 
   codepoint_t newline_cp1 = (file->newline==TIPPSE_NEWLINE_CR)?'\r':'\n';
-  codepoint_t newline_cp2 = (file->newline==TIPPSE_NEWLINE_CRLF)?'\r':0;
+  codepoint_t newline_cp2 = (file->newline==TIPPSE_NEWLINE_CRLF)?'\r':UNICODE_CODEPOINT_UNASSIGNED;
   debug_pages_prerender++;
 
   void (*mark)(struct document_text_render_info* render_info) = file->type->mark;
   render_info->file_type = file->type;
 
+  render_info->sequence_next = NULL;
   while (1) {
     while (render_info->buffer && render_info->displacement>=render_info->buffer->length) {
       render_info->displacement -= render_info->buffer->length;
@@ -931,53 +1007,15 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
       break;
     }
 
-    render_info->sequence = unicode_sequencer_find(&render_info->sequencer, 0);
+    render_info->sequence = render_info->sequence_next?render_info->sequence_next:unicode_sequencer_find(&render_info->sequencer, 0);
+
+    codepoint_t cp = render_info->sequence->cp[0];
 
     if (render_info->keyword_length<=0) {
       (*mark)(render_info);
     }
 
-    int fill;
-    codepoint_t cp = render_info->sequence->cp[0];
-    if (view->show_invisibles) {
-      if (cp=='\t') {
-        fill = file->tabstop_width-(render_info->x%file->tabstop_width);
-      } else {
-        codepoint_t show = UNICODE_CODEPOINT_BAD;
-        if (cp==newline_cp1) {
-          show = 0x00ac;
-        } else if (cp==newline_cp2 && newline_cp2!=0) {
-          show = 0x00ac;
-        } else if (cp==' ') {
-          show = 0x22c5;
-        } else if (cp==0x7f) {
-          show = 0xfffd;
-        } else if (cp==UNICODE_CODEPOINT_BOM) {
-          show = 0x2433;
-        } else if (cp>UNICODE_CODEPOINT_MAX) {
-          show = 0xfffd;
-        }
-
-        fill = unicode_width(&render_info->sequence->cp[0], render_info->sequence->length);
-        if (show!=UNICODE_CODEPOINT_BAD || fill<=0) {
-          fill = 1;
-        }
-      }
-    } else {
-      if (cp=='\t') {
-        fill = file->tabstop_width-(render_info->x%file->tabstop_width);
-      } else if (cp==newline_cp1) {
-        fill = 1;
-      } else if (cp==newline_cp2 && newline_cp2!=0) {
-        fill = 0;
-      } else if (cp==UNICODE_CODEPOINT_BOM) {
-        fill = 0;
-      } else if (cp>UNICODE_CODEPOINT_MAX) {
-        fill = 1;
-      } else {
-        fill = unicode_width(&render_info->sequence->cp[0], render_info->sequence->length);
-      }
-    }
+    int fill = render_info->sequence_next?render_info->fill_next:document_text_fill_width_fillonly(render_info->x, view->show_invisibles, file->tabstop_width, render_info->sequence, newline_cp1, newline_cp2);
 
     render_info->x += fill;
     if (render_info->visual_detail&VISUAL_DETAIL_NEWLINE) {
@@ -998,20 +1036,18 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
     render_info->offset += render_info->sequence->size;
     render_info->selection_displacement += render_info->sequence->size;
 
+    render_info->sequence_next = unicode_sequencer_find(&render_info->sequencer, 1);
     unicode_sequencer_advance(&render_info->sequencer, 1);
 
     render_info->keyword_length--;
 
-    if (view->wrapping && cp<=' ') {
+    int width0 = render_info->fill_next = document_text_fill_width_fillonly(render_info->x, view->show_invisibles, file->tabstop_width, render_info->sequence_next, newline_cp1, newline_cp2);
+    if (view->wrapping && cp<=' ' && render_info->sequence_next->cp[0]>' ') {
       position_t row_width = render_info->width-render_info->indentation-file->tabstop_width;
-      position_t word_length = document_text_render_lookahead_word_wrap(&render_info->sequencer, row_width+1);
-      if (render_info->x+word_length>=render_info->width) {
-        goto wrap;
-      }
+      width0 = document_text_render_lookahead_word_wrap(&render_info->sequencer, row_width+1, render_info->fill_next);
     }
 
-    if (cp==newline_cp1 || (view->wrapping && render_info->x>=render_info->width)) {
-wrap:;
+    if (cp==newline_cp1 || (view->wrapping && render_info->x+width0>render_info->width)) {
       if (cp==newline_cp1) {
         render_info->indentation = 0;
         render_info->indentation_extra = 0;
@@ -1032,6 +1068,7 @@ wrap:;
 
       render_info->y_view++;
       render_info->x = render_info->indentation+render_info->indentation_extra;
+      render_info->sequence_next = NULL;
     }
   }
 
@@ -1044,7 +1081,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
   int stop = render_info->buffer?0:1;
 
   codepoint_t newline_cp1 = (file->newline==TIPPSE_NEWLINE_CR)?'\r':'\n';
-  codepoint_t newline_cp2 = (file->newline==TIPPSE_NEWLINE_CRLF)?'\r':0;
+  codepoint_t newline_cp2 = (file->newline==TIPPSE_NEWLINE_CRLF)?'\r':UNICODE_CODEPOINT_UNASSIGNED;
   debug_pages_render++;
 
   void (*mark)(struct document_text_render_info* render_info) = file->type->mark;
@@ -1053,6 +1090,10 @@ int document_text_render_span(struct document_text_render_info* render_info, str
   position_t whitespace_x = -1;
   position_t whitespace_max = 0;
   position_t whitespace_y = 0;
+
+  codepoint_t show;
+  codepoint_t fill_code;
+  render_info->sequence_next = NULL;
 
   while (1) {
     while (render_info->buffer && render_info->displacement>=render_info->buffer->length) {
@@ -1076,59 +1117,21 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       break;
     }
 
-    render_info->sequence = unicode_sequencer_find(&render_info->sequencer, 0);
+    render_info->sequence = render_info->sequence_next?render_info->sequence_next:unicode_sequencer_find(&render_info->sequencer, 0);
+
+    codepoint_t cp = render_info->sequence->cp[0];
 
     if (render_info->keyword_length<=0) {
       (*mark)(render_info);
     }
 
-    codepoint_t show = UNICODE_CODEPOINT_BAD;
     int fill;
-    codepoint_t fill_code = UNICODE_CODEPOINT_BAD;
-    codepoint_t cp = render_info->sequence->cp[0];
-    if (view->show_invisibles) {
-      if (cp=='\t') {
-        fill = file->tabstop_width-(render_info->x%file->tabstop_width);
-        fill_code = ' ';
-        show = 0x00bb;
-      } else {
-        if (cp==newline_cp1) {
-          show = 0x00ac;
-        } else if (cp==newline_cp2 && newline_cp2!=0) {
-          show = 0x00ac;
-        } else if (cp==' ') {
-          show = 0x22c5;
-        } else if (cp==0x7f) {
-          show = 0xfffd;
-        } else if (cp==UNICODE_CODEPOINT_BOM) {
-          show = 0x2433;
-        } else if (cp>UNICODE_CODEPOINT_MAX) {
-          show = 0xfffd;
-        }
-
-        fill = unicode_width(&render_info->sequence->cp[0], render_info->sequence->length);
-        if (show!=UNICODE_CODEPOINT_BAD || fill<=0) {
-          fill = 1;
-        }
-      }
+    if (render_info->sequence_next) {
+      fill = render_info->fill_next;
+      show = render_info->show_next;
+      fill_code = render_info->fill_code_next;
     } else {
-      if (cp=='\t') {
-        fill = file->tabstop_width-(render_info->x%file->tabstop_width);
-        fill_code = ' ';
-        show = ' ';
-      } else if (cp==newline_cp1) {
-        show = ' ';
-        fill = 1;
-      } else if (cp==newline_cp2 && newline_cp2!=0) {
-        fill = 0;
-      } else if (cp==UNICODE_CODEPOINT_BOM) {
-        fill = 0;
-      } else if (cp>UNICODE_CODEPOINT_MAX) {
-        show = 0xfffd;
-        fill = 1;
-      } else {
-        fill = unicode_width(&render_info->sequence->cp[0], render_info->sequence->length);
-      }
+      fill = document_text_fill_width(render_info->x, view->show_invisibles, file->tabstop_width, render_info->sequence, newline_cp1, newline_cp2, &show, &fill_code);
     }
 
     if (fill>0) {
@@ -1213,20 +1216,18 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     render_info->offset += render_info->sequence->size;
     render_info->selection_displacement += render_info->sequence->size;
 
+    render_info->sequence_next = unicode_sequencer_find(&render_info->sequencer, 1);
     unicode_sequencer_advance(&render_info->sequencer, 1);
 
     render_info->keyword_length--;
 
-    if (view->wrapping && cp<=' ') {
+    int width0 = render_info->fill_next = document_text_fill_width(render_info->x, view->show_invisibles, file->tabstop_width, render_info->sequence_next, newline_cp1, newline_cp2, &render_info->show_next, &render_info->fill_code_next);
+    if (view->wrapping && cp<=' ' && render_info->sequence_next->cp[0]>' ') {
       position_t row_width = render_info->width-render_info->indentation-file->tabstop_width;
-      position_t word_length = document_text_render_lookahead_word_wrap(&render_info->sequencer, row_width+1);
-      if (render_info->x+word_length>=render_info->width) {
-        goto wrap;
-      }
+      width0 = document_text_render_lookahead_word_wrap(&render_info->sequencer, row_width+1, render_info->fill_next);
     }
 
-    if (cp==newline_cp1 || (view->wrapping && render_info->x>=render_info->width)) {
-wrap:;
+    if (cp==newline_cp1 || (view->wrapping && render_info->x+width0>render_info->width)) {
       if (cp==newline_cp1) {
         render_info->indentation = 0;
         render_info->indentation_extra = 0;
@@ -1248,6 +1249,7 @@ wrap:;
 
       render_info->y_view++;
       render_info->x = render_info->indentation+render_info->indentation_extra;
+      render_info->sequence_next = NULL;
       stop = 1;
     }
 

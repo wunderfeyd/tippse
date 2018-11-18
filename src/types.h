@@ -11,7 +11,7 @@ typedef uint64_t file_offset_t;
 typedef int64_t position_t;
 
 // Type for code points (signed type needed at the moment)
-typedef uint32_t codepoint_t;
+typedef unsigned long codepoint_t;
 
 // Type for unicode bit tables
 typedef unsigned long codepoint_table_t;

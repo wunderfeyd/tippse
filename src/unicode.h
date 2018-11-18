@@ -125,12 +125,6 @@ TIPPSE_INLINE void unicode_sequencer_decode(struct unicode_sequencer* base, stru
 
   size_t length = 1;
   if (codepoints[0]>0x20) {
-    if (UNLIKELY(unicode_bitfield_check(&unicode_marks[0], codepoints[0]))) {
-      codepoints[length] = codepoints[length-1];
-      codepoints[length-1] = 'o';
-      length++;
-    }
-
     while (length<UNICODE_SEQUENCE_MAX) {
       if (unicode_bitfield_check(&unicode_marks[0], base->last_cp)) {
         codepoints[length] = base->last_cp;
