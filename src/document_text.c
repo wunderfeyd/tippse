@@ -441,7 +441,7 @@ TIPPSE_INLINE int document_text_fill_width(position_t x, bool_t show_invisibles,
 TIPPSE_INLINE int document_text_fill_width_fillonly(position_t x, bool_t show_invisibles, int tabstop_width, struct unicode_sequence* sequence, codepoint_t newline_cp1, codepoint_t newline_cp2) {
   int fill;
   codepoint_t cp = sequence->cp[0];
-  if (show_invisibles) {
+  if (UNLIKELY(show_invisibles)) {
     if (cp=='\t') {
       fill = tabstop_width-(x%tabstop_width);
     } else {
@@ -473,8 +473,6 @@ TIPPSE_INLINE int document_text_fill_width_fillonly(position_t x, bool_t show_in
     } else if (cp==newline_cp1) {
       fill = 1;
     } else if (cp==newline_cp2) {
-      fill = 0;
-    } else if (cp==UNICODE_CODEPOINT_BOM) {
       fill = 0;
     } else if (cp==0) {
       fill = 1;

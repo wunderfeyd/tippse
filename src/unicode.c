@@ -15,12 +15,14 @@
 #include "trie.h"
 
 codepoint_table_t unicode_marks[UNICODE_BITFIELD_MAX];
+codepoint_table_t unicode_marksjoiner[UNICODE_BITFIELD_MAX];
 codepoint_table_t unicode_invisibles[UNICODE_BITFIELD_MAX];
 codepoint_table_t unicode_widths[UNICODE_BITFIELD_MAX];
 codepoint_table_t unicode_letters[UNICODE_BITFIELD_MAX];
 codepoint_table_t unicode_whitespaces[UNICODE_BITFIELD_MAX];
 codepoint_table_t unicode_digits[UNICODE_BITFIELD_MAX];
 codepoint_table_t unicode_words[UNICODE_BITFIELD_MAX];
+uint8_t unicode_width_hints[UNICODE_CODEPOINT_MAX_BAD+1];
 struct trie* unicode_transform_lower;
 struct trie* unicode_transform_upper;
 struct trie* unicode_transform_nfd_nfc;
@@ -41,6 +43,16 @@ void unicode_init(void) {
   unicode_bitfield_combine(&unicode_words[0], &unicode_letters[0]);
   unicode_bitfield_combine(&unicode_words[0], &unicode_digits[0]);
   unicode_bitfield_set(&unicode_words[0], '_', 1);
+  unicode_bitfield_clear(&unicode_marksjoiner[0]);
+  unicode_bitfield_combine(&unicode_marksjoiner[0], &unicode_marks[0]);
+  unicode_bitfield_set(&unicode_marksjoiner[0], 0x200d, 1);
+
+  {
+    uint8_t* hint = &unicode_width_hints[0];
+    for (codepoint_t n = 0; n<UNICODE_CODEPOINT_MAX_BAD; n++) {
+      *hint++ = unicode_width_field(&n, 1);
+    }
+  }
 }
 
 // Free resources

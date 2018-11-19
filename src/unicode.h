@@ -34,12 +34,14 @@ struct unicode_sequencer {
 #include "encoding.h"
 
 codepoint_table_t unicode_marks[UNICODE_BITFIELD_MAX];
+codepoint_table_t unicode_marksjoiner[UNICODE_BITFIELD_MAX];
 codepoint_table_t unicode_invisibles[UNICODE_BITFIELD_MAX];
 codepoint_table_t unicode_widths[UNICODE_BITFIELD_MAX];
 codepoint_table_t unicode_letters[UNICODE_BITFIELD_MAX];
 codepoint_table_t unicode_whitespaces[UNICODE_BITFIELD_MAX];
 codepoint_table_t unicode_digits[UNICODE_BITFIELD_MAX];
 codepoint_table_t unicode_words[UNICODE_BITFIELD_MAX];
+uint8_t unicode_width_hints[UNICODE_CODEPOINT_MAX_BAD+1];
 
 void unicode_init(void);
 void unicode_free(void);
@@ -99,6 +101,10 @@ TIPPSE_INLINE int unicode_width(const codepoint_t* codepoints, size_t max) {
     return 1;
   }
 
+  return unicode_width_hints[codepoints[0]];
+}
+
+TIPPSE_INLINE int unicode_width_field(const codepoint_t* codepoints, size_t max) {
   // Return width zero if character is invisible
   if (unicode_bitfield_check(&unicode_invisibles[0], codepoints[0])) {
     return 0;
@@ -124,30 +130,18 @@ TIPPSE_INLINE void unicode_sequencer_decode(struct unicode_sequencer* base, stru
   unicode_sequencer_read(base);
 
   size_t length = 1;
-  if (codepoints[0]>0x20) {
-    while (length<UNICODE_SEQUENCE_MAX) {
-      if (unicode_bitfield_check(&unicode_marks[0], base->last_cp)) {
-        codepoints[length] = base->last_cp;
-        size += base->last_size;
-        length++;
-        unicode_sequencer_read(base);
-        continue;
-      } else if (base->last_cp==0x200d) { // Zero width joiner
-        if (UNLIKELY(length+1<UNICODE_SEQUENCE_MAX)) {
-          codepoints[length] = base->last_cp;
-          size += base->last_size;
-          length++;
-          unicode_sequencer_read(base);
-          codepoints[length] = base->last_cp;
-          size += base->last_size;
-          length++;
-          unicode_sequencer_read(base);
-        }
-        continue;
-      }
-
-      break;
+  while (UNLIKELY(unicode_bitfield_check(&unicode_marksjoiner[0], base->last_cp)) && length<UNICODE_SEQUENCE_MAX-1) {
+    if (UNLIKELY(base->last_cp==0x200d)) { // Zero width joiner
+      codepoints[length] = base->last_cp;
+      size += base->last_size;
+      length++;
+      unicode_sequencer_read(base);
     }
+
+    codepoints[length] = base->last_cp;
+    size += base->last_size;
+    length++;
+    unicode_sequencer_read(base);
   }
 
   sequence->length = length;

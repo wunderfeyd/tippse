@@ -10,7 +10,7 @@ typedef uint64_t file_offset_t;
 // And this one limits the maximum cursor position etc. (signed type needed)
 typedef int64_t position_t;
 
-// Type for code points (signed type needed at the moment)
+// Type for code points
 typedef unsigned long codepoint_t;
 
 // Type for unicode bit tables
@@ -40,18 +40,14 @@ typedef long bool_t;
 #endif
 
 // Unused results
-inline void unused_result(int result) {}
+static inline void unused_result(int result) {}
 #define UNUSED(a) unused_result(a?1:0)
 
 #ifndef __SMALLEST__
-#ifdef __GNUC__
 //#define TIPPSE_INLINE inline __attribute__((always_inline))
-#define TIPPSE_INLINE inline
+#define TIPPSE_INLINE static inline
 #else
-#define TIPPSE_INLINE inline
-#endif
-#else
-#define TIPPSE_INLINE inline
+#define TIPPSE_INLINE static inline
 #endif
 
 // Forward declarations
