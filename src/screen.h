@@ -24,6 +24,7 @@ struct screen_char {
   int foreground;             // Foreground color
   int background;             // Background color
   struct unicode_sequence sequence;  // Unicode sequence
+  int width;                  // character width
 #ifdef _WINDOWS
   wchar_t codes[16];          // transformed output
   uint8_t* pos;               // sequenceation end

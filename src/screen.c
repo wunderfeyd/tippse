@@ -516,14 +516,25 @@ void screen_setchar(const struct screen* base, int x, int y, int clip_x, int cli
   struct screen_char* c = &base->buffer[pos];
   if (c->sequence.cp[0]==UNICODE_CODEPOINT_BAD && pos>0) {
     struct screen_char* prev = &base->buffer[pos-1];
-    if (prev->sequence.cp[0]!=UNICODE_CODEPOINT_BAD && unicode_width(&prev->sequence.cp[0], prev->sequence.length)>1) {
+    if (prev->sequence.cp[0]!=UNICODE_CODEPOINT_BAD && prev->width>1) {
       prev->sequence.length = 1;
       prev->sequence.cp[0] = '?';
+      prev->modified = 1;
+    }
+  }
+
+  if (pos<base->width*base->height && c->width>1) {
+    struct screen_char* next = &base->buffer[pos+1];
+    if (next->sequence.cp[0]==UNICODE_CODEPOINT_BAD) {
+      next->sequence.length = 1;
+      next->sequence.cp[0] = '?';
+      next->modified = 1;
     }
   }
 
   c->modified = 1;
-  if (x==base->width-1 && unicode_width(&codepoints[0], length)>1) {
+  c->width = unicode_width(&codepoints[0], length);
+  if (x==base->width-1 && c->width>1) {
     c->sequence.length = 1;
     c->sequence.cp[0] = '?';
     c->foreground = foreground;
