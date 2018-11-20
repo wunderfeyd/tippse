@@ -14,7 +14,7 @@ typedef int64_t position_t;
 typedef unsigned long codepoint_t;
 
 // Type for unicode bit tables
-typedef unsigned long codepoint_table_t;
+typedef uint16_t codepoint_table_t;
 
 // Type for boolean values (stdbool.h seems to degrade the performance ... TODO: check why)
 typedef long bool_t;

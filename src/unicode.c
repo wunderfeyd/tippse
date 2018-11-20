@@ -14,15 +14,7 @@
 #include "encoding/utf8.h"
 #include "trie.h"
 
-codepoint_table_t unicode_marks[UNICODE_BITFIELD_MAX];
-codepoint_table_t unicode_marksjoiner[UNICODE_BITFIELD_MAX];
-codepoint_table_t unicode_invisibles[UNICODE_BITFIELD_MAX];
-codepoint_table_t unicode_widths[UNICODE_BITFIELD_MAX];
-codepoint_table_t unicode_letters[UNICODE_BITFIELD_MAX];
-codepoint_table_t unicode_whitespaces[UNICODE_BITFIELD_MAX];
-codepoint_table_t unicode_digits[UNICODE_BITFIELD_MAX];
-codepoint_table_t unicode_words[UNICODE_BITFIELD_MAX];
-uint8_t unicode_width_hints[UNICODE_CODEPOINT_MAX_BAD+1];
+codepoint_table_t unicode_width_hints[UNICODE_HINT_MAX];
 struct trie* unicode_transform_lower;
 struct trie* unicode_transform_upper;
 struct trie* unicode_transform_nfd_nfc;
@@ -30,29 +22,32 @@ struct trie* unicode_transform_nfc_nfd;
 
 // Initialise static tables
 void unicode_init(void) {
-  unicode_decode_rle(&unicode_marks[0], &unicode_marks_rle[0]);
-  unicode_decode_rle(&unicode_invisibles[0], &unicode_invisibles_rle[0]);
-  unicode_decode_rle(&unicode_widths[0], &unicode_widths_rle[0]);
-  unicode_decode_rle(&unicode_letters[0], &unicode_letters_rle[0]);
-  unicode_decode_rle(&unicode_whitespaces[0], &unicode_whitespace_rle[0]);
-  unicode_decode_rle(&unicode_digits[0], &unicode_digits_rle[0]);
-  unicode_decode_transform(&unicode_case_folding[0], &unicode_transform_lower, &unicode_transform_upper);
-  unicode_decode_transform(&unicode_normalization[0], &unicode_transform_nfc_nfd, &unicode_transform_nfd_nfc);
-  unicode_bitfield_clear(&unicode_words[0]);
-  unicode_bitfield_combine(&unicode_words[0], &unicode_marks[0]);
-  unicode_bitfield_combine(&unicode_words[0], &unicode_letters[0]);
-  unicode_bitfield_combine(&unicode_words[0], &unicode_digits[0]);
-  unicode_bitfield_set(&unicode_words[0], '_', 1);
-  unicode_bitfield_clear(&unicode_marksjoiner[0]);
-  unicode_bitfield_combine(&unicode_marksjoiner[0], &unicode_marks[0]);
-  unicode_bitfield_set(&unicode_marksjoiner[0], 0x200d, 1);
-
-  {
-    uint8_t* hint = &unicode_width_hints[0];
-    for (codepoint_t n = 0; n<UNICODE_CODEPOINT_MAX_BAD; n++) {
-      *hint++ = unicode_width_field(&n, 1);
+  unicode_hint_clear(0);
+  unicode_decode_rle(&unicode_invisibles_rle[0], UNICODE_HINT_MASK_WIDTH_SINGLE);
+  unicode_decode_rle(&unicode_widths_rle[0], UNICODE_HINT_MASK_WIDTH_DOUBLE);
+  unicode_decode_rle(&unicode_marks_rle[0], UNICODE_HINT_MASK_JOINER);
+  unicode_decode_rle(&unicode_letters_rle[0], UNICODE_HINT_MASK_LETTERS);
+  unicode_decode_rle(&unicode_whitespace_rle[0], UNICODE_HINT_MASK_WHITESPACES);
+  unicode_decode_rle(&unicode_digits_rle[0], UNICODE_HINT_MASK_DIGITS);
+  for (size_t n = 0; n<UNICODE_HINT_MAX; n++) {
+    if (unicode_hints[n]&UNICODE_HINT_MASK_WIDTH_SINGLE) {
+      unicode_hints[n] &= ~UNICODE_HINT_MASK_WIDTH;
+    } else if (unicode_hints[n]&UNICODE_HINT_MASK_WIDTH_DOUBLE) {
+      unicode_hints[n] &= ~UNICODE_HINT_MASK_WIDTH_SINGLE;
+    } else {
+      unicode_hints[n] |= UNICODE_HINT_MASK_WIDTH_SINGLE;
     }
   }
+
+  unicode_hint_combine(UNICODE_HINT_MASK_LETTERS, UNICODE_HINT_MASK_WORDS);
+  unicode_hint_combine(UNICODE_HINT_MASK_JOINER, UNICODE_HINT_MASK_WORDS);
+  unicode_hint_combine(UNICODE_HINT_MASK_DIGITS, UNICODE_HINT_MASK_WORDS);
+  unicode_hint_set('_', UNICODE_HINT_MASK_WORDS, UNICODE_HINT_MASK_WORDS);
+
+  unicode_hint_set(0x200d, UNICODE_HINT_MASK_JOINER, UNICODE_HINT_MASK_JOINER);
+
+  unicode_decode_transform(&unicode_case_folding[0], &unicode_transform_lower, &unicode_transform_upper);
+  unicode_decode_transform(&unicode_normalization[0], &unicode_transform_nfc_nfd, &unicode_transform_nfd_nfc);
 }
 
 // Free resources
@@ -170,8 +165,7 @@ void unicode_decode_transform_append(struct trie* forward, size_t froms, codepoi
 }
 
 // Initialise static table from rle stream
-void unicode_decode_rle(codepoint_table_t* table, uint16_t* rle) {
-  unicode_bitfield_clear(table);
+void unicode_decode_rle(uint16_t* rle, codepoint_table_t mask) {
   codepoint_t codepoint = 0;
   while (1) {
     int codes = (int)*rle++;
@@ -182,8 +176,8 @@ void unicode_decode_rle(codepoint_table_t* table, uint16_t* rle) {
     codepoint_table_t set = (codepoint_table_t)(codes&1);
     codes >>= 1;
     while (codes-->0) {
-      if (codepoint<UNICODE_CODEPOINT_MAX) {
-        table[codepoint/((int)sizeof(codepoint_table_t)*8)] |= set<<(codepoint&((int)sizeof(codepoint_table_t)*8-1));
+      if (codepoint<UNICODE_CODEPOINT_MAX && set) {
+        unicode_hints[codepoint] |= mask;
       }
       codepoint++;
     }
@@ -192,8 +186,7 @@ void unicode_decode_rle(codepoint_table_t* table, uint16_t* rle) {
 
 // Adjust visual width with read terminal font capabilities
 void unicode_width_adjust(codepoint_t cp, int width) {
-  unicode_bitfield_set(&unicode_invisibles[0], cp, (width==0)?1:0);
-  unicode_bitfield_set(&unicode_widths[0], cp, (width==2)?1:0);
+  unicode_hint_set(cp, UNICODE_HINT_MASK_WIDTH, width);
 }
 
 // Transform to uppercase
@@ -232,14 +225,18 @@ struct unicode_sequence* unicode_transform(struct trie* transformation, struct u
 }
 
 // Reset bitfield
-void unicode_bitfield_clear(codepoint_table_t* table) {
-  memset(table, 0, UNICODE_BITFIELD_MAX);
+void unicode_hint_clear(codepoint_table_t mask) {
+  for (size_t n = 0; n<UNICODE_HINT_MAX; n++) {
+    unicode_hints[n] &= mask;
+  }
 }
 
 // Enable codepoints from the other table
-void unicode_bitfield_combine(codepoint_table_t* table, codepoint_table_t* other) {
-  for (size_t n = 0; n<UNICODE_BITFIELD_MAX; n++) {
-    table[n] |= other[n];
+void unicode_hint_combine(codepoint_table_t mask_search, codepoint_table_t mask) {
+  for (size_t n = 0; n<UNICODE_HINT_MAX; n++) {
+    if (unicode_hints[n]&mask_search) {
+      unicode_hints[n] |= mask;
+    }
   }
 }
 

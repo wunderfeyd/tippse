@@ -376,25 +376,6 @@ int main(int argc, const char** argv) {
   }
 #else
   {
-    for (codepoint_t n = 0; n<256*32; n+=32) {
-      int x[3] = {0, 0, 0};
-      for (codepoint_t m = 0; m<32; m++) {
-        codepoint_t cp = n+m;
-        x[unicode_width(&cp, 1)]++;
-      }
-      if (x[0]!=0 && x[1]==0 && x[2]==0) {
-        fprintf(stderr, "%d", 0);
-      } else if (x[0]==0 && x[1]!=0 && x[2]==0) {
-        fprintf(stderr, "%d", 1);
-      } else if (x[0]==0 && x[1]==0 && x[2]!=0) {
-        fprintf(stderr, "%d", 2);
-      } else  {
-        fprintf(stderr, "-");
-      }
-    }
-    fprintf(stderr, "\r\n");
-  }
-  {
     int64_t tick = tick_count();
     struct stream stream;
     stream_from_page(&stream, range_tree_first(editor->document->file->buffer), 0);

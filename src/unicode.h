@@ -10,8 +10,17 @@
 #define UNICODE_CODEPOINT_UNASSIGNED UNICODE_CODEPOINT_MAX+2
 #define UNICODE_CODEPOINT_MAX_BAD 0x110000+4
 
-#define UNICODE_BITFIELD_MAX ((UNICODE_CODEPOINT_MAX_BAD/sizeof(codepoint_table_t))+1)
+#define UNICODE_HINT_MAX (UNICODE_CODEPOINT_MAX_BAD+1)
 #define UNICODE_SEQUENCE_MAX 8
+
+#define UNICODE_HINT_MASK_WIDTH_SINGLE 0x01
+#define UNICODE_HINT_MASK_WIDTH_DOUBLE 0x02
+#define UNICODE_HINT_MASK_WIDTH (UNICODE_HINT_MASK_WIDTH_SINGLE|UNICODE_HINT_MASK_WIDTH_DOUBLE)
+#define UNICODE_HINT_MASK_JOINER 0x08
+#define UNICODE_HINT_MASK_LETTERS 0x10
+#define UNICODE_HINT_MASK_WHITESPACES 0x20
+#define UNICODE_HINT_MASK_DIGITS 0x40
+#define UNICODE_HINT_MASK_WORDS 0x80
 
 struct unicode_sequence {
   size_t length;                            // Number of codepoints in cp[]
@@ -33,21 +42,13 @@ struct unicode_sequencer {
 
 #include "encoding.h"
 
-codepoint_table_t unicode_marks[UNICODE_BITFIELD_MAX];
-codepoint_table_t unicode_marksjoiner[UNICODE_BITFIELD_MAX];
-codepoint_table_t unicode_invisibles[UNICODE_BITFIELD_MAX];
-codepoint_table_t unicode_widths[UNICODE_BITFIELD_MAX];
-codepoint_table_t unicode_letters[UNICODE_BITFIELD_MAX];
-codepoint_table_t unicode_whitespaces[UNICODE_BITFIELD_MAX];
-codepoint_table_t unicode_digits[UNICODE_BITFIELD_MAX];
-codepoint_table_t unicode_words[UNICODE_BITFIELD_MAX];
-uint8_t unicode_width_hints[UNICODE_CODEPOINT_MAX_BAD+1];
+codepoint_table_t unicode_hints[UNICODE_HINT_MAX];
 
 void unicode_init(void);
 void unicode_free(void);
 void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie** reverse);
 void unicode_decode_transform_append(struct trie* forward, size_t froms, codepoint_t* from, size_t tos, codepoint_t* to);
-void unicode_decode_rle(codepoint_table_t* table, uint16_t* rle);
+void unicode_decode_rle(uint16_t* rle, codepoint_table_t mask);
 void unicode_update_combining_mark(codepoint_t codepoint);
 int unicode_combining_mark(codepoint_t codepoint);
 //size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offset, codepoint_t* codepoints, size_t max, size_t* advance, size_t* length);
@@ -57,61 +58,53 @@ struct unicode_sequence* unicode_lower(struct unicode_sequencer* sequencer, size
 struct unicode_sequence* unicode_transform(struct trie* transformation, struct unicode_sequencer* sequencer, size_t offset, size_t* advance, size_t* length);
 
 // Check if codepoint is marked
-TIPPSE_INLINE bool_t unicode_bitfield_check(const codepoint_table_t* table, codepoint_t codepoint) {
-  return (bool_t)((table[(size_t)codepoint/(sizeof(codepoint_table_t)*8)]>>((size_t)codepoint&(sizeof(codepoint_table_t)*8-1)))&1);
+TIPPSE_INLINE codepoint_table_t unicode_hint_check(codepoint_t codepoint, codepoint_table_t mask) {
+  return unicode_hints[codepoint]&mask;
 }
 
 // Mark or reset bit for specific codepoint
-TIPPSE_INLINE void unicode_bitfield_set(codepoint_table_t* table, codepoint_t codepoint, bool_t set) {
+TIPPSE_INLINE void unicode_hint_set(codepoint_t codepoint, codepoint_table_t mask, codepoint_table_t combine) {
   if (codepoint<UNICODE_CODEPOINT_MAX) {
-    if (!set) {
-      table[(size_t)codepoint/(sizeof(codepoint_table_t)*8)] &= ~(((codepoint_table_t)1)<<((size_t)codepoint&(sizeof(codepoint_table_t)*8-1)));
-    } else {
-      table[(size_t)codepoint/(sizeof(codepoint_table_t)*8)] |= ((codepoint_table_t)1)<<((size_t)codepoint&(sizeof(codepoint_table_t)*8-1));
-    }
+    unicode_hints[codepoint] &= ~mask;
+    unicode_hints[codepoint] |= combine;
   }
 }
 
-void unicode_bitfield_clear(codepoint_table_t* table);
-void unicode_bitfield_combine(codepoint_table_t* table, codepoint_table_t* other);
+void unicode_hint_clear(codepoint_table_t mask);
+void unicode_hint_combine(codepoint_table_t mask_search, codepoint_table_t mask);
 
 // Test if codepoint is a letter
 TIPPSE_INLINE bool_t unicode_letter(codepoint_t codepoint) {
-  return unicode_bitfield_check(&unicode_letters[0], codepoint);
+  return unicode_hint_check(codepoint, UNICODE_HINT_MASK_LETTERS)?1:0;
 }
 
-// Test if codepoint is a sigit
+// Test if codepoint is a digit
 TIPPSE_INLINE bool_t unicode_digit(codepoint_t codepoint) {
-  return unicode_bitfield_check(&unicode_digits[0], codepoint);
+  return unicode_hint_check(codepoint, UNICODE_HINT_MASK_DIGITS)?1:0;
 }
 
 // Test if codepoint is a whitespace
 TIPPSE_INLINE bool_t unicode_whitespace(codepoint_t codepoint) {
-  return unicode_bitfield_check(&unicode_whitespaces[0], codepoint);
+  return unicode_hint_check(codepoint, UNICODE_HINT_MASK_WHITESPACES)?1:0;
 }
 
-// Test if codepoint is a whitespace
+// Test if codepoint belongs to a word
 TIPPSE_INLINE bool_t unicode_word(codepoint_t codepoint) {
-  return unicode_bitfield_check(&unicode_words[0], codepoint);
+  return unicode_hint_check(codepoint, UNICODE_HINT_MASK_WORDS)?1:0;
+}
+
+// Test if codepoint is joiner or mark
+TIPPSE_INLINE codepoint_table_t unicode_joiner(const codepoint_t codepoint) {
+  return unicode_hint_check(codepoint, UNICODE_HINT_MASK_JOINER);
 }
 
 // Check visual width of unicode sequence
-TIPPSE_INLINE int unicode_width(const codepoint_t* codepoints, size_t max) {
+TIPPSE_INLINE codepoint_table_t unicode_width(const codepoint_t* codepoints, size_t max) {
   if (max<=0) {
     return 1;
   }
 
-  return unicode_width_hints[codepoints[0]];
-}
-
-TIPPSE_INLINE int unicode_width_field(const codepoint_t* codepoints, size_t max) {
-  // Return width zero if character is invisible
-  if (unicode_bitfield_check(&unicode_invisibles[0], codepoints[0])) {
-    return 0;
-  }
-
-  // Check if we have CJK ideographs (which are displayed in two columns each)
-  return unicode_bitfield_check(&unicode_widths[0], codepoints[0])+1;
+  return unicode_hint_check(codepoints[0], UNICODE_HINT_MASK_WIDTH);
 }
 
 void unicode_sequencer_clear(struct unicode_sequencer* base, struct encoding* encoding, struct stream* stream);
@@ -130,7 +123,7 @@ TIPPSE_INLINE void unicode_sequencer_decode(struct unicode_sequencer* base, stru
   unicode_sequencer_read(base);
 
   size_t length = 1;
-  while (UNLIKELY(unicode_bitfield_check(&unicode_marksjoiner[0], base->last_cp)) && length<UNICODE_SEQUENCE_MAX-1) {
+  while (UNLIKELY(unicode_joiner(base->last_cp)) && length<UNICODE_SEQUENCE_MAX-1) {
     if (UNLIKELY(base->last_cp==0x200d)) { // Zero width joiner
       codepoints[length] = base->last_cp;
       size += base->last_size;
