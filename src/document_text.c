@@ -850,7 +850,7 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
       width0 = document_text_render_lookahead_word_wrap(&render_info->sequencer, row_width+1, render_info->fill_next);
     }
 
-    if (cp==newline_cp1 || (wrapping && render_info->x+width0>render_info->width)) {
+    if (cp==newline_cp1 || (wrapping && render_info->x+(width0?width0:1)>render_info->width)) {
       if (cp==newline_cp1) {
         render_info->indentations = 0;
         render_info->indentations_extra = 0;
@@ -1045,7 +1045,7 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
       width0 = document_text_render_lookahead_word_wrap(&render_info->sequencer, row_width+1, render_info->fill_next);
     }
 
-    if (cp==newline_cp1 || (view->wrapping && render_info->x+width0>render_info->width)) {
+    if (cp==newline_cp1 || (view->wrapping && render_info->x+(width0?width0:1)>render_info->width)) {
       if (cp==newline_cp1) {
         render_info->indentation = 0;
         render_info->indentation_extra = 0;
@@ -1225,7 +1225,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       width0 = document_text_render_lookahead_word_wrap(&render_info->sequencer, row_width+1, render_info->fill_next);
     }
 
-    if (cp==newline_cp1 || (view->wrapping && render_info->x+width0>render_info->width)) {
+    if (cp==newline_cp1 || (view->wrapping && render_info->x+(width0?width0:1)>render_info->width)) {
       if (cp==newline_cp1) {
         render_info->indentation = 0;
         render_info->indentation_extra = 0;
