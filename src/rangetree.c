@@ -690,6 +690,12 @@ void range_tree_shrink(struct range_tree_node* node) {
     invalidate = node;
 
     file_offset_t rewind = invalidate->visuals.rewind;
+
+    // TODO: Rewind is needed for word wrapping correction ... figure out when exactly and reduce the rewind as much as possible for performance
+    if (rewind<1024) {
+      rewind = 1024;
+    }
+
     while (rewind>0) {
       invalidate = range_tree_prev(invalidate);
       if (!invalidate) {

@@ -416,14 +416,14 @@ TIPPSE_INLINE int document_text_fill_width(position_t x, bool_t show_invisibles,
       fill = 1;
       *fill_code = UNICODE_CODEPOINT_BAD;
       *show = ' ';
-    } else if (cp==newline_cp2 && newline_cp2!=0) {
+    } else if (cp==newline_cp2) {
       fill = 0;
       *fill_code = UNICODE_CODEPOINT_BAD;
       *show = UNICODE_CODEPOINT_BAD;
-    } else if (cp==UNICODE_CODEPOINT_BOM) {
-      fill = 0;
+    } else if (cp==0) {
+      fill = 1;
       *fill_code = UNICODE_CODEPOINT_BAD;
-      *show = UNICODE_CODEPOINT_BAD;
+      *show = ' ';
     } else if (cp>UNICODE_CODEPOINT_MAX) {
       fill = 1;
       *fill_code = UNICODE_CODEPOINT_BAD;
