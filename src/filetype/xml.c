@@ -7,7 +7,7 @@
 #include "../visualinfo.h"
 
 struct file_type* file_type_xml_create(struct config* config, const char* file_type) {
-  struct file_type_xml* self = malloc(sizeof(struct file_type_xml));
+  struct file_type_xml* self = (struct file_type_xml*)malloc(sizeof(struct file_type_xml));
   self->vtbl.file_type = strdup(file_type);
   self->vtbl.create = file_type_xml_create;
   self->vtbl.destroy = file_type_xml_destroy;

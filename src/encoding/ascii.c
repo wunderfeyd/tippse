@@ -3,7 +3,7 @@
 #include "ascii.h"
 
 struct encoding* encoding_ascii_create(void) {
-  struct encoding_ascii* self = malloc(sizeof(struct encoding_ascii));
+  struct encoding_ascii* self = (struct encoding_ascii*)malloc(sizeof(struct encoding_ascii));
   self->vtbl.create = encoding_ascii_create;
   self->vtbl.destroy = encoding_ascii_destroy;
   self->vtbl.name = encoding_ascii_name;

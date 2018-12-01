@@ -7,7 +7,7 @@
 #include "../visualinfo.h"
 
 struct file_type* file_type_sql_create(struct config* config, const char* file_type) {
-  struct file_type_sql* self = malloc(sizeof(struct file_type_sql));
+  struct file_type_sql* self = (struct file_type_sql*)malloc(sizeof(struct file_type_sql));
   self->vtbl.config = config;
   self->vtbl.file_type = strdup(file_type);
   self->vtbl.create = file_type_sql_create;

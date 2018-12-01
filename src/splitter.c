@@ -13,7 +13,7 @@
 
 // Create splitter
 struct splitter* splitter_create(int type, int split, struct splitter* side0, struct splitter* side1, const char* name) {
-  struct splitter* base = malloc(sizeof(struct splitter));
+  struct splitter* base = (struct splitter*)malloc(sizeof(struct splitter));
   base->type = type;
   base->split = split;
   base->file = NULL;

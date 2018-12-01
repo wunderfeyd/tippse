@@ -114,7 +114,7 @@ void document_text_render_clear(struct document_text_render_info* render_info, p
 void document_text_render_destroy(struct document_text_render_info* render_info);
 void document_text_render_seek(struct document_text_render_info* render_info, struct range_tree_node* buffer, struct encoding* encoding, const struct document_text_position* in);
 int document_text_split_buffer(struct range_tree_node* buffer, struct document_file* file);
-int document_text_collect_span(struct document_text_render_info* render_info, const struct document_view* view, struct document_file* file, const struct document_text_position* restrict in, struct document_text_position* out, int dirty_pages, int cancel);
+int document_text_collect_span(struct document_text_render_info* render_info, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel);
 int document_text_prerender_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel);
 int document_text_render_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel);
 

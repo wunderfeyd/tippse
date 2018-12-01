@@ -27,7 +27,7 @@ uint16_t translate_cp850_unicode[256] = {
 uint16_t* translate_unicode_cp850 = NULL;
 
 struct encoding* encoding_cp850_create(void) {
-  struct encoding_cp850* self = malloc(sizeof(struct encoding_cp850));
+  struct encoding_cp850* self = (struct encoding_cp850*)malloc(sizeof(struct encoding_cp850));
   self->vtbl.create = encoding_cp850_create;
   self->vtbl.destroy = encoding_cp850_destroy;
   self->vtbl.name = encoding_cp850_name;

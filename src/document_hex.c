@@ -101,7 +101,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
 
   size_t name_length = strlen(file->filename);
   int modified = document_undo_modified(file);
-  char* title = malloc((name_length+(size_t)modified*2+1)*sizeof(char));
+  char* title = (char*)malloc((name_length+(size_t)modified*2+1)*sizeof(char));
   memcpy(title, file->filename, name_length);
   if (modified) {
     memcpy(title+name_length, " *\0", 3);

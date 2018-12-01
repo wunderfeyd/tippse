@@ -6,7 +6,7 @@
 
 // Return pointer to new trie instance
 struct trie* trie_create(size_t node_size) {
-  struct trie* base = malloc(sizeof(struct trie));
+  struct trie* base = (struct trie*)malloc(sizeof(struct trie));
   base->node_size = node_size;
   base->buckets = list_create((sizeof(struct trie_node)+node_size)*TRIE_NODES_PER_BUCKET);
   trie_clear(base);
@@ -115,13 +115,13 @@ struct trie_node* trie_find_codepoint_recursive(struct trie* base, struct trie_n
   struct trie_node* node = NULL;
   for (int set = 0; set<16; set++) {
     if (parent->side[set]) {
-      codepoint_t new = build|((codepoint_t)set<<bit);
-      if (new+(codepoint_t)((1<<bit)-1)>cp) {
+      codepoint_t update = build|((codepoint_t)set<<bit);
+      if (update+(codepoint_t)((1<<bit)-1)>cp) {
         if (bit==0) {
-          *out = new;
+          *out = update;
           return parent->side[set];
         } else {
-          node = trie_find_codepoint_recursive(base, parent->side[set], cp, out, new, bit-4);
+          node = trie_find_codepoint_recursive(base, parent->side[set], cp, out, update, bit-4);
           if (node) {
             break;
           }

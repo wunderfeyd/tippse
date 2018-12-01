@@ -7,7 +7,7 @@
 #include "../visualinfo.h"
 
 struct file_type* file_type_lua_create(struct config* config, const char* file_type) {
-  struct file_type_lua* self = malloc(sizeof(struct file_type_lua));
+  struct file_type_lua* self = (struct file_type_lua*)malloc(sizeof(struct file_type_lua));
   self->vtbl.config = config;
   self->vtbl.file_type = strdup(file_type);
   self->vtbl.create = file_type_lua_create;

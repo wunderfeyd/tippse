@@ -7,7 +7,7 @@
 #include "../visualinfo.h"
 
 struct file_type* file_type_c_create(struct config* config, const char* file_type) {
-  struct file_type_c* self = malloc(sizeof(struct file_type_c));
+  struct file_type_c* self = (struct file_type_c*)malloc(sizeof(struct file_type_c));
   self->vtbl.config = config;
   self->vtbl.file_type = strdup(file_type);
   self->vtbl.create = file_type_c_create;

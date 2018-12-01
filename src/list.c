@@ -4,7 +4,7 @@
 
 // Build list
 struct list* list_create(size_t node_size) {
-  struct list* base = malloc(sizeof(struct list));
+  struct list* base = (struct list*)malloc(sizeof(struct list));
   list_create_inplace(base, node_size);
   return base;
 }
@@ -39,7 +39,7 @@ struct list_node* list_insert(struct list* base, struct list_node* prev, void* o
 
 // Allocate empty element
 struct list_node* list_insert_empty(struct list* base, struct list_node* prev) {
-  struct list_node* node = malloc(sizeof(struct list_node)+base->node_size);
+  struct list_node* node = (struct list_node*)malloc(sizeof(struct list_node)+base->node_size);
   list_insert_node(base, node, prev);
   return node;
 }

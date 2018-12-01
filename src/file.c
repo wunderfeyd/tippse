@@ -60,7 +60,7 @@ struct file* file_create(const char* path, int flags) {
     return NULL;
   }
 #endif
-  struct file* base = malloc(sizeof(struct file));
+  struct file* base = (struct file*)malloc(sizeof(struct file));
   base->fd = fd;
   return base;
 }

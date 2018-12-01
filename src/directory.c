@@ -4,7 +4,7 @@
 
 // Build directory stream
 struct directory* directory_create(const char* path) {
-  struct directory* base = malloc(sizeof(struct directory));
+  struct directory* base = (struct directory*)malloc(sizeof(struct directory));
 #ifdef _WINDOWS
   char* path_file = combine_string(path, "/*.*");
   wchar_t* os = string_system(path_file);

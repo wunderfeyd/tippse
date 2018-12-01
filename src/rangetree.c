@@ -111,7 +111,7 @@ void range_tree_destroy(struct range_tree_node* node, struct document_file* file
 
 // Create node with given fragment
 struct range_tree_node* range_tree_create(struct range_tree_node* parent, struct range_tree_node* side0, struct range_tree_node* side1, struct fragment* buffer, file_offset_t offset, file_offset_t length, int inserter, int64_t fuse_id, struct document_file* file, void* user_data) {
-  struct range_tree_node* node = malloc(sizeof(struct range_tree_node));
+  struct range_tree_node* node = (struct range_tree_node*)malloc(sizeof(struct range_tree_node));
   node->parent = parent;
   node->side[0] = side0;
   node->side[1] = side1;
@@ -162,17 +162,17 @@ struct range_tree_node* range_tree_last(struct range_tree_node* node) {
 }
 
 // Exchange child node to another one
-void range_tree_exchange(struct range_tree_node* node, struct range_tree_node* old, struct range_tree_node* new) {
+void range_tree_exchange(struct range_tree_node* node, struct range_tree_node* old, struct range_tree_node* update) {
   if (!node) {
     return;
   }
 
   if (node->side[0]==old) {
-    node->side[0] = new;
+    node->side[0] = update;
   } else if (node->side[1]==old) {
-    node->side[1] = new;
+    node->side[1] = update;
   } else {
-    printf("umm ... dead parent %p old %p new %p side 0 %p side 1 %p\r\n", (void*)node, (void*)old, (void*)new, (void*)node->side[0], (void*)node->side[1]);
+    printf("umm ... dead parent %p old %p update %p side 0 %p side 1 %p\r\n", (void*)node, (void*)old, (void*)update, (void*)node->side[0], (void*)node->side[1]);
   }
 }
 
@@ -713,7 +713,7 @@ void range_tree_shrink(struct range_tree_node* node) {
 
     if (node->buffer->count==1 && (node->offset!=0 || node->length!=node->buffer->length) && node->length>0) {
       if (node->buffer->type==FRAGMENT_MEMORY) {
-        uint8_t* text = malloc(node->length);
+        uint8_t* text = (uint8_t*)malloc(node->length);
         memcpy(text, node->buffer->buffer+node->offset, node->length);
         free(node->buffer->buffer);
         node->buffer->buffer = text;
@@ -1014,7 +1014,7 @@ uint8_t* range_tree_raw(struct range_tree_node* root, file_offset_t start, file_
   }
 
   file_offset_t length = end-start;
-  uint8_t* text = malloc(sizeof(uint8_t)*(length+1));
+  uint8_t* text = (uint8_t*)malloc(sizeof(uint8_t)*(length+1));
   file_offset_t offset = 0;
 
   while (length>0) {

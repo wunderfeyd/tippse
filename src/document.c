@@ -382,8 +382,8 @@ void document_directory(struct document_file* file, struct stream* filter_stream
 
   directory_destroy(directory);
 
-  char** sort1 = malloc(sizeof(char*)*files->count);
-  char** sort2 = malloc(sizeof(char*)*files->count);
+  char** sort1 = (char**)malloc(sizeof(char*)*files->count);
+  char** sort2 = (char**)malloc(sizeof(char*)*files->count);
   struct list_node* name = files->first;
   for (size_t n = 0; n<files->count && name; n++) {
     sort1[n] = *(char**)list_object(name);

@@ -147,8 +147,8 @@ void screen_check(struct screen* base) {
     base->height = height;
     free(base->visible);
     free(base->buffer);
-    base->buffer = (struct screen_char*)malloc(sizeof(struct screen_char)*(size_t)(base->width*base->height));
-    base->visible = (struct screen_char*)malloc(sizeof(struct screen_char)*(size_t)(base->width*base->height));
+    base->buffer = (struct screen_char*)malloc(sizeof(struct screen_char)*(size_t)((unsigned int)base->width*(unsigned int)base->height));
+    base->visible = (struct screen_char*)malloc(sizeof(struct screen_char)*(size_t)((unsigned int)base->width*(unsigned int)base->height));
 
     for (int y = 0; y<base->height; y++) {
       for (int x = 0; x<base->width; x++) {

@@ -247,7 +247,7 @@ void editor_save_documents(struct editor* base, int command);
 int editor_modified_documents(struct editor* base);
 void editor_close_document(struct editor* base, struct document_file* file);
 void editor_panel_assign(struct editor* base, struct document_file* file);
-void editor_view_browser(struct editor* base, const char* filename, struct stream* filter_stream, struct encoding* filter_encoding, int type, char* preset, char* predefined, struct document_file* file);
+void editor_view_browser(struct editor* base, const char* filename, struct stream* filter_stream, struct encoding* filter_encoding, int type, const char* preset, char* predefined, struct document_file* file);
 void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding);
 void editor_view_commands(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding);
 void editor_view_menu(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding);

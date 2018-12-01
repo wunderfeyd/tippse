@@ -3,7 +3,7 @@
 #include "utf8.h"
 
 struct encoding* encoding_utf8_create(void) {
-  struct encoding_utf8* self = malloc(sizeof(struct encoding_utf8));
+  struct encoding_utf8* self = (struct encoding_utf8*)malloc(sizeof(struct encoding_utf8));
   self->vtbl.create = encoding_utf8_create;
   self->vtbl.destroy = encoding_utf8_destroy;
   self->vtbl.name = encoding_utf8_name;

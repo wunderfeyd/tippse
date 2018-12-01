@@ -1,5 +1,7 @@
 // Tippse - Unicode helpers - Unicode character information, combination, (de-)composition and transformations
 
+#define TIPPSE_UNICODE_UNIT
+
 #include "unicode.h"
 #include "unicode/unicode_widths.h"
 #include "unicode/unicode_invisibles.h"
@@ -14,7 +16,6 @@
 #include "encoding/utf8.h"
 #include "trie.h"
 
-codepoint_table_t unicode_width_hints[UNICODE_HINT_MAX];
 struct trie* unicode_transform_lower;
 struct trie* unicode_transform_upper;
 struct trie* unicode_transform_nfd_nfc;

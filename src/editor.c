@@ -1094,7 +1094,7 @@ void editor_panel_assign(struct editor* base, struct document_file* file) {
 }
 
 // Update and change to browser view
-void editor_view_browser(struct editor* base, const char* filename, struct stream* filter_stream, struct encoding* filter_encoding, int type, char* preset, char* predefined, struct document_file* file) {
+void editor_view_browser(struct editor* base, const char* filename, struct stream* filter_stream, struct encoding* filter_encoding, int type, const char* preset, char* predefined, struct document_file* file) {
   if (preset) {
     free(base->browser_preset);
     base->browser_preset = strdup(preset);

@@ -3,7 +3,7 @@
 #include "utf16be.h"
 
 struct encoding* encoding_utf16be_create(void) {
-  struct encoding_utf16be* self = malloc(sizeof(struct encoding_utf16be));
+  struct encoding_utf16be* self = (struct encoding_utf16be*)malloc(sizeof(struct encoding_utf16be));
   self->vtbl.create = encoding_utf16be_create;
   self->vtbl.destroy = encoding_utf16be_destroy;
   self->vtbl.name = encoding_utf16be_name;

@@ -3,7 +3,7 @@
 #include "native.h"
 
 struct encoding* encoding_native_create(void) {
-  struct encoding_native* self = malloc(sizeof(struct encoding_native));
+  struct encoding_native* self = (struct encoding_native*)malloc(sizeof(struct encoding_native));
   self->vtbl.create = encoding_native_create;
   self->vtbl.destroy = encoding_native_destroy;
   self->vtbl.name = encoding_native_name;

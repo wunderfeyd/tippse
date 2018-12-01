@@ -7,7 +7,7 @@
 #include "../visualinfo.h"
 
 struct file_type* file_type_php_create(struct config* config, const char* file_type) {
-  struct file_type_php* self = malloc(sizeof(struct file_type_php));
+  struct file_type_php* self = (struct file_type_php*)malloc(sizeof(struct file_type_php));
   self->vtbl.config = config;
   self->vtbl.file_type = strdup(file_type);
   self->vtbl.create = file_type_php_create;

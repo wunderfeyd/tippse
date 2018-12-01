@@ -83,7 +83,7 @@ char* strip_file_name(const char* file) {
     search++;
   }
 
-  char* stripped = malloc(sizeof(char)*(size_t)((last-file)+1));
+  char* stripped = (char*)malloc(sizeof(char)*(size_t)((last-file)+1));
   memcpy(stripped, file, (size_t)(last-file));
   stripped[last-file] = '\0';
 
@@ -94,7 +94,7 @@ char* strip_file_name(const char* file) {
 char* combine_string(const char* string1, const char* string2) {
   size_t string1_length = strlen(string1);
   size_t string2_length = strlen(string2);
-  char* combined = malloc(sizeof(char)*(string1_length+string2_length+1));
+  char* combined = (char*)malloc(sizeof(char)*(string1_length+string2_length+1));
   memcpy(combined, string1, string1_length);
   memcpy(combined+string1_length, string2, string2_length);
   combined[string1_length+string2_length] = '\0';
@@ -126,7 +126,7 @@ char* combine_path_file(const char* path, const char* file) {
   }
 
   size_t file_length = strlen(file);
-  char* combined = malloc(sizeof(char)*(path_length+file_length+2));
+  char* combined = (char*)malloc(sizeof(char)*(path_length+file_length+2));
   memcpy(combined, path, path_length);
   combined[path_length] = '/';
   memcpy(combined+path_length+1, file, file_length);
@@ -138,7 +138,7 @@ char* combine_path_file(const char* path, const char* file) {
 // Return normalised directory path
 char* correct_path(const char* path) {
   size_t path_length = strlen(path);
-  char* real = malloc(sizeof(char)*(path_length+2));
+  char* real = (char*)malloc(sizeof(char)*(path_length+2));
   char* root = real;
   char* combined = real;
 

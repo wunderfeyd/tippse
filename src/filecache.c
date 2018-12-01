@@ -9,7 +9,7 @@
 
 // Create file cache
 struct file_cache* file_cache_create(const char* filename) {
-  struct file_cache* base = malloc(sizeof(struct file_cache));
+  struct file_cache* base = (struct file_cache*)malloc(sizeof(struct file_cache));
   base->filename = strdup(filename);
   base->fd = file_create(base->filename, TIPPSE_FILE_READ);
   base->count = 1;

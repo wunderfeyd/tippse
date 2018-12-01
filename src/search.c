@@ -22,7 +22,7 @@ extern uint16_t unicode_digits_rle[];
 
 // Build node for search tree
 struct search_node* search_node_create(int type) {
-  struct search_node* base = malloc(sizeof(struct search_node));
+  struct search_node* base = (struct search_node*)malloc(sizeof(struct search_node));
   base->type = type;
   base->size = 0;
   base->plain = NULL;
@@ -158,7 +158,7 @@ void search_destroy(struct search* base) {
 
 // Create search object
 struct search* search_create(int reverse, struct encoding* output_encoding) {
-  struct search* base = malloc(sizeof(struct search));
+  struct search* base = (struct search*)malloc(sizeof(struct search));
   base->reverse = reverse;
   base->groups = 0;
   base->group_hits = NULL;
@@ -1168,7 +1168,7 @@ void search_optimize_plain(struct search_node* node) {
     }
     if (set!=SIZE_T_MAX) {
       node->size = node->max;
-      node->plain = malloc(sizeof(uint8_t)*node->size);
+      node->plain = (uint8_t*)malloc(sizeof(uint8_t)*node->size);
       node->min = 1;
       node->max = 1;
       for (size_t n = 0; n<node->size; n++) {
@@ -1190,7 +1190,7 @@ void search_optimize_plain(struct search_node* node) {
 
   if (node->next && node->size>0 && node->next->size>0 && !node->next->group_start.first && !node->group_end.first) {
     size_t size = node->size+node->next->size;
-    uint8_t* plain = malloc(sizeof(uint8_t)*size);
+    uint8_t* plain = (uint8_t*)malloc(sizeof(uint8_t)*size);
     memcpy(plain, node->plain, node->size);
     memcpy(plain+node->size, node->next->plain, node->next->size);
     free(node->plain);

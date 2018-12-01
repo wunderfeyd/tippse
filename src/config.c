@@ -494,7 +494,7 @@ void config_command_destroy(struct config_command* base) {
 }
 
 struct config_command* config_command_clone(struct config_command* clone) {
-  struct config_command* base = malloc(sizeof(struct config_command));
+  struct config_command* base = (struct config_command*)malloc(sizeof(struct config_command));
   base->cached = clone->cached;
   base->value = clone->value;
   base->length = clone->length;
@@ -511,7 +511,7 @@ struct config_command* config_command_clone(struct config_command* clone) {
 
 // Create configuration entry assigned value
 struct config_value* config_value_create(codepoint_t* value_codepoints, size_t value_length) {
-  struct config_value* base = malloc(sizeof(struct config_value));
+  struct config_value* base = (struct config_value*)malloc(sizeof(struct config_value));
   config_value_create_inplace(base, value_codepoints, value_length);
   return base;
 }
@@ -519,7 +519,7 @@ struct config_value* config_value_create(codepoint_t* value_codepoints, size_t v
 void config_value_create_inplace(struct config_value* base, codepoint_t* value_codepoints, size_t value_length) {
   base->cached = 0;
   base->parsed = 0;
-  base->codepoints = malloc(sizeof(codepoint_t)*value_length);
+  base->codepoints = (codepoint_t*)malloc(sizeof(codepoint_t)*value_length);
   base->length = value_length;
   list_create_inplace(&base->commands, sizeof(struct config_command));
   memcpy(base->codepoints, value_codepoints, sizeof(codepoint_t)*value_length);
@@ -556,7 +556,7 @@ void config_value_parse_command(struct config_value* base) {
           struct config_command* command = (struct config_command*)list_object(base->commands.last);
           command->length = argument;
           size_t length = sizeof(struct config_argument)*argument;
-          command->arguments = malloc(length);
+          command->arguments = (struct config_argument*)malloc(length);
           memcpy(command->arguments, &arguments[0], length);
         }
       }
@@ -602,7 +602,7 @@ struct config_value* config_value_clone(struct config_value* base) {
 
 // Create configuration
 struct config* config_create(void) {
-  struct config* base = malloc(sizeof(struct config));
+  struct config* base = (struct config*)malloc(sizeof(struct config));
   base->keywords = trie_create(sizeof(struct list_node*));
   base->values = list_create(sizeof(struct config_value));
   return base;

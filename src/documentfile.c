@@ -229,13 +229,13 @@ void document_file_pipe(struct document_file* base, const char* command) {
   document_file_name(base, command);
   document_file_create_pipe(base);
   if (base->pid==0) {
-    char* argv[4];
+    const char* argv[4];
     argv[0] = "/bin/sh";
     argv[1] = "-c";
     argv[2] = (char*)command;
     argv[3] = NULL;
     setpgid(0, 0);
-    execv(argv[0], &argv[0]);
+    execv(argv[0], (char**)&argv[0]);
     exit(0);
   }
 }

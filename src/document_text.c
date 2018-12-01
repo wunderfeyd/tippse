@@ -175,7 +175,7 @@ file_offset_t document_text_cursor_position(struct splitter* splitter, struct do
 
 // Clear renderer state to ensure a restart at next seek
 void document_text_render_clear(struct document_text_render_info* render_info, position_t width, struct range_tree_node* selection) {
-  memset(render_info, 0, (void*)&render_info->stream-(void*)render_info);
+  memset(render_info, 0, (uintptr_t)&render_info->stream-(uintptr_t)render_info);
   render_info->width = width;
   render_info->selection_root = selection;
   stream_from_plain(&render_info->stream, NULL, 0);
@@ -1517,7 +1517,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 
   size_t name_length = strlen(file->filename);
   int modified = document_undo_modified(file);
-  char* title = malloc((name_length+(size_t)modified*2+1)*sizeof(char));
+  char* title = (char*)malloc((name_length+(size_t)modified*2+1)*sizeof(char));
   memcpy(title, file->filename, name_length);
   if (modified) {
     memcpy(title+name_length, " *\0", 3);

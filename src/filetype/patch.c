@@ -7,7 +7,7 @@
 #include "../visualinfo.h"
 
 struct file_type* file_type_patch_create(struct config* config, const char* file_type) {
-  struct file_type_patch* self = malloc(sizeof(struct file_type_patch));
+  struct file_type_patch* self = (struct file_type_patch*)malloc(sizeof(struct file_type_patch));
   self->vtbl.file_type = strdup(file_type);
   self->vtbl.create = file_type_patch_create;
   self->vtbl.destroy = file_type_patch_destroy;

@@ -42,7 +42,11 @@ struct unicode_sequencer {
 
 #include "encoding.h"
 
+#ifdef TIPPSE_UNICODE_UNIT
 codepoint_table_t unicode_hints[UNICODE_HINT_MAX];
+#else
+extern codepoint_table_t unicode_hints[UNICODE_HINT_MAX];
+#endif
 
 void unicode_init(void);
 void unicode_free(void);
