@@ -20,12 +20,12 @@ void encoding_free(void) {
 }
 
 // Get native encoding
-struct encoding* encoding_native_static() {
+struct encoding* encoding_native_static(void) {
   return encoding_native_base;
 }
 
 // Get UTF-8 encoding
-struct encoding* encoding_utf8_static() {
+struct encoding* encoding_utf8_static(void) {
   return encoding_utf8_base;
 }
 

@@ -18,8 +18,8 @@ struct encoding {
 
 void encoding_init(void);
 void encoding_free(void);
-struct encoding* encoding_native_static();
-struct encoding* encoding_utf8_static();
+struct encoding* encoding_native_static(void);
+struct encoding* encoding_utf8_static(void);
 
 uint16_t* encoding_reverse_table(uint16_t* table, size_t length, size_t max);
 

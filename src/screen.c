@@ -10,7 +10,7 @@
 #include "unicode.h"
 
 // Screen ANSI initialization
-const char* screen_ansi_init =
+static const char* screen_ansi_init =
   "\x1b[?47h"    // Switch buffer
   "\x1b[?25l"    // Hide cursor
   "\x1b""7"      // Save cursor position
@@ -20,7 +20,7 @@ const char* screen_ansi_init =
   "\x1b[?1005h"; // UTF-8 mouse mode
 
 // Screen ANSI restore
-const char* screen_ansi_restore =
+static const char* screen_ansi_restore =
   "\x1b[?1005l"  // Disable UTF-8 mouse mode
   "\x1b[?1002l"  // Disable XTerm mouse mode
   "\x1b[?2004l"  // Non bracketed paste mode

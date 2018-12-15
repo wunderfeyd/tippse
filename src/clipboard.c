@@ -7,7 +7,7 @@
 #include "rangetree.h"
 #include "stream.h"
 
-struct range_tree_node* clipboard = NULL;
+static struct range_tree_node* clipboard = NULL;
 
 // Free clipboard data
 void clipboard_free(void) {

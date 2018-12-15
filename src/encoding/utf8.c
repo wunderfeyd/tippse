@@ -870,7 +870,7 @@ void code_table(struct utf8_table* tables, size_t table, size_t from, size_t to,
   }
 }
 
-void encoding_utf8_build_tables() {
+void encoding_utf8_build_tables(void) {
   size_t size = 0x10000;
   struct utf8_table* tables = (struct utf8_table*)malloc(sizeof(struct utf8_table)*size);
   memset(tables, 0, sizeof(struct utf8_table)*size);

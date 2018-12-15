@@ -17,7 +17,7 @@
 #include "splitter.h"
 #include "trie.h"
 
-const char* editor_key_names[TIPPSE_KEY_MAX] = {
+static const char* editor_key_names[TIPPSE_KEY_MAX] = {
   "",
   "up",
   "down",
@@ -50,7 +50,7 @@ const char* editor_key_names[TIPPSE_KEY_MAX] = {
   "f12"
 };
 
-struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
+static struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"", TIPPSE_CMD_CHARACTER, ""},
   {"quit", TIPPSE_CMD_QUIT, "Exit application"},
   {"up", TIPPSE_CMD_UP, "Move cursor up"},
@@ -155,6 +155,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->close = 0;
   base->tasks = list_create(sizeof(struct editor_task));
   base->task_focus = NULL;
+  base->task_stop = NULL;
   base->menu = list_create(sizeof(struct editor_menu));
   base->base_path = base_path;
   base->screen = screen;
@@ -431,14 +432,15 @@ void editor_keypress(struct editor* base, int key, codepoint_t cp, int button, i
   }
 
   while (base->tasks->first) {
-    struct editor_task* task = (struct editor_task*)list_object(base->tasks->first);
-    if (task->stop) {
+    if (base->tasks->first==base->task_stop) {
       break;
     }
 
+    struct editor_task* task = (struct editor_task*)list_object(base->tasks->first);
+
     base->task_active = base->tasks->first;
     editor_intercept(base, task->command, task->arguments, task->key, task->cp, task->button, task->button_old, task->x, task->y, task->file);
-    if (base->task_active && !task->stop) {
+    if (base->task_active && base->task_active!=base->task_stop) {
       editor_task_destroy_inplace(task);
       list_remove(base->tasks, base->task_active);
     }
@@ -493,6 +495,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
   } else if (command==TIPPSE_CMD_QUIT_FORCE) {
     base->close = 1;
   } else if (command==TIPPSE_CMD_QUIT_SAVE) {
+    editor_task_clear(base);
     editor_save_documents(base, TIPPSE_CMD_SAVE);
     editor_task_append(base, 0, TIPPSE_CMD_QUIT_FORCE, NULL, 0, 0, 0, 0, 0, 0, NULL);
   } else if (command==TIPPSE_CMD_SEARCH) {
@@ -1357,15 +1360,8 @@ void editor_task_destroy_inplace(struct editor_task* base) {
 struct editor_task* editor_task_append(struct editor* base, int front, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y, struct document_file* file) {
   struct list_node* prev = base->tasks->last;
   if (front==1) {
-    struct list_node* it = base->tasks->first;
-    prev = NULL;
-    while (it) {
-      struct editor_task* task = (struct editor_task*)list_object(it);
-      if (task->stop) {
-        break;
-      }
-      prev = it;
-      it = it->next;
+    if (base->task_stop) {
+      prev = base->task_stop->prev;
     }
   } else if (front==2) {
     prev = base->tasks->first;
@@ -1383,7 +1379,7 @@ struct editor_task* editor_task_append(struct editor* base, int front, int comma
   task->x = x;
   task->y = y;
   task->file = file;
-  task->stop = 0;
+
   return task;
 }
 
@@ -1396,6 +1392,9 @@ void editor_task_document_removed(struct editor* base, struct document_file* fil
     if (task->file==file) {
       if (it==base->task_active) {
         base->task_active = NULL;
+      }
+      if (it==base->task_stop) {
+        base->task_stop = NULL;
       }
       editor_task_destroy_inplace(task);
       list_remove(base->tasks, it);
@@ -1413,32 +1412,24 @@ void editor_task_clear(struct editor* base) {
   }
 
   base->task_active = NULL;
+  base->task_stop = NULL;
 }
 
 // Place "stop" at current task
 void editor_task_stop(struct editor* base) {
-  if (!base->tasks->first) {
-    return;
-  }
-
-  struct editor_task* task = (struct editor_task*)list_object(base->tasks->first);
-  task->stop = 1;
+  base->task_stop = base->tasks->first;
 }
 
 // Search for first stop task and remove it
 void editor_task_remove_stop(struct editor* base) {
-  struct list_node* it = base->tasks->first;
-  while (it) {
-    struct editor_task* task = (struct editor_task*)list_object(it);
-    if (task->stop) {
-      if (it==base->task_active) {
-        base->task_active = NULL;
-      }
-      editor_task_destroy_inplace(task);
-      list_remove(base->tasks, it);
-      break;
+  if (base->task_stop) {
+    struct editor_task* task = (struct editor_task*)list_object(base->task_stop);
+    if (base->task_stop==base->task_active) {
+      base->task_active = NULL;
     }
-    it = it->next;
+    editor_task_destroy_inplace(task);
+    list_remove(base->tasks, base->task_stop);
+    base->task_stop = NULL;
   }
 }
 
@@ -1470,7 +1461,6 @@ void editor_menu_append(struct editor* base, const char* title, int command, str
   entry->task.x = x;
   entry->task.y = y;
   entry->task.file = file;
-  entry->task.stop = 0;
 }
 
 void editor_process_message(struct editor* base, const char* message, file_offset_t position, file_offset_t length) {

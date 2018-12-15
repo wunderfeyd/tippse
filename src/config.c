@@ -9,10 +9,10 @@
 #include "rangetree.h"
 #include "trie.h"
 
-const char* config_filename = ".tippse";
+static const char* config_filename = ".tippse";
 
 // Default configuration
-const char* config_default =
+static const char* config_default =
   "{"
     "colors:{"
       "background:background,"

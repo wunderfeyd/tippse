@@ -162,7 +162,6 @@ struct editor_task {
   int x;                              // mouse x coordinate for command
   int y;                              // mouse y coordinate for command
   struct document_file* file;         // document selected for this task
-  int stop;                           // stop task execute chain?
 };
 
 struct editor_menu {
@@ -221,6 +220,7 @@ struct editor {
 
   struct list* tasks;                 // open tasks
   struct list_node* task_active;      // current active task
+  struct list_node* task_stop;        // task to stop at
   struct document_file* task_focus;   // delete task list if file is nor focused
 
   struct list* menu;                  // menu selections

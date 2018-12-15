@@ -1,18 +1,18 @@
 ifeq ($(OS),windows)
 	CC=i686-w64-mingw32-gcc
-	CFLAGS=-std=gnu99 -O2 -Wall -Wextra -Wno-unused-parameter -Wsign-conversion -fstrict-aliasing -D_WINDOWS -D_FILE_OFFSET_BITS=64
+	CFLAGS=-std=gnu11 -O2 -Wall -Wextra -Wno-unused-parameter -Wsign-conversion -fstrict-aliasing -D_WINDOWS -D_FILE_OFFSET_BITS=64
 	LIBS=-lshell32 -lgdi32 -Wl,--subsystem,console
 	TARGET=tippse.exe
 else
 	CC=gcc
-	CFLAGS=-std=gnu99 -O2 -Wall -Wextra -Wno-unused-parameter -Wsign-conversion -fstrict-aliasing -D_FILE_OFFSET_BITS=64
+	CFLAGS=-std=gnu11 -O2 -Wall -Wextra -Wno-padded -Wno-shadow -Wno-unused-parameter -Wsign-conversion -fstrict-aliasing -D_FILE_OFFSET_BITS=64
 	LIBS=
 	TARGET=tippse
 endif
 
 CFLAGSEXTRA=-s
 OBJDIR=tmp
-SRCS=$(wildcard src/*.c) $(wildcard src/filetype/*.c)  $(wildcard src/encoding/*.c)
+SRCS=$(wildcard src/lib/*.c) $(wildcard src/*.c) $(wildcard src/filetype/*.c) $(wildcard src/encoding/*.c)
 OBJS=$(addprefix $(OBJDIR)/,$(addsuffix .o,$(basename $(SRCS))))
 
 tmp/%.o: %.c
