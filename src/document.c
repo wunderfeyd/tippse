@@ -550,17 +550,19 @@ void document_bookmark_next(struct splitter* splitter) {
   struct document_view* view = splitter->view;
 
   file_offset_t offset = view->offset;
+  int wrap = 1;
   while (1) {
     file_offset_t low;
     file_offset_t high;
-    if (range_tree_marked_next(file->bookmarks, offset, &low, &high, 1)) {
+    if (range_tree_marked_next(file->bookmarks, offset, &low, &high, wrap)) {
       view->offset = low;
       break;
     }
-    if (offset==0) {
+    if (!wrap) {
       editor_console_update(file->editor, "No bookmark found!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
       break;
     }
+    wrap = 0;
     offset = 0;
   }
 }
@@ -571,17 +573,19 @@ void document_bookmark_prev(struct splitter* splitter) {
   struct document_view* view = splitter->view;
 
   file_offset_t offset = view->offset;
+  int wrap = 1;
   while (1) {
     file_offset_t low;
     file_offset_t high;
-    if (range_tree_marked_prev(file->bookmarks, offset, &low, &high, 1)) {
+    if (range_tree_marked_prev(file->bookmarks, offset, &low, &high, wrap)) {
       view->offset = low;
       break;
     }
-    if (offset==range_tree_length(file->buffer)) {
+    if (!wrap) {
       editor_console_update(file->editor, "No bookmark found!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
       break;
     }
+    wrap = 0;
     offset = range_tree_length(file->buffer);
   }
 }

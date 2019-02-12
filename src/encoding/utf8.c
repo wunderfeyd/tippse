@@ -915,7 +915,7 @@ void encoding_utf8_build_tables(void) {
         //}
         tables[current].jump[out[pos]].add = add;
         tables[current].jump[out[pos]].bad = 0;
-        tables[current].jump[out[pos]].left = length-1-pos;
+        tables[current].jump[out[pos]].left = (int)(length-1-pos);
         current = tables[current].jump[out[pos]].next;
         pos++;
       }

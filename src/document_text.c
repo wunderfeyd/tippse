@@ -1555,7 +1555,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   }
 
   // Auto complete hint
-  if (file->autocomplete_last && range_tree_length(file->buffer)>0) {
+  if (file->autocomplete_last && range_tree_length(file->buffer)>0 && !document_view_select_active(view)) {
     char text[1024];
     size_t length = 0;
 
