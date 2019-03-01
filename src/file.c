@@ -23,18 +23,15 @@ struct file* file_create(const char* path, int flags) {
   }
 
   DWORD access = 0;
-  DWORD share = 0;
   if (flags&TIPPSE_FILE_WRITE) {
     access |= GENERIC_WRITE;
-    share |= FILE_SHARE_WRITE;
   }
   if (flags&TIPPSE_FILE_READ) {
     access |= GENERIC_READ;
-    share |= FILE_SHARE_READ;
   }
 
   wchar_t* os = string_system(path);
-  HANDLE fd = CreateFileW(os, access, share, NULL, creation, FILE_ATTRIBUTE_NORMAL, NULL);
+  HANDLE fd = CreateFileW(os, access, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, creation, FILE_ATTRIBUTE_NORMAL, NULL);
   free(os);
   if (fd==INVALID_HANDLE_VALUE) {
     return NULL;

@@ -20,6 +20,7 @@ struct tippse_window {
   int mouse_buttons;        // Current mouse button state
   int64_t cursor_blink;     // Start tick of cursor blinking
   int cursor_blink_old;     // cursor blink state
+  int refresh;              // refresh screen
 };
 
 void tippse_detect_keyboard_layout(struct tippse_window* base) {
@@ -69,11 +70,15 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
   } else if (message==WM_SIZE) {
     screen_check(base->screen);
     editor_draw(base->editor);
+  } else if (message==WM_ERASEBKGND) {
+    base->refresh = 1;
+    screen_update(base->screen);
   } else if (message==WM_PAINT) {
     PAINTSTRUCT ps;
     BeginPaint(window, &ps);
     int cursor = tippse_cursor_blink(base);
-    screen_draw(base->screen, ps.hdc, ps.fErase, cursor);
+    screen_draw(base->screen, ps.hdc, base->refresh, cursor);
+    base->refresh = 0;
     base->cursor_blink_old = cursor;
     EndPaint(window, &ps);
   } else if (message==WM_LBUTTONDOWN || message==WM_RBUTTONDOWN || message==WM_MBUTTONDOWN || message==WM_LBUTTONUP || message==WM_RBUTTONUP || message==WM_MBUTTONUP || message==WM_MOUSEMOVE || message==WM_MOUSEWHEEL) {
@@ -109,7 +114,7 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
     editor_keypress(base->editor, key, 0, mouse_buttons, base->mouse_buttons, (int)((int16_t)(param2&0xffff))/base->screen->font_width, (int)((int16_t)(param2>>16))/base->screen->font_height);
     editor_draw(base->editor);
     base->mouse_buttons = mouse_buttons;
-  } else if (message==WM_KEYDOWN) {
+  } else if (message==WM_KEYDOWN || message==WM_SYSKEYDOWN) {
     wchar_t output[256];
     int ret = ToUnicodeEx(param1, (param2>>16)&0xff, &base->keystate[0], &output[0], sizeof(output)/sizeof(wchar_t), 0, base->keyboard_layout);
     base->keystate[param1] = 0x80;
@@ -171,7 +176,7 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
     } else if (param1==VK_F12) {
       key = TIPPSE_KEY_F12;
     } else {
-      if (ret>0 && !base->keystate[VK_MENU] && !base->keystate[VK_CONTROL]) {
+      if (ret>0 && !(base->keystate[VK_MENU]^base->keystate[VK_CONTROL])) {
         cp = output[0];
       } else {
         cp = MapVirtualKeyEx(param1, MAPVK_VK_TO_CHAR, base->keyboard_layout);
@@ -194,7 +199,7 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
     editor_keypress(base->editor, key, (int)cp, 0, 0, 0, 0);
     editor_draw(base->editor);
     base->cursor_blink = tick_count();
-  } else if (message==WM_KEYUP) {
+  } else if (message==WM_KEYUP || message==WM_SYSKEYUP) {
     base->keystate[param1] = 0;
   } else if (message==WM_DESTROY) {
     PostQuitMessage(0);
@@ -271,6 +276,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, char* command_li
   base.editor = editor_create(base_path, base.screen, argc, (const char**)argv);
   base.cursor_blink = 0;
   base.cursor_blink_old = 2;
+  base.refresh = 1;
 
   for (int n = 0; n<argc; n++) {
     free(argv[n]);

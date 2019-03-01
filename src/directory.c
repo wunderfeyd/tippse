@@ -1,6 +1,7 @@
 // Low level directory interface
 
 #include "directory.h"
+#include "misc.h"
 
 // Build directory stream
 struct directory* directory_create(const char* path) {

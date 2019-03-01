@@ -305,29 +305,38 @@ void screen_cursor(struct screen* base, int x, int y) {
 }
 
 #ifdef _WINDOWS
+// Set character color
+void setup_color(HDC context, int reversed, int index_foreground, int index_background, DWORD foreground_system, DWORD background_system) {
+  if (index_foreground<0) {
+    SetTextColor(context, reversed?background_system:foreground_system);
+  } else {
+    struct screen_rgb* foreground = &rgb_index[index_foreground];
+    SetTextColor(context, RGB(foreground->r, foreground->g, foreground->b));
+  }
+
+  if (index_background<0) {
+    SetBkColor(context, reversed?foreground_system:background_system);
+  } else {
+    struct screen_rgb* background = &rgb_index[index_background];
+    SetBkColor(context, RGB(background->r, background->g, background->b));
+  }
+}
+
 // Output screen
 void screen_draw(struct screen* base, HDC context, int redraw, int cursor) {
   SelectObject(context, base->font);
-  struct screen_char empty;
-  empty.sequence.cp[0] = ' ';
-  empty.sequence.length = 1;
-  empty.background = VISUAL_FLAG_COLOR_BACKGROUND;
-  empty.foreground = VISUAL_FLAG_COLOR_TEXT;
-  empty.codes[0] = ' ';
-  empty.pos = (uint8_t*)&empty.codes[1];
-
   DWORD background_system = GetSysColor(COLOR_WINDOW);
   DWORD foreground_system = GetSysColor(COLOR_WINDOWTEXT);
 
   int n = 0;
-  for (int y = 0; y<=base->height; y++) {
-    for (int x = 0; x<=base->width; x++) {
-      struct screen_char* v = (x<base->width && y<base->height)?&base->visible[n]:&empty;
-      struct screen_char* c = (x<base->width && y<base->height)?&base->buffer[n++]:&empty;
+  for (int y = 0; y<base->height; y++) {
+    for (int x = 0; x<base->width; x++) {
+      struct screen_char* v = &base->visible[n];
+      struct screen_char* c = &base->buffer[n++];
 
-      int modified = c->modified;
-      if (modified) {
-        if (v->length!=c->length) {
+      int modified = 0;
+      if (c->modified) {
+        if (v->sequence.length!=c->sequence.length) {
           modified = 1;
         } else {
           for (size_t check = 0; check<c->sequence.length; check++) {
@@ -337,18 +346,18 @@ void screen_draw(struct screen* base, HDC context, int redraw, int cursor) {
             }
           }
         }
+        c->modified = 0;
       }
 
       if (modified) {
-        c->modified = 0;
-        v->length = c->length;
-        for (size_t copy = 0; copy<c->length; copy++) {
-          v->codepoints[copy] = c->codepoints[copy];
+        v->sequence.length = c->sequence.length;
+        for (size_t copy = 0; copy<c->sequence.length; copy++) {
+          v->sequence.cp[copy] = c->sequence.cp[copy];
         }
 
         v->pos = (uint8_t*)&v->codes[0];
-        for (size_t copy = 0; copy<v->length; copy++) {
-          v->pos += (*base->encoding->encode)(NULL, v->codepoints[copy], v->pos, SIZE_T_MAX);
+        for (size_t copy = 0; copy<v->sequence.length; copy++) {
+          v->pos += (*base->encoding->encode)(NULL, v->sequence.cp[copy], v->pos, SIZE_T_MAX);
         }
       }
 
@@ -370,20 +379,21 @@ void screen_draw(struct screen* base, HDC context, int redraw, int cursor) {
         v->foreground = index_foreground;
         v->background = index_background;
 
-        if (index_foreground<0) {
-          SetTextColor(context, reversed?background_system:foreground_system);
-        } else {
-          struct screen_rgb* foreground = &rgb_index[index_foreground];
-          SetTextColor(context, RGB(foreground->r, foreground->g, foreground->b));
-        }
-
-        if (index_background<0) {
-          SetBkColor(context, reversed?foreground_system:background_system);
-        } else {
-          struct screen_rgb* background = &rgb_index[index_background];
-          SetBkColor(context, RGB(background->r, background->g, background->b));
-        }
+        setup_color(context, reversed, index_foreground, index_background, foreground_system, background_system);
         TextOutW(context, x*base->font_width, y*base->font_height, &v->codes[0], (v->pos-(uint8_t*)&v->codes[0])/(int)sizeof(wchar_t));
+
+        if (x==base->width-1) {
+          setup_color(context, 0, index_foreground, index_background, foreground_system, background_system);
+          TextOutA(context, (x+1)*base->font_width, y*base->font_height, " ", 1);
+        }
+        if (y==base->height-1) {
+          setup_color(context, 0, index_foreground, index_background, foreground_system, background_system);
+          TextOutA(context, x*base->font_width, (y+1)*base->font_height, " ", 1);
+        }
+        if (x==base->width-1 && y==base->height-1) {
+          setup_color(context, 0, index_foreground, index_background, foreground_system, background_system);
+          TextOutA(context, (x+1)*base->font_width, (y+1)*base->font_height, " ", 1);
+        }
       }
     }
   }
@@ -421,8 +431,8 @@ void screen_draw(struct screen* base) {
   for (n = 0; n<base->width*base->height; n++) {
     c = &base->buffer[n];
     v = &base->visible[n];
-    int modified = c->modified;
-    if (modified) {
+    int modified = 0;
+    if (c->modified) {
       if (v->sequence.length!=c->sequence.length) {
         modified = 1;
       } else {
@@ -433,13 +443,13 @@ void screen_draw(struct screen* base) {
           }
         }
       }
+      c->modified = 0;
     }
 
     if (modified || v->foreground!=c->foreground || v->background!=c->background) {
       screen_draw_update(base, &pos, old, n, &w, &foreground_old, &background_old);
       old = n+1;
       screen_draw_char(base, &pos, n, &w, &foreground_old, &background_old);
-      c->modified = 0;
       v->sequence.length = c->sequence.length;
       v->foreground = c->foreground;
       v->background = c->background;

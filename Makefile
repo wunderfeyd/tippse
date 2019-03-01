@@ -1,7 +1,7 @@
 ifeq ($(OS),windows)
 	CC=i686-w64-mingw32-gcc
 	CFLAGS=-std=gnu11 -O2 -Wall -Wextra -Wno-unused-parameter -Wsign-conversion -fstrict-aliasing -D_WINDOWS -D_FILE_OFFSET_BITS=64
-	LIBS=-lshell32 -lgdi32 -Wl,--subsystem,console
+	LIBS=-lshell32 -lgdi32 -Wl,--subsystem,windows
 	TARGET=tippse.exe
 else
 	CC=gcc
