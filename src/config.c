@@ -124,6 +124,7 @@ static const char* config_default =
       "shift+ctrl+f3:searchdirectory,"
       "ctrl+t:new,"
       "ctrl+n:splitnext,"
+      "ctrl+e:documentback,"
     "},"
     "fileextensions:{"
       "c:C,"
@@ -661,7 +662,7 @@ void config_value_parse_command(struct config_value* base) {
   while (1) {
     codepoint_t cp = *pos++;
     if (cp==0 || ((cp==' ' || cp=='\t' || cp==';') && !string && !escape)) {
-      if (build!=tmp && argument<sizeof(arguments)/sizeof(codepoint_t*)) {
+      if (build!=tmp && argument<sizeof(arguments)/sizeof(struct config_argument)) {
         *build = 0;
         size_t length = sizeof(codepoint_t)*(size_t)(build-tmp+1);
         arguments[argument].codepoints = (codepoint_t*)malloc(length);

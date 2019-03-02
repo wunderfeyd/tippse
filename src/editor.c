@@ -146,6 +146,7 @@ static struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"deletewordprev", TIPPSE_CMD_DELETE_WORD_PREV, "Remove word or whitespace before current location"},
   {"selectline", TIPPSE_CMD_SELECT_LINE, "Extend selection to whole line"},
   {"saveskip", TIPPSE_CMD_SAVE_SKIP, "Skip file when saving documents"},
+  {"documentback", TIPPSE_CMD_DOCUMENT_BACK, "Switch back to previous active document"},
   {NULL, 0, ""}
 };
 
@@ -463,6 +464,13 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
 
   if (command==TIPPSE_CMD_DOCUMENTSELECTION) {
     editor_view_tabs(base, NULL, NULL);
+  } else if (command==TIPPSE_CMD_DOCUMENT_BACK) {
+    if (base->documents->count>1) {
+      struct list_node* docs = base->documents->first;
+      docs = docs->next;
+      struct document_file* docs_document_doc = *(struct document_file**)list_object(docs);
+      editor_open_document(base, docs_document_doc->filename, NULL, base->document, TIPPSE_BROWSERTYPE_OPEN);
+    }
   } else if (command==TIPPSE_CMD_BROWSER || command==TIPPSE_CMD_SAVEAS) {
     struct document_file* browser_file = file?file:base->document->file;
     char* filename = extract_file_name(browser_file->filename);
