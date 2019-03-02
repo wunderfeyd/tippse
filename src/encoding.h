@@ -23,7 +23,7 @@ struct encoding* encoding_utf8_static(void);
 
 uint16_t* encoding_reverse_table(uint16_t* table, size_t length, size_t max);
 
-struct range_tree_node* encoding_transform_stream(struct stream* stream, struct encoding* from, struct encoding* to);
+struct range_tree_node* encoding_transform_stream(struct stream* stream, struct encoding* from, struct encoding* to, file_offset_t max);
 uint8_t* encoding_transform_plain(const uint8_t* buffer, size_t length, struct encoding* from, struct encoding* to);
 
 size_t encoding_strnlen(struct encoding* base, struct stream* stream, size_t size);

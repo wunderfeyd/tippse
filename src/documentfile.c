@@ -686,7 +686,7 @@ void document_file_insert_utf8(struct document_file* base, file_offset_t offset,
 
   struct stream stream;
   stream_from_plain(&stream, (uint8_t*)text, length);
-  struct range_tree_node* buffer = encoding_transform_stream(&stream, encoding_utf8_static(), base->encoding);
+  struct range_tree_node* buffer = encoding_transform_stream(&stream, encoding_utf8_static(), base->encoding, FILE_OFFSET_T_MAX);
   stream_destroy(&stream);
   document_file_insert_buffer(base, offset, buffer);
   range_tree_destroy(buffer, NULL);

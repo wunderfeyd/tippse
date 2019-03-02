@@ -3,6 +3,7 @@
 #include "rangetree.h"
 
 #include "fragment.h"
+#include "stream.h"
 
 int64_t range_tree_fuse_id = 1;
 
@@ -1015,27 +1016,28 @@ uint8_t* range_tree_raw(struct range_tree_node* root, file_offset_t start, file_
 
   file_offset_t length = end-start;
   uint8_t* text = (uint8_t*)malloc(sizeof(uint8_t)*(length+1));
-  file_offset_t offset = 0;
+  uint8_t* out = text;
+
+  file_offset_t split = 0;
+  struct range_tree_node* node = range_tree_find_offset(root, start, &split);
+
+  struct stream stream;
+  stream_from_page(&stream, node, split);
 
   while (length>0) {
-    file_offset_t split = 0;
-    struct range_tree_node* node = range_tree_find_offset(root, start, &split);
-    if (!node) {
-      break;
+    size_t segment = stream_cache_length(&stream)-stream_displacement(&stream);
+    if (segment>length) {
+      segment = length;
     }
 
-    file_offset_t sub = node->length-split;
-    if (sub>length) {
-      sub = length;
-    }
-
-    memcpy(text+offset, node->buffer->buffer+node->offset+split, sub);
-    length -= sub;
-    offset += sub;
-    start += sub;
+    memcpy(out, stream_buffer(&stream), segment);
+    length -= segment;
+    out += segment;
+    stream_next(&stream);
   }
+  stream_destroy(&stream);
 
-  *(text+offset) = '\0';
+  *out = '\0';
   return text;
 }
 

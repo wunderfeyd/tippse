@@ -47,16 +47,16 @@ uint16_t* encoding_reverse_table(uint16_t* table, size_t length, size_t max) {
 }
 
 // sequence stream to different encoding
-struct range_tree_node* encoding_transform_stream(struct stream* stream, struct encoding* from, struct encoding* to) {
+struct range_tree_node* encoding_transform_stream(struct stream* stream, struct encoding* from, struct encoding* to, file_offset_t max) {
   uint8_t recoded[1024];
   size_t recode = 0;
 
   struct range_tree_node* root = NULL;
   while (1) {
-    if (stream_end(stream) || recode>512) {
+    if (stream_end(stream) || recode>512 || max==0) {
       root = range_tree_insert_split(root, range_tree_length(root), &recoded[0], recode, 0);
       recode = 0;
-      if (stream_end(stream)) {
+      if (stream_end(stream) || max==0) {
         break;
       }
     }
@@ -67,7 +67,12 @@ struct range_tree_node* encoding_transform_stream(struct stream* stream, struct 
       continue;
     }
 
-    recode += to->encode(to, cp, &recoded[recode], sizeof(recoded)-recode);
+    if (max>=(file_offset_t)length) {
+      recode += to->encode(to, cp, &recoded[recode], sizeof(recoded)-recode);
+      max -= length;
+    } else {
+      max = 0;
+    }
   }
 
   return root;
@@ -77,7 +82,7 @@ struct range_tree_node* encoding_transform_stream(struct stream* stream, struct 
 uint8_t* encoding_transform_plain(const uint8_t* buffer, size_t length, struct encoding* from, struct encoding* to) {
   struct stream stream;
   stream_from_plain(&stream, buffer, length);
-  struct range_tree_node* root = encoding_transform_stream(&stream, from, to);
+  struct range_tree_node* root = encoding_transform_stream(&stream, from, to, FILE_OFFSET_T_MAX);
   uint8_t* raw = range_tree_raw(root, 0, root?root->length:0);
   range_tree_destroy(root, NULL);
   stream_destroy(&stream);
