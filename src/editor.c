@@ -828,7 +828,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
       struct stream filter_stream;
       stream_from_plain(&filter_stream, (uint8_t*)filter, strlen(filter));
 
-      struct search* search = search_create_regex(1, 0, filter_stream, node->file->encoding, node->file->encoding);
+      struct search* search = search_create_regex(1, 0, &filter_stream, node->file->encoding, node->file->encoding);
       if (search_find_check(search, &text_stream)) {
         char* name = (char*)range_tree_raw(node->file->buffer, stream_offset(&search->group_hits[0].start), stream_offset(&search->group_hits[0].end));
         if (name) {
@@ -1144,7 +1144,7 @@ void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct 
 
   editor_panel_assign(base, base->tabs_doc);
 
-  struct search* search = filter_stream?search_create_plain(1, 0, *filter_stream, filter_encoding, base->tabs_doc->encoding):NULL;
+  struct search* search = filter_stream?search_create_plain(1, 0, filter_stream, filter_encoding, base->tabs_doc->encoding):NULL;
 
   document_file_empty(base->tabs_doc);
   struct list_node* doc = base->documents->first;
@@ -1181,7 +1181,7 @@ void editor_view_commands(struct editor* base, struct stream* filter_stream, str
 
   editor_panel_assign(base, base->commands_doc);
 
-  struct search* search = filter_stream?search_create_plain(1, 0, *filter_stream, filter_encoding, base->tabs_doc->encoding):NULL;
+  struct search* search = filter_stream?search_create_plain(1, 0, filter_stream, filter_encoding, base->commands_doc->encoding):NULL;
 
   document_file_empty(base->commands_doc);
   for (size_t n = 1; editor_commands[n].text; n++) {
@@ -1218,7 +1218,7 @@ void editor_view_menu(struct editor* base, struct stream* filter_stream, struct 
 
   editor_panel_assign(base, base->menu_doc);
 
-  struct search* search = filter_stream?search_create_plain(1, 0, *filter_stream, filter_encoding, base->tabs_doc->encoding):NULL;
+  struct search* search = filter_stream?search_create_plain(1, 0, filter_stream, filter_encoding, base->menu_doc->encoding):NULL;
 
   document_file_empty(base->menu_doc);
   struct list_node* it = base->menu->first;

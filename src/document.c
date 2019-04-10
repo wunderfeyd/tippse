@@ -36,9 +36,9 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
   stream_from_page(&needle_stream, range_tree_first(search_text), 0);
   struct search* search;
   if (regex) {
-    search = search_create_regex(ignore_case, reverse, needle_stream, search_encoding, file->encoding);
+    search = search_create_regex(ignore_case, reverse, &needle_stream, search_encoding, file->encoding);
   } else {
-    search = search_create_plain(ignore_case, reverse, needle_stream, search_encoding, file->encoding);
+    search = search_create_plain(ignore_case, reverse, &needle_stream, search_encoding, file->encoding);
   }
   stream_destroy(&needle_stream);
 
@@ -258,7 +258,7 @@ void document_search_directory(const char* path, struct range_tree_node* search_
       stream_from_plain(&pattern_stream, (uint8_t*)pattern_text, strlen(pattern_text));
       struct stream filename_stream;
       stream_from_plain(&filename_stream, (uint8_t*)scan, strlen(scan));
-      struct search* pattern = search_create_regex(0, 0, pattern_stream, pattern_encoding, encoding_utf8_static());
+      struct search* pattern = search_create_regex(0, 0, &pattern_stream, pattern_encoding, encoding_utf8_static());
       if (search_find(pattern, &filename_stream, NULL)) {
         struct document_file* file = document_file_create(0, 0, NULL);
         struct file_cache* cache = file_cache_create(scan);
@@ -270,9 +270,9 @@ void document_search_directory(const char* path, struct range_tree_node* search_
           stream_from_page(&needle_stream, range_tree_first(search_text), 0);
           struct search* search;
           if (regex) {
-            search = search_create_regex(ignore_case, 0, needle_stream, search_encoding, file->encoding);
+            search = search_create_regex(ignore_case, 0, &needle_stream, search_encoding, file->encoding);
           } else {
-            search = search_create_plain(ignore_case, 0, needle_stream, search_encoding, file->encoding);
+            search = search_create_plain(ignore_case, 0, &needle_stream, search_encoding, file->encoding);
           }
           stream_destroy(&needle_stream);
 
@@ -362,7 +362,7 @@ void document_directory(struct document_file* file, struct stream* filter_stream
   }*/
 
   struct directory* directory = directory_create(dir_name);
-  struct search* search = filter_stream?search_create_plain(1, 0, *filter_stream, filter_encoding, file->encoding):NULL;
+  struct search* search = filter_stream?search_create_plain(1, 0, filter_stream, filter_encoding, file->encoding):NULL;
 
   struct list* files = list_create(sizeof(char*));
   while (1) {

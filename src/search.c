@@ -171,12 +171,12 @@ struct search* search_create(int reverse, struct encoding* output_encoding) {
 }
 
 // Create search object from plain text and encoding
-struct search* search_create_plain(int ignore_case, int reverse, struct stream needle, struct encoding* needle_encoding, struct encoding* output_encoding) {
+struct search* search_create_plain(int ignore_case, int reverse, struct stream* needle, struct encoding* needle_encoding, struct encoding* output_encoding) {
   //int64_t tick = tick_count();
   struct search* base = search_create(reverse, output_encoding);
 
   struct unicode_sequencer sequencer;
-  unicode_sequencer_clear(&sequencer, needle_encoding, &needle);
+  unicode_sequencer_clear(&sequencer, needle_encoding, needle);
 
   struct search_node* last = NULL;
   size_t offset = 0;
@@ -211,7 +211,7 @@ struct search* search_create_plain(int ignore_case, int reverse, struct stream n
 }
 
 // Create search object from regular expression string
-struct search* search_create_regex(int ignore_case, int reverse, struct stream needle, struct encoding* needle_encoding, struct encoding* output_encoding) {
+struct search* search_create_regex(int ignore_case, int reverse, struct stream* needle, struct encoding* needle_encoding, struct encoding* output_encoding) {
   struct search* base = search_create(reverse, output_encoding);
 
   base->root = search_node_create(SEARCH_NODE_TYPE_BRANCH);
@@ -225,7 +225,7 @@ struct search* search_create_regex(int ignore_case, int reverse, struct stream n
   group_index[0] = SIZE_T_MAX;
 
   struct unicode_sequencer sequencer;
-  unicode_sequencer_clear(&sequencer, needle_encoding, &needle);
+  unicode_sequencer_clear(&sequencer, needle_encoding, needle);
 
   struct search_node* last = search_node_create(SEARCH_NODE_TYPE_BRANCH);
   last->min = 1;
@@ -1729,7 +1729,7 @@ void search_test(void) {
   stream_from_plain(&needle_stream, (uint8_t*)needle_text, strlen(needle_text));
   struct encoding* needle_encoding = encoding_utf8_static();
   struct encoding* output_encoding = encoding_utf8_static();
-  struct search* search = search_create_regex(1, 0, needle_stream, needle_encoding, output_encoding);
+  struct search* search = search_create_regex(1, 0, &needle_stream, needle_encoding, output_encoding);
   search_debug_tree(search, search->root, 0, 0, 0);
 
   struct stream text;
@@ -1767,7 +1767,7 @@ void search_test(void) {
 
     fprintf(stderr, "hash search...\r\n");
     struct stream buffered;
-    struct search* search = search_create_plain(1, 0, needle_stream, needle_encoding, output_encoding);
+    struct search* search = search_create_plain(1, 0, &needle_stream, needle_encoding, output_encoding);
     search_debug_tree(search, search->root, 0, 0, 0);
     int64_t tick = tick_count();
     for (size_t n = 0; n<5; n++) {
@@ -1791,7 +1791,7 @@ void search_test(void) {
     struct file_cache* file = file_cache_create("enwik8");
     fprintf(stderr, "hash search...\r\n");
     struct stream buffered;
-    struct search* search = search_create_plain(1, 0, needle_stream, needle_encoding, output_encoding);
+    struct search* search = search_create_plain(1, 0, &needle_stream, needle_encoding, output_encoding);
     search_debug_tree(search, search->root, 0, 0, 0);
     int64_t tick = tick_count();
     for (size_t n = 0; n<5; n++) {
@@ -1829,7 +1829,7 @@ void search_test(void) {
     struct stream output_stream;
     stream_from_plain(&output_stream, &output[0], raw);
 
-    struct search* search = search_create_regex(1, 0, needle_stream, needle_encoding, output_encoding);
+    struct search* search = search_create_regex(1, 0, &needle_stream, needle_encoding, output_encoding);
     if ((fuzz&0)==0) {
       fprintf(stderr, ">> %d || ", (int)fuzz);
       for (size_t n = 0; n<length; n++) {

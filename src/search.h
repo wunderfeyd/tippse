@@ -94,8 +94,8 @@ void search_node_set(struct search_node* node, size_t index);
 void search_node_set_decode_rle(struct search_node* node, int invert, uint16_t* rle);
 
 struct search* search_create(int reverse, struct encoding* output_encoding);
-struct search* search_create_plain(int ignore_case, int reverse, struct stream needle, struct encoding* needle_encoding, struct encoding* output_encoding);
-struct search* search_create_regex(int ignore_case, int reverse, struct stream needle, struct encoding* needle_encoding, struct encoding* output_encoding);
+struct search* search_create_plain(int ignore_case, int reverse, struct stream* needle, struct encoding* needle_encoding, struct encoding* output_encoding);
+struct search* search_create_regex(int ignore_case, int reverse, struct stream* needle, struct encoding* needle_encoding, struct encoding* output_encoding);
 struct range_tree_node* search_replacement(struct search* base, struct range_tree_node* root, struct encoding* replacement_encoding, struct range_tree_node* document_root);
 void search_destroy(struct search* base);
 struct search_node* search_append_class(struct search_node* last, codepoint_t cp, int create);

@@ -48,7 +48,7 @@ void document_view_clone(struct document_view* dst, struct document_view* src, s
   }
 
   *dst = *src;
-  dst->selection = NULL;
+  dst->selection = range_tree_copy(src->selection, 0, range_tree_length(src->selection));
   document_view_filechange(dst, file, 0);
 }
 
