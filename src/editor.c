@@ -473,8 +473,13 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     }
   } else if (command==TIPPSE_CMD_BROWSER || command==TIPPSE_CMD_SAVEAS) {
     struct document_file* browser_file = file?file:base->document->file;
-    char* filename = extract_file_name(browser_file->filename);
-    char* directory = strip_file_name(browser_file->filename);
+    const char* path = browser_file->filename;
+    if (browser_file==base->compiler_doc || browser_file==base->search_doc) {
+      path = ".";
+    }
+
+    char* filename = extract_file_name(path);
+    char* directory = strip_file_name(path);
     char* corrected = correct_path(directory);
     char* relative = relativate_path(base->base_path, corrected);
     editor_view_browser(base, relative, NULL, NULL, (command==TIPPSE_CMD_BROWSER)?TIPPSE_BROWSERTYPE_OPEN:TIPPSE_BROWSERTYPE_SAVE, (command==TIPPSE_CMD_BROWSER)?"":filename, NULL, browser_file);
