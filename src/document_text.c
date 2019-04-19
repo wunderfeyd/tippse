@@ -1369,8 +1369,6 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     exit(0);
   }
 
-  view->address_width = 6;
-
   struct document_text_position cursor;
   struct document_text_position in;
 
@@ -1382,14 +1380,15 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   // TODO: cursor position is already known by seek flag in keypress function? Test me.
   document_text_cursor_position(splitter, &in, &cursor, 0, 1);
 
+  int max_width = document_text_line_width(splitter);
   while (1) {
     position_t scroll_x = view->scroll_x;
     position_t scroll_y = view->scroll_y;
     if (cursor.x<view->scroll_x) {
       view->scroll_x = cursor.x;
     }
-    if (cursor.x>=view->scroll_x+splitter->client_width-1-view->address_width) {
-      view->scroll_x = cursor.x-(splitter->client_width-1-view->address_width);
+    if (cursor.x>=view->scroll_x+max_width-1) {
+      view->scroll_x = cursor.x-max_width+1;
     }
     if (cursor.y<view->scroll_y) {
       view->scroll_y = cursor.y;
@@ -1414,7 +1413,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     prerender++;
 
     struct document_text_render_info render_info;
-    document_text_render_clear(&render_info, document_text_line_width(splitter), view->selection);
+    document_text_render_clear(&render_info, max_width, view->selection);
     in.type = VISUAL_SEEK_X_Y;
     in.clip = 0;
     in.x = view->scroll_x+splitter->client_width;
@@ -1436,11 +1435,18 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   }
 
   struct document_text_render_info render_info;
-  document_text_render_clear(&render_info, document_text_line_width(splitter), view->selection);
+  document_text_render_clear(&render_info, max_width, view->selection);
   in.type = VISUAL_SEEK_X_Y;
   in.clip = 1;
   in.x = view->scroll_x;
   position_t last_line = -1;
+  for (position_t y = 0; y<splitter->client_height+1; y++) {
+    if (splitter->file->defaults.line_width!=0) {
+      codepoint_t show = 0x250a;
+      splitter_drawchar(splitter, screen, view->address_width+splitter->file->defaults.line_width, (int)y, &show, 1, file->defaults.colors[VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
+    }
+  }
+
   for (position_t y = 0; y<splitter->client_height+1; y++) {
     debug_relocates = 0;
     debug_pages_collect = 0;

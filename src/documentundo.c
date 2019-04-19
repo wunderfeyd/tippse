@@ -8,7 +8,6 @@
 #include "list.h"
 #include "rangetree.h"
 
-
 // Add an undo step
 void document_undo_add(struct document_file* file, struct document_view* view, file_offset_t offset, file_offset_t length, int type) {
   if (length==0 || !file->undo) {
@@ -121,11 +120,8 @@ int document_undo_execute(struct document_file* file, struct document_view* view
     document_file_expand_all(file, undo->offset, undo->length);
 
     undo->type = TIPPSE_UNDO_TYPE_INSERT;
-    chain = 1;
-  }
-
-  if (chain==1) {
     view->offset = offset;
+    chain = 1;
   }
 
   if (undo->type!=TIPPSE_UNDO_TYPE_CHAIN || override) {
