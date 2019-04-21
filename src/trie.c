@@ -67,9 +67,11 @@ struct trie_node* trie_append_codepoint(struct trie* base, struct trie_node* par
       node->parent = parent;
     }
 
-    node->end = (bit==0 && end!=0)?end:node->end;
-
     parent = node;
+  }
+
+  if (end) {
+    parent->end = end;
   }
 
   return parent;
@@ -84,14 +86,8 @@ struct trie_node* trie_find_codepoint(struct trie* base, struct trie_node* paren
     }
   }
 
-  for (int bit = TRIE_CODEPOINT_BIT-4; bit>=0; bit-=4) {
-    int set = (cp>>bit)&15;
-    struct trie_node* node = parent->side[set];
-    if (!node) {
-      return NULL;
-    }
-
-    parent = node;
+  for (int bit = TRIE_CODEPOINT_BIT-4; bit>=0 && parent; bit-=4) {
+    parent = parent->side[(cp>>bit)&15];
   }
 
   return parent;

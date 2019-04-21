@@ -12,7 +12,6 @@ struct list_node {
   struct list_node* prev;   // Previous node in list
 };
 
-
 // List base object
 struct list {
   struct list_node* first;  // First node of list

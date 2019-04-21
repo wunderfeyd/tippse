@@ -90,8 +90,8 @@ void file_cache_cleanup(struct file_cache* base) {
 // Create a reference (or valid buffer) to a cache
 struct file_cache_node* file_cache_invoke(struct file_cache* base, file_offset_t offset, size_t length, const uint8_t** buffer, size_t* buffer_length) {
   file_offset_t index = offset/FILE_CACHE_PAGE_SIZE;
-  file_offset_t low = (index)*FILE_CACHE_PAGE_SIZE;
-  file_offset_t high = (index+1)*FILE_CACHE_PAGE_SIZE;
+  file_offset_t low = index*FILE_CACHE_PAGE_SIZE;
+  file_offset_t high = low+FILE_CACHE_PAGE_SIZE;
   if (range_tree_length(base->index)<high) {
     base->index = range_tree_resize(base->index, high, 0);
   }
