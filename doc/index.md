@@ -63,7 +63,7 @@ Tippse is a small text and hex editor. It's designed to have a simple interface 
 
 * Configuration
 
-  The base configuration is loaded from <home>/.tippse/.tippse , and incrementally overwritten by all .tippse files found in the subpaths to the document file.
+  The base configuration is loaded from (home)/.tippse/.tippse , and incrementally overwritten by all .tippse files found in the subpaths to the document file.
 
   TODO (explain config structure, example from config.c)
 
@@ -101,4 +101,4 @@ Tippse is a small text and hex editor. It's designed to have a simple interface 
 
 * Thank you
 
-  We want to thank everyone. It does not matter 
+  We want to thank everyone. It does not matter if you have contributed to this project or never heard about it. In the end every scenario will improve this project or will teach us how to do it better.

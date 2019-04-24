@@ -345,7 +345,7 @@ void document_file_load(struct document_file* base, const char* filename, int re
 }
 
 // Load file from memory
-void document_file_load_memory(struct document_file* base, const uint8_t* buffer, size_t length) {
+void document_file_load_memory(struct document_file* base, const uint8_t* buffer, size_t length, const char* name) {
   document_file_clear(base, 1);
   file_offset_t offset = 0;
   while (length>0) {
@@ -362,7 +362,7 @@ void document_file_load_memory(struct document_file* base, const uint8_t* buffer
 
   document_undo_empty(base, base->undos);
   document_undo_empty(base, base->redos);
-  document_file_name(base, "<memory>");
+  document_file_name(base, name?name:"<memory>");
   document_file_detect_properties(base);
   base->bookmarks = range_tree_static(base->bookmarks, range_tree_length(base->buffer), 0);
   document_file_reset_views(base, 1);

@@ -23,13 +23,36 @@ uint8_t* read_file(const char* name, size_t* size) {
   return buffer;
 }
 
+// Read complete file into memory
+void write_file_bytes(const char* to, const char* name, uint8_t* output, size_t size) {
+  FILE* file = fopen(to, "w");
+  if (file) {
+    fprintf(file, "uint8_t %s[] = {", name);
+    int runs = 0;
+    while (size--!=0) {
+      if ((runs&31)==0) {
+        fprintf(file, "\r\n ");
+      }
+      runs++;
+      fprintf(file, " 0x%02x,", *output);
+      output++;
+    }
+    fprintf(file, " 0};\r\n");
+    fclose(file);
+  } else {
+    printf("Can't create file '%s'\r\n", to);
+  }
+}
+
 // Skip to next line
 void next_line(uint8_t* buffer, size_t size, size_t* offset) {
   while (*offset<size && buffer[*offset]!='\n') {
     (*offset)++;
   }
 
-  (*offset)++;
+  if (*offset<size) {
+    (*offset)++;
+  }
 }
 
 // Read parameter from cursor position and trim
@@ -142,7 +165,7 @@ void convert_widths(const char* from, const char* to) {
   }
 
   free(buffer);
-  write_rle(to, "widths", output, output_size);
+  write_rle(to, "unicode_widths", output, output_size);
   free(output);
 }
 
@@ -234,7 +257,7 @@ void convert_transform(const char* from, const char* to, const char* name, const
   size_t copy[16];
   size_t copies = 0;
   for (size_t n = 0; n<16; n++) {
-    copy[n] = ~0;
+    copy[n] = ~(size_t)0;
   }
 
   int copied = 0;
@@ -255,7 +278,7 @@ void convert_transform(const char* from, const char* to, const char* name, const
         if (froms!=tos) {
           add = 1;
         } else {
-          for (size_t n = 0; n<froms; n++) {
+          for (int n = 0; n<froms; n++) {
             if (from[n]!=to[n]) {
               add = 1;
             }
@@ -267,7 +290,7 @@ void convert_transform(const char* from, const char* to, const char* name, const
           }
           uint8_t* start = write;
           *write++ = (uint8_t)(froms<<3|tos<<0);
-          for (size_t n = 0; n<froms; n++) {
+          for (int n = 0; n<froms; n++) {
             int diff = from[n]-from_before[n]+0x10;
             if (diff<=0x1f && diff>=0) {
               write += utf8_encode(diff, write);
@@ -276,7 +299,7 @@ void convert_transform(const char* from, const char* to, const char* name, const
             }
             from_before[n] = from[n];
           }
-          for (size_t n = 0; n<tos; n++) {
+          for (int n = 0; n<tos; n++) {
             int diff = to[n]-to_before[n]+0x10;
             if (diff<=0x1f && diff>=0) {
               write += utf8_encode(diff, write);
@@ -286,10 +309,10 @@ void convert_transform(const char* from, const char* to, const char* name, const
             to_before[n] = to[n];
           }
 
-          size_t l = write-start;
+          size_t l = (size_t)(write-start);
           size_t c;
           for (c = 0; c<16; c++) {
-            if (copy[c]==~0) {
+            if (copy[c]==~(size_t)0) {
               continue;
             }
 
@@ -308,14 +331,14 @@ void convert_transform(const char* from, const char* to, const char* name, const
                 write = start-1;
               }
 
-              *write++ = 0x80|c|(run<<4);
+              *write++ = 0x80|(uint8_t)c|(run<<4);
 
               copied = 1;
               break;
             }
           }
           if (c==16) {
-            copy[copies] = start-output;
+            copy[copies] = (size_t)(start-output);
             copies++;
             copies&=15;
             copied = 0;
@@ -331,38 +354,34 @@ void convert_transform(const char* from, const char* to, const char* name, const
   }
 
   free(buffer);
-
-  FILE* file = fopen(to, "w");
-  if (file) {
-    fprintf(file, "uint8_t unicode_%s[] = {", name);
-    int runs = 0;
-    uint8_t* copy = output;
-    printf("%d\r\n", (int)(write-output));
-    while (copy!=write) {
-      if ((runs&31)==0) {
-        fprintf(file, "\r\n ");
-      }
-      runs++;
-      fprintf(file, " 0x%02x,", *copy);
-      copy++;
-    }
-    fprintf(file, " 0};\r\n");
-    fclose(file);
-  } else {
-    printf("Can't create file '%s'\r\n", to);
-  }
-
+  write_file_bytes(to, name, output, (size_t)(write-output));
   free(output);
 }
 
+void build_manual(const char* from, const char* to, const char* name) {
+  size_t size;
+  uint8_t* buffer = read_file(from, &size);
+  if (!buffer) {
+    return;
+  }
+
+  write_file_bytes(to, name, buffer, size);
+  free(buffer);
+}
+
 int main(int argc, const char** argv) {
-  convert_widths("download/EastAsianWidth.txt", "output/unicode_widths.h");
-  convert_range_param(3, "download/UnicodeData.txt", "output/unicode_invisibles.h", "invisibles", "Cc", "Cf", NULL, NULL);
-  convert_range_param(3, "download/UnicodeData.txt", "output/unicode_marks.h", "marks", "Mc", "Mn", "Me", NULL);
-  convert_range_param(3, "download/UnicodeData.txt", "output/unicode_digits.h", "digits", "Nd", NULL, NULL, NULL);
-  convert_range_param(3, "download/UnicodeData.txt", "output/unicode_whitespace.h", "whitespace", "Zs", NULL, NULL, NULL);
-  convert_range_param(5, "download/UnicodeData.txt", "output/unicode_letters.h", "letters", "L", NULL, NULL, NULL);
-  convert_transform("download/CaseFolding.txt", "output/unicode_case_folding.h", "case_folding", "C", "F", 1, 0, 2);
-  convert_transform("download/NormalizationTest.txt", "output/unicode_normalization.h", "normalization", NULL, NULL, 0, 1, 2);
+  if (argc>=2 && strcmp(argv[1], "--unicode")==0) {
+    convert_widths("download/EastAsianWidth.txt", "output/unicode_widths.h");
+    convert_range_param(3, "download/UnicodeData.txt", "output/unicode_invisibles.h", "unicode_invisibles", "Cc", "Cf", NULL, NULL);
+    convert_range_param(3, "download/UnicodeData.txt", "output/unicode_marks.h", "unicode_marks", "Mc", "Mn", "Me", NULL);
+    convert_range_param(3, "download/UnicodeData.txt", "output/unicode_digits.h", "unicode_digits", "Nd", NULL, NULL, NULL);
+    convert_range_param(3, "download/UnicodeData.txt", "output/unicode_whitespace.h", "unicode_whitespace", "Zs", NULL, NULL, NULL);
+    convert_range_param(5, "download/UnicodeData.txt", "output/unicode_letters.h", "unicode_letters", "L", NULL, NULL, NULL);
+    convert_transform("download/CaseFolding.txt", "output/unicode_case_folding.h", "unicode_case_folding", "C", "F", 1, 0, 2);
+    convert_transform("download/NormalizationTest.txt", "output/unicode_normalization.h", "unicode_normalization", NULL, NULL, 0, 1, 2);
+  } else if (argc>=5 && strcmp(argv[1], "--bin2c")==0) {
+    build_manual(argv[2], argv[3], argv[4]);
+  }
+
   return 0;
 }

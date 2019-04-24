@@ -142,7 +142,8 @@
 #define TIPPSE_CMD_SELECT_LINE 93
 #define TIPPSE_CMD_SAVE_SKIP 94
 #define TIPPSE_CMD_DOCUMENT_BACK 95
-#define TIPPSE_CMD_MAX 96
+#define TIPPSE_CMD_HELP 96
+#define TIPPSE_CMD_MAX 97
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -182,6 +183,7 @@ struct editor {
   struct document_file* search_doc;   // document: current search text
   struct document_file* replace_doc;  // document: current replace text
   struct document_file* goto_doc;     // document: line/offset for position jump
+  struct document_file* help_doc;     // document: current help page
   struct document_file* compiler_doc; // document: compiler output
   struct document_file* search_results_doc; // document: search result output
   struct document_file* filter_doc;   // document: panel filter

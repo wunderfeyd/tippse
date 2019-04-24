@@ -17,6 +17,9 @@
 #include "splitter.h"
 #include "trie.h"
 
+#include "../tmp/doc/index.h"
+#include "../tmp/doc/regex.h"
+
 static const char* editor_key_names[TIPPSE_KEY_MAX] = {
   "",
   "up",
@@ -147,6 +150,7 @@ static struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"selectline", TIPPSE_CMD_SELECT_LINE, "Extend selection to whole line"},
   {"saveskip", TIPPSE_CMD_SAVE_SKIP, "Skip file when saving documents"},
   {"documentback", TIPPSE_CMD_DOCUMENT_BACK, "Switch back to previous active document"},
+  {"help", TIPPSE_CMD_HELP, "Show help"},
   {NULL, 0, ""}
 };
 
@@ -219,6 +223,10 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->search_results_doc = document_file_create(0, 1, base);
   base->search_results_doc->undo = 0;
 
+  base->help_doc = document_file_create(0, 1, base);
+  base->help_doc->undo = 0;
+  document_file_name(base->help_doc, "Help");
+
   base->filter_doc = document_file_create(0, 1, base);
   document_file_name(base->filter_doc, "Filter");
 
@@ -244,6 +252,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   list_insert(base->documents, NULL, &base->filter_doc);
   list_insert(base->documents, NULL, &base->console_doc);
   list_insert(base->documents, NULL, &base->menu_doc);
+  list_insert(base->documents, NULL, &base->help_doc);
 
   for (int n = argc-1; n>=1; n--) {
     editor_open_document(base, argv[n], NULL, base->document, TIPPSE_BROWSERTYPE_OPEN);
@@ -652,6 +661,9 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
       document_file_kill_pipe(base->document->file);
     }
 #endif
+  } else if (command==TIPPSE_CMD_HELP) {
+    document_file_load_memory(base->help_doc, (const uint8_t*)file_index, sizeof(file_index)-1, "Help");
+    splitter_assign_document_file(base->document, base->help_doc);
   } else if (command==TIPPSE_CMD_SEARCH_MODE_TEXT) {
     base->search_regex = 0;
     editor_update_search_title(base);
