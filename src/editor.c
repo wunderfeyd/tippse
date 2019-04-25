@@ -10,6 +10,7 @@
 #include "documentview.h"
 #include "encoding.h"
 #include "encoding/utf8.h"
+#include "filetype/markdown.h"
 #include "list.h"
 #include "misc.h"
 #include "screen.h"
@@ -17,8 +18,22 @@
 #include "splitter.h"
 #include "trie.h"
 
+// Documentation
 #include "../tmp/doc/index.h"
 #include "../tmp/doc/regex.h"
+#include "../tmp/LICENSE.h"
+
+struct {
+  const char* name;
+  const char* filename;
+  const uint8_t* data;
+  size_t size;
+} editor_documentations[] = {
+  {"Help - Index", "index.md", file_index, sizeof(file_index)-1},
+  {"Help - Regular expressions", "regex.md", file_regex, sizeof(file_regex)-1},
+  {"Help - License", "../LICENSE.md", file_LICENSE, sizeof(file_LICENSE)-1},
+  {NULL, NULL, NULL, 0},
+};
 
 static const char* editor_key_names[TIPPSE_KEY_MAX] = {
   "",
@@ -225,6 +240,8 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
 
   base->help_doc = document_file_create(0, 1, base);
   base->help_doc->undo = 0;
+  (*base->help_doc->type->destroy)(base->help_doc->type);
+  base->help_doc->type = file_type_markdown_create(base->help_doc->config, "markdown");
   document_file_name(base->help_doc, "Help");
 
   base->filter_doc = document_file_create(0, 1, base);
@@ -482,11 +499,8 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     }
   } else if (command==TIPPSE_CMD_BROWSER || command==TIPPSE_CMD_SAVEAS) {
     struct document_file* browser_file = file?file:base->document->file;
-    const char* path = browser_file->filename;
-    if (browser_file==base->compiler_doc || browser_file==base->search_doc) {
-      path = ".";
-    }
-
+    int unknown_location = (browser_file==base->compiler_doc || browser_file==base->search_doc || browser_file==base->help_doc);
+    const char* path = unknown_location?".":browser_file->filename;
     char* filename = extract_file_name(path);
     char* directory = strip_file_name(path);
     char* corrected = correct_path(directory);
@@ -662,7 +676,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     }
 #endif
   } else if (command==TIPPSE_CMD_HELP) {
-    document_file_load_memory(base->help_doc, (const uint8_t*)file_index, sizeof(file_index)-1, "Help");
+    document_file_load_memory(base->help_doc, (const uint8_t*)editor_documentations[0].data, editor_documentations[0].size, editor_documentations[0].name);
     splitter_assign_document_file(base->document, base->help_doc);
   } else if (command==TIPPSE_CMD_SEARCH_MODE_TEXT) {
     base->search_regex = 0;

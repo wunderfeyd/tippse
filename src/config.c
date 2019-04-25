@@ -145,6 +145,7 @@ static const char* config_default =
       "patch:Patch,"
       "js:JS,"
       "cs:CS,"
+      "md:MD,"
     "},"
     "filetypes:{"
       "compiler_output:{"
@@ -552,6 +553,9 @@ static const char* config_default =
           "}"
         "}"
       "},"
+      "MD:{"
+        "parser:markdown,"
+      "},"
       "PHP:{"
         "parser:php,"
         "colors:{"
@@ -892,7 +896,7 @@ void config_load(struct config* base, const char* filename) {
   if (filename) {
     document_file_load(file, filename, 0, 0);
   } else {
-    document_file_load_memory(file, (const uint8_t*)config_default, strlen(config_default));
+    document_file_load_memory(file, (const uint8_t*)config_default, strlen(config_default), NULL);
   }
 
   if (file->buffer) {

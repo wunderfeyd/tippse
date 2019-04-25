@@ -84,7 +84,7 @@ void file_type_c_mark(struct document_text_render_info* render_info ) {
         after &= ~VISUAL_DETAIL_STRING1;
       }
     } else if (cp1=='#') {
-      if (before&(VISUAL_DETAIL_INDENTATION|VISUAL_DETAIL_NEWLINE)) {
+      if (!(before&VISUAL_DETAIL_STOPPED_INDENTATION)) {
         after |= VISUAL_DETAIL_PREPROCESSOR;
       }
     }

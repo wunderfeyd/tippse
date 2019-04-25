@@ -16,11 +16,12 @@
 #include "filecache.h"
 #include "filetype.h"
 #include "filetype/c.h"
-#include "filetype/sql.h"
-#include "filetype/text.h"
 #include "filetype/lua.h"
+#include "filetype/markdown.h"
 #include "filetype/patch.h"
 #include "filetype/php.h"
+#include "filetype/sql.h"
+#include "filetype/text.h"
 #include "filetype/xml.h"
 #include "fragment.h"
 #include "list.h"
@@ -52,11 +53,12 @@ struct config_cache document_file_newline[TIPPSE_NEWLINE_MAX+1] = {
 // TODO: this has to be covered by the settings subsystem in future
 struct document_file_parser document_file_parsers[] = {
   {"c", file_type_c_create},
-  {"sql", file_type_sql_create},
   {"lua", file_type_lua_create},
-  {"php", file_type_php_create},
-  {"xml", file_type_xml_create},
+  {"markdown", file_type_markdown_create},
   {"patch", file_type_patch_create},
+  {"php", file_type_php_create},
+  {"sql", file_type_sql_create},
+  {"xml", file_type_xml_create},
   {NULL,  NULL}
 };
 

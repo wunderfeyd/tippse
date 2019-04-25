@@ -15,7 +15,7 @@ CFLAGSEXTRA=-s
 OBJDIR=tmp
 SRCS=$(wildcard src/lib/*.c) $(wildcard src/*.c) $(wildcard src/filetype/*.c) $(wildcard src/encoding/*.c)
 OBJS=$(addprefix $(OBJDIR)/,$(addsuffix .o,$(basename $(SRCS))))
-DOCS=$(wildcard doc/*.md)
+DOCS=$(wildcard doc/*.md) LICENSE.md
 COMPILED_DOCS=$(addprefix $(OBJDIR)/,$(addsuffix .h,$(basename $(DOCS))))
 
 src/editor.c: $(COMPILED_DOCS)
@@ -28,14 +28,14 @@ tmp/%.o: %.c
 
 tmp/tools/convert.o: src/tools/convert.c
 	@mkdir -p $(dir $@)
-	@echo CC $(CC_HOST) $<
+	@echo CC $<
 	@$(CC_HOST) -c $< -o $@
 
 tmp/tools/convert: tmp/tools/convert.o
 	@echo LD $@
 	@$(CC_HOST) $< -o $@
 
-tmp/doc/%.h: doc/%.md tmp/tools/convert
+tmp/%.h: %.md tmp/tools/convert
 	@echo MN $<
 	@mkdir -p $(dir $@)
 	@tmp/tools/convert --bin2c $< $@ file_$(notdir $(basename $@))
@@ -45,15 +45,19 @@ $(TARGET): $(OBJS)
 	@$(CC) $(CFLAGS) $(CFLAGSEXTRA) $(OBJS) $(LIBS) -o $(TARGET)
 
 all: $(TARGET)
+	@echo OK
 
 debug: CFLAGSEXTRA=-g
 debug: $(TARGET)
+	@echo OK
 
 minify: CFLAGSEXTRA=-s -flto -Os -D__SMALLEST__
 minify: $(TARGET)
+	@echo OK
 
 perf: CFLAGSEXTRA=-D_PERFORMANCE
 perf: $(TARGET)
+	@echo OK
 
 download-unicode:
 	@mkdir -p tmp/tools/unicode/download
