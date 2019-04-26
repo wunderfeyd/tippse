@@ -83,6 +83,8 @@ struct search {
   int skip_rescan;                  // rescan hit with basic search
 };
 
+typedef int (*search_optimize_callback)(struct encoding* encoding, struct search_node* node);
+
 struct search_node* search_node_create(int type);
 void search_node_destroy(struct search_node* base);
 void search_node_empty(struct search_node* base);
@@ -111,12 +113,14 @@ int search_find_check(struct search* base, struct stream* text);
 int search_find_loop(struct search* base, struct search_node* node, struct stream* text);
 
 void search_optimize(struct search* base, struct encoding* encoding);
-void search_optimize_mark_end(struct search_node* node);
-int search_optimize_reduce_branch(struct search_node* node);
-int search_optimize_combine_branch(struct search_node* node);
-int search_optimize_flatten_branch(struct search_node* node);
-void search_optimize_native(struct encoding* encoding, struct search_node* node);
-void search_optimize_plain(struct search_node* node);
+int search_optimize_flat(struct encoding* encoding, struct search_node* node, search_optimize_callback callback_before, search_optimize_callback callback_after);
+
+int search_optimize_reduce_branch_before(struct encoding* encoding, struct search_node* node);
+int search_optimize_combine_branch_before(struct encoding* encoding, struct search_node* node);
+int search_optimize_native_after(struct encoding* encoding, struct search_node* node);
+int search_optimize_plain_before(struct encoding* encoding, struct search_node* node);
+int search_optimize_plain_after(struct encoding* encoding, struct search_node* node);
+
 void search_prepare(struct search* base, struct search_node* node, struct search_node* prev);
 void search_prepare_skip(struct search* base, struct search_node* node);
 

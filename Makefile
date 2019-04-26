@@ -51,6 +51,10 @@ debug: CFLAGSEXTRA=-g
 debug: $(TARGET)
 	@echo OK
 
+sanitize: CFLAGSEXTRA=-g -flto -fsanitize=address
+sanitize: $(TARGET)
+	@echo OK
+
 minify: CFLAGSEXTRA=-s -flto -Os -D__SMALLEST__
 minify: $(TARGET)
 	@echo OK

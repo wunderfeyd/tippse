@@ -936,25 +936,63 @@ void search_optimize(struct search* base, struct encoding* encoding) {
       fprintf(stderr, "loop codepoints.. %d\r\n", search_node_count(base->root));
       search_debug_tree(base, base->root, 0, 0, 0);
     }
-    again = search_optimize_combine_branch(base->root);
-    again |= search_optimize_reduce_branch(base->root);
+    again = search_optimize_flat(encoding, base->root, &search_optimize_combine_branch_before, NULL);
+    again |= search_optimize_flat(encoding, base->root, &search_optimize_reduce_branch_before, NULL);
   } while(again);
-  search_optimize_native(encoding, base->root);
+  search_optimize_flat(encoding, base->root, NULL, &search_optimize_native_after);
   do {
     if (SEARCH_DEBUG) {
       fprintf(stderr, "loop native.. %d\r\n", search_node_count(base->root));
       search_debug_tree(base, base->root, 0, 0, 0);
     }
-    again = search_optimize_combine_branch(base->root);
-    again |= search_optimize_reduce_branch(base->root);
+    again = search_optimize_flat(encoding, base->root, &search_optimize_combine_branch_before, NULL);
+    again |= search_optimize_flat(encoding, base->root, &search_optimize_reduce_branch_before, NULL);
   } while(again);
-  search_optimize_plain(base->root);
+  search_optimize_flat(encoding, base->root, &search_optimize_plain_before, &search_optimize_plain_after);
   search_prepare(base, base->root, NULL);
   search_prepare_skip(base, base->root);
 }
 
+// Stack might be too small for recursive optimization calls, let's build lists to keep track of the open nodes
+int search_optimize_flat(struct encoding* encoding, struct search_node* node, search_optimize_callback callback_before, search_optimize_callback callback_after) {
+  struct list pending;
+  list_create_inplace(&pending, sizeof(struct search_node*));
+  list_insert(&pending, pending.last, &node);
+  int again = 0;
+  struct list_node* it = pending.first;
+  while (it) {
+    node = *(struct search_node**)list_object(it);
+    if (callback_before) {
+      again |= (*callback_before)(encoding, node);
+    }
+
+    if (node->next) {
+      list_insert(&pending, pending.last, &node->next);
+    }
+
+    struct list_node* subs = node->sub.first;
+    while (subs) {
+      struct search_node* check = *((struct search_node**)list_object(subs));
+      list_insert(&pending, pending.last, &check);
+      subs = subs->next;
+    }
+
+    it = it->next;
+  }
+
+  while (pending.last) {
+    if (callback_after) {
+      again |= (*callback_after)(encoding, node);
+    }
+
+    list_remove(&pending, pending.last);
+  }
+
+  return again;
+}
+
 // Remove empty branches or merge branch nodes into the current segment.
-int search_optimize_reduce_branch(struct search_node* node) {
+int search_optimize_reduce_branch_before(struct encoding* encoding, struct search_node* node) {
   int again = 0;
   if (node->sub.count==1) {
     struct search_node* check = *((struct search_node**)list_object(node->sub.first));
@@ -987,22 +1025,11 @@ int search_optimize_reduce_branch(struct search_node* node) {
     search_node_move(node, node->next);
   }
 
-  if (node->next) {
-    again |= search_optimize_reduce_branch(node->next);
-  }
-
-  struct list_node* subs = node->sub.first;
-  while (subs) {
-    struct search_node* check = *((struct search_node**)list_object(subs));
-    again |= search_optimize_reduce_branch(check);
-    subs = subs->next;
-  }
-
   return again;
 }
 
 // Merge sub segments of a branch. Eventually merge sets or move branch behind equal segment starts.
-int search_optimize_combine_branch(struct search_node* node) {
+int search_optimize_combine_branch_before(struct encoding* encoding, struct search_node* node) {
   int again = 0;
   struct list_node* subs1 = node->sub.first;
   while (subs1) {
@@ -1087,33 +1114,11 @@ int search_optimize_combine_branch(struct search_node* node) {
     subs1 = subs1->next;
   }
 
-  if (node->next) {
-    again |= search_optimize_combine_branch(node->next);
-  }
-
-  struct list_node* subs = node->sub.first;
-  while (subs) {
-    struct search_node* check = *((struct search_node**)list_object(subs));
-    again |= search_optimize_combine_branch(check);
-    subs = subs->next;
-  }
-
   return again;
 }
 
 // If the set is small try to translate the huge unicode set into a small byte set and encode the unicode code point into its output reprensentation
-void search_optimize_native(struct encoding* encoding, struct search_node* node) {
-  if (node->next) {
-    search_optimize_native(encoding, node->next);
-  }
-
-  struct list_node* subs = node->sub.first;
-  while (subs) {
-    struct search_node* check = *((struct search_node**)list_object(subs));
-    search_optimize_native(encoding, check);
-    subs = subs->next;
-  }
-
+int search_optimize_native_after(struct encoding* encoding, struct search_node* node) {
   size_t count = 0;
   struct range_tree_node* range = range_tree_first(node->set);
   while (range && count<=SEARCH_NODE_TYPE_NATIVE_COUNT) {
@@ -1143,10 +1148,12 @@ void search_optimize_native(struct encoding* encoding, struct search_node* node)
       range = range_tree_next(range);
     }
   }
+
+  return 0;
 }
 
 // Sets with a single byte aren't really useful, convert them to a plain byte string. Stick together multiple plain byte strings if nodes are neighbours.
-void search_optimize_plain(struct search_node* node) {
+int search_optimize_plain_before(struct encoding* encoding, struct search_node* node) {
   if ((node->type&SEARCH_NODE_TYPE_BYTE) && node->size==0 && node->sub.count==0 && node->min==node->max && node->max<16) {
     size_t codepoint = 0;
     size_t set = SIZE_T_MAX;
@@ -1177,17 +1184,10 @@ void search_optimize_plain(struct search_node* node) {
     }
   }
 
-  if (node->next) {
-    search_optimize_plain(node->next);
-  }
+  return 0;
+}
 
-  struct list_node* subs = node->sub.first;
-  while (subs) {
-    struct search_node* check = *((struct search_node**)list_object(subs));
-    search_optimize_plain(check);
-    subs = subs->next;
-  }
-
+int search_optimize_plain_after(struct encoding* encoding, struct search_node* node) {
   if (node->next && node->size>0 && node->next->size>0 && !node->next->group_start.first && !node->group_end.first) {
     size_t size = node->size+node->next->size;
     uint8_t* plain = (uint8_t*)malloc(sizeof(uint8_t)*size);
@@ -1201,6 +1201,8 @@ void search_optimize_plain(struct search_node* node) {
     node->next = node->next->next;
     search_node_destroy(remove);
   }
+
+  return 0;
 }
 
 // Update small sets, group informations and node followers if the node had a hit (back to the previous branch)
