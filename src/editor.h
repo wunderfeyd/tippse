@@ -254,6 +254,7 @@ void editor_view_browser(struct editor* base, const char* filename, struct strea
 void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding);
 void editor_view_commands(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding);
 void editor_view_menu(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding);
+void editor_view_help(struct editor* base, const char* name);
 int editor_update_panel_height(struct editor* base, struct splitter* panel, int max);
 struct document_file* editor_empty_document(struct editor* base);
 void editor_update_search_title(struct editor* base);

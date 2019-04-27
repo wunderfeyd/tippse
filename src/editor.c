@@ -676,8 +676,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     }
 #endif
   } else if (command==TIPPSE_CMD_HELP) {
-    document_file_load_memory(base->help_doc, (const uint8_t*)editor_documentations[0].data, editor_documentations[0].size, editor_documentations[0].name);
-    splitter_assign_document_file(base->document, base->help_doc);
+    editor_view_help(base, "index.md");
   } else if (command==TIPPSE_CMD_SEARCH_MODE_TEXT) {
     base->search_regex = 0;
     editor_update_search_title(base);
@@ -855,32 +854,45 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
       struct stream text_stream;
       stream_from_page(&text_stream, buffer, displacement);
 
-      const char* filter = "\\s*([^\\n\\r]*?)\\s*\\:(\\d+)\\:((\\d+)\\:)?";
+      const char* filter = node->file==base->help_doc?"[^\\n\\r]*?\\[[^\\n\\r\\]]*?\\]\\(([^\\n\\r\\)]*?)\\)":"\\s*([^\\n\\r]*?)\\s*\\:(\\d+)\\:((\\d+)\\:)?";
       struct stream filter_stream;
       stream_from_plain(&filter_stream, (uint8_t*)filter, strlen(filter));
 
       struct search* search = search_create_regex(1, 0, &filter_stream, node->file->encoding, node->file->encoding);
-      if (search_find_check(search, &text_stream)) {
-        char* name = (char*)range_tree_raw(node->file->buffer, stream_offset(&search->group_hits[0].start), stream_offset(&search->group_hits[0].end));
-        if (name) {
-          editor_focus(base, destination, 1);
-          done = 1;
+
+      int found = search_find_check(search, &text_stream);
+      char* name = found?(char*)range_tree_raw(node->file->buffer, stream_offset(&search->group_hits[0].start), stream_offset(&search->group_hits[0].end)):NULL;
+
+      position_t line = 0;
+      position_t column = 0;
+      if (node->file!=base->help_doc) {
+        struct unicode_sequencer sequencer;
+        unicode_sequencer_clear(&sequencer, base->focus->file->encoding, &search->group_hits[1].start);
+        line = (position_t)decode_based_unsigned(&sequencer, 10, SIZE_T_MAX);
+        unicode_sequencer_clear(&sequencer, base->focus->file->encoding, &search->group_hits[3].start);
+        column = (position_t)decode_based_unsigned(&sequencer, 10, SIZE_T_MAX);
+      }
+
+      search_destroy(search);
+      stream_destroy(&text_stream);
+      stream_destroy(&filter_stream);
+
+      if (name) {
+        editor_focus(base, destination, 1);
+        done = 1;
+
+        if (node->file==base->help_doc) {
+          editor_view_help(base, name);
+        } else {
           editor_open_document(base, name, NULL, destination, TIPPSE_BROWSERTYPE_OPEN);
-          struct unicode_sequencer sequencer;
-          unicode_sequencer_clear(&sequencer, base->focus->file->encoding, &search->group_hits[1].start);
-          position_t line = (position_t)decode_based_unsigned(&sequencer, 10, SIZE_T_MAX);
-          unicode_sequencer_clear(&sequencer, base->focus->file->encoding, &search->group_hits[3].start);
-          position_t column = (position_t)decode_based_unsigned(&sequencer, 10, SIZE_T_MAX);
           if (line>0) {
             document_text_goto(node->document, node, line-1, (column>0)?column-1:0);
             document_select_nothing(node);
           }
         }
+
         free(name);
       }
-      search_destroy(search);
-      stream_destroy(&text_stream);
-      stream_destroy(&filter_stream);
     }
   }
 
@@ -1537,4 +1549,18 @@ void editor_process_message(struct editor* base, const char* message, file_offse
     screen_drawtext(base->screen, 0, 0, 0, 0, base->screen->width, base->screen->height, &text[0], size, foreground, background);
     screen_update(base->screen);
   }
+}
+
+// Load help by name from memory
+void editor_view_help(struct editor* base, const char* name) {
+  size_t index = 0;
+  for (size_t n = 0; editor_documentations[n].name; n++) {
+    if (strcmp(name, editor_documentations[n].filename)==0) {
+      index = n;
+      break;
+    }
+  }
+
+  document_file_load_memory(base->help_doc, (const uint8_t*)editor_documentations[index].data, editor_documentations[index].size, editor_documentations[index].name);
+  splitter_assign_document_file(base->document, base->help_doc);
 }
