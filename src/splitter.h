@@ -30,6 +30,7 @@ struct splitter {
   int64_t timeout;            // Next timeout callback
 
   int active;                 // Focused splitter?
+  int grab;                   // Grabbed splitter? (splitter modification focus)
   char* name;                 // Name
   char* status;               // Status text
 
@@ -64,6 +65,7 @@ void splitter_draw_multiple_recursive(struct splitter* base, struct screen* scre
 void splitter_draw_multiple(struct splitter* base, struct screen* screen, int incremental);
 struct splitter* splitter_by_coordinate(struct splitter* base, int x, int y);
 struct splitter* splitter_next(struct splitter* base, int side);
+struct splitter* splitter_grab_next(struct splitter* base, struct splitter* current, int side);
 void splitter_split(struct splitter* base);
 struct splitter* splitter_unsplit(struct splitter* base, struct splitter* root);
 

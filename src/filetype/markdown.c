@@ -75,7 +75,7 @@ void file_type_markdown_mark(struct document_text_render_info* render_info) {
     if (before_masked==VISUAL_DETAIL_STRING1) {
       after &= ~VISUAL_DETAIL_STRING1;
     }
-  } else if (cp1=='`' && cp2=='`' && cp3=='`') {
+  } else if (cp1=='`' && cp2=='`' && cp3=='`' && !(before&VISUAL_DETAIL_STOPPED_INDENTATION)) {
     after ^= VISUAL_DETAIL_COMMENT1;
   } else if (cp1=='`') {
     if (before_masked==0) {

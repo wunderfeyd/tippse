@@ -33,11 +33,12 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
   base->y = 0;
   base->timeout = 0;
   base->parent = NULL;
+  base->active = 0;
+  base->grab = 0;
 
   if (!side0 || !side1) {
     base->side[0] = NULL;
     base->side[1] = NULL;
-    base->active = 0;
     base->type = type;
 
     base->document_text = document_text_create();
@@ -276,7 +277,7 @@ void splitter_draw_split_horizontal(const struct splitter* base, struct screen* 
 
   codepoint_t cp = 0x2500;
   for (int n = 0; n<width; n++) {
-    screen_setchar(screen, x+n, y, 0, 0, screen->width, screen->height, &cp, 1, file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
+    screen_setchar(screen, x+n, y, 0, 0, screen->width, screen->height, &cp, 1, base->grab?file->defaults.colors[VISUAL_FLAG_COLOR_MODIFIED]:file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
   }
 
   codepoint_t left = screen_getchar(screen, x-1, y);
@@ -302,7 +303,7 @@ void splitter_draw_split_vertical(const struct splitter* base, struct screen* sc
   struct document_file* file = splitter_first_document(base);
   codepoint_t cp = 0x2502;
   for (int n = 0; n<height; n++) {
-    screen_setchar(screen, x, y+n, 0, 0, screen->width, screen->height, &cp, 1, file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
+    screen_setchar(screen, x, y+n, 0, 0, screen->width, screen->height, &cp, 1, base->grab?file->defaults.colors[VISUAL_FLAG_COLOR_MODIFIED]:file->defaults.colors[VISUAL_FLAG_COLOR_FRAME], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
   }
 
   codepoint_t top = screen_getchar(screen, x, y-1);
@@ -325,6 +326,13 @@ void splitter_draw_split_vertical(const struct splitter* base, struct screen* sc
 
 // Draw base splitter and all its children
 void splitter_draw_multiple_recursive(struct splitter* base, struct screen* screen, int x, int y, int width, int height, int incremental) {
+  base->x = x;
+  base->y = y;
+  base->width = width>0?width:0;
+  base->height = height>0?height:0;
+  base->client_width = base->width;
+  base->client_height = base->height;
+
   if (base->side[0] && base->side[1]) {
     int size = (base->type&TIPPSE_SPLITTER_HORZ)?width:height;
     int size0 = size;
@@ -371,12 +379,6 @@ void splitter_draw_multiple_recursive(struct splitter* base, struct screen* scre
       }
     }
   } else {
-    base->x = x;
-    base->y = y;
-    base->width = width>0?width:0;
-    base->height = height>0?height:0;
-    base->client_width = base->width;
-    base->client_height = base->height;
     if (!incremental) {
       base->timeout = 0;
       splitter_draw(base, screen);
@@ -417,14 +419,12 @@ struct splitter* splitter_by_coordinate(struct splitter* base, int x, int y) {
 // Find next splitter in list
 struct splitter* splitter_next(struct splitter* base, int side) {
   struct splitter* target = base;
-  if (target->parent) {
-    while (target->parent) {
-      if (target->parent->side[side]==target) {
-        target = target->parent->side[side^1];
-        break;
-      }
-      target = target->parent;
+  while (target->parent) {
+    if (target->parent->side[side]==target) {
+      target = target->parent->side[side^1];
+      break;
     }
+    target = target->parent;
   }
 
   while (target->side[side]) {
@@ -432,6 +432,105 @@ struct splitter* splitter_next(struct splitter* base, int side) {
   }
 
   return target->side[0]?NULL:target;
+}
+
+// Splitter line coordinates for line sorting
+struct splitter_coords {
+  struct splitter* splitter;  // splitter the structure belongs to
+  int x;                      // start or end of line horizontally
+  int y;                      // statz or end of line vertically
+};
+
+// Recursively add splitter lines
+void splitter_grab_load(struct splitter* base, struct list* sort, int side) {
+  if (!base) {
+    return;
+  }
+
+  if (base->side[0] && base->side[1] && base->split!=0 && base->split!=100) {
+    struct splitter_coords* coords = (struct splitter_coords*)list_object(list_insert_empty(sort, sort->last));
+    coords->splitter = base;
+    if (base->type&TIPPSE_SPLITTER_HORZ) {
+      coords->x = base->side[1]->x-1;
+      coords->y = side?base->y:base->y+base->height;
+    } else {
+      coords->x = side?base->x:base->x+base->width;
+      coords->y = base->side[1]->y-1;
+    }
+
+  }
+
+  if (base->split!=0) {
+    splitter_grab_load(base->side[0], sort, side);
+  }
+
+  if (base->split!=100) {
+    splitter_grab_load(base->side[1], sort, side);
+  }
+}
+
+// Sort splitter lines
+int splitter_grab_sort_left(void* left, void* right) {
+  struct splitter_coords* split_left = (struct splitter_coords*)left;
+  struct splitter_coords* split_right = (struct splitter_coords*)right;
+
+  if (split_left->x<split_right->x) {
+    return -1;
+  } else if (split_left->x>split_right->x) {
+    return 1;
+  }
+
+  if (split_left->y<split_right->y) {
+    return -1;
+  } else if (split_left->y>split_right->y) {
+    return 1;
+  }
+
+  return 0;
+}
+
+// Reverse sort of splitter lines
+int splitter_grab_sort_right(void* left, void* right) {
+  return -splitter_grab_sort_left(left, right);
+}
+
+// Find next parent splitter in list
+struct splitter* splitter_grab_next(struct splitter* base, struct splitter* current, int side) {
+  struct list sort;
+  list_create_inplace(&sort, sizeof(struct splitter_coords));
+  splitter_grab_load(base, &sort, side);
+
+  void** sort1 = (void**)malloc(sizeof(void*)*sort.count);
+  void** sort2 = (void**)malloc(sizeof(void*)*sort.count);
+  struct list_node* it = sort.first;
+  for (size_t n = 0; it; n++) {
+    sort1[n] = (void*)list_object(it);
+    it = it->next;
+  }
+
+  struct splitter_coords** sorted = (struct splitter_coords**)merge_sort(sort1, sort2, sort.count, side?splitter_grab_sort_right:splitter_grab_sort_left);
+
+  struct splitter* select = NULL;
+  for (size_t n = 0; n<sort.count; n++) {
+    if (current==NULL) {
+      select = sorted[n]->splitter;
+      break;
+    }
+
+    if (sorted[n]->splitter==current || (n+1==sort.count && current)) {
+      select = sorted[(n+1)%sort.count]->splitter;
+      break;
+    }
+  }
+
+  free(sort1);
+  free(sort2);
+
+  while (sort.first) {
+    list_remove(&sort, sort.first);
+  }
+
+  return select;
 }
 
 // Half a splitter and clone

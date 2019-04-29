@@ -166,6 +166,11 @@ static struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"saveskip", TIPPSE_CMD_SAVE_SKIP, "Skip file when saving documents"},
   {"documentback", TIPPSE_CMD_DOCUMENT_BACK, "Switch back to previous active document"},
   {"help", TIPPSE_CMD_HELP, "Show help"},
+  {"splitgrabnext", TIPPSE_CMD_SPLIT_GRAB_NEXT, "Grab next splitter"},
+  {"splitgrabprev", TIPPSE_CMD_SPLIT_GRAB_PREV, "Grab previous splitter"},
+  {"splitgrabdecrease", TIPPSE_CMD_SPLIT_GRAB_DECREASE, "Split size decrease"},
+  {"splitgrabincrease", TIPPSE_CMD_SPLIT_GRAB_INCREASE, "Split size increase"},
+  {"splitgrabrotate", TIPPSE_CMD_SPLIT_GRAB_ROTATE, "Split rotation"},
   {NULL, 0, ""}
 };
 
@@ -180,6 +185,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->base_path = base_path;
   base->screen = screen;
   base->focus = NULL;
+  base->grab = NULL;
   base->tick = tick_count();
   base->tick_undo = -1;
   base->tick_incremental = -1;
@@ -627,6 +633,24 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     editor_focus_next(base, base->document, 0);
   } else if (command==TIPPSE_CMD_SPLIT_PREV) {
     editor_focus_next(base, base->document, 1);
+  } else if (command==TIPPSE_CMD_SPLIT_GRAB_NEXT) {
+    editor_grab_next(base, base->grab, 0);
+  } else if (command==TIPPSE_CMD_SPLIT_GRAB_PREV) {
+    editor_grab_next(base, base->grab, 1);
+  } else if (command==TIPPSE_CMD_SPLIT_GRAB_DECREASE) {
+    if (base->grab && base->grab->split>1) {
+      base->grab->split--;
+    }
+  } else if (command==TIPPSE_CMD_SPLIT_GRAB_INCREASE) {
+    if (base->grab && base->grab->split<99) {
+      base->grab->split++;
+    }
+  } else if (command==TIPPSE_CMD_SPLIT_GRAB_ROTATE) {
+    if (base->grab) {
+      base->grab->type ^= TIPPSE_SPLITTER_HORZ;
+    }
+  } else if (command==TIPPSE_CMD_SPLIT_GRAB_PREV) {
+    editor_grab_next(base, base->grab, 1);
   } else if (command==TIPPSE_CMD_SPLIT) {
     editor_split(base, base->document);
   } else if (command==TIPPSE_CMD_UNSPLIT) {
@@ -770,9 +794,11 @@ void editor_focus(struct editor* base, struct splitter* node, int disable) {
   }
 
   base->focus = node;
-  base->focus->active = 1;
-  if (node!=base->panel && node!=base->filter) {
-    base->document = node;
+  if (base->focus) {
+    base->focus->active = 1;
+    if (node!=base->panel && node!=base->filter) {
+      base->document = node;
+    }
   }
 }
 
@@ -789,6 +815,29 @@ void editor_focus_next(struct editor* base, struct splitter* node, int side) {
   }
 }
 
+// Set grab to other splitter
+void editor_grab(struct editor* base, struct splitter* node, int disable) {
+  if (base->grab==node) {
+    return;
+  }
+
+  if (base->grab && disable) {
+    base->grab->grab = 0;
+  }
+
+  base->grab = node;
+  if (base->grab) {
+    base->grab->grab = 1;
+  }
+}
+
+// Set grab to next grabbed splitter
+void editor_grab_next(struct editor* base, struct splitter* node, int side) {
+  node = splitter_grab_next(base->splitters, node, side);
+  if (node) {
+    editor_grab(base, node, 1);
+  }
+}
 
 // Split view
 void editor_split(struct editor* base, struct splitter* node) {
@@ -797,6 +846,10 @@ void editor_split(struct editor* base, struct splitter* node) {
 
 // Combine splitted view
 struct splitter* editor_unsplit(struct editor* base, struct splitter* node) {
+  if (base->grab==node) {
+    editor_grab(base, NULL, 1);
+  }
+
   return splitter_unsplit(node, base->splitters);
 }
 

@@ -143,7 +143,12 @@
 #define TIPPSE_CMD_SAVE_SKIP 94
 #define TIPPSE_CMD_DOCUMENT_BACK 95
 #define TIPPSE_CMD_HELP 96
-#define TIPPSE_CMD_MAX 97
+#define TIPPSE_CMD_SPLIT_GRAB_NEXT 97
+#define TIPPSE_CMD_SPLIT_GRAB_PREV 98
+#define TIPPSE_CMD_SPLIT_GRAB_DECREASE 99
+#define TIPPSE_CMD_SPLIT_GRAB_INCREASE 100
+#define TIPPSE_CMD_SPLIT_GRAB_ROTATE 101
+#define TIPPSE_CMD_MAX 102
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -196,6 +201,7 @@ struct editor {
   struct splitter* filter;            // Extra filter panel for toolbox user input filtering
   struct splitter* toolbox;           // Contains filter and panel
   struct splitter* focus;             // Current focused document
+  struct splitter* grab;              // Current grabbed splitter
   struct splitter* document;          // Current selected document
 
   int search_regex;                   // Search for regluar expression?
@@ -239,6 +245,8 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
 
 void editor_focus(struct editor* base, struct splitter* node, int disable);
 void editor_focus_next(struct editor* base, struct splitter* node, int side);
+void editor_grab(struct editor* base, struct splitter* node, int disable);
+void editor_grab_next(struct editor* base, struct splitter* node, int side);
 void editor_split(struct editor* base, struct splitter* node);
 struct splitter* editor_unsplit(struct editor* base, struct splitter* node);
 int editor_open_selection(struct editor* base, struct splitter* node, struct splitter* destination);

@@ -11,7 +11,7 @@
 #include "unicode.h"
 
 // Sort an array with merge sort, second array is a temporary buffer
-char** merge_sort(char** sort1, char** sort2, size_t count) {
+void** merge_sort(void** sort1, void** sort2, size_t count, merge_sort_callback callback) {
   for (size_t m = 1; m<count; m<<=1) {
     for (size_t n = 0; n<count; n+=m*2) {
       size_t left = n;
@@ -28,7 +28,7 @@ char** merge_sort(char** sort1, char** sort2, size_t count) {
 
       size_t out = n;
       while (left<left_end && right<right_end) {
-        if (strcasecmp(sort1[left], sort1[right])<=0) {
+        if ((*callback)(sort1[left], sort1[right])<=0) {
           sort2[out++] = sort1[left];
           left++;
         } else {
@@ -48,12 +48,17 @@ char** merge_sort(char** sort1, char** sort2, size_t count) {
       }
     }
 
-    char** sort = sort2;
+    void** sort = sort2;
     sort2 = sort1;
     sort1 = sort;
   }
 
   return sort1;
+}
+
+// Sort comperator for asciiz string
+int merge_sort_asciiz(void* left, void* right) {
+  return strcasecmp(left, right);
 }
 
 // Return file name without directory path

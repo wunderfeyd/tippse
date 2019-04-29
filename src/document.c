@@ -390,7 +390,7 @@ void document_directory(struct document_file* file, struct stream* filter_stream
     name = name->next;
   }
 
-  char** sort = merge_sort(sort1, sort2, files->count);
+  char** sort = (char**)merge_sort((void**)sort1, (void**)sort2, files->count, merge_sort_asciiz);
 
   document_file_empty(file);
 

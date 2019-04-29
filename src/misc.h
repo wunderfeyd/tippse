@@ -19,7 +19,10 @@
 #endif
 #include "types.h"
 
-char** merge_sort(char** sort1, char** sort2, size_t count);
+typedef int (*merge_sort_callback)(void* left, void* right);
+
+void** merge_sort(void** sort1, void** sort2, size_t count, merge_sort_callback callback);
+int merge_sort_asciiz(void* left, void* right);
 
 char* extract_file_name(const char* file);
 char* strip_file_name(const char* file);
