@@ -63,6 +63,7 @@ struct document_file {
   struct encoding* encoding;            // file encoding
   struct config* config;                // configuration
   struct editor* editor;                // The editor instance the file belongs to
+  struct splitter* splitter;            // Preferred splitter to use
   int tabstop;                          // type of tabstop
   int tabstop_width;                    // number of spaces per tab
   int newline;                          // type of newline, e.g. Unix or DOS

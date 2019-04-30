@@ -171,6 +171,8 @@ static struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"splitgrabdecrease", TIPPSE_CMD_SPLIT_GRAB_DECREASE, "Split size decrease"},
   {"splitgrabincrease", TIPPSE_CMD_SPLIT_GRAB_INCREASE, "Split size increase"},
   {"splitgrabrotate", TIPPSE_CMD_SPLIT_GRAB_ROTATE, "Split rotation"},
+  {"documentsticky", TIPPSE_CMD_DOCUMENT_STICKY, "Reopen document in current split only"},
+  {"documentfloat", TIPPSE_CMD_DOCUMENT_FLOAT, "Reopen document in any split"},
   {NULL, 0, ""}
 };
 
@@ -230,6 +232,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->menu_doc->undo = 0;
 
   base->document = splitter_create(0, 0, NULL, NULL,  "");
+  base->replace = NULL;
 
   base->search_doc = document_file_create(0, 1, base);
   base->replace_doc = document_file_create(0, 1, base);
@@ -376,6 +379,12 @@ void editor_draw(struct editor* base) {
   }
 
   if (base->document->file->save_skip) {
+    codepoint_t cp = 'N';
+    screen_setchar(base->screen, x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], background);
+    x++;
+  }
+
+  if (base->document->file->splitter) {
     codepoint_t cp = 'S';
     screen_setchar(base->screen, x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], background);
     x++;
@@ -552,18 +561,19 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     editor_focus(base, base->document, 1);
     document_search(base->document, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 0, base->search_ignore_case, base->search_regex, 1, 0);
   } else if (command==TIPPSE_CMD_SEARCH_DIRECTORY) {
+    struct splitter* assign = editor_document_splitter(base, base->document, base->search_results_doc);
 #ifndef _WINDOWS
-    if (base->document->file->pipefd[1]==-1 && base->document->file==base->search_results_doc) {
-      document_file_create_pipe(base->document->file);
-      if (base->document->file->pid==0) {
-        int binary = (int)config_convert_int64(config_find_ascii(base->document->file->config, "/searchfilebinary"));
-        char* pattern_text = (char*)config_convert_encoding(config_find_ascii(base->document->file->config, "/searchfilepattern"), encoding_utf8_static());
+    if (assign->file->pipefd[1]==-1 && assign->file==base->search_results_doc) {
+      document_file_create_pipe(assign->file);
+      if (assign->file->pid==0) {
+        int binary = (int)config_convert_int64(config_find_ascii(assign->file->config, "/searchfilebinary"));
+        char* pattern_text = (char*)config_convert_encoding(config_find_ascii(assign->file->config, "/searchfilepattern"), encoding_utf8_static());
         document_search_directory(base->base_path, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, base->search_ignore_case, base->search_regex, 0, pattern_text, encoding_utf8_static(), binary);
         free(pattern_text);
         exit(0);
       }
     } else {
-      splitter_assign_document_file(base->document, base->search_results_doc);
+      splitter_assign_document_file(assign, base->search_results_doc);
     }
 #endif
   } else if (command==TIPPSE_CMD_REPLACE) {
@@ -599,7 +609,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     editor_close_document(base, base->focus->file);
   } else if (command==TIPPSE_CMD_NEW) {
     struct document_file* empty = editor_empty_document(base);
-    splitter_assign_document_file(base->document, empty);
+    splitter_assign_document_file(editor_document_splitter(base, base->document, empty), empty);
     document_view_reset(base->document->view, empty, 1);
   } else if (command==TIPPSE_CMD_RETURN && base->focus->file==base->goto_doc) {
     struct stream stream;
@@ -659,6 +669,10 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
       editor_focus(base, document, 0);
     }
     base->document = document;
+  } else if (command==TIPPSE_CMD_DOCUMENT_STICKY) {
+    editor_document_sticky(base, base->document);
+  } else if (command==TIPPSE_CMD_DOCUMENT_FLOAT) {
+    editor_document_float(base, base->document);
   } else if (command==TIPPSE_CMD_RELOAD) {
     editor_reload_document(base, base->document->file);
   } else if (command==TIPPSE_CMD_SAVE) {
@@ -674,8 +688,9 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
   } else if (command==TIPPSE_CMD_SAVEALL) {
     editor_save_documents(base, TIPPSE_CMD_SAVE);
   } else if (command==TIPPSE_CMD_SHELL) {
+    struct splitter* assign = editor_document_splitter(base, base->document, base->compiler_doc);
 #ifndef _WINDOWS
-    if (base->document->file->pipefd[1]==-1 && base->document->file==base->compiler_doc) {
+    if (assign->file->pipefd[1]==-1 && assign->file==base->compiler_doc) {
       if (arguments && arguments->length>1) {
         struct trie_node* parent = config_find_ascii(base->focus->file->config, "/shell/");
         if (parent) {
@@ -685,12 +700,12 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
         if (parent && parent->end) {
           // TODO: Use current shell encoding (get it somewhere)
           char* shell = (char*)config_convert_encoding(parent, encoding_utf8_static());
-          document_file_pipe(base->document->file, shell);
+          document_file_pipe(assign->file, shell);
           free(shell);
         }
       }
     } else {
-      splitter_assign_document_file(base->document, base->compiler_doc);
+      splitter_assign_document_file(assign, base->compiler_doc);
     }
 #endif
   } else if (command==TIPPSE_CMD_SHELL_KILL) {
@@ -778,6 +793,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
         editor_focus(base, now?base->filter:base->panel, 1);
       }
     } else {
+      editor_grab(base, NULL, 1);
       (*base->focus->document->keypress)(base->focus->document, base->focus, command, arguments, key, cp, button, button_old, x-base->focus->x, y-base->focus->y);
     }
   }
@@ -799,6 +815,10 @@ void editor_focus(struct editor* base, struct splitter* node, int disable) {
     if (node!=base->panel && node!=base->filter) {
       base->document = node;
     }
+  }
+
+  if (!editor_document_sticked(base, base->document)) {
+    base->replace = base->document;
   }
 }
 
@@ -850,7 +870,57 @@ struct splitter* editor_unsplit(struct editor* base, struct splitter* node) {
     editor_grab(base, NULL, 1);
   }
 
+  if (base->replace==node) {
+    base->replace = NULL;
+  }
+
+  struct list_node* it = base->documents->first;
+  while (it) {
+    struct document_file* document = *(struct document_file**)list_object(it);
+    if (document->splitter==node) {
+      document->splitter = NULL;
+    }
+    it = it->next;
+  }
+
   return splitter_unsplit(node, base->splitters);
+}
+
+// Make document sticky to splitter
+void editor_document_sticky(struct editor* base, struct splitter* node) {
+  node->file->splitter = node;
+}
+
+// Make document available in any splitter
+void editor_document_float(struct editor* base, struct splitter* node) {
+  node->file->splitter = NULL;
+}
+
+// Has splitter a sticky document?
+int editor_document_sticked(struct editor* base, struct splitter* node) {
+  struct list_node* it = base->documents->first;
+  while (it) {
+    struct document_file* document = *(struct document_file**)list_object(it);
+    if (document->splitter==node) {
+      return 1;
+    }
+    it = it->next;
+  }
+
+  return 0;
+}
+
+// Return best splitter for given document
+struct splitter* editor_document_splitter(struct editor* base, struct splitter* node, struct document_file* file) {
+  if (file->splitter) {
+    return file->splitter;
+  }
+
+  if (editor_document_sticked(base, node) && base->replace) {
+    return base->replace;
+  }
+
+  return node;
 }
 
 // Use selection from specified view to open a new document
@@ -1002,7 +1072,9 @@ int editor_open_document(struct editor* base, const char* name, struct splitter*
 
       list_insert(base->documents, NULL, &new_document_doc);
       if (destination) {
-        splitter_assign_document_file(destination, new_document_doc);
+        struct splitter* assign = editor_document_splitter(base, destination, new_document_doc);
+        splitter_assign_document_file(assign, new_document_doc);
+        editor_focus(base, assign, 1);
       }
     } else {
       if (new_document_doc && new_document_doc!=base->browser_file) {
@@ -1615,5 +1687,5 @@ void editor_view_help(struct editor* base, const char* name) {
   }
 
   document_file_load_memory(base->help_doc, (const uint8_t*)editor_documentations[index].data, editor_documentations[index].size, editor_documentations[index].name);
-  splitter_assign_document_file(base->document, base->help_doc);
+  splitter_assign_document_file(editor_document_splitter(base, base->document, base->help_doc), base->help_doc);
 }

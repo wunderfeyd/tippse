@@ -66,6 +66,7 @@ struct document_file_parser document_file_parsers[] = {
 struct document_file* document_file_create(int save, int config, struct editor* editor) {
   struct document_file* base = (struct document_file*)malloc(sizeof(struct document_file));
   base->editor = editor;
+  base->splitter = NULL;
   base->buffer = NULL;
   base->bookmarks = NULL;
   base->cache = NULL;

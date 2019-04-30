@@ -148,7 +148,9 @@
 #define TIPPSE_CMD_SPLIT_GRAB_DECREASE 99
 #define TIPPSE_CMD_SPLIT_GRAB_INCREASE 100
 #define TIPPSE_CMD_SPLIT_GRAB_ROTATE 101
-#define TIPPSE_CMD_MAX 102
+#define TIPPSE_CMD_DOCUMENT_STICKY 102
+#define TIPPSE_CMD_DOCUMENT_FLOAT 103
+#define TIPPSE_CMD_MAX 104
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -203,6 +205,7 @@ struct editor {
   struct splitter* focus;             // Current focused document
   struct splitter* grab;              // Current grabbed splitter
   struct splitter* document;          // Current selected document
+  struct splitter* replace;           // Splitter to replace with opening document
 
   int search_regex;                   // Search for regluar expression?
   int search_ignore_case;             // Ignore case during search?
@@ -245,10 +248,18 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
 
 void editor_focus(struct editor* base, struct splitter* node, int disable);
 void editor_focus_next(struct editor* base, struct splitter* node, int side);
+
 void editor_grab(struct editor* base, struct splitter* node, int disable);
 void editor_grab_next(struct editor* base, struct splitter* node, int side);
+
 void editor_split(struct editor* base, struct splitter* node);
 struct splitter* editor_unsplit(struct editor* base, struct splitter* node);
+
+void editor_document_sticky(struct editor* base, struct splitter* node);
+void editor_document_float(struct editor* base, struct splitter* node);
+int editor_document_sticked(struct editor* base, struct splitter* node);
+struct splitter* editor_document_splitter(struct editor* base, struct splitter* node, struct document_file* file);
+
 int editor_open_selection(struct editor* base, struct splitter* node, struct splitter* destination);
 int editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination, int type);
 void editor_reload_document(struct editor* base, struct document_file* file);
