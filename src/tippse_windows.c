@@ -6,11 +6,13 @@
 #include <windows.h>
 #include "types.h"
 
+#include "misc.h"
 #include "editor.h"
 #include "encoding/utf8.h"
 #include "screen.h"
 #include "search.h"
 #include "unicode.h"
+#include "clipboard.h"
 
 struct tippse_window {
   struct screen* screen;    // screen handler for painting
@@ -196,7 +198,7 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
       key |= TIPPSE_KEY_MOD_SHIFT;
     }
 
-    editor_keypress(base->editor, key, (int)cp, 0, 0, 0, 0);
+    editor_keypress(base->editor, key, cp, 0, 0, 0, 0);
     editor_draw(base->editor);
     base->cursor_blink = tick_count();
   } else if (message==WM_KEYUP || message==WM_SYSKEYUP) {

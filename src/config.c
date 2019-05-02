@@ -134,6 +134,8 @@ static const char* config_default =
       "alt+up:splitgrabdecrease,"
       "alt+down:splitgrabincrease,"
       "ctrl+f4:splitgrabrotate,"
+      "alt+pageup:errorprev,"
+      "alt+pagedown:errornext,"
     "},"
     "fileextensions:{"
       "c:C,"

@@ -18,15 +18,11 @@
 #include "rangetree.h"
 #include "screen.h"
 #include "search.h"
-#include "splitter.h"
 #include "trie.h"
 #include "unicode.h"
 
 // Search in document
-int document_search(struct splitter* splitter, struct range_tree_node* search_text, struct encoding* search_encoding, struct range_tree_node* replace_text, struct encoding* replace_encoding, int reverse, int ignore_case, int regex, int all, int replace) {
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
+int document_search(struct document_file* file, struct document_view* view, struct range_tree_node* search_text, struct encoding* search_encoding, struct range_tree_node* replace_text, struct encoding* replace_encoding, int reverse, int ignore_case, int regex, int all, int replace) {
   if (!search_text || !file->buffer) {
     editor_console_update(file->editor, "No text to search for!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
     return 0;
@@ -70,7 +66,7 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
       replacements++;
       struct range_tree_node* replacement = regex?search_replacement(search, replace_text, replace_encoding, file->buffer):replace_text;
       document_file_reduce(&begin, selection_low, selection_high-selection_low);
-      document_select_delete(splitter);
+      document_select_delete(file, view);
 
       file_offset_t start = view->offset;
       file_offset_t end = start;
@@ -78,7 +74,7 @@ int document_search(struct splitter* splitter, struct range_tree_node* search_te
         if (begin!=view->offset) {
           document_file_expand(&begin, view->offset, replacement->length);
         }
-        document_file_insert_buffer(splitter->file, view->offset, replacement);
+        document_file_insert_buffer(file, view->offset, replacement);
         end = view->offset;
 
         if (regex) {
@@ -447,10 +443,7 @@ void document_insert_search(struct document_file* file, struct search* search, c
 }
 
 // Select whole document
-void document_select_all(struct splitter* splitter, int update_offset) {
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
+void document_select_all(struct document_file* file, struct document_view* view, int update_offset) {
   file_offset_t end = range_tree_length(file->buffer);
   if (update_offset) {
     view->offset = end;
@@ -459,18 +452,12 @@ void document_select_all(struct splitter* splitter, int update_offset) {
 }
 
 // Throw away all selections
-void document_select_nothing(struct splitter* splitter) {
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
+void document_select_nothing(struct document_file* file, struct document_view* view) {
   document_view_select_nothing(view, file);
 }
 
 // Delete selection
-int document_select_delete(struct splitter* splitter) {
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
+int document_select_delete(struct document_file* file, struct document_view* view) {
   file_offset_t low;
   file_offset_t high;
   int removed = 0;
@@ -483,10 +470,7 @@ int document_select_delete(struct splitter* splitter) {
 }
 
 // Copy selection
-void document_clipboard_copy(struct splitter* splitter) {
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
+void document_clipboard_copy(struct document_file* file, struct document_view* view) {
   file_offset_t low;
   file_offset_t high = 0;
   struct range_tree_node* copy = NULL;
@@ -497,10 +481,7 @@ void document_clipboard_copy(struct splitter* splitter) {
 }
 
 // Paste selection
-void document_clipboard_paste(struct splitter* splitter) {
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
+void document_clipboard_paste(struct document_file* file, struct document_view* view) {
   struct range_tree_node* buffer = clipboard_get();
   if (buffer) {
     document_file_insert_buffer(file, view->offset, buffer);
@@ -508,47 +489,36 @@ void document_clipboard_paste(struct splitter* splitter) {
 }
 
 // Toggle bookmark
-void document_bookmark_toggle_range(struct splitter* splitter, file_offset_t low, file_offset_t high) {
-  struct document_file* file = splitter->file;
-
+void document_bookmark_toggle_range(struct document_file* file, file_offset_t low, file_offset_t high) {
   int marked = range_tree_marked(file->bookmarks, low, high-low, TIPPSE_INSERTER_MARK);
-  document_bookmark_range(splitter, low, high, marked);
+  document_bookmark_range(file, low, high, marked);
 }
 
 // Add range to bookmark list
-void document_bookmark_range(struct splitter* splitter, file_offset_t low, file_offset_t high, int marked) {
-  struct document_file* file = splitter->file;
-
+void document_bookmark_range(struct document_file* file, file_offset_t low, file_offset_t high, int marked) {
   file->bookmarks = range_tree_mark(file->bookmarks, low, high-low, marked?0:TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
 }
 
 // Bookmark selection
-void document_bookmark_selection(struct splitter* splitter, int marked) {
-  struct document_view* view = splitter->view;
-
+void document_bookmark_selection(struct document_file* file, struct document_view* view, int marked) {
   file_offset_t low;
   file_offset_t high = 0;
   while (document_view_select_next(view, high, &low, &high)) {
-    document_bookmark_range(splitter, low, high, marked);
+    document_bookmark_range(file, low, high, marked);
   }
 }
 
 // Bookmark selection (invert)
-void document_bookmark_toggle_selection(struct splitter* splitter) {
-  struct document_view* view = splitter->view;
-
+void document_bookmark_toggle_selection(struct document_file* file, struct document_view* view) {
   file_offset_t low;
   file_offset_t high = 0;
   while (document_view_select_next(view, high, &low, &high)) {
-    document_bookmark_toggle_range(splitter, low, high);
+    document_bookmark_toggle_range(file, low, high);
   }
 }
 
 // Goto next bookmark
-void document_bookmark_next(struct splitter* splitter) {
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
+void document_bookmark_next(struct document_file* file, struct document_view* view) {
   file_offset_t offset = view->offset;
   int wrap = 1;
   while (1) {
@@ -568,10 +538,7 @@ void document_bookmark_next(struct splitter* splitter) {
 }
 
 // Goto previous bookmark
-void document_bookmark_prev(struct splitter* splitter) {
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
+void document_bookmark_prev(struct document_file* file, struct document_view* view) {
   file_offset_t offset = view->offset;
   int wrap = 1;
   while (1) {

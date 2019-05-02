@@ -173,6 +173,8 @@ static struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"splitgrabrotate", TIPPSE_CMD_SPLIT_GRAB_ROTATE, "Split rotation"},
   {"documentsticky", TIPPSE_CMD_DOCUMENT_STICKY, "Reopen document in current split only"},
   {"documentfloat", TIPPSE_CMD_DOCUMENT_FLOAT, "Reopen document in any split"},
+  {"errornext", TIPPSE_CMD_ERROR_NEXT, "Search next error in shell command output"},
+  {"errorprev", TIPPSE_CMD_ERROR_PREV, "Search prev error in shell command output"},
   {NULL, 0, ""}
 };
 
@@ -281,7 +283,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   list_insert(base->documents, NULL, &base->help_doc);
 
   for (int n = argc-1; n>=1; n--) {
-    editor_open_document(base, argv[n], NULL, base->document, TIPPSE_BROWSERTYPE_OPEN);
+    editor_open_document(base, argv[n], NULL, base->document, TIPPSE_BROWSERTYPE_OPEN, NULL);
   }
 
   if (!base->document->file) {
@@ -510,7 +512,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
       struct list_node* docs = base->documents->first;
       docs = docs->next;
       struct document_file* docs_document_doc = *(struct document_file**)list_object(docs);
-      editor_open_document(base, docs_document_doc->filename, NULL, base->document, TIPPSE_BROWSERTYPE_OPEN);
+      editor_open_document(base, docs_document_doc->filename, NULL, base->document, TIPPSE_BROWSERTYPE_OPEN, NULL);
     }
   } else if (command==TIPPSE_CMD_BROWSER || command==TIPPSE_CMD_SAVEAS) {
     struct document_file* browser_file = file?file:base->document->file;
@@ -553,13 +555,13 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     editor_search(base);
   } else if (command==TIPPSE_CMD_SEARCH_NEXT || (command==TIPPSE_CMD_RETURN && !base->search_regex && base->focus->file==base->search_doc)) {
     editor_focus(base, base->document, 1);
-    document_search(base->document, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 0, base->search_ignore_case, base->search_regex, 0, 0);
+    document_search(base->document->file, base->document->view, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 0, base->search_ignore_case, base->search_regex, 0, 0);
   } else if (command==TIPPSE_CMD_SEARCH_PREV) {
     editor_focus(base, base->document, 1);
-    document_search(base->document, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 1, base->search_ignore_case, base->search_regex, 0, 0);
+    document_search(base->document->file, base->document->view, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 1, base->search_ignore_case, base->search_regex, 0, 0);
   } else if (command==TIPPSE_CMD_SEARCH_ALL) {
     editor_focus(base, base->document, 1);
-    document_search(base->document, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 0, base->search_ignore_case, base->search_regex, 1, 0);
+    document_search(base->document->file, base->document->view, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 0, base->search_ignore_case, base->search_regex, 1, 0);
   } else if (command==TIPPSE_CMD_SEARCH_DIRECTORY) {
     struct splitter* assign = editor_document_splitter(base, base->document, base->search_results_doc);
 #ifndef _WINDOWS
@@ -578,19 +580,19 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
 #endif
   } else if (command==TIPPSE_CMD_REPLACE) {
     editor_panel_assign(base, base->replace_doc);
-    document_select_all(base->panel, 1);
+    document_select_all(base->panel->file, base->panel->view, 1);
   } else if (command==TIPPSE_CMD_REPLACE_NEXT) {
     editor_focus(base, base->document, 1);
-    document_search(base->document, base->search_doc->buffer, base->search_doc->encoding, base->replace_doc->buffer, base->replace_doc->encoding, 0, base->search_ignore_case, base->search_regex, 0, 1);
+    document_search(base->document->file, base->document->view, base->search_doc->buffer, base->search_doc->encoding, base->replace_doc->buffer, base->replace_doc->encoding, 0, base->search_ignore_case, base->search_regex, 0, 1);
   } else if (command==TIPPSE_CMD_REPLACE_PREV) {
     editor_focus(base, base->document, 1);
-    document_search(base->document, base->search_doc->buffer, base->search_doc->encoding, base->replace_doc->buffer, base->replace_doc->encoding, 1, base->search_ignore_case, base->search_regex, 0, 1);
+    document_search(base->document->file, base->document->view, base->search_doc->buffer, base->search_doc->encoding, base->replace_doc->buffer, base->replace_doc->encoding, 1, base->search_ignore_case, base->search_regex, 0, 1);
   } else if (command==TIPPSE_CMD_REPLACE_ALL || (command==TIPPSE_CMD_RETURN && !base->search_regex && base->focus->file==base->replace_doc)) {
     editor_focus(base, base->document, 1);
-    document_search(base->document, base->search_doc->buffer, base->search_doc->encoding, base->replace_doc->buffer, base->replace_doc->encoding, 0, base->search_ignore_case, base->search_regex, 1, 1);
+    document_search(base->document->file, base->document->view, base->search_doc->buffer, base->search_doc->encoding, base->replace_doc->buffer, base->replace_doc->encoding, 0, base->search_ignore_case, base->search_regex, 1, 1);
   } else if (command==TIPPSE_CMD_GOTO) {
     editor_panel_assign(base, base->goto_doc);
-    document_select_all(base->panel, 1);
+    document_select_all(base->panel->file, base->panel->view, 1);
   } else if (command==TIPPSE_CMD_CONSOLE) {
     editor_panel_assign(base, base->console_doc);
   } else if (command==TIPPSE_CMD_VIEW_SWITCH) {
@@ -626,12 +628,12 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
 
       base->document->view->offset = offset;
       base->document->view->show_scrollbar = 1;
-      document_select_nothing(base->document);
+      document_select_nothing(base->document->file, base->document->view);
     } else {
       position_t line = (position_t)decode_based_unsigned(&sequencer, 10, SIZE_T_MAX);
       if (line>0) {
         document_text_goto(base->document->document, base->document, line-1, 0);
-        document_select_nothing(base->document);
+        document_select_nothing(base->document->file, base->document->view);
       }
     }
 
@@ -687,6 +689,10 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     editor_task_remove_stop(base);
   } else if (command==TIPPSE_CMD_SAVEALL) {
     editor_save_documents(base, TIPPSE_CMD_SAVE);
+  } else if (command==TIPPSE_CMD_ERROR_NEXT) {
+    editor_open_error(base, 0);
+  } else if (command==TIPPSE_CMD_ERROR_PREV) {
+    editor_open_error(base, 1);
   } else if (command==TIPPSE_CMD_SHELL) {
     struct splitter* assign = editor_document_splitter(base, base->document, base->compiler_doc);
 #ifndef _WINDOWS
@@ -927,7 +933,7 @@ struct splitter* editor_document_splitter(struct editor* base, struct splitter* 
 int editor_open_selection(struct editor* base, struct splitter* node, struct splitter* destination) {
   int done = 0;
 
-  if (document_view_select_active(node->view)) {
+  if (document_view_select_active(node->view) && node->file!=base->compiler_doc) {
     file_offset_t selection_low;
     file_offset_t selection_high;
     document_view_select_next(node->view, 0, &selection_low, &selection_high);
@@ -962,9 +968,9 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
           }
         }
       } else if (base->panel->file==base->browser_doc) {
-        done = editor_open_document(base, name, node, destination, base->browser_type);
+        done = editor_open_document(base, name, node, destination, base->browser_type, NULL);
       } else {
-        done = editor_open_document(base, name, node, destination, TIPPSE_BROWSERTYPE_OPEN);
+        done = editor_open_document(base, name, node, destination, TIPPSE_BROWSERTYPE_OPEN, NULL);
       }
     }
 
@@ -1007,10 +1013,11 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
         if (node->file==base->help_doc) {
           editor_view_help(base, name);
         } else {
-          editor_open_document(base, name, NULL, destination, TIPPSE_BROWSERTYPE_OPEN);
+          struct splitter* output;
+          editor_open_document(base, name, NULL, destination, TIPPSE_BROWSERTYPE_OPEN, &output);
           if (line>0) {
-            document_text_goto(node->document, node, line-1, (column>0)?column-1:0);
-            document_select_nothing(node);
+            document_text_goto(output->document, output, line-1, (column>0)?column-1:0);
+            document_select_nothing(output->file, output->view);
           }
         }
 
@@ -1028,7 +1035,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
 }
 
 // Open file into destination splitter
-int editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination, int type) {
+int editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination, int type, struct splitter** output) {
   int success = 1;
   char* path_only;
   if (node) {
@@ -1072,9 +1079,9 @@ int editor_open_document(struct editor* base, const char* name, struct splitter*
 
       list_insert(base->documents, NULL, &new_document_doc);
       if (destination) {
-        struct splitter* assign = editor_document_splitter(base, destination, new_document_doc);
-        splitter_assign_document_file(assign, new_document_doc);
-        editor_focus(base, assign, 1);
+        destination = editor_document_splitter(base, destination, new_document_doc);
+        splitter_assign_document_file(destination, new_document_doc);
+        editor_focus(base, destination, 1);
       }
     } else {
       if (new_document_doc && new_document_doc!=base->browser_file) {
@@ -1091,6 +1098,10 @@ int editor_open_document(struct editor* base, const char* name, struct splitter*
   free(combined);
   free(path_only);
   free(corrected);
+
+  if (output) {
+    *output = destination;
+  }
 
   return success;
 }
@@ -1516,7 +1527,7 @@ void editor_search(struct editor* base) {
     document_file_insert_buffer(base->search_doc, 0, buffer);
     range_tree_destroy(buffer, NULL);
   }
-  document_select_all(base->panel, 1);
+  document_select_all(base->panel->file, base->panel->view, 1);
   base->document->view->selection_reset = 0;
 }
 
@@ -1688,4 +1699,26 @@ void editor_view_help(struct editor* base, const char* name) {
 
   document_file_load_memory(base->help_doc, (const uint8_t*)editor_documentations[index].data, editor_documentations[index].size, editor_documentations[index].name);
   splitter_assign_document_file(editor_document_splitter(base, base->document, base->help_doc), base->help_doc);
+}
+
+// Try to grep next error message
+void editor_open_error(struct editor* base, int reverse) {
+  struct document_view* compiler_view = (base->compiler_doc->views->count>0)?*(struct document_view**)list_object(base->compiler_doc->views->first):base->compiler_doc->view;
+
+  const char* text = "^\\s*([^\\n\\r]*?)\\s*\\:(\\d+)\\:((\\d+)\\:)?\\s(error\\:|warning\\:)";
+  struct range_tree_node* root = range_tree_insert_split(NULL, 0, (const uint8_t*)text, strlen(text), 0);
+
+  int found = document_search(base->compiler_doc, compiler_view, root, base->compiler_doc->encoding, NULL, NULL, reverse, 1, 1, 0, 0);
+
+  range_tree_destroy(root, NULL);
+
+  // TODO: the following part is opening the shell and emitting a open selection command... it would be nice to open the target without this, but current splitter focused structure doesn't allow to work on backgrounded documents at the moment... change me soon
+  if (found) {
+    struct splitter* assign = editor_document_splitter(base, base->document, base->compiler_doc);
+    if (assign) {
+      splitter_assign_document_file(assign, base->compiler_doc);
+      editor_focus(base, assign, 1);
+      editor_task_append(base, 1, TIPPSE_CMD_OPEN, NULL, 0, 0, 0, 0, 0, 0, NULL);
+    }
+  }
 }

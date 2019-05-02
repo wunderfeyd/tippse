@@ -12,21 +12,22 @@ struct document {
   int (*incremental_update)(struct document* base, struct splitter* splitter);
 };
 
-int document_search(struct splitter* splitter, struct range_tree_node* search_text, struct encoding* search_encoding, struct range_tree_node* replace_text, struct encoding* replace_encoding, int reverse, int ignore_case, int regex, int all, int replace);
+int document_search(struct document_file* file, struct document_view* view, struct range_tree_node* search_text, struct encoding* search_encoding, struct range_tree_node* replace_text, struct encoding* replace_encoding, int reverse, int ignore_case, int regex, int all, int replace);
 void document_search_directory(const char* path, struct range_tree_node* search_text, struct encoding* search_encoding, struct range_tree_node* replace_text, struct encoding* replace_encoding, int ignore_case, int regex, int replace, const char* pattern_text, struct encoding* pattern_encoding, int binary);
 void document_directory(struct document_file* file, struct stream* filter_stream, struct encoding* filter_encoding, const char* predefined);
 void document_insert_search(struct document_file* file, struct search* search, const char* output, size_t length, int inserter);
-void document_select_all(struct splitter* splitter, int update_offset);
-void document_select_nothing(struct splitter* splitter);
-int document_select_delete(struct splitter* splitter);
-void document_clipboard_copy(struct splitter* splitter);
-void document_clipboard_paste(struct splitter* splitter);
 
-void document_bookmark_toggle_range(struct splitter* splitter, file_offset_t low, file_offset_t high);
-void document_bookmark_range(struct splitter* splitter, file_offset_t low, file_offset_t high, int marked);
-void document_bookmark_selection(struct splitter* splitter, int marked);
-void document_bookmark_toggle_selection(struct splitter* splitter);
-void document_bookmark_next(struct splitter* splitter);
-void document_bookmark_prev(struct splitter* splitter);
+void document_select_all(struct document_file* file, struct document_view* view, int update_offset);
+void document_select_nothing(struct document_file* file, struct document_view* view);
+int document_select_delete(struct document_file* file, struct document_view* view);
+void document_clipboard_copy(struct document_file* file, struct document_view* view);
+void document_clipboard_paste(struct document_file* file, struct document_view* view);
+
+void document_bookmark_toggle_range(struct document_file* file, file_offset_t low, file_offset_t high);
+void document_bookmark_range(struct document_file* file, file_offset_t low, file_offset_t high, int marked);
+void document_bookmark_selection(struct document_file* file, struct document_view* view, int marked);
+void document_bookmark_toggle_selection(struct document_file* file, struct document_view* view);
+void document_bookmark_next(struct document_file* file, struct document_view* view);
+void document_bookmark_prev(struct document_file* file, struct document_view* view);
 
 #endif /* #ifndef TIPPSE_DOCUMENT_H */

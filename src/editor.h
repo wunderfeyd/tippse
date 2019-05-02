@@ -150,7 +150,9 @@
 #define TIPPSE_CMD_SPLIT_GRAB_ROTATE 101
 #define TIPPSE_CMD_DOCUMENT_STICKY 102
 #define TIPPSE_CMD_DOCUMENT_FLOAT 103
-#define TIPPSE_CMD_MAX 104
+#define TIPPSE_CMD_ERROR_NEXT 104
+#define TIPPSE_CMD_ERROR_PREV 105
+#define TIPPSE_CMD_MAX 106
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -261,7 +263,7 @@ int editor_document_sticked(struct editor* base, struct splitter* node);
 struct splitter* editor_document_splitter(struct editor* base, struct splitter* node, struct document_file* file);
 
 int editor_open_selection(struct editor* base, struct splitter* node, struct splitter* destination);
-int editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination, int type);
+int editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination, int type, struct splitter** output);
 void editor_reload_document(struct editor* base, struct document_file* file);
 int editor_ask_document_action(struct editor* base, struct document_file* file, int force, int ask);
 void editor_save_document(struct editor* base, struct document_file* file, int force, int ask);
@@ -300,4 +302,6 @@ void editor_menu_clear(struct editor* base);
 void editor_menu_append(struct editor* base, const char* title, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y, struct document_file* file);
 
 void editor_process_message(struct editor* base, const char* message, file_offset_t position, file_offset_t length);
+
+void editor_open_error(struct editor* base, int reverse);
 #endif /* #ifndef TIPPSE_EDITOR_H */
