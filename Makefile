@@ -21,6 +21,9 @@ COMPILED_DOCS=$(addprefix $(OBJDIR)/,$(addsuffix .h,$(basename $(DOCS))))
 src/editor.c: $(COMPILED_DOCS)
 	@rm -rf tmp/editor.o
 
+src/config.c: tmp/src/config.default.h
+	@rm -rf tmp/config.o
+
 tmp/%.o: %.c
 	@mkdir -p $(dir $@)
 	@echo CC $<
@@ -39,6 +42,11 @@ tmp/%.h: %.md tmp/tools/convert
 	@echo MN $<
 	@mkdir -p $(dir $@)
 	@tmp/tools/convert --bin2c $< $@ file_$(notdir $(basename $@))
+
+tmp/src/config.default.h: src/config.default.txt tmp/tools/convert
+	@echo CO $<
+	@mkdir -p $(dir $@)
+	@tmp/tools/convert --bin2c $< $@ file_$(subst .,_,$(notdir $(basename $@)))
 
 $(TARGET): $(OBJS)
 	@echo LD $(TARGET)

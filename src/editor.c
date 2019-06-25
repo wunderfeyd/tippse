@@ -1705,12 +1705,13 @@ void editor_view_help(struct editor* base, const char* name) {
 void editor_open_error(struct editor* base, int reverse) {
   struct document_view* compiler_view = (base->compiler_doc->views->count>0)?*(struct document_view**)list_object(base->compiler_doc->views->first):base->compiler_doc->view;
 
-  const char* text = "^\\s*([^\\n\\r]*?)\\s*\\:(\\d+)\\:((\\d+)\\:)?\\s(error\\:|warning\\:)";
-  struct range_tree_node* root = range_tree_insert_split(NULL, 0, (const uint8_t*)text, strlen(text), 0);
+  char* pattern_text = (char*)config_convert_encoding(config_find_ascii(base->compiler_doc->config, "/errorpattern"), encoding_utf8_static());
+  struct range_tree_node* root = range_tree_insert_split(NULL, 0, (const uint8_t*)pattern_text, strlen(pattern_text), 0);
 
   int found = document_search(base->compiler_doc, compiler_view, root, base->compiler_doc->encoding, NULL, NULL, reverse, 1, 1, 0, 0);
 
   range_tree_destroy(root, NULL);
+  free(pattern_text);
 
   // TODO: the following part is opening the shell and emitting a open selection command... it would be nice to open the target without this, but current splitter focused structure doesn't allow to work on backgrounded documents at the moment... change me soon
   if (found) {
