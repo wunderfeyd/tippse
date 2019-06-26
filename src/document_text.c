@@ -1963,14 +1963,14 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     in_line_column.column = POSITION_T_MAX;
     file_offset_t to = document_text_cursor_position(splitter, &in_line_column, &out, 1, 1);
 
-    struct range_tree_node* clipboard = view->line_cut?clipboard_get():NULL;
+    struct range_tree_node* clipboard = view->line_cut?clipboard_get(NULL):NULL;
     view->line_cut = 1;
     struct range_tree_node* rootold = range_tree_copy(clipboard, 0, range_tree_length(clipboard));
     struct range_tree_node* rootnew = range_tree_copy(file->buffer, from, to-from);
     rootold = range_tree_paste(rootold, rootnew, range_tree_length(rootold), NULL);
     range_tree_destroy(rootnew, NULL);
 
-    clipboard_set(rootold, file->binary);
+    clipboard_set(rootold, file->binary, file->encoding);
     document_file_delete(file, from, to-from);
 
     selection_keep = 1;

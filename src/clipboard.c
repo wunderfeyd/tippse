@@ -6,30 +6,42 @@
 #include "fragment.h"
 #include "rangetree.h"
 #include "stream.h"
+#include "encoding.h"
 
-static struct range_tree_node* clipboard = NULL;
+static struct range_tree_node* clipboard_data = NULL;
+static struct encoding* clipboard_encoding = NULL;
 
 // Free clipboard data
 void clipboard_free(void) {
-  range_tree_destroy(clipboard, NULL);
+  range_tree_destroy(clipboard_data, NULL);
+  if (clipboard_encoding) {
+    clipboard_encoding->destroy(clipboard_encoding);
+  }
 }
 
 // Write text to clipboard
-void clipboard_set(struct range_tree_node* data, int binary) {
+void clipboard_set(struct range_tree_node* data, int binary, struct encoding* encoding) {
 #ifdef __APPLE__
-  clipboard_command_set(data, binary, "pbcopy");
+  clipboard_command_set(data, binary, encoding, "pbcopy");
 #elif __linux__
-  clipboard_command_set(data, binary, "xsel -i -p 2>/dev/null");
-  clipboard_command_set(data, binary, "xsel -i -b 2>/dev/null");
+  clipboard_command_set(data, binary, encoding, "xsel -i -p 2>/dev/null");
+  clipboard_command_set(data, binary, encoding, "xsel -i -b 2>/dev/null");
 #elif _WIN32
   clipboard_windows_set(data, binary);
 #endif
-  if (clipboard) range_tree_destroy(clipboard, NULL);
-  clipboard = data;
+  if (clipboard_data) {
+    range_tree_destroy(clipboard_data, NULL);
+  }
+  clipboard_data = data;
+
+  if (clipboard_encoding) {
+    clipboard_encoding->destroy(clipboard_encoding);
+  }
+  clipboard_encoding = encoding->create();
 }
 
 // Write text to system clipboard
-void clipboard_command_set(struct range_tree_node* data, int binary, const char* command) {
+void clipboard_command_set(struct range_tree_node* data, int binary, struct encoding* encoding, const char* command) {
   FILE* pipe = popen(command, "w");
   if (pipe) {
     if (binary) {
@@ -46,14 +58,16 @@ void clipboard_command_set(struct range_tree_node* data, int binary, const char*
       }
       stream_destroy(&stream);
     } else {
+      struct range_tree_node* transform = encoding_transform_page(data, 0, FILE_OFFSET_T_MAX, encoding, encoding_utf8_static());
       struct stream stream;
-      stream_from_page(&stream, range_tree_first(data), 0);
+      stream_from_page(&stream, range_tree_first(transform), 0);
       while (!stream_end(&stream)) {
         size_t length = stream_cache_length(&stream)-stream_displacement(&stream);
         fwrite(stream_buffer(&stream), 1, length, pipe);
         stream_next(&stream);
       }
       stream_destroy(&stream);
+      range_tree_destroy(transform, NULL);
     }
     pclose(pipe);
   }
@@ -66,25 +80,28 @@ void clipboard_windows_set(struct range_tree_node* data, int binary) {
 #endif
 
 // Get text from clipboard
-struct range_tree_node* clipboard_get(void) {
+struct range_tree_node* clipboard_get(struct encoding** encoding) {
   struct range_tree_node* data = NULL;
 #ifdef __APPLE__
-  data = clipboard_command_get("pbpaste");
+  data = clipboard_command_get(encoding, "pbpaste");
 #elif __linux__
-  data = clipboard_command_get("xsel -o 2>/dev/null");
+  data = clipboard_command_get(encoding, "xsel -o 2>/dev/null");
 #elif _WIN32
   data = clipboard_windows_get();
 #endif
-  if (data) {
-    if (clipboard) range_tree_destroy(clipboard, NULL);
-    clipboard = data;
+  if (!data) {
+    data = clipboard_data;
   }
 
-  return clipboard;
+  if (encoding && !*encoding) {
+    *encoding = clipboard_encoding?clipboard_encoding:encoding_utf8_static();
+  }
+
+  return data;
 }
 
 // Get text from system clipboard
-struct range_tree_node* clipboard_command_get(const char* command) {
+struct range_tree_node* clipboard_command_get(struct encoding** encoding, const char* command) {
   struct range_tree_node* data = NULL;
   FILE* pipe = popen(command, "r");
   if (pipe) {
@@ -124,6 +141,10 @@ struct range_tree_node* clipboard_command_get(const char* command) {
         } else {
           free(buffer);
         }
+      }
+
+      if (data && encoding && !*encoding) {
+        *encoding = encoding_utf8_static();
       }
     }
     pclose(pipe);

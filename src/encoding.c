@@ -89,6 +89,21 @@ uint8_t* encoding_transform_plain(const uint8_t* buffer, size_t length, struct e
   return raw;
 }
 
+// sequence pages to different encoding
+struct range_tree_node* encoding_transform_page(struct range_tree_node* root, file_offset_t start, file_offset_t length, struct encoding* from, struct encoding* to) {
+  file_offset_t diff;
+  struct range_tree_node* node = range_tree_find_offset(root, start, &diff);
+  if (!node) {
+    return NULL;
+  }
+
+  struct stream stream;
+  stream_from_page(&stream, node, diff);
+  struct range_tree_node* transform = encoding_transform_stream(&stream, from, to, length);
+  stream_destroy(&stream);
+  return transform;
+}
+
 // Check string length (within maximum)
 size_t encoding_strnlen(struct encoding* base, struct stream* stream, size_t size) {
   return encoding_strnlen_based(base, base->next, stream, size);

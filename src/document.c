@@ -42,6 +42,7 @@ int document_search(struct document_file* file, struct document_view* view, stru
     document_view_select_nothing(view, file);
   }
 
+  struct range_tree_node* replacement_transform = NULL;
   file_offset_t offset = view->offset;
   file_offset_t begin = 0;
   file_offset_t replacements = 0;
@@ -64,7 +65,20 @@ int document_search(struct document_file* file, struct document_view* view, stru
       }
 
       replacements++;
-      struct range_tree_node* replacement = regex?search_replacement(search, replace_text, replace_encoding, file->buffer):replace_text;
+      struct range_tree_node* replacement;
+      if (regex) {
+        replacement = search_replacement(search, replace_text, replace_encoding, file->buffer);
+      } else {
+        if (file->encoding==replace_encoding) {
+          replacement = replace_text;
+        } else {
+          if (!replacement_transform) {
+            replacement_transform = encoding_transform_page(replace_text, 0, FILE_OFFSET_T_MAX, replace_encoding, file->encoding);
+          }
+
+          replacement = replacement_transform;
+        }
+      }
       document_file_reduce(&begin, selection_low, selection_high-selection_low);
       document_select_delete(file, view);
 
@@ -196,6 +210,10 @@ int document_search(struct document_file* file, struct document_view* view, stru
   }
 
   search_destroy(search);
+
+  if (replacement_transform) {
+    range_tree_destroy(replacement_transform, NULL);
+  }
 
   if (replacements>0) {
     document_undo_chain(file, file->undos);
@@ -477,14 +495,17 @@ void document_clipboard_copy(struct document_file* file, struct document_view* v
   while (document_view_select_next(view, high, &low, &high)) {
     copy = range_tree_copy_insert(file->buffer, low, copy, range_tree_length(copy), high-low, NULL);
   }
-  clipboard_set(copy, file->binary);
+  clipboard_set(copy, file->binary, file->encoding);
 }
 
 // Paste selection
 void document_clipboard_paste(struct document_file* file, struct document_view* view) {
-  struct range_tree_node* buffer = clipboard_get();
+  struct encoding* encoding = NULL;
+  struct range_tree_node* buffer = clipboard_get(&encoding);
   if (buffer) {
-    document_file_insert_buffer(file, view->offset, buffer);
+    struct range_tree_node* transform = encoding_transform_page(buffer, 0, FILE_OFFSET_T_MAX, encoding, file->encoding);
+    document_file_insert_buffer(file, view->offset, transform);
+    range_tree_destroy(transform, NULL);
   }
 }
 

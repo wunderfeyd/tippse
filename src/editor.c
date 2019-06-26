@@ -1523,7 +1523,7 @@ void editor_search(struct editor* base) {
 
     // TODO: update encoding in search panel? or transform to encoding?
     document_file_delete(base->search_doc, 0, base->search_doc->buffer?base->search_doc->buffer->length:0);
-    struct range_tree_node* buffer = range_tree_copy(base->document->file->buffer, selection_low, selection_high-selection_low);
+    struct range_tree_node* buffer = encoding_transform_page(base->document->file->buffer, selection_low, selection_high-selection_low, base->document->file->encoding, base->panel->file->encoding);
     document_file_insert_buffer(base->search_doc, 0, buffer);
     range_tree_destroy(buffer, NULL);
   }
