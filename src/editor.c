@@ -175,6 +175,8 @@ static struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"documentfloat", TIPPSE_CMD_DOCUMENT_FLOAT, "Reopen document in any split"},
   {"errornext", TIPPSE_CMD_ERROR_NEXT, "Search next error in shell command output"},
   {"errorprev", TIPPSE_CMD_ERROR_PREV, "Search prev error in shell command output"},
+  {"bracketnext", TIPPSE_CMD_BRACKET_NEXT, "Search next bracket of current depth"},
+  {"bracketprev", TIPPSE_CMD_BRACKET_PREV, "Search prev bracket of current depth"},
   {NULL, 0, ""}
 };
 

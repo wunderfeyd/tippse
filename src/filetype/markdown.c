@@ -69,23 +69,23 @@ void file_type_markdown_mark(struct document_text_render_info* render_info) {
     after |= VISUAL_DETAIL_COMMENT0;
   } else if (cp1=='[') {
     if (before_masked==0) {
-      after |= VISUAL_DETAIL_STRING1;
+      after |= VISUAL_DETAIL_STRING2;
     }
   } else if (cp1==']') {
-    if (before_masked==VISUAL_DETAIL_STRING1) {
-      after &= ~VISUAL_DETAIL_STRING1;
+    if (before_masked==VISUAL_DETAIL_STRING2) {
+      after &= ~VISUAL_DETAIL_STRING2;
     }
   } else if (cp1=='`' && cp2=='`' && cp3=='`' && !(before&VISUAL_DETAIL_STOPPED_INDENTATION)) {
     after ^= VISUAL_DETAIL_COMMENT1;
   } else if (cp1=='`') {
     if (before_masked==0) {
-      after |= VISUAL_DETAIL_STRING2;
+      after |= VISUAL_DETAIL_STRING1;
     } else {
-      after &= ~VISUAL_DETAIL_STRING2;
+      after &= ~VISUAL_DETAIL_STRING1;
     }
   }
 
-  if ((before&after)&VISUAL_DETAIL_STRING1) {
+  if ((before&after)&VISUAL_DETAIL_STRING2) {
     flags = VISUAL_FLAG_COLOR_PREPROCESSOR;
     render_info->keyword_length = 1;
   } else if ((before|after)&VISUAL_DETAIL_STRING0) {

@@ -1947,6 +1947,26 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     document_file_delete(file, start, view->offset-start);
     seek = 1;
     selection_keep = 1;
+  } else if (command==TIPPSE_CMD_BRACKET_NEXT) {
+    if (!(out.bracket_match&VISUAL_BRACKET_CLOSE)) {
+      struct document_text_position bracket;
+      document_text_search_brackets(base, splitter, &out, &bracket, 1);
+      if (bracket.type!=VISUAL_SEEK_NONE) {
+        view->offset = bracket.offset;
+        seek = 1;
+        selection_keep = 1;
+      }
+    }
+  } else if (command==TIPPSE_CMD_BRACKET_PREV) {
+    if (!(out.bracket_match&VISUAL_BRACKET_OPEN)) {
+      struct document_text_position bracket;
+      document_text_search_brackets(base, splitter, &out, &bracket, 0);
+      if (bracket.type!=VISUAL_SEEK_NONE) {
+        view->offset = bracket.offset;
+        seek = 1;
+        selection_keep = 1;
+      }
+    }
   } else if (command==TIPPSE_CMD_SELECT_ALL) {
     offset_old = view->selection_start = 0;
     view->offset = view->selection_end = file_size;
@@ -2518,32 +2538,45 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
     return -1;
   }
 
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
-  struct document_text_position in;
   struct document_text_position out;
-  struct document_text_render_info render_info;
+  document_text_search_brackets(base, splitter, cursor, &out, (cursor->bracket_match&VISUAL_BRACKET_OPEN)?1:0);
 
+  if (((cursor->bracket_match&VISUAL_BRACKET_OPEN) && out.offset>cursor->offset) || ((cursor->bracket_match&VISUAL_BRACKET_CLOSE) && out.offset<cursor->offset && out.type!=VISUAL_SEEK_NONE)) {
+    struct document_file* file = splitter->file;
+    struct document_view* view = splitter->view;
+    splitter_hilight(splitter, screen, (int)(cursor->x-view->scroll_x+view->address_width), (int)(cursor->y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
+    splitter_hilight(splitter, screen, (int)(out.x-view->scroll_x+view->address_width), (int)(out.y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
+    return 1;
+  }
+
+  return 0;
+}
+
+// Find bracket next/previous bracket
+void document_text_search_brackets(struct document* base, struct splitter* splitter, struct document_text_position* cursor, struct document_text_position* out, int next) {
+  struct document_text_position in;
   in.clip = 0;
   in.bracket = cursor->bracket_match&VISUAL_BRACKET_MASK;
   in.bracket_search = cursor->depth[in.bracket];
-  if (cursor->bracket_match&VISUAL_BRACKET_OPEN) {
+  if (next) {
     in.type = VISUAL_SEEK_BRACKET_NEXT;
     in.offset = cursor->offset+1;
+    if (!(cursor->bracket_match&VISUAL_BRACKET_OPEN) && !(cursor->bracket_match&VISUAL_BRACKET_CLOSE)) {
+      in.bracket_search--;
+    }
   } else {
     in.type = VISUAL_SEEK_BRACKET_PREV;
     in.offset = (cursor->offset>0)?cursor->offset-1:0;
-    size_t bracket = cursor->bracket_match&VISUAL_BRACKET_MASK;
-    if (bracket==in.bracket) {
-      in.bracket_search--;
-    }
+    in.bracket_search--;
   }
 
+  struct document_file* file = splitter->file;
+  struct document_view* view = splitter->view;
+  struct document_text_render_info render_info;
   document_text_render_clear(&render_info, document_text_line_width(splitter), view->selection);
   while (1) {
     document_text_render_seek(&render_info, file->buffer, file->encoding, &in);
-    int rendered = document_text_collect_span(&render_info, view, file, &in, &out, ~0, 1);
+    int rendered = document_text_collect_span(&render_info, view, file, &in, out, ~0, 1);
     if (rendered==1) {
       break;
     }
@@ -2578,14 +2611,6 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
   }
 
   document_text_render_destroy(&render_info);
-
-  if (((cursor->bracket_match&VISUAL_BRACKET_OPEN) && out.offset>cursor->offset) || ((cursor->bracket_match&VISUAL_BRACKET_CLOSE) && out.offset<cursor->offset && out.type!=VISUAL_SEEK_NONE)) {
-    splitter_hilight(splitter, screen, (int)(cursor->x-view->scroll_x+view->address_width), (int)(cursor->y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
-    splitter_hilight(splitter, screen, (int)(out.x-view->scroll_x+view->address_width), (int)(out.y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
-    return 1;
-  }
-
-  return 0;
 }
 
 // Jump to specified line

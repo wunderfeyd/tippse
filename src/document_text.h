@@ -129,6 +129,7 @@ void document_text_move_block(struct document* base, struct splitter* splitter, 
 void document_text_select_line(struct document* base, struct splitter* splitter);
 
 int document_text_mark_brackets(struct document* base, struct screen* screen, struct splitter* splitter, struct document_text_position* cursor);
+void document_text_search_brackets(struct document* base, struct splitter* splitter, struct document_text_position* cursor, struct document_text_position* out, int next);
 
 void document_text_goto(struct document* base, struct splitter* splitter, position_t line, position_t column);
 file_offset_t document_text_line_start_offset(struct document* base, struct splitter* splitter);
