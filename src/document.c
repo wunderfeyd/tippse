@@ -250,6 +250,7 @@ void document_search_directory(const char* path, struct range_tree_node* search_
   list_insert(entries, entries->last, &copy);
 
   int hits = 0;
+  int hits_lines = 0;
   while (entries->first) {
     struct list_node* insert = entries->last;
     char* scan = *(char**)list_object(insert);
@@ -290,6 +291,7 @@ void document_search_directory(const char* path, struct range_tree_node* search_
           }
           stream_destroy(&needle_stream);
 
+          file_offset_t line_previous = 0;
           file_offset_t line = 1;
           struct stream newlines;
           stream_clone(&newlines, &stream);
@@ -310,25 +312,29 @@ void document_search_directory(const char* path, struct range_tree_node* search_
               }
               line++;
             }
-            printf("%s:%d: ", scan, (int)line_hit);
             hits++;
 
-            int columns = 80;
-            struct stream line_copy;
-            stream_clone(&line_copy, &line_start);
-            while (!stream_end(&line_copy) && columns>0) {
-              columns--;
-              uint8_t index = stream_read_forward(&line_copy);
-              if (index=='\n') {
-                break;
+            if (line_hit!=line_previous) {
+              hits_lines++;
+              printf("%s:%d: ", scan, (int)line_hit);
+              int columns = 80;
+              struct stream line_copy;
+              stream_clone(&line_copy, &line_start);
+              while (!stream_end(&line_copy) && columns>0) {
+                columns--;
+                uint8_t index = stream_read_forward(&line_copy);
+                if (index=='\n') {
+                  break;
+                }
+                if (index>=0x20 || index=='\t') {
+                  printf("%c", index);
+                }
               }
-              if (index>=0x20 || index=='\t') {
-                printf("%c", index);
-              }
+              printf("\n");
+              fflush(stdout);
+              stream_destroy(&line_copy);
+              line_previous = line_hit;
             }
-            printf("\n");
-            fflush(stdout);
-            stream_destroy(&line_copy);
           }
           stream_destroy(&newlines);
           stream_destroy(&line_start);
@@ -349,7 +355,7 @@ void document_search_directory(const char* path, struct range_tree_node* search_
     list_remove(entries, insert);
   }
   list_destroy(entries);
-  printf("... done (%d hit(s) found)\n", hits);
+  printf("... done (%d hit(s) in %d line(s) found)\n", hits, hits_lines);
 }
 
 // Check file properties and return highlight information
