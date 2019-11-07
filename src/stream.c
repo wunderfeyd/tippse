@@ -80,6 +80,12 @@ void stream_reference_page(struct stream* base) {
     base->cache_node = file_cache_invoke(base->buffer->buffer->cache, max, FILE_CACHE_PAGE_SIZE, &base->plain, &cache_length);
 
     file_offset_t page_size = range_tree_length(base->buffer);
+    if (page_size>=base->page_offset) {
+      page_size -= base->page_offset;
+    } else {
+      page_size = 0;
+    }
+
     base->displacement = displacement;
     base->cache_length = page_size>cache_length?cache_length:page_size;
   } else {
