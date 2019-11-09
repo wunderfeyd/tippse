@@ -43,6 +43,21 @@ int document_hex_incremental_update(struct document* base, struct splitter* spli
   return 0;
 }
 
+// Return best fitting line width
+position_t document_hex_width(struct splitter* splitter) {
+  position_t max = ((splitter->client_width-1-splitter->view->address_width)/4);
+  position_t selected = splitter->file->defaults.hex_width;
+  if (selected==0 || max<selected) {
+    return max;
+  }
+
+  if (selected<=0) {
+    selected = 1;
+  }
+
+  return selected;
+}
+
 // Draw entire visible screen space
 void document_hex_draw(struct document* base, struct screen* screen, struct splitter* splitter) {
   struct document_hex* document = (struct document_hex*)base;
@@ -58,13 +73,14 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   int selectionx = file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
   int bookmarkx = file->defaults.colors[VISUAL_FLAG_COLOR_BOOKMARK];
 
+  position_t data_size = document_hex_width(splitter);
   file_offset_t file_size = range_tree_length(file->buffer);
-  view->cursor_x = (position_t)(view->offset%16);
-  view->cursor_y = (position_t)(view->offset/16);
+  view->cursor_x = (position_t)(view->offset%(file_offset_t)data_size);
+  view->cursor_y = (position_t)(view->offset/(file_offset_t)data_size);
   if (view->cursor_y>=view->scroll_y+splitter->client_height) {
     view->scroll_y = view->cursor_y-splitter->client_height+1;
   }
-  view->scroll_y_max = (position_t)(file_size/16)+1;
+  view->scroll_y_max = (position_t)(file_size/(file_offset_t)data_size)+1;
   if (view->cursor_y<view->scroll_y) {
     view->scroll_y = view->cursor_y;
   }
@@ -82,7 +98,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
     view->show_scrollbar = 1;
   }
 
-  file_offset_t offset = (file_offset_t)view->scroll_y*16;
+  file_offset_t offset = (file_offset_t)(view->scroll_y*data_size);
   file_offset_t displacement;
   struct range_tree_node* buffer = range_tree_find_offset(file->buffer, offset, &displacement);
   struct stream byte_stream;
@@ -117,7 +133,6 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
 
   size_t char_size = 1;
   for (int y = 0; y<splitter->client_height; y++) {
-    size_t data_size = 16;
     char line[1024];
     int size = sprintf(line, "%llx", (long long unsigned int)offset);
 
@@ -132,7 +147,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
         start--;
       }
 
-      int marked = range_tree_marked(file->bookmarks, offset, data_size, TIPPSE_INSERTER_MARK);
+      int marked = range_tree_marked(file->bookmarks, offset, (file_offset_t)data_size, TIPPSE_INSERTER_MARK);
 
       splitter_drawtext(splitter, screen, x, (int)y, line+start, (size_t)size, file->defaults.colors[marked?VISUAL_FLAG_COLOR_BOOKMARK:VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
     }
@@ -143,7 +158,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
 
     for (size_t delta = 0; delta<data_size; delta++) {
       int x_bytes = view->address_width+(int)(delta*3);
-      int x_characters = view->address_width+(16*3)+(int)delta;
+      int x_characters = view->address_width+(data_size*3)+(int)delta;
 
       if (offset<file_size) {
         struct unicode_sequence* sequence;
@@ -225,6 +240,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   struct document_view* view = splitter->view;
 
   file_offset_t file_size = range_tree_length(file->buffer);
+  position_t data_size = document_hex_width(splitter);
   file_offset_t offset_old = view->offset;
   int selection_keep = 0;
   file_offset_t selection_low;
@@ -232,27 +248,27 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   document_view_select_next(view, 0, &selection_low, &selection_high);
 
   if (command==TIPPSE_CMD_UP || command==TIPPSE_CMD_SELECT_UP) {
-    view->offset-=16;
+    view->offset-=(file_offset_t)data_size;
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_DOWN || command==TIPPSE_CMD_SELECT_DOWN) {
-    view->offset+=16;
+    view->offset+=(file_offset_t)data_size;
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_LEFT || command==TIPPSE_CMD_SELECT_LEFT) {
     view->offset--;
   } else if (command==TIPPSE_CMD_RIGHT || command==TIPPSE_CMD_SELECT_RIGHT) {
     view->offset++;
   } else if (command==TIPPSE_CMD_PAGEUP || command==TIPPSE_CMD_SELECT_PAGEUP) {
-    view->offset -= (file_offset_t)(splitter->client_height*16);
+    view->offset -= (file_offset_t)(splitter->client_height*data_size);
     view->scroll_y -= splitter->client_height;
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_PAGEDOWN || command==TIPPSE_CMD_SELECT_PAGEDOWN) {
-    view->offset += (file_offset_t)(splitter->client_height*16);
+    view->offset += (file_offset_t)(splitter->client_height*data_size);
     view->scroll_y += splitter->client_height;
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_FIRST || command==TIPPSE_CMD_SELECT_FIRST) {
-    view->offset -= view->offset%16;
+    view->offset -= view->offset%(file_offset_t)data_size;
   } else if (command==TIPPSE_CMD_LAST || command==TIPPSE_CMD_SELECT_LAST) {
-    view->offset += 15-(view->offset%16);
+    view->offset += (file_offset_t)data_size-1-(view->offset%(file_offset_t)data_size);
   } else if (command==TIPPSE_CMD_HOME || command==TIPPSE_CMD_SELECT_HOME) {
     view->offset = 0;
     view->show_scrollbar = 1;
@@ -263,11 +279,11 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     if (button&TIPPSE_MOUSE_LBUTTON) {
       document_hex_cursor_from_point(base, splitter, x, y, &view->offset);
     } else if (button&TIPPSE_MOUSE_WHEEL_UP) {
-      view->offset -= (file_offset_t)((splitter->client_height/3)*16);
+      view->offset -= (file_offset_t)((splitter->client_height/3)*data_size);
       view->scroll_y -= splitter->client_height/3;
       view->show_scrollbar = 1;
     } else if (button&TIPPSE_MOUSE_WHEEL_DOWN) {
-      view->offset += (file_offset_t)((splitter->client_height/3)*16);
+      view->offset += (file_offset_t)((splitter->client_height/3)*data_size);
       view->scroll_y += splitter->client_height/3;
       view->show_scrollbar = 1;
     }
@@ -406,20 +422,21 @@ void document_hex_cursor_from_point(struct document* base, struct splitter* spli
   struct document_view* view = splitter->view;
 
   file_offset_t file_size = range_tree_length(file->buffer);
+  position_t data_size = document_hex_width(splitter);
   if (y<0) *offset = 0;
   if (y>=0 && y<splitter->client_height) {
     int byte = 0;
-    if (x>=view->address_width && x<view->address_width+(3*16)) {
+    if (x>=view->address_width && x<view->address_width+(3*data_size)) {
       byte = (x-view->address_width)/3;
       document->mode = DOCUMENT_HEX_MODE_BYTE;
-    } else if (x>=view->address_width+(3*16) && x<view->address_width+(3*16)+16) {
-      byte = (x-(view->address_width+(3*16)));
+    } else if (x>=view->address_width+(3*data_size) && x<view->address_width+(3*data_size)+data_size) {
+      byte = (x-(view->address_width+(3*data_size)));
       document->mode = DOCUMENT_HEX_MODE_CHARACTER;
-    } else if (x>=view->address_width+(3*16)+16) {
-      byte = 16;
+    } else if (x>=view->address_width+(3*data_size)+data_size) {
+      byte = (int)data_size;
     }
 
-    *offset = (file_offset_t)(((view->scroll_y+y)*16)+byte);
+    *offset = (file_offset_t)(((view->scroll_y+y)*data_size)+byte);
     if (*offset>file_size) *offset = file_size;
   }
 }
@@ -467,7 +484,7 @@ void document_hex_convert(codepoint_t* codepoints, size_t* length, codepoint_t* 
     show = show_invisibles?0x00bb:cp_default;
   } else if (cp==' ') {
     show = show_invisibles?0x22c5:' ';
-  } else if (cp<32 || visuals[0]==0xfffd) {
+  } else if (cp<32 || visuals[0]==0xfffd || cp==UNICODE_CODEPOINT_BAD) {
     show = cp_default;
   }
 
