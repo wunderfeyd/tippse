@@ -156,7 +156,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
     default_sequence.length = 1;
     default_sequence.cp[0] = 0;
 
-    for (size_t delta = 0; delta<data_size; delta++) {
+    for (size_t delta = 0; delta<(size_t)data_size; delta++) {
       int x_bytes = view->address_width+(int)(delta*3);
       int x_characters = view->address_width+(data_size*3)+(int)delta;
 
@@ -186,7 +186,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
         }
         int marked = (bookmark && (bookmark->inserter&TIPPSE_INSERTER_MARK))?1:0;
 
-        int size = sprintf(line, (delta!=data_size)?"%02x ":"%02x", byte);
+        int size = sprintf(line, (delta!=(size_t)data_size)?"%02x ":"%02x", byte);
         if (!selected) {
           splitter_drawtext(splitter, screen, x_bytes, y, line, (size_t)size, marked?bookmarkx:foreground, background);
         } else {

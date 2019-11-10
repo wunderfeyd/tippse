@@ -41,12 +41,12 @@ tmp/tools/convert: tmp/tools/convert.o
 tmp/%.h: %.md tmp/tools/convert
 	@echo MN $<
 	@mkdir -p $(dir $@)
-	@tmp/tools/convert --bin2c $< $@ file_$(notdir $(basename $@))
+	@tmp/tools/convert --bin2c $< $@ file_$(notdir $(basename $@)) keep
 
 tmp/src/config.default.h: src/config.default.txt tmp/tools/convert
 	@echo CO $<
 	@mkdir -p $(dir $@)
-	@tmp/tools/convert --bin2c $< $@ file_$(subst .,_,$(notdir $(basename $@)))
+	@tmp/tools/convert --bin2c $< $@ file_$(subst .,_,$(notdir $(basename $@))) reduce
 
 $(TARGET): $(OBJS)
 	@echo LD $(TARGET)

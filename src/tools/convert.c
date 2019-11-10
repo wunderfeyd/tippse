@@ -44,6 +44,41 @@ void write_file_bytes(const char* to, const char* name, uint8_t* output, size_t 
   }
 }
 
+// Strip unwanted characters
+uint8_t* reduce_file(uint8_t* buffer, size_t* size) {
+  size_t size_org = *size;
+  int newline = 1;
+  int escape = 0;
+  int string = 0;
+  size_t size_new = 0;
+  uint8_t* buffer_in = buffer;
+  uint8_t* buffer_out = buffer;
+  while (size_org>0) {
+    uint8_t c = *buffer_in++;
+    if (!string && !escape && (c=='\r' || c=='\n' || ((c=='\t' || c==' ' || c==',') && newline))) {
+      newline = 1;
+    } else {
+      if (c=='"' && !escape) {
+        string = !string;
+      }
+
+      if (c=='\\') {
+        escape = 1;
+      } else {
+        escape = 0;
+      }
+
+      newline = (c=='{' || c=='}')?1:0;
+      *buffer_out++ = c;
+      size_new++;
+    }
+
+    size_org--;
+  }
+
+  *size = size_new;
+}
+
 // Skip to next line
 void next_line(uint8_t* buffer, size_t size, size_t* offset) {
   while (*offset<size && buffer[*offset]!='\n') {
@@ -358,11 +393,15 @@ void convert_transform(const char* from, const char* to, const char* name, const
   free(output);
 }
 
-void build_manual(const char* from, const char* to, const char* name) {
+void build_manual(const char* from, const char* to, const char* name, int reduce) {
   size_t size;
   uint8_t* buffer = read_file(from, &size);
   if (!buffer) {
     return;
+  }
+
+  if (reduce) {
+    reduce_file(buffer, &size);
   }
 
   write_file_bytes(to, name, buffer, size);
@@ -379,8 +418,8 @@ int main(int argc, const char** argv) {
     convert_range_param(5, "download/UnicodeData.txt", "output/unicode_letters.h", "unicode_letters", "L", NULL, NULL, NULL);
     convert_transform("download/CaseFolding.txt", "output/unicode_case_folding.h", "unicode_case_folding", "C", "F", 1, 0, 2);
     convert_transform("download/NormalizationTest.txt", "output/unicode_normalization.h", "unicode_normalization", NULL, NULL, 0, 1, 2);
-  } else if (argc>=5 && strcmp(argv[1], "--bin2c")==0) {
-    build_manual(argv[2], argv[3], argv[4]);
+  } else if (argc>=6 && strcmp(argv[1], "--bin2c")==0) {
+    build_manual(argv[2], argv[3], argv[4], (strcmp(argv[5], "reduce")==0)?1:0);
   }
 
   return 0;
