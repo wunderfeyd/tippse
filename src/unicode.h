@@ -51,6 +51,7 @@ extern codepoint_table_t unicode_hints[UNICODE_HINT_MAX];
 void unicode_init(void);
 void unicode_free(void);
 void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie** reverse);
+void unicode_decode_transform_stream(size_t count, struct stream* ref, codepoint_t* sum, codepoint_t* last);
 void unicode_decode_transform_append(struct trie* forward, size_t froms, codepoint_t* from, size_t tos, codepoint_t* to);
 void unicode_decode_rle(uint16_t* rle, codepoint_table_t mask);
 void unicode_update_combining_mark(codepoint_t codepoint);

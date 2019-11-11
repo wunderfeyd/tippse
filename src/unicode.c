@@ -116,23 +116,8 @@ void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie*
       froms = (size_t)((head>>3)&0x7);
       tos = (size_t)((head>>0)&0x7);
 
-      for (size_t n = 0; n<froms; n++) {
-        size_t used = 0;
-        from[n] = encoding_utf8_decode(NULL, &ref, &used);
-        if (from[n]<0x20) {
-          from[n] += from_before[n]-0x10;
-        }
-        from_before[n] = from[n];
-      }
-
-      for (size_t n = 0; n<tos; n++) {
-        size_t used = 0;
-        to[n] = encoding_utf8_decode(NULL, &ref, &used);
-        if (to[n]<0x20) {
-          to[n] += to_before[n]-0x10;
-        }
-        to_before[n] = to[n];
-      }
+      unicode_decode_transform_stream(froms, &ref, &from[0], &from_before[0]);
+      unicode_decode_transform_stream(tos, &ref, &to[0], &to_before[0]);
 
       unicode_decode_transform_append(*forward, froms, &from[0], tos, &to[0]);
       unicode_decode_transform_append(*reverse, tos, &to[0], froms, &from[0]);
@@ -146,6 +131,18 @@ void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie*
   }
 
   stream_destroy(&stream);
+}
+
+// Stream literals
+void unicode_decode_transform_stream(size_t count, struct stream* ref, codepoint_t* sum, codepoint_t* last) {
+  for (size_t n = 0; n<count; n++) {
+    size_t used = 0;
+    sum[n] = encoding_utf8_decode(NULL, ref, &used);
+    if (sum[n]<0x20) {
+      sum[n] += last[n]-0x10;
+    }
+    last[n] = sum[n];
+  }
 }
 
 // Append transform to trie and assign result
@@ -206,11 +203,12 @@ struct unicode_sequence* unicode_transform(struct trie* transformation, struct u
   struct trie_node* parent = NULL;
   while (1) {
     struct unicode_sequence* sequence = unicode_sequencer_find(sequencer, offset+read);
-    // TODO: codepoint!=sequence
-    parent = trie_find_codepoint(transformation, parent, sequence->cp[0]);
+    for (size_t n = 0; n<sequence->length; n++) {
+      parent = trie_find_codepoint(transformation, parent, sequence->cp[n]);
 
-    if (!parent) {
-      return NULL;
+      if (!parent) {
+        return NULL;
+      }
     }
 
     *length += sequence->size;
