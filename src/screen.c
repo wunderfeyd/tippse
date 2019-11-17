@@ -90,10 +90,13 @@ struct screen* screen_create(void) {
   base->cursor_x = -1;
   base->cursor_y = -1;
   base->resize_check = -1;
+  base->resize_width = 1;
+  base->resize_height = 1;
 
 #ifdef _WINDOWS
   base->encoding = encoding_utf16le_create();
-#else
+#endif
+#ifdef _ANSI_POSIX
   base->encoding = encoding_utf8_create();
 
   tcgetattr(STDIN_FILENO, &base->termios_original);
@@ -106,13 +109,15 @@ struct screen* screen_create(void) {
 
   UNUSED(write(STDOUT_FILENO, screen_ansi_init, strlen(screen_ansi_init)));
 #endif
+#ifdef _EMSCRIPTEN
+  base->encoding = encoding_utf8_create();
+#endif
   return base;
 }
 
 // Destroy screen
 void screen_destroy(struct screen* base) {
-#ifdef _WINDOWS
-#else
+#ifdef _ANSI_POSIX
   UNUSED(write(STDOUT_FILENO, screen_ansi_restore, strlen(screen_ansi_restore)));
   tcsetattr(STDIN_FILENO, TCSANOW, &base->termios_original);
 #endif
@@ -135,11 +140,16 @@ void screen_check(struct screen* base) {
   GetClientRect(base->window, &r);
   width = (r.right-r.left)/base->font_width;
   height = (r.bottom-r.top)/base->font_height;
-#else
+#endif
+#ifdef _ANSI_POSIX
   struct winsize w;
   ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
   width = w.ws_col;
   height = w.ws_row;
+#endif
+#ifdef _EMSCRIPTEN
+  width = base->resize_width;
+  height = base->resize_height;
 #endif
 
   if (base->width!=width || base->height!=height) {
@@ -174,10 +184,15 @@ int screen_resized(struct screen* base) {
   return (screen_resize_counter!=base->resize_check)?1:0;
 }
 
+// Set size from external source
+void screen_resize(struct screen* base, int width, int height) {
+  base->resize_width = width;
+  base->resize_height = height;
+}
+
 // Update character widths with real terminal display width
 void screen_character_width_detect(struct screen* base) {
-#ifdef _WINDOWS
-#else
+#ifdef _ANSI_POSIX
   codepoint_t cps = 0x10000;
   char* output = (char*)malloc((size_t)(24*cps));
   char* pos = output;
@@ -210,7 +225,7 @@ void screen_character_width_detect(struct screen* base) {
 #endif
 }
 
-#ifndef _WINDOWS
+#ifdef _ANSI_POSIX
 // Put char on backbuffer
 void screen_draw_char(struct screen* base, char** pos, int n, int* w, int* foreground_old, int* background_old) {
   if ((n/base->width)!=((*w)/base->width)) {
@@ -398,7 +413,8 @@ void screen_draw(struct screen* base, HDC context, int redraw, int cursor) {
     }
   }
 }
-#else
+#endif
+#ifdef _ANSI_POSIX
 // Output screen difference data
 void screen_draw(struct screen* base) {
   int foreground_old = -3;
@@ -470,12 +486,80 @@ void screen_draw(struct screen* base) {
 }
 #endif
 
+#ifdef _EMSCRIPTEN
+// Output screen difference data
+void screen_draw(struct screen* base) {
+  int cursor = 1;
+  int redraw = 0;
+  int n = 0;
+  for (int y = 0; y<base->height; y++) {
+    for (int x = 0; x<base->width; x++) {
+      struct screen_char* v = &base->visible[n];
+      struct screen_char* c = &base->buffer[n++];
+
+      int modified = 0;
+      if (c->modified) {
+        if (v->sequence.length!=c->sequence.length) {
+          modified = 1;
+        } else {
+          for (size_t check = 0; check<c->sequence.length; check++) {
+            if (v->sequence.cp[check]!=c->sequence.cp[check]) {
+              modified = 1;
+              break;
+            }
+          }
+        }
+        c->modified = 0;
+      }
+
+      if (modified) {
+        v->sequence.length = c->sequence.length;
+        for (size_t copy = 0; copy<c->sequence.length; copy++) {
+          v->sequence.cp[copy] = c->sequence.cp[copy];
+        }
+
+        v->pos = &v->codes[0];
+        for (size_t copy = 0; copy<v->sequence.length; copy++) {
+          v->pos += (*base->encoding->encode)(NULL, v->sequence.cp[copy], v->pos, SIZE_T_MAX);
+        }
+      }
+
+      int index_background = c->background;
+      int index_foreground = c->foreground;
+
+      if (modified || v->foreground!=index_foreground || v->background!=index_background || redraw) {
+        v->foreground = index_foreground;
+        v->background = index_background;
+
+        int color_foreground = index_foreground;
+        if (index_foreground>=0) {
+          struct screen_rgb* foreground = &rgb_index[index_foreground];
+          color_foreground = (foreground->r<<16)+(foreground->g<<8)+foreground->b;
+        }
+
+        int color_background = index_background;
+        if (index_background>=0) {
+          struct screen_rgb* background = &rgb_index[index_background];
+          color_background = (background->r<<16)+(background->g<<8)+background->b;
+        }
+
+        EM_ASM_({tippse_draw_char($0, $1, $2, $3, $4, $5);}, x, y, (char*)&v->codes[0], (int)(v->pos-(&v->codes[0])), color_foreground, color_background);
+      }
+    }
+  }
+}
+#endif
+
 void screen_update(struct screen* base) {
 #ifdef _WINDOWS
   RECT r;
   GetClientRect(base->window, &r);
   InvalidateRect(base->window, &r, FALSE);
-#else
+#endif
+#ifdef _ANSI_POSIX
+  screen_draw(base);
+#endif
+#ifdef _EMSCRIPTEN
   screen_draw(base);
 #endif
 }

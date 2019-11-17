@@ -88,7 +88,7 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->config = config?config_create():NULL;
   base->type = file_type_text_create(base->config, "");
   base->view = document_view_create();
-#ifndef _WINDOWS
+#ifdef _ANSI_POSIX
   base->pipefd[0] = -1;
   base->pipefd[1] = -1;
 #endif
@@ -138,7 +138,7 @@ void document_file_clear(struct document_file* base, int all) {
 // Destroy file operations
 void document_file_destroy(struct document_file* base) {
   document_file_clear(base, 1);
-#ifndef _WINDOWS
+#ifdef _ANSI_POSIX
   document_file_close_pipe(base);
 #endif
   document_undo_empty(base, base->undos);
@@ -191,7 +191,7 @@ void document_file_encoding(struct document_file* base, struct encoding* encodin
   base->encoding = encoding;
 }
 
-#ifndef _WINDOWS
+#ifdef _ANSI_POSIX
 // Create another process or thread and route the output into the file
 void document_file_create_pipe(struct document_file* base) {
   range_tree_destroy(base->buffer, base);

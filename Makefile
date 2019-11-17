@@ -1,12 +1,17 @@
 CC_HOST:=$(CC)
 
-ifeq ($(OS),windows)
+ifeq ($(OS),emscripten)
+	CC=emcc
+	CFLAGS=-std=gnu11 -O3 -Oz -Wall -Wextra -Wno-unused-parameter -Wsign-conversion -fstrict-aliasing -D_EMSCRIPTEN -D_FILE_OFFSET_BITS=64 -s WASM=1 -s ASSERTIONS=1 -s ALLOW_MEMORY_GROWTH=1
+	LIBS=
+	TARGET=tippse.js
+else ifeq ($(OS),windows)
 	CC=i686-w64-mingw32-gcc
 	CFLAGS=-std=gnu11 -O2 -Wall -Wextra -Wno-unused-parameter -Wsign-conversion -fstrict-aliasing -D_WINDOWS -D_FILE_OFFSET_BITS=64
 	LIBS=-lshell32 -lgdi32 -Wl,--subsystem,windows
 	TARGET=tippse.exe
 else
-	CFLAGS=-std=gnu11 -O2 -Wall -Wextra -Wno-padded -Wno-shadow -Wno-unused-parameter -Wsign-conversion -fstrict-aliasing -D_FILE_OFFSET_BITS=64
+	CFLAGS=-std=gnu11 -O2 -Wall -Wextra -Wno-padded -Wno-shadow -Wno-unused-parameter -Wsign-conversion -fstrict-aliasing -D_ANSI_POSIX -D_FILE_OFFSET_BITS=64
 	LIBS=
 	TARGET=tippse
 endif

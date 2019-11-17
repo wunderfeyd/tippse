@@ -89,7 +89,7 @@ struct document_file {
   struct trie* autocomplete_build;      // auto complete build tree
   int autocomplete_rescan;              // file was changed rescan entire document
 
-#ifndef _WINDOWS
+#ifdef _ANSI_POSIX
   int pipefd[2];                        // Pipe to child process
   pid_t pid;                            // Child process id
 #endif

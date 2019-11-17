@@ -1,6 +1,9 @@
 #ifndef TIPPSE_SCREEN_H
 #define TIPPSE_SCREEN_H
 
+#ifdef _EMSCRIPTEN
+#include <emscripten.h>
+#endif
 #include <stdlib.h>
 #ifdef _WINDOWS
 #include <windows.h>
@@ -29,6 +32,10 @@ struct screen_char {
   wchar_t codes[16];          // transformed output
   uint8_t* pos;               // sequenceation end
 #endif
+#ifdef _EMSCRIPTEN
+  uint8_t codes[16];         // transformed output
+  uint8_t* pos;               // sequenceation end
+#endif
 };
 
 struct screen_rgb {
@@ -43,6 +50,8 @@ struct screen {
   int cursor_x;                     // Current cursor placement
   int cursor_y;                     // Current cursor placement
   int resize_check;                 // Resize counter on last check
+  int resize_width;                 // Screen size x direction
+  int resize_height;                // Screen size y direction
   struct screen_char* buffer;       // Back buffer to hold the complete screen as it should be presented
   struct screen_char* visible;      // Buffer that holds the screen as it is currently presented
   char* title;                      // Console window title
@@ -62,6 +71,7 @@ void screen_destroy(struct screen* base);
 struct screen* screen_create(void);
 void screen_check(struct screen* base);
 int screen_resized(struct screen* base);
+void screen_resize(struct screen* base, int width, int height);
 void screen_character_width_detect(struct screen* base);
 void screen_draw_char(struct screen* base, char** pos, int n, int* w, int* foreground_old, int* background_old);
 void screen_draw_update(struct screen* base, char** pos, int old, int n, int* w, int* foreground_old, int* background_old);

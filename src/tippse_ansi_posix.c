@@ -1,6 +1,6 @@
 // Tippse - A fast simple editor - Ansi - Posix
 
-#ifndef _WINDOWS
+#ifdef _ANSI_POSIX
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>

@@ -361,7 +361,7 @@ void editor_draw(struct editor* base) {
   }
 
   int running = 0;
-#ifndef _WINDOWS
+#ifdef _ANSI_POSIX
   struct list_node* docs = base->documents->first;
   while (docs && !running) {
     running |= ((*(struct document_file**)list_object(docs))->pipefd[0]!=-1)?1:0;
@@ -566,7 +566,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     document_search(base->document->file, base->document->view, base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 0, base->search_ignore_case, base->search_regex, 1, 0);
   } else if (command==TIPPSE_CMD_SEARCH_DIRECTORY) {
     struct splitter* assign = editor_document_splitter(base, base->document, base->search_results_doc);
-#ifndef _WINDOWS
+#ifdef _ANSI_POSIX
     if (assign->file->pipefd[1]==-1 && assign->file==base->search_results_doc) {
       document_file_create_pipe(assign->file);
       if (assign->file->pid==0) {
@@ -697,7 +697,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     editor_open_error(base, 1);
   } else if (command==TIPPSE_CMD_SHELL) {
     struct splitter* assign = editor_document_splitter(base, base->document, base->compiler_doc);
-#ifndef _WINDOWS
+#ifdef _ANSI_POSIX
     if (assign->file->pipefd[1]==-1 && assign->file==base->compiler_doc) {
       if (arguments && arguments->length>1) {
         struct trie_node* parent = config_find_ascii(base->focus->file->config, "/shell/");
@@ -717,7 +717,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     }
 #endif
   } else if (command==TIPPSE_CMD_SHELL_KILL) {
-#ifndef _WINDOWS
+#ifdef _ANSI_POSIX
     if (base->document->file->pipefd[1]!=-1) {
       document_file_kill_pipe(base->document->file);
     }
