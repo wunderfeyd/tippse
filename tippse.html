@@ -2,47 +2,17 @@
 <head>
   <style>
     body {background-color:#000;}
-    #tippse {width:100%; height:100%; overflow:hidden; border:1px solid #000; margin:0; padding:0; position:relative; background-color:#000;}
-    #tippse_monospaced {font-family:monospace; position:absolute; margin:0; padding:0; top:-10em; left:-10em;}
-    .tippse_text {font-family:monospace; position:absolute; margin:0; padding:0;}
+    #tippse {font-family:monospace; width:100%; height:100%; overflow:hidden; border:1px solid #000; margin:0; padding:0; position:relative; background-color:#000;}
+    #tippse_display {width:100%; height:100%; overflow:hidden; margin:0; padding:0;}
+    #tippse_cursor {left:0; top:0; position:absolute; height:1em; width:1px; background-color:#f00; z-index:2;}
+    #tippse_monospaced {position:absolute; margin:0; padding:0; top:-10em; left:-10em;}
+    .tippse_text {position:absolute; margin:0; padding:0;}
   </style>
   <script type="text/javascript">
     var TIPPSE_KEY_MOD_SHIFT = 0x1000;
     var TIPPSE_KEY_MOD_CTRL = 0x2000;
     var TIPPSE_KEY_MOD_ALT = 0x4000;
     var TIPPSE_KEY_MASK = 0xfff;
-
-    var TIPPSE_KEY_CHARACTER = 0;
-    var TIPPSE_KEY_UP = 1;
-    var TIPPSE_KEY_DOWN = 2;
-    var TIPPSE_KEY_RIGHT = 3;
-    var TIPPSE_KEY_LEFT = 4;
-    var TIPPSE_KEY_PAGEUP = 5;
-    var TIPPSE_KEY_PAGEDOWN = 6;
-    var TIPPSE_KEY_BACKSPACE = 7;
-    var TIPPSE_KEY_DELETE = 8;
-    var TIPPSE_KEY_INSERT = 9;
-    var TIPPSE_KEY_FIRST = 10;
-    var TIPPSE_KEY_LAST = 11;
-    var TIPPSE_KEY_TAB = 12;
-    var TIPPSE_KEY_MOUSE = 13;
-    var TIPPSE_KEY_RETURN = 14;
-    var TIPPSE_KEY_BRACKET_PASTE_START = 15;
-    var TIPPSE_KEY_BRACKET_PASTE_STOP = 16;
-    var TIPPSE_KEY_ESCAPE = 17;
-    var TIPPSE_KEY_F1 = 18;
-    var TIPPSE_KEY_F2 = 19;
-    var TIPPSE_KEY_F3 = 20;
-    var TIPPSE_KEY_F4 = 21;
-    var TIPPSE_KEY_F5 = 22;
-    var TIPPSE_KEY_F6 = 23;
-    var TIPPSE_KEY_F7 = 24;
-    var TIPPSE_KEY_F8 = 25;
-    var TIPPSE_KEY_F9 = 26;
-    var TIPPSE_KEY_F10 = 27;
-    var TIPPSE_KEY_F11 = 28;
-    var TIPPSE_KEY_F12 = 29;
-    var TIPPSE_KEY_MAX = 30;
 
     var tippse_key_state = {};
     var tippse_key_map = {
@@ -60,26 +30,34 @@
       "Tab":12,
       "Enter":14,
       "Escape":17,
-      "F1":17,
-      "F2":17,
-      "F3":17,
-      "F4":17,
-      "F5":17,
-      "F6":17,
-      "F7":17,
-      "F8":17,
-      "F9":17,
-      "F10":17,
-      "F11":17,
-      "F12":17
+      "F1":18,
+      "F2":19,
+      "F3":20,
+      "F4":21,
+      "F5":22,
+      "F6":23,
+      "F7":24,
+      "F8":25,
+      "F9":26,
+      "F10":27,
+      "F11":28,
+      "F12":29
     };
+
+    var tippse_cursor_active = false;
+    var tippse_cursor_x = 0;
+    var tippse_cursor_y = 0;
 
     var tippse_screen = [];
     var tippse_char_size_x = 0;
     var tippse_char_size_y = 0;
     function tippse_resize() {
       var monospaced = document.getElementById("tippse_monospaced");
-      var draw_area = document.getElementById("tippse");
+      var draw_area = document.getElementById("tippse_display");
+      while (draw_area.firstChild) {
+        draw_area.removeChild(draw_area.firstChild);
+      }
+
       tippse_char_size_x = monospaced.offsetWidth;
       tippse_char_size_y = monospaced.offsetHeight;
       var width = draw_area.offsetWidth/tippse_char_size_x;
@@ -94,7 +72,7 @@
 
     function tippse_keydown(e) {
       console.log("keydown", e.key);
-      if (e.key=="Control" || e.key=="Shift" || e.key=="Alt") {
+      if (e.key=="Control" || e.key=="Shift" || e.key=="Alt" || e.key=="AltGraph") {
         tippse_key_state[e.key] = true;
       } else {
         var code = 0;
@@ -134,6 +112,7 @@
       setInterval(tippse_tick, 100);
       document.addEventListener('keydown', tippse_keydown);
       document.addEventListener('keyup', tippse_keyup);
+      window.addEventListener('resize', tippse_resize);
     }
 
     function tippse_draw_char(x, y, text, length, foreground, background) {
@@ -146,29 +125,47 @@
         e.className = "tippse_text";
         e.style.top = y*tippse_char_size_y+"px";
         e.style.left = x*tippse_char_size_x+"px";
-        document.getElementById("tippse").appendChild(e);
+        document.getElementById("tippse_display").appendChild(e);
         tippse_screen[y][x] = e;
+      }
+
+      if (background==-1) {
+        background = foreground;
+        foreground = -2;
       }
 
       if (foreground==-1) {
         foreground = 0xc0c0c0;
       } else if (foreground==-2) {
         foreground = 0x000000;
-      } else if (foreground==-3) {
-        foreground = 0x000000;
       }
 
-      if (background<0 || background>0xffffff) {
-        background = 0x000000;
+      if (background==-1) {
+        background = 0xc0c0c0;
       } else if (background==-2) {
         background = 0x000000;
-      } else if (background==-3) {
-        background = 0x000000;
       }
 
-      tippse_screen[y][x].textContent = UTF8ToString(text, length);
-      tippse_screen[y][x].style.color = "#"+foreground.toString(16);
-      tippse_screen[y][x].style.backgroundColor = "#"+background.toString(16);
+      var copy = UTF8ToString(text, length);
+      if (copy=="" || copy==" ") {
+        copy = "\xa0";
+      }
+
+      tippse_screen[y][x].textContent = copy;
+      tippse_screen[y][x].style.color = "#"+(foreground+0x1000000).toString(16).substr(-6);
+      tippse_screen[y][x].style.backgroundColor = "#"+(background+0x1000000).toString(16).substr(-6);
+    }
+
+    function tippse_cursor(x, y, active) {
+      if (active!=tippse_cursor_active || x!=tippse_cursor_x || y!=tippse_cursor_y) {
+        tippse_cursor_active = active;
+        tippse_cursor_x = x;
+        tippse_cursor_y = y;
+        var cursor = document.getElementById("tippse_cursor");
+        cursor.style.left = (x*tippse_char_size_x)+"px";
+        cursor.style.top = (y*tippse_char_size_y)+"px";
+        cursor.style.height = (active?tippse_char_size_y:0)+"px";
+      }
     }
   </script>
   <script type="text/javascript" src="tippse.js"></script>
@@ -176,6 +173,8 @@
 <body>
 <div id="tippse">
 <span id="tippse_monospaced">&#xa0;</span>
+<div id="tippse_display"></div>
+<div id="tippse_cursor"></div>
 </div>
 </body>
 </html>

@@ -485,12 +485,10 @@ void screen_draw(struct screen* base) {
   free(output);
 }
 #endif
-
 #ifdef _EMSCRIPTEN
 // Output screen difference data
 void screen_draw(struct screen* base) {
-  int cursor = 1;
-  int redraw = 0;
+  EM_ASM_({tippse_cursor($0, $1, $2);}, base->cursor_x, base->cursor_y, (base->cursor_x>=0 && base->cursor_y>=0 && base->cursor_x<base->width && base->cursor_y<base->height)?1:0);
   int n = 0;
   for (int y = 0; y<base->height; y++) {
     for (int x = 0; x<base->width; x++) {
@@ -527,7 +525,7 @@ void screen_draw(struct screen* base) {
       int index_background = c->background;
       int index_foreground = c->foreground;
 
-      if (modified || v->foreground!=index_foreground || v->background!=index_background || redraw) {
+      if (modified || v->foreground!=index_foreground || v->background!=index_background) {
         v->foreground = index_foreground;
         v->background = index_background;
 

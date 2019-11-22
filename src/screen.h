@@ -79,7 +79,11 @@ void screen_title(struct screen* base, const char* title);
 void screen_cursor(struct screen* base, int x, int y);
 #ifdef _WINDOWS
 void screen_draw(struct screen* base, HDC context, int redraw, int cursor);
-#else
+#endif
+#ifdef _ANSI_POSIX
+void screen_draw(struct screen* base);
+#endif
+#ifdef _ANSI_EMSCRIPTEN
 void screen_draw(struct screen* base);
 #endif
 void screen_update(struct screen* base);
