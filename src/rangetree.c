@@ -181,7 +181,6 @@ void range_tree_exchange(struct range_tree_node* node, struct range_tree_node* o
 struct range_tree_node* range_tree_rotate(struct range_tree_node* node, int side) {
   struct range_tree_node* parent = node->parent;
   struct range_tree_node* child = node->side[side];
-  //struct range_tree_node* redo = node;
   child->parent = parent;
   node->side[side] = child->side[side^1];
   child->side[side^1]->parent = node;
@@ -190,8 +189,6 @@ struct range_tree_node* range_tree_rotate(struct range_tree_node* node, int side
   range_tree_exchange(parent, node, child);
   range_tree_update_calc(node);
   node = child;
-  //range_tree_balance(redo);
-
   return node;
 }
 
@@ -206,7 +203,6 @@ struct range_tree_node* range_tree_balance(struct range_tree_node* node) {
   }
 
   range_tree_update_calc(node);
-
   return node;
 }
 
@@ -216,7 +212,6 @@ struct range_tree_node* range_tree_update(struct range_tree_node* node) {
   while (node) {
     last = node;
     if (node->inserter&TIPPSE_INSERTER_LEAF) {
-      node->depth = 1;
       node = node->parent;
       continue;
     }
@@ -675,11 +670,7 @@ struct range_tree_node* range_tree_find_offset(struct range_tree_node* node, fil
 }
 
 // Reallocate the fragment if it is references only once and had become smaller due to the edit process (save memory)
-void range_tree_shrink(struct range_tree_node* node) {
-  if (!node || !(node->inserter&TIPPSE_INSERTER_LEAF)) {
-    return;
-  }
-
+void range_tree_invalidate(struct range_tree_node* node) {
   if (node->buffer) {
     node->visuals.dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
     struct range_tree_node* invalidate = range_tree_next(node);
@@ -758,7 +749,7 @@ struct range_tree_node* range_tree_fuse(struct range_tree_node* root, struct ran
           first->length = buffer->length;
           first->offset = 0;
 
-          range_tree_shrink(first);
+          range_tree_invalidate(first);
           range_tree_update(first);
 
           if (next==last) {
@@ -781,104 +772,57 @@ struct range_tree_node* range_tree_fuse(struct range_tree_node* root, struct ran
 
 // Insert fragment into specific offset and eventually break older nodes into parts
 struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_offset_t offset, struct fragment* buffer, file_offset_t buffer_offset, file_offset_t buffer_length, int inserter, int64_t fuse_id, struct document_file* file, void* user_data) {
-  struct range_tree_node* node;
-  struct range_tree_node* build0;
-  struct range_tree_node* build1;
-  struct range_tree_node* build2;
-  struct range_tree_node* build3;
-  file_offset_t split = 0;
+  struct range_tree_node* build1 = range_tree_create(NULL, NULL, NULL, buffer, buffer_offset, buffer_length, inserter|TIPPSE_INSERTER_LEAF, fuse_id, file, user_data);
+  build1->depth = 1;
 
-  if (root) {
-    node = range_tree_find_offset(root, offset, &split);
-    if (!node) {
-      node = range_tree_last(root);
-      split = node->length;
-    }
-
-    struct range_tree_node* before = NULL;
-    struct range_tree_node* after = NULL;
-
-    build1 = range_tree_create(NULL, NULL, NULL, buffer, buffer_offset, buffer_length, inserter|TIPPSE_INSERTER_LEAF, fuse_id, file, user_data);
-
-    if (split==node->length) {
-      build0 = range_tree_create(node->parent, node, build1, NULL, 0, 0, 0, 0, NULL, NULL);
-      build1->parent = build0;
-      node->parent = build0;
-
-      build1->next = node->next;
-      if (node->next) {
-        node->next->prev = build1;
-      }
-
-      node->next = build1;
-      build1->prev = node;
-
-      range_tree_exchange(build0->parent, node, build0);
-      range_tree_shrink(build1);
-      range_tree_shrink(node);
-      root = range_tree_update(build0);
-      before = range_tree_prev(build1);
-      after = range_tree_next(node);
-    } else if (split==0) {
-      build0 = range_tree_create(node->parent, build1, node, NULL, 0, 0, 0, 0, NULL, NULL);
-      build1->parent = build0;
-      node->parent = build0;
-
-      build1->prev = node->prev;
-      if (node->prev) {
-        node->prev->next = build1;
-      }
-
-      node->prev = build1;
-      build1->next = node;
-
-      range_tree_exchange(build0->parent, node, build0);
-      range_tree_shrink(build1);
-      range_tree_shrink(node);
-      root = range_tree_update(build0);
-      before = range_tree_prev(build1);
-      after = range_tree_next(node);
-    } else {
-      build2 = range_tree_create(NULL, NULL, NULL, node->buffer, node->offset, split, node->inserter|TIPPSE_INSERTER_LEAF, fuse_id, file, node->user_data);
-      build0 = range_tree_create(NULL, build2, build1, NULL, 0, 0, 0, 0, NULL, NULL);
-      build3 = range_tree_create(node->parent, build0, node, NULL, 0, 0, 0, 0, NULL, NULL);
-      build2->parent = build0;
-      build1->parent = build0;
-      build0->parent = build3;
-      node->parent = build3;
-
-      build2->prev = node->prev;
-      if (node->prev) {
-        node->prev->next = build2;
-      }
-
-      node->prev = build1;
-      build2->next = build1;
-      build1->prev = build2;
-      build1->next = node;
-
-      range_tree_exchange(build3->parent, node, build3);
-      node->offset += split;
-      node->length -= split;
-
-      range_tree_shrink(build2);
-      range_tree_shrink(build1);
-      range_tree_shrink(node);
-
-      range_tree_update_calc(build0);
-      root = range_tree_update(build3);
-
-      before = range_tree_prev(build2);
-      after = range_tree_next(node);
-    }
-
-    root = range_tree_fuse(root, before, after, file);
-  } else {
-    root = range_tree_create(NULL, NULL, NULL, buffer, buffer_offset, buffer_length, inserter|TIPPSE_INSERTER_LEAF, fuse_id, file, user_data);
-    range_tree_shrink(root);
+  if (!root) {
+    range_tree_invalidate(build1);
+    return build1;
   }
 
-  return root;
+  file_offset_t split;
+  struct range_tree_node* node = range_tree_find_offset(root, offset, &split);
+  if (split>node->length) {
+    fprintf(stderr, "Tried to append a new node past the end... Please file a bug report!");
+    abort();
+  }
+
+  if (split>0 && split<node->length) {
+    root = range_tree_split(root, &node, split, file, 1);
+    split = 0;
+  }
+
+  struct range_tree_node* build0;
+  if (split==node->length) {
+    build0 = range_tree_create(node->parent, node, build1, NULL, 0, 0, 0, 0, NULL, NULL);
+
+    build1->next = node->next;
+    if (node->next) {
+      node->next->prev = build1;
+    }
+
+    node->next = build1;
+    build1->prev = node;
+  } else {
+    build0 = range_tree_create(node->parent, build1, node, NULL, 0, 0, 0, 0, NULL, NULL);
+
+    build1->prev = node->prev;
+    if (node->prev) {
+      node->prev->next = build1;
+    }
+
+    node->prev = build1;
+    build1->next = node;
+  }
+
+  build1->parent = build0;
+  node->parent = build0;
+
+  range_tree_exchange(build0->parent, node, build0);
+  range_tree_invalidate(build1);
+  range_tree_invalidate(node);
+  root = range_tree_update(build0);
+  return range_tree_fuse(root, range_tree_prev(build1), range_tree_next(node), file);
 }
 
 // Split input buffer into nodes with maximum allowed length
@@ -911,49 +855,22 @@ struct range_tree_node* range_tree_delete(struct range_tree_node* root, file_off
       return NULL;
     }
 
+    root = range_tree_split(root, &node, split, file, 1);
+    if (node->length>length) {
+      struct range_tree_node* next = node;
+      root = range_tree_split(root, &next, length, file, 1);
+    }
+
     struct range_tree_node* before = range_tree_prev(node);
     struct range_tree_node* after = range_tree_next(node);
 
-    file_offset_t node_length = node->length-split;
-    file_offset_t sub = node_length>length?length:node_length;
-    if (split>0 && length+split<node->length) {
-      struct range_tree_node* build1 = range_tree_create(NULL, NULL, NULL, node->buffer, split+length+node->offset, node->length-split-length, node->inserter|TIPPSE_INSERTER_LEAF, node->fuse_id, file, node->user_data);
-      struct range_tree_node* build0 = range_tree_create(node->parent, node, build1, NULL, 0, 0, 0, 0, NULL, NULL);
-      build1->parent = build0;
-      node->parent = build0;
-      node->length = split;
+    length -= node->length;
 
-      build1->next = node->next;
-      if (node->next) {
-        node->next->prev = build1;
-      }
-
-      node->next = build1;
-      build1->prev = node;
-
-      range_tree_exchange(build0->parent, node, build0);
-      range_tree_shrink(node);
-      range_tree_shrink(build1);
-      range_tree_update(build1);
-      root = range_tree_update(node);
-    } else {
-      node->length -= sub;
-      if (split==0) {
-        node->offset += sub;
-      }
+    if (node->buffer) {
+      fragment_dereference(node->buffer, file);
+      node->buffer = NULL;
     }
-
-    length -= sub;
-
-    range_tree_shrink(node);
-
-    if (node->length<=0) {
-      if (node->buffer) {
-        fragment_dereference(node->buffer, file);
-        node->buffer = NULL;
-      }
-      node->inserter &= ~TIPPSE_INSERTER_LEAF;
-    }
+    node->inserter &= ~TIPPSE_INSERTER_LEAF;
 
     root = range_tree_update(node);
     if (root) {
@@ -1089,8 +1006,8 @@ struct range_tree_node* range_tree_reduce(struct range_tree_node* root, file_off
   return range_tree_delete(root, offset, length, 0, NULL);
 }
 
-// Split node into upper and lower parts (TODO: Reuse me in other functions doing the same)
-struct range_tree_node* range_tree_split(struct range_tree_node* root, struct range_tree_node** node, file_offset_t split, struct document_file* file) {
+// Split node into upper and lower parts
+struct range_tree_node* range_tree_split(struct range_tree_node* root, struct range_tree_node** node, file_offset_t split, struct document_file* file, int invalidate) {
   if (*node && split>0 && split<(*node)->length) {
     struct range_tree_node* build1 = range_tree_create(NULL, NULL, NULL, (*node)->buffer, (*node)->offset+split, (*node)->length-split, (*node)->inserter, (*node)->fuse_id, file, (*node)->user_data);
     struct range_tree_node* build0 = range_tree_create((*node)->parent, *node, build1, NULL, 0, 0, 0, 0, NULL, NULL);
@@ -1108,6 +1025,10 @@ struct range_tree_node* range_tree_split(struct range_tree_node* root, struct ra
     build1->prev = *node;
 
     range_tree_exchange(build0->parent, (*node), build0);
+    if (invalidate) {
+      range_tree_invalidate(*node);
+      range_tree_invalidate(build1);
+    }
     range_tree_update(build1);
     root = range_tree_update(*node);
     *node = build1;
@@ -1130,13 +1051,13 @@ struct range_tree_node* range_tree_mark(struct range_tree_node* root, file_offse
     before = first;
   }
 
-  root = range_tree_split(root, &first, split, NULL);
+  root = range_tree_split(root, &first, split, NULL, 0);
 
   struct range_tree_node* after = NULL;
   struct range_tree_node* last = range_tree_find_offset(root, offset+length, &split);
   if (offset+length<range_tree_length(root)) {
     after = last;
-    root = range_tree_split(root, &after, split, NULL);
+    root = range_tree_split(root, &after, split, NULL, 0);
   }
 
   range_tree_fuse_id++;

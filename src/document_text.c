@@ -66,7 +66,7 @@ void document_text_reset(struct document* base, struct splitter* splitter) {
   if (file->buffer) {
     struct range_tree_node* node = range_tree_first(file->buffer);
     if (node) {
-      range_tree_shrink(node);
+      range_tree_invalidate(node);
     }
   }
 
@@ -370,7 +370,7 @@ int document_text_split_buffer(struct range_tree_node* buffer, struct document_f
   }
 
   struct range_tree_node* after = buffer;
-  file->buffer = range_tree_split(file->buffer, &after, TREE_BLOCK_LENGTH_MIN, NULL);
+  file->buffer = range_tree_split(file->buffer, &after, TREE_BLOCK_LENGTH_MIN, NULL, 0);
   return 1;
 }
 

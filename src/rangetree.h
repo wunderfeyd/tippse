@@ -69,7 +69,7 @@ int range_tree_find_indentation(const struct range_tree_node* node);
 int range_tree_find_whitespaced(const struct range_tree_node* node);
 file_offset_t range_tree_offset(const struct range_tree_node* node);
 struct range_tree_node* range_tree_find_offset(struct range_tree_node* node, file_offset_t offset, file_offset_t* diff);
-void range_tree_shrink(struct range_tree_node* node);
+void range_tree_invalidate(struct range_tree_node* node);
 struct range_tree_node* range_tree_fuse(struct range_tree_node* root, struct range_tree_node* first, struct range_tree_node* last, struct document_file* file);
 struct range_tree_node* range_tree_insert(struct range_tree_node* root, file_offset_t offset, struct fragment* buffer, file_offset_t buffer_offset, file_offset_t buffer_length, int inserter, int64_t fuse_id, struct document_file* file, void* user_data);
 struct range_tree_node* range_tree_insert_split(struct range_tree_node* root, file_offset_t offset, const uint8_t* text, size_t length, int inserter);
@@ -79,7 +79,7 @@ struct range_tree_node* range_tree_copy(struct range_tree_node* root, file_offse
 struct range_tree_node* range_tree_paste(struct range_tree_node* root, struct range_tree_node* copy, file_offset_t offset, struct document_file* file);
 uint8_t* range_tree_raw(struct range_tree_node* root, file_offset_t start, file_offset_t end);
 
-struct range_tree_node* range_tree_split(struct range_tree_node* root, struct range_tree_node** node, file_offset_t split, struct document_file* file);
+struct range_tree_node* range_tree_split(struct range_tree_node* root, struct range_tree_node** node, file_offset_t split, struct document_file* file, int invalidate);
 struct range_tree_node* range_tree_mark(struct range_tree_node* root, file_offset_t offset, file_offset_t length, int inserter);
 int range_tree_marked(const struct range_tree_node* node, file_offset_t offset, file_offset_t length, int inserter);
 struct range_tree_node* range_tree_invert_mark(struct range_tree_node* node, int inserter);
