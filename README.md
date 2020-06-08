@@ -7,4 +7,6 @@ Tippse is a text editor.
 3. Start text editor `./tippse`
 4. Do your work and use the command panel with <kbd>Ctrl</kbd>+<kbd>P</kbd>
 
-More to come...
+Additional information...
+* [Tippse help files](doc/index.md)
+* [License](LICENSE.md)
