@@ -680,11 +680,11 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
   } else if (command==TIPPSE_CMD_RELOAD) {
     editor_reload_document(base, base->document->file);
   } else if (command==TIPPSE_CMD_SAVE) {
-    editor_save_document(base, file?file:base->document->file, 0, 0);
+    editor_save_document(base, file?file:base->document->file, 0, 0, 0);
   } else if (command==TIPPSE_CMD_SAVE_FORCE) {
-    editor_save_document(base, file?file:base->document->file, 1, 0);
+    editor_save_document(base, file?file:base->document->file, 1, 0, 0);
   } else if (command==TIPPSE_CMD_SAVE_ASK) {
-    editor_save_document(base, file?file:base->document->file, 0, 1);
+    editor_save_document(base, file?file:base->document->file, 0, 1, 0);
   } else if (command==TIPPSE_CMD_SAVE_SKIP) {
     document_file_save_skip(file?file:base->document->file);
   } else if (command==TIPPSE_CMD_NULL) {
@@ -1091,7 +1091,7 @@ int editor_open_document(struct editor* base, const char* name, struct splitter*
         success = 0;
       } else {
         document_file_name(base->browser_file, relative);
-        editor_save_document(base, base->browser_file, 1, 0);
+        editor_save_document(base, base->browser_file, 1, 0, 1);
       }
     }
   }
@@ -1181,8 +1181,23 @@ int editor_ask_document_action(struct editor* base, struct document_file* file, 
 }
 
 // Save single modified document
-void editor_save_document(struct editor* base, struct document_file* file, int force, int ask) {
+void editor_save_document(struct editor* base, struct document_file* file, int force, int ask, int exist) {
   if (!editor_ask_document_action(base, file, force, ask)) {
+    return;
+  }
+
+  if (exist && is_path(file->filename)) {
+    editor_menu_clear(base);
+    char* title = combine_string("File already exist... - ", file->filename);
+    editor_menu_title(base, title);
+    free(title);
+    editor_menu_append(base, "Overwrite", TIPPSE_CMD_SAVE_FORCE, NULL, 0, 0, 0, 0, 0, 0, file);
+    editor_menu_append(base, "Save with different name", TIPPSE_CMD_SAVEAS, NULL, 0, 0, 0, 0, 0, 0, file);
+    editor_menu_append(base, "Go back", TIPPSE_CMD_ESCAPE, NULL, 0, 0, 0, 0, 0, 0, NULL);
+    editor_menu_append(base, "Skip file", TIPPSE_CMD_NULL, NULL, 0, 0, 0, 0, 0, 0, NULL);
+    editor_focus(base, base->document, 1);
+    editor_view_menu(base, NULL, NULL);
+    base->task_focus = base->menu_doc;
     return;
   }
 

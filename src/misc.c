@@ -290,6 +290,23 @@ bool_t is_file(const char* path) {
 #endif
 }
 
+// Check if path exists on the file system
+bool_t is_path(const char* path) {
+#ifdef _WINDOWS
+  wchar_t* os = string_system(path);
+  DWORD attributes = GetFileAttributesW(os);
+  free(os);
+  return (attributes!=INVALID_FILE_ATTRIBUTES)?1:0;
+#else
+  struct stat statbuf;
+  if (stat(path, &statbuf)!=0) {
+    return 0;
+  }
+
+  return 1;
+#endif
+}
+
 // Return tick counter (microseconds)
 int64_t tick_count(void) {
 #ifdef _WINDOWS
