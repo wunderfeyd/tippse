@@ -224,13 +224,13 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->browser_doc->undo = 0;
 
   base->commands_doc = document_file_create(0, 1, base);
-  document_file_name(base->commands_doc, base->base_path);
+  document_file_name(base->commands_doc, "Commands");
   base->commands_doc->defaults.wrapping = 0;
   base->commands_doc->line_select = 1;
   base->commands_doc->undo = 0;
 
   base->menu_doc = document_file_create(0, 1, base);
-  document_file_name(base->menu_doc, base->base_path);
+  document_file_name(base->menu_doc, "");
   base->menu_doc->defaults.wrapping = 0;
   base->menu_doc->line_select = 1;
   base->menu_doc->undo = 0;
@@ -402,8 +402,10 @@ void editor_draw(struct editor* base) {
     base->console_status = base->console_index;
   }
 
+  bool_t status_visible = (base->focus->file!=base->browser_doc && base->focus->file!=base->menu_doc)?1:0;
   const char* status = base->focus->status;
   if (tick<base->console_timeout && base->console_text) {
+    status_visible = 1;
     status = base->console_text;
     if (base->console_color==VISUAL_FLAG_COLOR_CONSOLENORMAL) {
       foreground = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
@@ -413,11 +415,13 @@ void editor_draw(struct editor* base) {
     }
   }
 
-  struct stream stream;
-  stream_from_plain(&stream, (uint8_t*)status, SIZE_T_MAX);
-  size_t length = encoding_strlen_based(NULL, encoding_utf8_decode, &stream);
-  screen_drawtext(base->screen, base->screen->width-(int)length, 0, 0, 0, base->screen->width, base->screen->height, status, length, foreground, background);
-  stream_destroy(&stream);
+  if (status_visible) {
+    struct stream stream;
+    stream_from_plain(&stream, (uint8_t*)status, SIZE_T_MAX);
+    size_t length = encoding_strlen_based(NULL, encoding_utf8_decode, &stream);
+    screen_drawtext(base->screen, base->screen->width-(int)length, 0, 0, 0, base->screen->width, base->screen->height, status, length, foreground, background);
+    stream_destroy(&stream);
+  }
 
   screen_update(base->screen);
 }
