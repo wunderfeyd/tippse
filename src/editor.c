@@ -636,9 +636,12 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
       base->document->view->show_scrollbar = 1;
       document_select_nothing(base->document->file, base->document->view);
     } else {
-      position_t line = (position_t)decode_based_unsigned(&sequencer, 10, SIZE_T_MAX);
+      size_t advanced = 0;
+      position_t line = (position_t)decode_based_unsigned_offset(&sequencer, 10, &advanced, SIZE_T_MAX);
+      advanced++;
+      position_t column = (position_t)decode_based_unsigned_offset(&sequencer, 10, &advanced, SIZE_T_MAX);
       if (line>0) {
-        document_text_goto(base->document->document, base->document, line-1, 0);
+        document_text_goto(base->document->document, base->document, line-1, (column>0)?column-1:0);
         document_select_nothing(base->document->file, base->document->view);
       }
     }
