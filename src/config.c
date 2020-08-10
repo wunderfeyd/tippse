@@ -176,7 +176,7 @@ void config_load(struct config* base, const char* filename) {
 
   if (file->buffer) {
     struct stream stream;
-    stream_from_page(&stream, range_tree_first(file->buffer), 0);
+    stream_from_page(&stream, range_tree_node_first(file->buffer), 0);
     codepoint_t keyword_codepoints[1024];
     size_t keyword_length = 0;
     codepoint_t value_codepoints[1024];

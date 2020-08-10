@@ -89,12 +89,12 @@ TIPPSE_INLINE void stream_reverse(struct stream* base, size_t length) {
 
 // Helper for range tree end check
 TIPPSE_INLINE bool_t stream_end_oob(struct stream* base) {
-  return ((base->type==STREAM_TYPE_PAGED && ((!base->buffer || !range_tree_next(base->buffer)) && base->page_offset+base->displacement>=range_tree_length(base->buffer))) || (base->type==STREAM_TYPE_FILE && base->cache_length<FILE_CACHE_PAGE_SIZE))?1:0;
+  return ((base->type==STREAM_TYPE_PAGED && ((!base->buffer || !range_tree_node_next(base->buffer)) && base->page_offset+base->displacement>=range_tree_node_length(base->buffer))) || (base->type==STREAM_TYPE_FILE && base->cache_length<FILE_CACHE_PAGE_SIZE))?1:0;
 }
 
 // Helper for range tree start check
 TIPPSE_INLINE bool_t stream_start_oob(struct stream* base) {
-  return ((base->type==STREAM_TYPE_PAGED && ((!base->buffer || !range_tree_prev(base->buffer)) && base->page_offset+base->displacement<=0)) || (base->type==STREAM_TYPE_FILE && base->file.offset==0))?1:0;
+  return ((base->type==STREAM_TYPE_PAGED && ((!base->buffer || !range_tree_node_prev(base->buffer)) && base->page_offset+base->displacement<=0)) || (base->type==STREAM_TYPE_FILE && base->file.offset==0))?1:0;
 }
 
 TIPPSE_INLINE bool_t stream_end(struct stream* base) {

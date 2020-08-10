@@ -41,7 +41,7 @@ void file_cache_dereference(struct file_cache* base) {
   base->count--;
 
   if (base->count==0) {
-    range_tree_destroy(base->index, NULL);
+    range_tree_node_destroy(base->index, NULL);
 
     file_cache_empty(base, &base->active);
     file_cache_empty(base, &base->inactive);
@@ -80,7 +80,7 @@ void file_cache_cleanup(struct file_cache* base) {
       fprintf(stderr, "Remove %p %llx\r\n", node, (long long unsigned int)node->offset);
     }
 
-    base->index = range_tree_mark(base->index, node->offset, FILE_CACHE_PAGE_SIZE, 0);
+    base->index = range_tree_node_mark(base->index, node->offset, FILE_CACHE_PAGE_SIZE, 0);
     free(node->buffer);
     list_remove(&base->inactive, base->inactive.last);
     base->size -= FILE_CACHE_PAGE_SIZE;
@@ -92,15 +92,15 @@ struct file_cache_node* file_cache_invoke(struct file_cache* base, file_offset_t
   file_offset_t index = offset/FILE_CACHE_PAGE_SIZE;
   file_offset_t low = index*FILE_CACHE_PAGE_SIZE;
   file_offset_t high = low+FILE_CACHE_PAGE_SIZE;
-  if (range_tree_length(base->index)<high) {
-    base->index = range_tree_resize(base->index, high, 0);
+  if (range_tree_node_length(base->index)<high) {
+    base->index = range_tree_node_resize(base->index, high, 0);
   }
 
   file_offset_t diff;
   struct file_cache_node* node;
   // TODO: optimize ... some parts are doing some work twice
-  if (range_tree_marked(base->index, low, high-low, TIPPSE_INSERTER_MARK)) {
-    struct range_tree_node* tree = range_tree_find_offset(base->index, low, &diff);
+  if (range_tree_node_marked(base->index, low, high-low, TIPPSE_INSERTER_MARK)) {
+    struct range_tree_node* tree = range_tree_node_find_offset(base->index, low, &diff);
     struct list_node* it = (struct list_node*)tree->user_data;
     node = (struct file_cache_node*)list_object(it);
     if (it!=base->active.first) {
@@ -113,8 +113,8 @@ struct file_cache_node* file_cache_invoke(struct file_cache* base, file_offset_t
     }
     node->count++;
   } else {
-    base->index = range_tree_mark(base->index, low, high-low, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
-    struct range_tree_node* tree = range_tree_find_offset(base->index, low, &diff);
+    base->index = range_tree_node_mark(base->index, low, high-low, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
+    struct range_tree_node* tree = range_tree_node_find_offset(base->index, low, &diff);
     tree->user_data = list_insert_empty(&base->active, NULL);
     node = (struct file_cache_node*)list_object((struct list_node*)tree->user_data);
     node->list_node = (struct list_node*)tree->user_data;

@@ -20,8 +20,8 @@ struct document_view {
 
   position_t scroll_x;                  // scroll X offset
   position_t scroll_y;                  // scroll Y offset
-  position_t scroll_x_old;              // scroll X offset, last renedering
-  position_t scroll_y_old;              // scroll Y offset, last renedering
+  position_t scroll_x_old;              // scroll X offset, last rendering
+  position_t scroll_y_old;              // scroll Y offset, last rendering
   position_t scroll_y_max;              // maximum scroll Y offset
   position_t address_width;             // width of address column, used for line number too
   int bracket_indentation;              // the next closing bracket could modify identation

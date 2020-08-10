@@ -378,8 +378,8 @@ int main(int argc, const char** argv) {
   {
     int64_t tick = tick_count();
     struct stream stream;
-    stream_from_page(&stream, range_tree_first(editor->document->file->buffer), 0);
-    size_t length = range_tree_length(editor->document->file->buffer);
+    stream_from_page(&stream, range_tree_node_first(editor->document->file->buffer), 0);
+    size_t length = range_tree_node_length(editor->document->file->buffer);
     uint8_t sum = 0;
     while (length-- >0) {
       sum += stream_read_forward(&stream);
@@ -390,8 +390,8 @@ int main(int argc, const char** argv) {
   {
     int64_t tick = tick_count();
     struct stream stream;
-    stream_from_page(&stream, range_tree_first(editor->document->file->buffer), 0);
-    size_t length = range_tree_length(editor->document->file->buffer);
+    stream_from_page(&stream, range_tree_node_first(editor->document->file->buffer), 0);
+    size_t length = range_tree_node_length(editor->document->file->buffer);
     codepoint_t sum = 0;
     struct encoding* encoding = editor->document->file->encoding;
     while (length >0) {
@@ -409,8 +409,8 @@ int main(int argc, const char** argv) {
   {
     int64_t tick = tick_count();
     struct stream stream;
-    stream_from_page(&stream, range_tree_first(editor->document->file->buffer), 0);
-    size_t length = range_tree_length(editor->document->file->buffer);
+    stream_from_page(&stream, range_tree_node_first(editor->document->file->buffer), 0);
+    size_t length = range_tree_node_length(editor->document->file->buffer);
     codepoint_t sum = 0;
     struct encoding* encoding = editor->document->file->encoding;
     struct unicode_sequencer sequencer;

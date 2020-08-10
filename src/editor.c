@@ -781,16 +781,16 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
       }
 
       if (!selected) {
-        file_offset_t now = range_tree_length(base->filter_doc->buffer);
+        file_offset_t now = range_tree_node_length(base->filter_doc->buffer);
         if (before!=now) {
           struct stream* filter_stream = NULL;
           struct stream stream;
           if (base->filter_doc->buffer) {
-            stream_from_page(&stream, range_tree_first(base->filter_doc->buffer), 0);
+            stream_from_page(&stream, range_tree_node_first(base->filter_doc->buffer), 0);
             filter_stream = &stream;
           }
           if (base->panel->file==base->browser_doc) {
-            char* raw = (char*)range_tree_raw(base->filter_doc->buffer, 0, now);
+            char* raw = (char*)range_tree_node_raw(base->filter_doc->buffer, 0, now);
             editor_view_browser(base, NULL, filter_stream, base->filter_doc->encoding, base->browser_type, NULL, raw, base->browser_file);
             free(raw);
           } else if (base->panel->file==base->tabs_doc) {
@@ -947,7 +947,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
     file_offset_t selection_high;
     document_view_select_next(node->view, 0, &selection_low, &selection_high);
 
-    char* name = (char*)range_tree_raw(node->file->buffer, selection_low, selection_high);
+    char* name = (char*)range_tree_node_raw(node->file->buffer, selection_low, selection_high);
     if (*name) {
       editor_focus(base, destination, 1);
       done = 1;
@@ -988,7 +988,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
     if (node->document==node->document_text) {
       file_offset_t offset = document_text_line_start_offset(node->document, node);
       file_offset_t displacement;
-      struct range_tree_node* buffer = range_tree_find_offset(node->file->buffer, offset, &displacement);
+      struct range_tree_node* buffer = range_tree_node_find_offset(node->file->buffer, offset, &displacement);
       struct stream text_stream;
       stream_from_page(&text_stream, buffer, displacement);
 
@@ -999,7 +999,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
       struct search* search = search_create_regex(1, 0, &filter_stream, node->file->encoding, node->file->encoding);
 
       int found = search_find_check(search, &text_stream);
-      char* name = found?(char*)range_tree_raw(node->file->buffer, stream_offset(&search->group_hits[0].start), stream_offset(&search->group_hits[0].end)):NULL;
+      char* name = found?(char*)range_tree_node_raw(node->file->buffer, stream_offset(&search->group_hits[0].start), stream_offset(&search->group_hits[0].end)):NULL;
 
       position_t line = 0;
       position_t column = 0;
@@ -1532,8 +1532,8 @@ void editor_console_update(struct editor* base, const char* text, size_t length,
   base->console_text = strndup(text, length);
   base->console_color = VISUAL_FLAG_COLOR_CONSOLENORMAL+type;
 
-  document_file_insert(base->console_doc, range_tree_length(base->console_doc->buffer), (uint8_t*)text, length, TIPPSE_INSERTER_HIGHLIGHT|(base->console_color<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT));
-  document_file_insert(base->console_doc, range_tree_length(base->console_doc->buffer), (uint8_t*)"\n", 1, 0);
+  document_file_insert(base->console_doc, range_tree_node_length(base->console_doc->buffer), (uint8_t*)text, length, TIPPSE_INSERTER_HIGHLIGHT|(base->console_color<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT));
+  document_file_insert(base->console_doc, range_tree_node_length(base->console_doc->buffer), (uint8_t*)"\n", 1, 0);
   base->console_index++;
 }
 
@@ -1549,7 +1549,7 @@ void editor_search(struct editor* base) {
     document_file_delete(base->search_doc, 0, base->search_doc->buffer?base->search_doc->buffer->length:0);
     struct range_tree_node* buffer = encoding_transform_page(base->document->file->buffer, selection_low, selection_high-selection_low, base->document->file->encoding, base->panel->file->encoding);
     document_file_insert_buffer(base->search_doc, 0, buffer);
-    range_tree_destroy(buffer, NULL);
+    range_tree_node_destroy(buffer, NULL);
   }
   document_select_all(base->panel->file, base->panel->view, 1);
   base->document->view->selection_reset = 0;
@@ -1730,11 +1730,11 @@ void editor_open_error(struct editor* base, int reverse) {
   struct document_view* compiler_view = (base->compiler_doc->views->count>0)?*(struct document_view**)list_object(base->compiler_doc->views->first):base->compiler_doc->view;
 
   char* pattern_text = (char*)config_convert_encoding(config_find_ascii(base->compiler_doc->config, "/errorpattern"), encoding_utf8_static());
-  struct range_tree_node* root = range_tree_insert_split(NULL, 0, (const uint8_t*)pattern_text, strlen(pattern_text), 0);
+  struct range_tree_node* root = range_tree_node_insert_split(NULL, 0, (const uint8_t*)pattern_text, strlen(pattern_text), 0);
 
   int found = document_search(base->compiler_doc, compiler_view, root, base->compiler_doc->encoding, NULL, NULL, reverse, 1, 1, 0, 0);
 
-  range_tree_destroy(root, NULL);
+  range_tree_node_destroy(root, NULL);
   free(pattern_text);
 
   // TODO: the following part is opening the shell and emitting a open selection command... it would be nice to open the target without this, but current splitter focused structure doesn't allow to work on backgrounded documents at the moment... change me soon
