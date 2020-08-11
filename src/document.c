@@ -523,7 +523,7 @@ void document_bookmark_toggle_range(struct document_file* file, file_offset_t lo
 
 // Add range to bookmark list
 void document_bookmark_range(struct document_file* file, file_offset_t low, file_offset_t high, int marked) {
-  range_tree_node_mark(&file->bookmarks, low, high-low, marked?0:TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
+  range_tree_mark(&file->bookmarks, low, high-low, marked?0:TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
 }
 
 // Bookmark selection
@@ -551,7 +551,7 @@ void document_bookmark_next(struct document_file* file, struct document_view* vi
   while (1) {
     file_offset_t low;
     file_offset_t high;
-    if (range_tree_node_marked_next(&file->bookmarks, offset, &low, &high, wrap)) {
+    if (range_tree_marked_next(&file->bookmarks, offset, &low, &high, wrap)) {
       view->offset = low;
       break;
     }
@@ -571,7 +571,7 @@ void document_bookmark_prev(struct document_file* file, struct document_view* vi
   while (1) {
     file_offset_t low;
     file_offset_t high;
-    if (range_tree_node_marked_prev(&file->bookmarks, offset, &low, &high, wrap)) {
+    if (range_tree_marked_prev(&file->bookmarks, offset, &low, &high, wrap)) {
       view->offset = low;
       break;
     }

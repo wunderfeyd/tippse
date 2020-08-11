@@ -44,7 +44,7 @@ void document_view_clone(struct document_view* dst, struct document_view* src, s
 
   *dst = *src;
   range_tree_create_inplace(&dst->selection, NULL, 0);
-  struct range_tree* copy = range_tree_node_copy(&src->selection, 0, range_tree_node_length(src->selection.root), file);
+  struct range_tree* copy = range_tree_copy(&src->selection, 0, range_tree_node_length(src->selection.root), file);
   dst->selection.root = copy->root;
   copy->root = NULL; // TODO: Not nice
   range_tree_destroy(copy);
@@ -61,18 +61,18 @@ void document_view_filechange(struct document_view* base, struct document_file* 
 
   base->line_select = file->line_select;
   base->bracket_indentation = 0;
-  range_tree_node_resize(&base->selection, range_tree_node_length(file->buffer.root), 0);
+  range_tree_resize(&base->selection, range_tree_node_length(file->buffer.root), 0);
 }
 
 // Select all
 void document_view_select_all(struct document_view* base, struct document_file* file) {
-  range_tree_node_static(&base->selection, range_tree_node_length(file->buffer.root), TIPPSE_INSERTER_MARK);
+  range_tree_static(&base->selection, range_tree_node_length(file->buffer.root), TIPPSE_INSERTER_MARK);
   base->selection_reset = 1;
 }
 
 // Select nothing
 void document_view_select_nothing(struct document_view* base, struct document_file* file) {
-  range_tree_node_static(&base->selection, range_tree_node_length(file->buffer.root), 0);
+  range_tree_static(&base->selection, range_tree_node_length(file->buffer.root), 0);
   base->selection_reset = 1;
 }
 
@@ -83,7 +83,7 @@ int document_view_select_active(struct document_view* base) {
 
 // Retrieve next active selection
 int document_view_select_next(struct document_view* base, file_offset_t offset, file_offset_t* low, file_offset_t* high) {
-  return range_tree_node_marked_next(&base->selection, offset, low, high, 0);
+  return range_tree_marked_next(&base->selection, offset, low, high, 0);
 }
 
 // Activate or deactivate selection for specified range
@@ -93,9 +93,9 @@ void document_view_select_range(struct document_view* base, file_offset_t start,
   }
 
   if (start<end) {
-    range_tree_node_mark(&base->selection, start, end-start, inserter);
+    range_tree_mark(&base->selection, start, end-start, inserter);
   } else {
-    range_tree_node_mark(&base->selection, end, start-end, inserter);
+    range_tree_mark(&base->selection, end, start-end, inserter);
   }
 }
 

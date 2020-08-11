@@ -80,7 +80,7 @@ void file_cache_cleanup(struct file_cache* base) {
       fprintf(stderr, "Remove %p %llx\r\n", node, (long long unsigned int)node->offset);
     }
 
-    range_tree_node_mark(&base->index, node->offset, FILE_CACHE_PAGE_SIZE, 0);
+    range_tree_mark(&base->index, node->offset, FILE_CACHE_PAGE_SIZE, 0);
     free(node->buffer);
     list_remove(&base->inactive, base->inactive.last);
     base->size -= FILE_CACHE_PAGE_SIZE;
@@ -93,7 +93,7 @@ struct file_cache_node* file_cache_invoke(struct file_cache* base, file_offset_t
   file_offset_t low = index*FILE_CACHE_PAGE_SIZE;
   file_offset_t high = low+FILE_CACHE_PAGE_SIZE;
   if (range_tree_node_length(base->index.root)<high) {
-    range_tree_node_resize(&base->index, high, 0);
+    range_tree_resize(&base->index, high, 0);
   }
 
   file_offset_t diff;
@@ -113,7 +113,7 @@ struct file_cache_node* file_cache_invoke(struct file_cache* base, file_offset_t
     }
     node->count++;
   } else {
-    range_tree_node_mark(&base->index, low, high-low, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
+    range_tree_mark(&base->index, low, high-low, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
     struct range_tree_node* tree = range_tree_node_find_offset(base->index.root, low, &diff);
     tree->user_data = list_insert_empty(&base->active, NULL);
     node = (struct file_cache_node*)list_object((struct list_node*)tree->user_data);

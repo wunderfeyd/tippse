@@ -203,7 +203,7 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
     type = VISUAL_SEEK_OFFSET;
   }
 
-  buffer_new = range_tree_node_find_visual(buffer->root, type, in->offset, in->x, in->y, in->line, in->column, &offset_new, &x_new, &y_new, &lines_new, &columns_new, &indentation_new, &indentation_extra_new, &characters_new, 0, in->offset);
+  buffer_new = visual_info_find(buffer->root, type, in->offset, in->x, in->y, in->line, in->column, &offset_new, &x_new, &y_new, &lines_new, &columns_new, &indentation_new, &indentation_extra_new, &characters_new, 0, in->offset);
 
   // TODO: Combine into single statement (if correctness is confirmed)
   bool_t rerender = (debug&DEBUG_ALWAYSRERENDER)?1:0;
@@ -249,7 +249,7 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
         render_info->visual_detail = VISUAL_DETAIL_NEWLINE;
       }
 
-      render_info->indented = range_tree_node_find_indentation(buffer_new);
+      render_info->indented = visual_info_find_indentation(buffer_new);
 
       render_info->visual_detail |= VISUAL_DETAIL_WHITESPACED_COMPLETE;
       render_info->visual_detail &= ~(VISUAL_DETAIL_WHITESPACED_START|VISUAL_DETAIL_STOPPED_INDENTATION);
@@ -275,7 +275,7 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
       render_info->keyword_length = buffer_new->visuals.keyword_length;
       render_info->selection = range_tree_node_find_offset(render_info->selection_tree->root, render_info->offset, &render_info->selection_displacement);
       for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
-        render_info->depth_new[n] = range_tree_node_find_bracket(buffer_new, n);
+        render_info->depth_new[n] = visual_info_find_bracket(buffer_new, n);
         render_info->depth_old[n] = render_info->depth_new[n];
         render_info->depth_line[n] = render_info->depth_new[n];
         render_info->brackets[n].diff = 0;
@@ -338,7 +338,7 @@ bool_t document_text_render_whitespace_scan(struct document_text_render_info* re
   while (1) {
     if (displacement>=render_info->buffer->length) {
       struct range_tree_node* buffer_new = range_tree_node_next(render_info->buffer);
-      whitespaced = buffer_new?range_tree_node_find_whitespaced(buffer_new):1;
+      whitespaced = buffer_new?visual_info_find_whitespaced(buffer_new):1;
       break;
     }
 
@@ -371,7 +371,7 @@ int document_text_split_buffer(struct range_tree_node* buffer, struct document_f
   }
 
   struct range_tree_node* after = buffer;
-  range_tree_node_split(&file->buffer, &after, TREE_BLOCK_LENGTH_MIN, 0);
+  range_tree_split(&file->buffer, &after, TREE_BLOCK_LENGTH_MIN, 0);
   return 1;
 }
 
@@ -1757,7 +1757,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
     seek = 1;
   } else if (command==TIPPSE_CMD_FIRST || command==TIPPSE_CMD_SELECT_FIRST) {
-    struct range_tree_node* first = range_tree_node_find_indentation_last(out.buffer, out.lines, out.buffer?out.buffer:range_tree_node_last(file->buffer.root));
+    struct range_tree_node* first = visual_info_find_indentation_last(out.buffer, out.lines, out.buffer?out.buffer:range_tree_node_last(file->buffer.root));
     bool_t seek_first = 1;
 
     if (first) {
@@ -1986,9 +1986,9 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 
     struct range_tree* clipboard = view->line_cut?clipboard_get(NULL):NULL;
     view->line_cut = 1;
-    struct range_tree* rootold = range_tree_node_copy(clipboard, 0, range_tree_node_length(clipboard->root), NULL);
-    struct range_tree* rootnew = range_tree_node_copy(&file->buffer, from, to-from, NULL);
-    range_tree_node_paste(rootold, rootnew->root, range_tree_node_length(rootold->root));
+    struct range_tree* rootold = range_tree_copy(clipboard, 0, range_tree_node_length(clipboard->root), NULL);
+    struct range_tree* rootnew = range_tree_copy(&file->buffer, from, to-from, NULL);
+    range_tree_paste(rootold, rootnew->root, range_tree_node_length(rootold->root));
     range_tree_destroy(rootnew);
 
     clipboard_set(rootold, file->binary, file->encoding);
@@ -2029,7 +2029,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     document_text_cursor_position(splitter, &in_offset, &out_begin, 1, 1);
 
     if (out_begin.lines==0 && range_tree_node_first(file->buffer.root)!=out_begin.buffer) {
-      range_tree_node_find_bracket_lowest(out_begin.buffer, out_begin.min_line, out_begin.buffer?out_begin.buffer:range_tree_node_last(file->buffer.root));
+      visual_info_find_bracket_lowest(out_begin.buffer, out_begin.min_line, out_begin.buffer?out_begin.buffer:range_tree_node_last(file->buffer.root));
     }
 
     struct document_text_position out_indentation_copy;
@@ -2065,7 +2065,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     // Build a binary copy of the previous indentation (one could insert the default indentation style as alternative... to discuss)
     if (out_indentation_copy.offset<out_indentation_last.offset) {
       file_offset_t length = out_indentation_last.offset-out_indentation_copy.offset;
-      struct range_tree* copy = range_tree_node_copy(&file->buffer, out_indentation_copy.offset, length, NULL);
+      struct range_tree* copy = range_tree_copy(&file->buffer, out_indentation_copy.offset, length, NULL);
       document_file_insert_buffer(file, view->offset, copy->root);
       range_tree_destroy(copy);
     }
@@ -2587,7 +2587,7 @@ void document_text_search_brackets(struct document* base, struct splitter* split
       document_text_render_clear(&render_info, document_text_line_width(splitter), &view->selection);
       document_text_render_seek(&render_info, &file->buffer, file->encoding, &in);
       if (cursor->bracket_match&VISUAL_BRACKET_OPEN) {
-        struct range_tree_node* node = range_tree_node_find_bracket_forward(render_info.buffer, in.bracket, in.bracket_search);
+        struct range_tree_node* node = visual_info_find_bracket_forward(render_info.buffer, in.bracket, in.bracket_search);
         if (!node) {
           node = range_tree_node_last(file->buffer.root);
           if (render_info.buffer==node) {
@@ -2597,7 +2597,7 @@ void document_text_search_brackets(struct document* base, struct splitter* split
 
         in.offset = range_tree_node_offset(node)+node->visuals.displacement;
       } else {
-        struct range_tree_node* node = range_tree_node_find_bracket_backward(render_info.buffer, in.bracket, in.bracket_search);
+        struct range_tree_node* node = visual_info_find_bracket_backward(render_info.buffer, in.bracket, in.bracket_search);
         if (!node) {
           node = range_tree_node_first(file->buffer.root);
         }

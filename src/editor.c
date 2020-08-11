@@ -790,7 +790,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
             filter_stream = &stream;
           }
           if (base->panel->file==base->browser_doc) {
-            char* raw = (char*)range_tree_node_raw(&base->filter_doc->buffer, 0, now);
+            char* raw = (char*)range_tree_raw(&base->filter_doc->buffer, 0, now);
             editor_view_browser(base, NULL, filter_stream, base->filter_doc->encoding, base->browser_type, NULL, raw, base->browser_file);
             free(raw);
           } else if (base->panel->file==base->tabs_doc) {
@@ -947,7 +947,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
     file_offset_t selection_high;
     document_view_select_next(node->view, 0, &selection_low, &selection_high);
 
-    char* name = (char*)range_tree_node_raw(&node->file->buffer, selection_low, selection_high);
+    char* name = (char*)range_tree_raw(&node->file->buffer, selection_low, selection_high);
     if (*name) {
       editor_focus(base, destination, 1);
       done = 1;
@@ -999,7 +999,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
       struct search* search = search_create_regex(1, 0, &filter_stream, node->file->encoding, node->file->encoding);
 
       int found = search_find_check(search, &text_stream);
-      char* name = found?(char*)range_tree_node_raw(&node->file->buffer, stream_offset(&search->group_hits[0].start), stream_offset(&search->group_hits[0].end)):NULL;
+      char* name = found?(char*)range_tree_raw(&node->file->buffer, stream_offset(&search->group_hits[0].start), stream_offset(&search->group_hits[0].end)):NULL;
 
       position_t line = 0;
       position_t column = 0;
@@ -1731,7 +1731,7 @@ void editor_open_error(struct editor* base, int reverse) {
 
   char* pattern_text = (char*)config_convert_encoding(config_find_ascii(base->compiler_doc->config, "/errorpattern"), encoding_utf8_static());
   struct range_tree* root = range_tree_create(NULL, 0);
-  range_tree_node_insert_split(root, 0, (const uint8_t*)pattern_text, strlen(pattern_text), 0);
+  range_tree_insert_split(root, 0, (const uint8_t*)pattern_text, strlen(pattern_text), 0);
 
   int found = document_search(base->compiler_doc, compiler_view, root, base->compiler_doc->encoding, NULL, NULL, reverse, 1, 1, 0, 0);
 

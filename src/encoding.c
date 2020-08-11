@@ -54,7 +54,7 @@ struct range_tree* encoding_transform_stream(struct stream* stream, struct encod
   struct range_tree* root = range_tree_create(NULL, 0);
   while (1) {
     if (stream_end(stream) || recode>512 || max==0) {
-      range_tree_node_insert_split(root, range_tree_node_length(root->root), &recoded[0], recode, 0);
+      range_tree_insert_split(root, range_tree_node_length(root->root), &recoded[0], recode, 0);
       recode = 0;
       if (stream_end(stream) || max==0) {
         break;
@@ -83,7 +83,7 @@ uint8_t* encoding_transform_plain(const uint8_t* buffer, size_t length, struct e
   struct stream stream;
   stream_from_plain(&stream, buffer, length);
   struct range_tree* root = encoding_transform_stream(&stream, from, to, FILE_OFFSET_T_MAX);
-  uint8_t* raw = range_tree_node_raw(root, 0, root->root?root->root->length:0);
+  uint8_t* raw = range_tree_raw(root, 0, root->root?root->root->length:0);
   range_tree_destroy(root);
   stream_destroy(&stream);
   return raw;

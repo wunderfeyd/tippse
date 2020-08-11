@@ -119,7 +119,7 @@ struct range_tree* clipboard_command_get(struct encoding** encoding, const char*
           file_offset_t offset = range_tree_node_length(data->root);
           for (file_offset_t pos = 0; pos<length/3; pos++) *(buffer+pos) = document_hex_value_from_string((const char*)buffer+pos*3, 3);
           struct fragment* fragment = fragment_create_memory(buffer, length/3);
-          range_tree_node_insert(data, offset, fragment, 0, length/3, 0, 0, NULL);
+          range_tree_insert(data, offset, fragment, 0, length/3, 0, 0, NULL);
           fragment_dereference(fragment, NULL);
         } else {
           free(buffer);
@@ -128,7 +128,7 @@ struct range_tree* clipboard_command_get(struct encoding** encoding, const char*
     } else {
       if (length) {
         struct fragment* fragment = fragment_create_memory(buffer, length);
-        range_tree_node_insert(data, 0, fragment, 0, length, 0, 0, NULL);
+        range_tree_insert(data, 0, fragment, 0, length, 0, 0, NULL);
         fragment_dereference(fragment, NULL);
       } else {
         free(buffer);
@@ -139,7 +139,7 @@ struct range_tree* clipboard_command_get(struct encoding** encoding, const char*
         if (length) {
           file_offset_t offset = range_tree_node_length(data->root);
           struct fragment* fragment = fragment_create_memory(buffer, length);
-          range_tree_node_insert(data, offset, fragment, 0, length, 0, 0, NULL);
+          range_tree_insert(data, offset, fragment, 0, length, 0, 0, NULL);
           fragment_dereference(fragment, NULL);
         } else {
           free(buffer);
