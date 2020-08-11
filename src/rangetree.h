@@ -43,10 +43,15 @@ struct range_tree_node {
 };
 
 struct range_tree {
-  struct range_tree_node* index;
+  struct range_tree_node* root;
 };
 
 struct fragment;
+
+struct range_tree* range_tree_create();
+void range_tree_create_inplace(struct range_tree* base);
+void range_tree_destroy(struct range_tree* base, struct document_file* file);
+void range_tree_destroy_inplace(struct range_tree* base, struct document_file* file);
 
 void range_tree_node_print(const struct range_tree_node* node, int depth, int side);
 void range_tree_node_check(const struct range_tree_node* node);
@@ -54,7 +59,7 @@ void range_tree_node_print_root(const struct range_tree_node* node, int depth, i
 void range_tree_node_update_calc(struct range_tree_node* node);
 void range_tree_node_update_calc_all(struct range_tree_node* node);
 void range_tree_node_destroy(struct range_tree_node* node, struct document_file* file);
-struct range_tree_node* range_tree_node_create(struct range_tree_node* parent, struct range_tree_node* side0, struct range_tree_node* side1, struct fragment* buffer, file_offset_t offset, file_offset_t length, int inserter, int64_t fuse_id, struct document_file* file, void* user_data);
+struct range_tree_node* range_tree_node_create(struct range_tree_node* parent, struct range_tree* tree, struct range_tree_node* side0, struct range_tree_node* side1, struct fragment* buffer, file_offset_t offset, file_offset_t length, int inserter, int64_t fuse_id, struct document_file* file, void* user_data);
 struct range_tree_node* range_tree_node_first(struct range_tree_node* node);
 struct range_tree_node* range_tree_node_last(struct range_tree_node* node);
 TIPPSE_INLINE struct range_tree_node* range_tree_node_next(const struct range_tree_node* node) {return node?node->next:NULL;}
@@ -76,22 +81,22 @@ file_offset_t range_tree_node_offset(const struct range_tree_node* node);
 struct range_tree_node* range_tree_node_find_offset(struct range_tree_node* node, file_offset_t offset, file_offset_t* diff);
 void range_tree_node_invalidate(struct range_tree_node* node);
 struct range_tree_node* range_tree_node_fuse(struct range_tree_node* root, struct range_tree_node* first, struct range_tree_node* last, struct document_file* file);
-struct range_tree_node* range_tree_node_insert(struct range_tree_node* root, file_offset_t offset, struct fragment* buffer, file_offset_t buffer_offset, file_offset_t buffer_length, int inserter, int64_t fuse_id, struct document_file* file, void* user_data);
-struct range_tree_node* range_tree_node_insert_split(struct range_tree_node* root, file_offset_t offset, const uint8_t* text, size_t length, int inserter);
-struct range_tree_node* range_tree_node_delete(struct range_tree_node* root, file_offset_t offset, file_offset_t length, int inserter, struct document_file* file);
-struct range_tree_node* range_tree_node_copy_insert(struct range_tree_node* root_from, file_offset_t offset_from, struct range_tree_node* root_to, file_offset_t offset_to, file_offset_t length, struct document_file* file);
-struct range_tree_node* range_tree_node_copy(struct range_tree_node* root, file_offset_t offset, file_offset_t length);
-struct range_tree_node* range_tree_node_paste(struct range_tree_node* root, struct range_tree_node* copy, file_offset_t offset, struct document_file* file);
+struct range_tree_node* range_tree_node_insert(struct range_tree_node* root, struct range_tree* tree, file_offset_t offset, struct fragment* buffer, file_offset_t buffer_offset, file_offset_t buffer_length, int inserter, int64_t fuse_id, struct document_file* file, void* user_data);
+struct range_tree_node* range_tree_node_insert_split(struct range_tree_node* root, struct range_tree* tree, file_offset_t offset, const uint8_t* text, size_t length, int inserter);
+struct range_tree_node* range_tree_node_delete(struct range_tree_node* root, struct range_tree* tree, file_offset_t offset, file_offset_t length, int inserter, struct document_file* file);
+struct range_tree_node* range_tree_node_copy_insert(struct range_tree_node* root_from, file_offset_t offset_from, struct range_tree_node* root_to, struct range_tree* tree_to, file_offset_t offset_to, file_offset_t length, struct document_file* file);
+struct range_tree* range_tree_node_copy(struct range_tree_node* root, file_offset_t offset, file_offset_t length);
+void range_tree_node_paste(struct range_tree* tree, struct range_tree_node* copy, file_offset_t offset, struct document_file* file);
 uint8_t* range_tree_node_raw(struct range_tree_node* root, file_offset_t start, file_offset_t end);
 
-struct range_tree_node* range_tree_node_split(struct range_tree_node* root, struct range_tree_node** node, file_offset_t split, struct document_file* file, int invalidate);
-struct range_tree_node* range_tree_node_mark(struct range_tree_node* root, file_offset_t offset, file_offset_t length, int inserter);
+struct range_tree_node* range_tree_node_split(struct range_tree_node* root, struct range_tree* tree, struct range_tree_node** node, file_offset_t split, struct document_file* file, int invalidate);
+void range_tree_node_mark(struct range_tree* tree, file_offset_t offset, file_offset_t length, int inserter);
 int range_tree_node_marked(const struct range_tree_node* node, file_offset_t offset, file_offset_t length, int inserter);
 struct range_tree_node* range_tree_node_invert_mark(struct range_tree_node* node, int inserter);
-struct range_tree_node* range_tree_node_static(struct range_tree_node* root, file_offset_t length, int inserter);
-struct range_tree_node* range_tree_node_resize(struct range_tree_node* root, file_offset_t length, int inserter);
-struct range_tree_node* range_tree_node_expand(struct range_tree_node* root, file_offset_t offset, file_offset_t length);
-struct range_tree_node* range_tree_node_reduce(struct range_tree_node* root, file_offset_t offset, file_offset_t length);
+void range_tree_node_static(struct range_tree* tree, file_offset_t length, int inserter);
+void range_tree_node_resize(struct range_tree* tree, file_offset_t length, int inserter);
+void range_tree_node_expand(struct range_tree* tree, file_offset_t offset, file_offset_t length);
+void range_tree_node_reduce(struct range_tree* tree, file_offset_t offset, file_offset_t length);
 int range_tree_node_marked_next(struct range_tree_node* root, file_offset_t offset, file_offset_t* low, file_offset_t* high, int skip_first);
 int range_tree_node_marked_prev(struct range_tree_node* root, file_offset_t offset, file_offset_t* low, file_offset_t* high, int skip_first);
 #endif /* #ifndef TIPPSE_RANGETREE_H */

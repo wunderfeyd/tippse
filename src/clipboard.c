@@ -8,19 +8,19 @@
 #include "stream.h"
 #include "encoding.h"
 
-static struct range_tree_node* clipboard_data = NULL;
+static struct range_tree* clipboard_data = NULL;
 static struct encoding* clipboard_encoding = NULL;
 
 // Free clipboard data
 void clipboard_free(void) {
-  range_tree_node_destroy(clipboard_data, NULL);
+  range_tree_destroy(clipboard_data, NULL);
   if (clipboard_encoding) {
     clipboard_encoding->destroy(clipboard_encoding);
   }
 }
 
 // Write text to clipboard
-void clipboard_set(struct range_tree_node* data, int binary, struct encoding* encoding) {
+void clipboard_set(struct range_tree* data, int binary, struct encoding* encoding) {
 #ifdef __APPLE__
   clipboard_command_set(data, binary, encoding, "pbcopy");
 #elif __linux__
@@ -30,7 +30,7 @@ void clipboard_set(struct range_tree_node* data, int binary, struct encoding* en
   clipboard_windows_set(data, binary);
 #endif
   if (clipboard_data) {
-    range_tree_node_destroy(clipboard_data, NULL);
+    range_tree_destroy(clipboard_data, NULL);
   }
   clipboard_data = data;
 
@@ -41,13 +41,13 @@ void clipboard_set(struct range_tree_node* data, int binary, struct encoding* en
 }
 
 // Write text to system clipboard
-void clipboard_command_set(struct range_tree_node* data, int binary, struct encoding* encoding, const char* command) {
+void clipboard_command_set(struct range_tree* data, int binary, struct encoding* encoding, const char* command) {
   FILE* pipe = popen(command, "w");
   if (pipe) {
     if (binary) {
       fwrite("hexdump plain/text\n", 1, 19, pipe);
       struct stream stream;
-      stream_from_page(&stream, range_tree_node_first(data), 0);
+      stream_from_page(&stream, range_tree_node_first(data->root), 0);
       while (!stream_end(&stream)) {
         size_t length = stream_cache_length(&stream)-stream_displacement(&stream);
         char* buffer = (char*)malloc(length*3+1);
@@ -58,30 +58,30 @@ void clipboard_command_set(struct range_tree_node* data, int binary, struct enco
       }
       stream_destroy(&stream);
     } else {
-      struct range_tree_node* transform = encoding_transform_page(data, 0, FILE_OFFSET_T_MAX, encoding, encoding_utf8_static());
+      struct range_tree* transform = encoding_transform_page(data->root, 0, FILE_OFFSET_T_MAX, encoding, encoding_utf8_static());
       struct stream stream;
-      stream_from_page(&stream, range_tree_node_first(transform), 0);
+      stream_from_page(&stream, range_tree_node_first(transform->root), 0);
       while (!stream_end(&stream)) {
         size_t length = stream_cache_length(&stream)-stream_displacement(&stream);
         fwrite(stream_buffer(&stream), 1, length, pipe);
         stream_next(&stream);
       }
       stream_destroy(&stream);
-      range_tree_node_destroy(transform, NULL);
+      range_tree_destroy(transform, NULL);
     }
     pclose(pipe);
   }
 }
 
 #ifdef _WINDOWS
-void clipboard_windows_set(struct range_tree_node* data, int binary) {
+void clipboard_windows_set(struct range_tree* data, int binary) {
   //TODO: implement clipboard for Windows
 }
 #endif
 
 // Get text from clipboard
-struct range_tree_node* clipboard_get(struct encoding** encoding) {
-  struct range_tree_node* data = NULL;
+struct range_tree* clipboard_get(struct encoding** encoding) {
+  struct range_tree* data = NULL;
 #ifdef __APPLE__
   data = clipboard_command_get(encoding, "pbpaste");
 #elif __linux__
@@ -101,8 +101,8 @@ struct range_tree_node* clipboard_get(struct encoding** encoding) {
 }
 
 // Get text from system clipboard
-struct range_tree_node* clipboard_command_get(struct encoding** encoding, const char* command) {
-  struct range_tree_node* data = NULL;
+struct range_tree* clipboard_command_get(struct encoding** encoding, const char* command) {
+  struct range_tree* data = range_tree_create();
   FILE* pipe = popen(command, "r");
   if (pipe) {
     uint8_t* buffer = (uint8_t*)malloc(19);
@@ -113,10 +113,10 @@ struct range_tree_node* clipboard_command_get(struct encoding** encoding, const 
         uint8_t* buffer = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MIN*3);
         file_offset_t length = fread(buffer, 1, TREE_BLOCK_LENGTH_MIN*3, pipe);
         if (length) {
-          file_offset_t offset = range_tree_node_length(data);
+          file_offset_t offset = range_tree_node_length(data->root);
           for (file_offset_t pos = 0; pos<length/3; pos++) *(buffer+pos) = document_hex_value_from_string((const char*)buffer+pos*3, 3);
           struct fragment* fragment = fragment_create_memory(buffer, length/3);
-          data = range_tree_node_insert(data, offset, fragment, 0, length/3, 0, 0, NULL, NULL);
+          data->root = range_tree_node_insert(data->root, data, offset, fragment, 0, length/3, 0, 0, NULL, NULL);
           fragment_dereference(fragment, NULL);
         } else {
           free(buffer);
@@ -125,7 +125,7 @@ struct range_tree_node* clipboard_command_get(struct encoding** encoding, const 
     } else {
       if (length) {
         struct fragment* fragment = fragment_create_memory(buffer, length);
-        data = range_tree_node_insert(data, 0, fragment, 0, length, 0, 0, NULL, NULL);
+        data->root = range_tree_node_insert(data->root, data, 0, fragment, 0, length, 0, 0, NULL, NULL);
         fragment_dereference(fragment, NULL);
       } else {
         free(buffer);
@@ -134,16 +134,16 @@ struct range_tree_node* clipboard_command_get(struct encoding** encoding, const 
         uint8_t* buffer = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MIN);
         file_offset_t length = fread(buffer, 1, TREE_BLOCK_LENGTH_MIN, pipe);
         if (length) {
-          file_offset_t offset = range_tree_node_length(data);
+          file_offset_t offset = range_tree_node_length(data->root);
           struct fragment* fragment = fragment_create_memory(buffer, length);
-          data = range_tree_node_insert(data, offset, fragment, 0, length, 0, 0, NULL, NULL);
+          data->root = range_tree_node_insert(data->root, data, offset, fragment, 0, length, 0, 0, NULL, NULL);
           fragment_dereference(fragment, NULL);
         } else {
           free(buffer);
         }
       }
 
-      if (data && encoding && !*encoding) {
+      if (data->root && encoding && !*encoding) {
         *encoding = encoding_utf8_static();
       }
     }

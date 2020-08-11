@@ -70,6 +70,7 @@ struct file_cache_node;
 struct fragment;
 struct list;
 struct list_node;
+struct range_tree;
 struct range_tree_node;
 struct screen;
 struct screen_char;

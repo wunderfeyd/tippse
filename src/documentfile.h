@@ -15,6 +15,7 @@
 #endif
 
 #include "visualinfo.h"
+#include "rangetree.h"
 
 #define TIPPSE_DOCUMENT_MEMORY_LOADMAX 1024*1024
 #define TIPPSE_DOCUMENT_AUTO_LOADMAX 1024*16
@@ -55,9 +56,9 @@ struct document_file_cache {
 };
 
 struct document_file {
-  struct range_tree_node* buffer;       // access to document buffer, root page
+  struct range_tree buffer;             // access to document buffer, root page
   struct file_cache* cache;             // base file cache that points directly to the selected file
-  struct range_tree_node* bookmarks;    // access to bookmarks
+  struct range_tree bookmarks;          // access to bookmarks
   struct list* undos;                   // undo information
   struct list* redos;                   // redo information
   struct file_type* type;               // file type

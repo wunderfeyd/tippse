@@ -32,6 +32,8 @@ struct search_skip_node {
   size_t index[256];
 };
 
+#include "rangetree.h"
+
 struct search_node {
   int type;               // type of node
   struct search_stack* stack; // pointer to current stack
@@ -46,7 +48,7 @@ struct search_node {
   struct list group_end;  // list of groups exited by the node
   struct stream start;    // start of group content during scan
   struct stream end;      // end of group content during scan
-  struct range_tree_node* set; // matching codepoints/bytes
+  struct range_tree set; // matching codepoints/bytes
   uint32_t bitset[256/SEARCH_NODE_SET_BUCKET+1]; // simple bit table for byte matching
   size_t group;           // group number in back reference
 };
@@ -98,7 +100,7 @@ void search_node_set_decode_rle(struct search_node* node, int invert, uint16_t* 
 struct search* search_create(int reverse, struct encoding* output_encoding);
 struct search* search_create_plain(int ignore_case, int reverse, struct stream* needle, struct encoding* needle_encoding, struct encoding* output_encoding);
 struct search* search_create_regex(int ignore_case, int reverse, struct stream* needle, struct encoding* needle_encoding, struct encoding* output_encoding);
-struct range_tree_node* search_replacement(struct search* base, struct range_tree_node* root, struct encoding* replacement_encoding, struct range_tree_node* document_root);
+struct range_tree* search_replacement(struct search* base, struct range_tree* replacement_tree, struct encoding* replacement_encoding, struct range_tree* document_tree);
 void search_destroy(struct search* base);
 struct search_node* search_append_class(struct search_node* last, codepoint_t cp, int create);
 size_t search_append_set(struct search_node* last, int ignore_case, struct unicode_sequencer* sequencer, size_t offset);

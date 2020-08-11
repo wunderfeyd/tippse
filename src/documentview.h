@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include "types.h"
+#include "rangetree.h"
 
 struct document_view {
   file_offset_t offset;                 // file offset
@@ -14,7 +15,7 @@ struct document_view {
   file_offset_t selection_start;        // start position of selection
   file_offset_t selection_end;          // end position of selection
   int selection_reset;                  // Selection was changed
-  struct range_tree_node* selection;    // information for multiple selections
+  struct range_tree selection;          // information for multiple selections
 
   int line_cut;                         // Previous action was a line cut
 

@@ -28,6 +28,8 @@ struct file_cache_node {
   struct list_node* list_node;              // node in list
 };
 
+#include "rangetree.h"
+
 struct file_cache {
   char* filename;                           // name of file
   struct file* fd;                          // file descriptor
@@ -40,7 +42,7 @@ struct file_cache {
 
   size_t max;                               // maximum cache size
   size_t size;                              // current cache size
-  struct range_tree_node* index;            // index
+  struct range_tree index;                  // index
   struct list active;                       // list of active nodes
   struct list inactive;                     // lru list of inactive nodes
 };

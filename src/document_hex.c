@@ -74,7 +74,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   int bookmarkx = file->defaults.colors[VISUAL_FLAG_COLOR_BOOKMARK];
 
   position_t data_size = document_hex_width(splitter);
-  file_offset_t file_size = range_tree_node_length(file->buffer);
+  file_offset_t file_size = range_tree_node_length(file->buffer.root);
   view->cursor_x = (position_t)(view->offset%(file_offset_t)data_size);
   view->cursor_y = (position_t)(view->offset/(file_offset_t)data_size);
   if (view->cursor_y>=view->scroll_y+splitter->client_height) {
@@ -100,7 +100,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
 
   file_offset_t offset = (file_offset_t)(view->scroll_y*data_size);
   file_offset_t displacement;
-  struct range_tree_node* buffer = range_tree_node_find_offset(file->buffer, offset, &displacement);
+  struct range_tree_node* buffer = range_tree_node_find_offset(file->buffer.root, offset, &displacement);
   struct stream byte_stream;
   stream_from_page(&byte_stream, buffer, displacement);
 
@@ -110,10 +110,10 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   unicode_sequencer_clear(&text_sequence, file->encoding, &text_stream);
 
   file_offset_t selection_displacement;
-  struct range_tree_node* selection = range_tree_node_find_offset(view->selection, offset, &selection_displacement);
+  struct range_tree_node* selection = range_tree_node_find_offset(view->selection.root, offset, &selection_displacement);
 
   file_offset_t bookmark_displacement;
-  struct range_tree_node* bookmark = range_tree_node_find_offset(file->bookmarks, offset, &bookmark_displacement);
+  struct range_tree_node* bookmark = range_tree_node_find_offset(file->bookmarks.root, offset, &bookmark_displacement);
 
   size_t name_length = strlen(file->filename);
   int modified = document_undo_modified(file);
@@ -147,7 +147,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
         start--;
       }
 
-      int marked = range_tree_node_marked(file->bookmarks, offset, (file_offset_t)data_size, TIPPSE_INSERTER_MARK);
+      int marked = range_tree_node_marked(file->bookmarks.root, offset, (file_offset_t)data_size, TIPPSE_INSERTER_MARK);
 
       splitter_drawtext(splitter, screen, x, (int)y, line+start, (size_t)size, file->defaults.colors[marked?VISUAL_FLAG_COLOR_BOOKMARK:VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
     }
@@ -239,7 +239,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
-  file_offset_t file_size = range_tree_node_length(file->buffer);
+  file_offset_t file_size = range_tree_node_length(file->buffer.root);
   position_t data_size = document_hex_width(splitter);
   file_offset_t offset_old = view->offset;
   int selection_keep = 0;
@@ -315,7 +315,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
       document_bookmark_toggle_selection(file, view);
       document_view_select_nothing(view, file);
     } else {
-      if (view->offset<range_tree_node_length(file->buffer)) {
+      if (view->offset<range_tree_node_length(file->buffer.root)) {
         document_bookmark_toggle_range(file, view->offset, view->offset+1);
       }
     }
@@ -375,7 +375,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     document->cp_first = 0;
   }
 
-  file_size = range_tree_node_length(file->buffer);
+  file_size = range_tree_node_length(file->buffer.root);
   if (view->offset>((file_offset_t)1<<(sizeof(file_offset_t)*8-1))) {
     view->offset = 0;
   } else if (view->offset>file_size) {
@@ -421,7 +421,7 @@ void document_hex_cursor_from_point(struct document* base, struct splitter* spli
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
-  file_offset_t file_size = range_tree_node_length(file->buffer);
+  file_offset_t file_size = range_tree_node_length(file->buffer.root);
   position_t data_size = document_hex_width(splitter);
   if (y<0) *offset = 0;
   if (y>=0 && y<splitter->client_height) {
