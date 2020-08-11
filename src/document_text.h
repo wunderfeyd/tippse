@@ -22,11 +22,12 @@ struct document_text_render_info {
   int visual_detail;                // flags for visual details
   struct unicode_sequence* sequence;  // current unicode sequence
   struct unicode_sequence* sequence_next; // next unicode sequence
+  struct range_tree* buffer_tree;   // access to document buffer, current page in tree
   struct range_tree_node* buffer;   // access to document buffer, current page in tree
-  long indentations;                 // number of normal identations in block
-  long indentations_extra;           // number of extra identations in block, e.g. line wrapping
-  long indentation;                  // number of normal identation in whole document
-  long indentation_extra;            // number of extra identation in whole document
+  long indentations;                // number of normal identations in block
+  long indentations_extra;          // number of extra identations in block, e.g. line wrapping
+  long indentation;                 // number of normal identation in whole document
+  long indentation_extra;           // number of extra identation in whole document
   file_offset_t displacement;       // displacement for next Unicode character
   file_offset_t offset;             // file offset
   file_offset_t offset_sync;        // last position for keyword
@@ -59,7 +60,7 @@ struct document_text_render_info {
   struct unicode_sequencer sequencer; // access to Unicode sequencer cache
   bool_t append;                    // continue status?
   struct file_type* file_type;
-  struct range_tree_node* selection_root; // root of selection buffer
+  struct range_tree* selection_tree; // root of selection buffer
   const struct range_tree_node* selection; // access to selection buffer, current page in tree
 };
 
@@ -110,9 +111,9 @@ void document_text_keypress_line_select(struct document* base, struct splitter* 
 
 void document_text_toggle_bookmark(struct document* base, struct splitter* splitter, file_offset_t offset);
 
-void document_text_render_clear(struct document_text_render_info* render_info, position_t width, struct range_tree_node* selection);
+void document_text_render_clear(struct document_text_render_info* render_info, position_t width, struct range_tree* selection);
 void document_text_render_destroy(struct document_text_render_info* render_info);
-void document_text_render_seek(struct document_text_render_info* render_info, struct range_tree_node* buffer, struct encoding* encoding, const struct document_text_position* in);
+void document_text_render_seek(struct document_text_render_info* render_info, struct range_tree* buffer, struct encoding* encoding, const struct document_text_position* in);
 int document_text_split_buffer(struct range_tree_node* buffer, struct document_file* file);
 int document_text_collect_span(struct document_text_render_info* render_info, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel);
 int document_text_prerender_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel);

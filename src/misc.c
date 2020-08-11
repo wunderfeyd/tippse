@@ -424,11 +424,11 @@ wchar_t* string_system(const char* convert) {
 
   struct stream stream;
   stream_from_plain(&stream, (uint8_t*)convert, (size_t)((uint8_t*)end-(uint8_t*)convert));
-  struct range_tree_node* root = encoding_transform_stream(&stream, encoding_utf8_static(), utf16, FILE_OFFSET_T_MAX);
+  struct range_tree* tree = encoding_transform_stream(&stream, encoding_utf8_static(), utf16, FILE_OFFSET_T_MAX);
   wchar_t null = 0;
-  root = range_tree_node_insert_split(root, range_tree_node_length(root), (uint8_t*)&null, sizeof(null), 0);
-  wchar_t* output = (wchar_t*)range_tree_node_raw(root, 0, range_tree_node_length(root));
-  range_tree_node_destroy(root, NULL);
+  tree->root = range_tree_node_insert_split(tree->root, tree, range_tree_node_length(tree->root), (uint8_t*)&null, sizeof(null), 0);
+  wchar_t* output = (wchar_t*)range_tree_node_raw(tree->root, 0, range_tree_node_length(tree->root));
+  range_tree_destroy(tree, NULL);
 
   utf16->destroy(utf16);
   stream_destroy(&stream);
@@ -446,11 +446,11 @@ char* string_internal(const wchar_t* convert) {
 
   struct stream stream;
   stream_from_plain(&stream, (uint8_t*)convert, (size_t)((uint8_t*)end-(uint8_t*)convert));
-  struct range_tree_node* root = encoding_transform_stream(&stream, utf16, encoding_utf8_static(), FILE_OFFSET_T_MAX);
+  struct range_tree* tree = encoding_transform_stream(&stream, utf16, encoding_utf8_static(), FILE_OFFSET_T_MAX);
   char null = 0;
-  root = range_tree_node_insert_split(root, range_tree_node_length(root), (uint8_t*)&null, sizeof(null), 0);
-  char* output = (char*)range_tree_node_raw(root, 0, range_tree_node_length(root));
-  range_tree_node_destroy(root, NULL);
+  tree->root = range_tree_node_insert_split(tree->root, tree, range_tree_node_length(tree->root), (uint8_t*)&null, sizeof(null), 0);
+  char* output = (char*)range_tree_node_raw(tree->root, 0, range_tree_node_length(tree->root));
+  range_tree_destroy(tree, NULL);
 
   utf16->destroy(utf16);
   stream_destroy(&stream);

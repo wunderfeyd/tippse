@@ -32,7 +32,7 @@ struct search_node* search_node_create(int type) {
   base->stack = NULL;
   base->next = NULL;
   base->forward = NULL;
-  range_tree_create_inplace(&base->set);
+  range_tree_create_inplace(&base->set, NULL, 0);
   return base;
 }
 
@@ -60,7 +60,7 @@ void search_node_empty(struct search_node* base) {
   list_destroy_inplace(&base->group_end);
 
   free(base->plain);
-  range_tree_destroy_inplace(&base->set, NULL);
+  range_tree_destroy_inplace(&base->set);
 }
 
 // Move node contents to another and free the source node
@@ -465,7 +465,7 @@ struct range_tree* search_replacement(struct search* base, struct range_tree* re
     return replacement_tree;
   }
 
-  struct range_tree* output = range_tree_create();
+  struct range_tree* output = range_tree_create(NULL, 0);
 
   struct stream replacement_stream;
   stream_from_page(&replacement_stream, range_tree_node_first(replacement_tree->root), 0);
@@ -482,7 +482,7 @@ struct range_tree* search_replacement(struct search* base, struct range_tree* re
     // TODO: codepoint!=sequence
     codepoint_t cp = unicode_sequencer_find(&sequencer, offset)->cp[0];
     if (size>TREE_BLOCK_LENGTH_MIN-8 || cp<=0) {
-      output->root = range_tree_node_insert_split(output->root, output, range_tree_node_length(output->root), &coded[0], size, 0);
+      range_tree_node_insert_split(output, range_tree_node_length(output->root), &coded[0], size, 0);
       size = 0;
     }
 
@@ -509,7 +509,7 @@ struct range_tree* search_replacement(struct search* base, struct range_tree* re
       } else if (cp=='0') {
         cp = '\0';
       } else if (cp>='1' && cp<='9') {
-        output->root = range_tree_node_insert_split(output->root, output, range_tree_node_length(output->root), &coded[0], size, 0);
+        range_tree_node_insert_split(output, range_tree_node_length(output->root), &coded[0], size, 0);
         size = 0;
         size_t group = (size_t)(cp-'1');
         if (group<base->groups) {
@@ -517,9 +517,9 @@ struct range_tree* search_replacement(struct search* base, struct range_tree* re
           file_offset_t end = stream_offset_page(&base->group_hits[group].end);
           if (start<end) {
             // TODO: this looks inefficient (copy->paste->delete ... use direct copy)
-            struct range_tree* copy = range_tree_node_copy(document_tree->root, start, end-start);
-            range_tree_node_paste(output, copy->root, range_tree_node_length(output->root), NULL);
-            range_tree_destroy(copy, NULL);
+            struct range_tree* copy = range_tree_node_copy(document_tree, start, end-start, NULL);
+            range_tree_node_paste(output, copy->root, range_tree_node_length(output->root));
+            range_tree_destroy(copy);
           }
         }
         offset++;
@@ -651,7 +651,7 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct unico
   if (ignore_case) {
     // TODO: Ummm... very hacky ... we sequence from pure codepoints ... what about sequences?
     // TODO: only check codepoints that are actually sequence instead of bruteforce all codepoints (speed improvement)
-    struct range_tree* source = range_tree_node_copy(check->set.root, 0, check->set.root->length);
+    struct range_tree* source = range_tree_node_copy(&check->set, 0, check->set.root->length, NULL);
     struct range_tree_node* range = range_tree_node_first(source->root);
     size_t codepoint = 0;
     while (range) {
@@ -672,11 +672,11 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct unico
       codepoint += range->length;
       range = range_tree_node_next(range);
     }
-    range_tree_destroy(source, NULL);
+    range_tree_destroy(source);
   }
 
   if (invert) {
-    check->set.root = range_tree_node_invert_mark(check->set.root, TIPPSE_INSERTER_MARK);
+    check->set.root = range_tree_node_invert_mark(check->set.root, &check->set, TIPPSE_INSERTER_MARK);
   }
 
   return advance;

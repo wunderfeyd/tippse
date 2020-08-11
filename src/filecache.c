@@ -13,7 +13,7 @@ struct file_cache* file_cache_create(const char* filename) {
   base->filename = strdup(filename);
   base->fd = file_create(base->filename, TIPPSE_FILE_READ);
   base->count = 1;
-  range_tree_create_inplace(&base->index);
+  range_tree_create_inplace(&base->index, NULL, 0);
   list_create_inplace(&base->active, sizeof(struct file_cache_node));
   list_create_inplace(&base->inactive, sizeof(struct file_cache_node));
   base->size = 0;
@@ -41,7 +41,7 @@ void file_cache_dereference(struct file_cache* base) {
   base->count--;
 
   if (base->count==0) {
-    range_tree_destroy_inplace(&base->index, NULL);
+    range_tree_destroy_inplace(&base->index);
 
     file_cache_empty(base, &base->active);
     file_cache_empty(base, &base->inactive);

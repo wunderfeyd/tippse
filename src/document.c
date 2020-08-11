@@ -92,7 +92,7 @@ int document_search(struct document_file* file, struct document_view* view, stru
         end = view->offset;
 
         if (regex) {
-          range_tree_destroy(replacement, NULL);
+          range_tree_destroy(replacement);
         }
       }
 
@@ -212,7 +212,7 @@ int document_search(struct document_file* file, struct document_view* view, stru
   search_destroy(search);
 
   if (replacement_transform) {
-    range_tree_destroy(replacement_transform, NULL);
+    range_tree_destroy(replacement_transform);
   }
 
   if (replacements>0) {
@@ -497,9 +497,9 @@ int document_select_delete(struct document_file* file, struct document_view* vie
 void document_clipboard_copy(struct document_file* file, struct document_view* view) {
   file_offset_t low;
   file_offset_t high = 0;
-  struct range_tree* copy = range_tree_create();
+  struct range_tree* copy = range_tree_create(NULL, 0);
   while (document_view_select_next(view, high, &low, &high)) {
-    copy->root = range_tree_node_copy_insert(file->buffer.root, low, copy->root, copy, range_tree_node_length(copy->root), high-low, NULL);
+    range_tree_node_copy_insert(file->buffer.root, low, copy, range_tree_node_length(copy->root), high-low);
   }
   clipboard_set(copy, file->binary, file->encoding);
 }
@@ -511,7 +511,7 @@ void document_clipboard_paste(struct document_file* file, struct document_view* 
   if (buffer) {
     struct range_tree* transform = encoding_transform_page(buffer->root, 0, FILE_OFFSET_T_MAX, encoding, file->encoding);
     document_file_insert_buffer(file, view->offset, transform->root);
-    range_tree_destroy(transform, NULL);
+    range_tree_destroy(transform);
   }
 }
 
@@ -551,7 +551,7 @@ void document_bookmark_next(struct document_file* file, struct document_view* vi
   while (1) {
     file_offset_t low;
     file_offset_t high;
-    if (range_tree_node_marked_next(file->bookmarks.root, offset, &low, &high, wrap)) {
+    if (range_tree_node_marked_next(&file->bookmarks, offset, &low, &high, wrap)) {
       view->offset = low;
       break;
     }
@@ -571,7 +571,7 @@ void document_bookmark_prev(struct document_file* file, struct document_view* vi
   while (1) {
     file_offset_t low;
     file_offset_t high;
-    if (range_tree_node_marked_prev(file->bookmarks.root, offset, &low, &high, wrap)) {
+    if (range_tree_node_marked_prev(&file->bookmarks, offset, &low, &high, wrap)) {
       view->offset = low;
       break;
     }

@@ -13,7 +13,10 @@ static struct encoding* clipboard_encoding = NULL;
 
 // Free clipboard data
 void clipboard_free(void) {
-  range_tree_destroy(clipboard_data, NULL);
+  if (clipboard_data) {
+    range_tree_destroy(clipboard_data);
+  }
+
   if (clipboard_encoding) {
     clipboard_encoding->destroy(clipboard_encoding);
   }
@@ -30,7 +33,7 @@ void clipboard_set(struct range_tree* data, int binary, struct encoding* encodin
   clipboard_windows_set(data, binary);
 #endif
   if (clipboard_data) {
-    range_tree_destroy(clipboard_data, NULL);
+    range_tree_destroy(clipboard_data);
   }
   clipboard_data = data;
 
@@ -67,7 +70,7 @@ void clipboard_command_set(struct range_tree* data, int binary, struct encoding*
         stream_next(&stream);
       }
       stream_destroy(&stream);
-      range_tree_destroy(transform, NULL);
+      range_tree_destroy(transform);
     }
     pclose(pipe);
   }
@@ -102,7 +105,7 @@ struct range_tree* clipboard_get(struct encoding** encoding) {
 
 // Get text from system clipboard
 struct range_tree* clipboard_command_get(struct encoding** encoding, const char* command) {
-  struct range_tree* data = range_tree_create();
+  struct range_tree* data = range_tree_create(NULL, 0);
   FILE* pipe = popen(command, "r");
   if (pipe) {
     uint8_t* buffer = (uint8_t*)malloc(19);
@@ -116,7 +119,7 @@ struct range_tree* clipboard_command_get(struct encoding** encoding, const char*
           file_offset_t offset = range_tree_node_length(data->root);
           for (file_offset_t pos = 0; pos<length/3; pos++) *(buffer+pos) = document_hex_value_from_string((const char*)buffer+pos*3, 3);
           struct fragment* fragment = fragment_create_memory(buffer, length/3);
-          data->root = range_tree_node_insert(data->root, data, offset, fragment, 0, length/3, 0, 0, NULL, NULL);
+          range_tree_node_insert(data, offset, fragment, 0, length/3, 0, 0, NULL);
           fragment_dereference(fragment, NULL);
         } else {
           free(buffer);
@@ -125,7 +128,7 @@ struct range_tree* clipboard_command_get(struct encoding** encoding, const char*
     } else {
       if (length) {
         struct fragment* fragment = fragment_create_memory(buffer, length);
-        data->root = range_tree_node_insert(data->root, data, 0, fragment, 0, length, 0, 0, NULL, NULL);
+        range_tree_node_insert(data, 0, fragment, 0, length, 0, 0, NULL);
         fragment_dereference(fragment, NULL);
       } else {
         free(buffer);
@@ -136,7 +139,7 @@ struct range_tree* clipboard_command_get(struct encoding** encoding, const char*
         if (length) {
           file_offset_t offset = range_tree_node_length(data->root);
           struct fragment* fragment = fragment_create_memory(buffer, length);
-          data->root = range_tree_node_insert(data->root, data, offset, fragment, 0, length, 0, 0, NULL, NULL);
+          range_tree_node_insert(data, offset, fragment, 0, length, 0, 0, NULL);
           fragment_dereference(fragment, NULL);
         } else {
           free(buffer);
