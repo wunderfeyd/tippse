@@ -50,7 +50,7 @@ void clipboard_command_set(struct range_tree* data, int binary, struct encoding*
     if (binary) {
       fwrite("hexdump plain/text\n", 1, 19, pipe);
       struct stream stream;
-      stream_from_page(&stream, range_tree_node_first(data->root), 0);
+      stream_from_page(&stream, range_tree_first(data), 0);
       while (!stream_end(&stream)) {
         size_t length = stream_cache_length(&stream)-stream_displacement(&stream);
         char* buffer = (char*)malloc(length*3+1);
@@ -63,7 +63,7 @@ void clipboard_command_set(struct range_tree* data, int binary, struct encoding*
     } else {
       struct range_tree* transform = encoding_transform_page(data->root, 0, FILE_OFFSET_T_MAX, encoding, encoding_utf8_static());
       struct stream stream;
-      stream_from_page(&stream, range_tree_node_first(transform->root), 0);
+      stream_from_page(&stream, range_tree_first(transform), 0);
       while (!stream_end(&stream)) {
         size_t length = stream_cache_length(&stream)-stream_displacement(&stream);
         fwrite(stream_buffer(&stream), 1, length, pipe);
@@ -116,7 +116,7 @@ struct range_tree* clipboard_command_get(struct encoding** encoding, const char*
         uint8_t* buffer = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MIN*3);
         file_offset_t length = fread(buffer, 1, TREE_BLOCK_LENGTH_MIN*3, pipe);
         if (length) {
-          file_offset_t offset = range_tree_node_length(data->root);
+          file_offset_t offset = range_tree_length(data);
           for (file_offset_t pos = 0; pos<length/3; pos++) *(buffer+pos) = document_hex_value_from_string((const char*)buffer+pos*3, 3);
           struct fragment* fragment = fragment_create_memory(buffer, length/3);
           range_tree_insert(data, offset, fragment, 0, length/3, 0, 0, NULL);
@@ -137,7 +137,7 @@ struct range_tree* clipboard_command_get(struct encoding** encoding, const char*
         uint8_t* buffer = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MIN);
         file_offset_t length = fread(buffer, 1, TREE_BLOCK_LENGTH_MIN, pipe);
         if (length) {
-          file_offset_t offset = range_tree_node_length(data->root);
+          file_offset_t offset = range_tree_length(data);
           struct fragment* fragment = fragment_create_memory(buffer, length);
           range_tree_insert(data, offset, fragment, 0, length, 0, 0, NULL);
           fragment_dereference(fragment, NULL);

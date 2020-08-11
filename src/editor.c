@@ -627,7 +627,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     // TODO: this should be handled by the specialized document classes
     if (base->document->document==base->document->document_hex) {
       file_offset_t offset = (file_offset_t)decode_based_unsigned(&sequencer, 16, SIZE_T_MAX);
-      file_offset_t length = base->document->file->buffer.root?base->document->file->buffer.root->length:0;
+      file_offset_t length = range_tree_length(&base->document->file->buffer);
       if (offset>length) {
         offset = length;
       }
@@ -766,7 +766,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
         }
       }
 
-      file_offset_t before = base->filter->file->buffer.root?base->filter->file->buffer.root->length:0;
+      file_offset_t before = range_tree_length(&base->filter->file->buffer);
       if (send_panel) {
         (*base->panel->document->keypress)(base->panel->document, base->panel, command, arguments, key, cp, button, button_old, x-base->panel->x, y-base->panel->y);
       }
@@ -781,12 +781,12 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
       }
 
       if (!selected) {
-        file_offset_t now = range_tree_node_length(base->filter_doc->buffer.root);
+        file_offset_t now = range_tree_length(&base->filter_doc->buffer);
         if (before!=now) {
           struct stream* filter_stream = NULL;
           struct stream stream;
           if (base->filter_doc->buffer.root) {
-            stream_from_page(&stream, range_tree_node_first(base->filter_doc->buffer.root), 0);
+            stream_from_page(&stream, range_tree_first(&base->filter_doc->buffer), 0);
             filter_stream = &stream;
           }
           if (base->panel->file==base->browser_doc) {
@@ -1532,8 +1532,8 @@ void editor_console_update(struct editor* base, const char* text, size_t length,
   base->console_text = strndup(text, length);
   base->console_color = VISUAL_FLAG_COLOR_CONSOLENORMAL+type;
 
-  document_file_insert(base->console_doc, range_tree_node_length(base->console_doc->buffer.root), (uint8_t*)text, length, TIPPSE_INSERTER_HIGHLIGHT|(base->console_color<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT));
-  document_file_insert(base->console_doc, range_tree_node_length(base->console_doc->buffer.root), (uint8_t*)"\n", 1, 0);
+  document_file_insert(base->console_doc, range_tree_length(&base->console_doc->buffer), (uint8_t*)text, length, TIPPSE_INSERTER_HIGHLIGHT|(base->console_color<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT));
+  document_file_insert(base->console_doc, range_tree_length(&base->console_doc->buffer), (uint8_t*)"\n", 1, 0);
   base->console_index++;
 }
 
@@ -1546,7 +1546,7 @@ void editor_search(struct editor* base) {
     document_view_select_next(base->document->view, 0, &selection_low, &selection_high);
 
     // TODO: update encoding in search panel? or transform to encoding?
-    document_file_delete(base->search_doc, 0, base->search_doc->buffer.root?base->search_doc->buffer.root->length:0);
+    document_file_delete(base->search_doc, 0, range_tree_length(&base->search_doc->buffer));
     struct range_tree* buffer = encoding_transform_page(base->document->file->buffer.root, selection_low, selection_high-selection_low, base->document->file->encoding, base->panel->file->encoding);
     document_file_insert_buffer(base->search_doc, 0, buffer->root);
     range_tree_destroy(buffer);

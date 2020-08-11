@@ -468,7 +468,7 @@ struct range_tree* search_replacement(struct search* base, struct range_tree* re
   struct range_tree* output = range_tree_create(NULL, 0);
 
   struct stream replacement_stream;
-  stream_from_page(&replacement_stream, range_tree_node_first(replacement_tree->root), 0);
+  stream_from_page(&replacement_stream, range_tree_first(replacement_tree), 0);
 
   struct unicode_sequencer sequencer;
   unicode_sequencer_clear(&sequencer, replacement_encoding, &replacement_stream);
@@ -482,7 +482,7 @@ struct range_tree* search_replacement(struct search* base, struct range_tree* re
     // TODO: codepoint!=sequence
     codepoint_t cp = unicode_sequencer_find(&sequencer, offset)->cp[0];
     if (size>TREE_BLOCK_LENGTH_MIN-8 || cp<=0) {
-      range_tree_insert_split(output, range_tree_node_length(output->root), &coded[0], size, 0);
+      range_tree_insert_split(output, range_tree_length(output), &coded[0], size, 0);
       size = 0;
     }
 
@@ -509,7 +509,7 @@ struct range_tree* search_replacement(struct search* base, struct range_tree* re
       } else if (cp=='0') {
         cp = '\0';
       } else if (cp>='1' && cp<='9') {
-        range_tree_insert_split(output, range_tree_node_length(output->root), &coded[0], size, 0);
+        range_tree_insert_split(output, range_tree_length(output), &coded[0], size, 0);
         size = 0;
         size_t group = (size_t)(cp-'1');
         if (group<base->groups) {
@@ -518,7 +518,7 @@ struct range_tree* search_replacement(struct search* base, struct range_tree* re
           if (start<end) {
             // TODO: this looks inefficient (copy->paste->delete ... use direct copy)
             struct range_tree* copy = range_tree_copy(document_tree, start, end-start, NULL);
-            range_tree_paste(output, copy->root, range_tree_node_length(output->root));
+            range_tree_paste(output, copy->root, range_tree_length(output));
             range_tree_destroy(copy);
           }
         }
@@ -651,8 +651,8 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct unico
   if (ignore_case) {
     // TODO: Ummm... very hacky ... we sequence from pure codepoints ... what about sequences?
     // TODO: only check codepoints that are actually sequence instead of bruteforce all codepoints (speed improvement)
-    struct range_tree* source = range_tree_copy(&check->set, 0, check->set.root->length, NULL);
-    struct range_tree_node* range = range_tree_node_first(source->root);
+    struct range_tree* source = range_tree_copy(&check->set, 0, range_tree_length(&check->set), NULL);
+    struct range_tree_node* range = range_tree_first(source);
     size_t codepoint = 0;
     while (range) {
       if (range->inserter&TIPPSE_INSERTER_MARK) {
@@ -848,7 +848,7 @@ void search_debug_tree(struct search* base, struct search_node* node, size_t dep
     if (node->size==0) {
       fprintf(stderr, "[");
       int count = 0;
-      struct range_tree_node* range = range_tree_node_first(node->set.root);
+      struct range_tree_node* range = range_tree_first(&node->set);
       size_t codepoint = 0;
       while (range && count<8) {
         if (range->inserter&TIPPSE_INSERTER_MARK) {
@@ -1038,7 +1038,7 @@ int search_optimize_combine_branch_before(struct encoding* encoding, struct sear
       struct search_node* check2 = *((struct search_node**)list_object(subs2));
       if (check1->type==check2->type && check1->min==check2->min && check1->max==1 && check2->max==1 && (check1->type&SEARCH_NODE_TYPE_SET)) {
         if (check1->next==NULL && check2->next==NULL) { // Merge only if both paths are equal (or if there are single nodes)
-          struct range_tree_node* range = range_tree_node_first(check2->set.root);
+          struct range_tree_node* range = range_tree_first(&check2->set);
           size_t codepoint = 0;
           while (range) {
             if (range->inserter&TIPPSE_INSERTER_MARK) {
@@ -1056,8 +1056,8 @@ int search_optimize_combine_branch_before(struct encoding* encoding, struct sear
           break;
         }
 
-        struct range_tree_node* range1 = range_tree_node_first(check1->set.root);
-        struct range_tree_node* range2 = range_tree_node_first(check2->set.root);
+        struct range_tree_node* range1 = range_tree_first(&check1->set);
+        struct range_tree_node* range2 = range_tree_first(&check2->set);
         while (range1 && range2) {
           if (range1->inserter!=range2->inserter || range1->length!=range2->length) {
             break;
@@ -1119,7 +1119,7 @@ int search_optimize_combine_branch_before(struct encoding* encoding, struct sear
 // If the set is small try to translate the huge unicode set into a small byte set and encode the unicode code point into its output reprensentation
 int search_optimize_native_after(struct encoding* encoding, struct search_node* node) {
   size_t count = 0;
-  struct range_tree_node* range = range_tree_node_first(node->set.root);
+  struct range_tree_node* range = range_tree_first(&node->set);
   while (range && count<=SEARCH_NODE_TYPE_NATIVE_COUNT) {
     if (range->inserter&TIPPSE_INSERTER_MARK) {
       count += range->length;
@@ -1132,7 +1132,7 @@ int search_optimize_native_after(struct encoding* encoding, struct search_node* 
     node->type |= SEARCH_NODE_TYPE_BRANCH;
 
     size_t codepoint = 0;
-    struct range_tree_node* range = range_tree_node_first(node->set.root);
+    struct range_tree_node* range = range_tree_first(&node->set);
     while (range) {
       if (range->inserter&TIPPSE_INSERTER_MARK) {
         for (size_t n = 0; n<range->length; n++) {
@@ -1156,7 +1156,7 @@ int search_optimize_plain_before(struct encoding* encoding, struct search_node* 
   if ((node->type&SEARCH_NODE_TYPE_BYTE) && node->size==0 && node->sub.count==0 && node->min==node->max && node->max<16) {
     size_t codepoint = 0;
     size_t set = SIZE_T_MAX;
-    struct range_tree_node* range = range_tree_node_first(node->set.root);
+    struct range_tree_node* range = range_tree_first(&node->set);
     while (range) {
       if (range->inserter&TIPPSE_INSERTER_MARK) {
         if (range->length!=1) {
@@ -1209,7 +1209,7 @@ void search_prepare(struct search* base, struct search_node* node, struct search
   if (node->type&SEARCH_NODE_TYPE_BYTE) {
     memset(&node->bitset, 0, sizeof(node->bitset));
     size_t codepoint = 0;
-    struct range_tree_node* range = range_tree_node_first(node->set.root);
+    struct range_tree_node* range = range_tree_first(&node->set);
     while (range) {
       if (range->inserter&TIPPSE_INSERTER_MARK) {
         for (size_t n = codepoint; n<codepoint+range->length; n++) {
@@ -1275,7 +1275,7 @@ void search_prepare_skip(struct search* base, struct search_node* node) {
           references[nodes].index[index] = 0;
         }
         size_t codepoint = 0;
-        struct range_tree_node* range = range_tree_node_first(node->set.root);
+        struct range_tree_node* range = range_tree_first(&node->set);
         while (range) {
           if (range->inserter&TIPPSE_INSERTER_MARK) {
             for (size_t index = codepoint; index<codepoint+range->length; index++) {

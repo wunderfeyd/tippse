@@ -74,7 +74,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   int bookmarkx = file->defaults.colors[VISUAL_FLAG_COLOR_BOOKMARK];
 
   position_t data_size = document_hex_width(splitter);
-  file_offset_t file_size = range_tree_node_length(file->buffer.root);
+  file_offset_t file_size = range_tree_length(&file->buffer);
   view->cursor_x = (position_t)(view->offset%(file_offset_t)data_size);
   view->cursor_y = (position_t)(view->offset/(file_offset_t)data_size);
   if (view->cursor_y>=view->scroll_y+splitter->client_height) {
@@ -239,7 +239,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
-  file_offset_t file_size = range_tree_node_length(file->buffer.root);
+  file_offset_t file_size = range_tree_length(&file->buffer);
   position_t data_size = document_hex_width(splitter);
   file_offset_t offset_old = view->offset;
   int selection_keep = 0;
@@ -315,7 +315,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
       document_bookmark_toggle_selection(file, view);
       document_view_select_nothing(view, file);
     } else {
-      if (view->offset<range_tree_node_length(file->buffer.root)) {
+      if (view->offset<range_tree_length(&file->buffer)) {
         document_bookmark_toggle_range(file, view->offset, view->offset+1);
       }
     }
@@ -375,7 +375,7 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     document->cp_first = 0;
   }
 
-  file_size = range_tree_node_length(file->buffer.root);
+  file_size = range_tree_length(&file->buffer);
   if (view->offset>((file_offset_t)1<<(sizeof(file_offset_t)*8-1))) {
     view->offset = 0;
   } else if (view->offset>file_size) {
@@ -421,7 +421,7 @@ void document_hex_cursor_from_point(struct document* base, struct splitter* spli
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
-  file_offset_t file_size = range_tree_node_length(file->buffer.root);
+  file_offset_t file_size = range_tree_length(&file->buffer);
   position_t data_size = document_hex_width(splitter);
   if (y<0) *offset = 0;
   if (y>=0 && y<splitter->client_height) {

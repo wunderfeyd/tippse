@@ -214,7 +214,7 @@ void document_file_create_pipe(struct document_file* base) {
 
     document_undo_mark_save_point(base);
     document_file_detect_properties(base);
-    range_tree_static(&base->bookmarks, range_tree_node_length(base->buffer.root), 0);
+    range_tree_static(&base->bookmarks, range_tree_length(&base->buffer), 0);
     document_file_reset_views(base, 1);
 
     (*base->type->destroy)(base->type);
@@ -243,7 +243,7 @@ void document_file_fill_pipe(struct document_file* base, uint8_t* buffer, size_t
   if (length>0) {
     uint8_t* copy = (uint8_t*)malloc(length);
     memcpy(copy, buffer, length);
-    file_offset_t offset = range_tree_node_length(base->buffer.root);
+    file_offset_t offset = range_tree_length(&base->buffer);
     struct fragment* fragment = fragment_create_memory(copy, length);
     range_tree_insert(&base->buffer, offset, fragment, 0, length, 0, 0, NULL);
     fragment_dereference(fragment, base);
@@ -327,7 +327,7 @@ void document_file_load(struct document_file* base, const char* filename, int re
   }
 
   document_file_detect_properties(base);
-  range_tree_resize(&base->bookmarks, range_tree_node_length(base->buffer.root), 0);
+  range_tree_resize(&base->bookmarks, range_tree_length(&base->buffer), 0);
   if (!reload) {
     document_undo_empty(base, base->undos);
     document_undo_empty(base, base->redos);
@@ -362,7 +362,7 @@ void document_file_load_memory(struct document_file* base, const uint8_t* buffer
   document_undo_empty(base, base->redos);
   document_file_name(base, name?name:"<memory>");
   document_file_detect_properties(base);
-  range_tree_static(&base->bookmarks, range_tree_node_length(base->buffer.root), 0);
+  range_tree_static(&base->bookmarks, range_tree_length(&base->buffer), 0);
   document_file_reset_views(base, 1);
 }
 
@@ -376,7 +376,7 @@ int document_file_save_plain(struct document_file* base, const char* filename) {
   int success = 1;
   if (base->buffer.root) {
     struct stream stream;
-    stream_from_page(&stream, range_tree_node_first(base->buffer.root), 0);
+    stream_from_page(&stream, range_tree_first(&base->buffer), 0);
     while (!stream_end(&stream)) {
       size_t length = stream_cache_length(&stream)-stream_displacement(&stream);
       if (file_write(f, (void*)stream_buffer(&stream), length)!=length) {
@@ -443,7 +443,7 @@ void document_file_detect_properties(struct document_file* base) {
   }
 
   struct stream stream;
-  stream_from_page(&stream, range_tree_node_first(base->buffer.root), 0);
+  stream_from_page(&stream, range_tree_first(&base->buffer), 0);
   document_file_detect_properties_stream(base, &stream);
   stream_destroy(&stream);
 }
@@ -661,13 +661,13 @@ void document_file_expand_all(struct document_file* base, file_offset_t offset, 
 }
 
 void document_file_insert(struct document_file* base, file_offset_t offset, const uint8_t* text, size_t length, int inserter) {
-  if (offset>range_tree_node_length(base->buffer.root)) {
+  if (offset>range_tree_length(&base->buffer)) {
     return;
   }
 
-  file_offset_t old_length = range_tree_node_length(base->buffer.root);
+  file_offset_t old_length = range_tree_length(&base->buffer);
   range_tree_insert_split(&base->buffer, offset, text, length, inserter);
-  length = range_tree_node_length(base->buffer.root)-old_length;
+  length = range_tree_length(&base->buffer)-old_length;
   if (length<=0) {
     return;
   }
@@ -678,7 +678,7 @@ void document_file_insert(struct document_file* base, file_offset_t offset, cons
 }
 
 void document_file_insert_utf8(struct document_file* base, file_offset_t offset, const char* text, size_t length, int inserter) {
-  if (offset>range_tree_node_length(base->buffer.root)) {
+  if (offset>range_tree_length(&base->buffer)) {
     return;
   }
 
@@ -697,7 +697,7 @@ void document_file_insert_buffer(struct document_file* base, file_offset_t offse
 
   file_offset_t length = range_tree_node_length(buffer);
 
-  if (offset>range_tree_node_length(base->buffer.root)) {
+  if (offset>range_tree_length(&base->buffer)) {
     return;
   }
 
@@ -738,15 +738,15 @@ void document_file_reduce_all(struct document_file* base, file_offset_t offset, 
 
 // Delete file buffer
 void document_file_delete(struct document_file* base, file_offset_t offset, file_offset_t length) {
-  if (!base->buffer.root || offset>=base->buffer.root->length) {
+  if (!base->buffer.root || offset>=range_tree_length(&base->buffer)) {
     return;
   }
 
   document_undo_add(base, NULL, offset, length, TIPPSE_UNDO_TYPE_DELETE);
 
-  file_offset_t old_length = range_tree_node_length(base->buffer.root);
+  file_offset_t old_length = range_tree_length(&base->buffer);
   range_tree_delete(&base->buffer, offset, length, 0);
-  length = old_length-range_tree_node_length(base->buffer.root);
+  length = old_length-range_tree_length(&base->buffer);
 
   document_file_reduce_all(base, offset, length);
   document_undo_empty(base, base->redos);
@@ -754,7 +754,7 @@ void document_file_delete(struct document_file* base, file_offset_t offset, file
 
 // Clear file contents
 void document_file_empty(struct document_file* base) {
-  document_file_delete(base, 0, range_tree_node_length(base->buffer.root));
+  document_file_delete(base, 0, range_tree_length(&base->buffer));
 }
 
 // Move offsets from one range into another
@@ -818,7 +818,7 @@ void document_file_move(struct document_file* base, file_offset_t from, file_off
 
 // Change document data structure if not real file
 void document_file_change_views(struct document_file* base, int defaults) {
-  range_tree_resize(&base->bookmarks, range_tree_node_length(base->buffer.root), 0);
+  range_tree_resize(&base->bookmarks, range_tree_length(&base->buffer), 0);
 
   document_view_filechange(base->view, base, defaults);
 

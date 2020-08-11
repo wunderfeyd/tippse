@@ -44,7 +44,7 @@ void document_view_clone(struct document_view* dst, struct document_view* src, s
 
   *dst = *src;
   range_tree_create_inplace(&dst->selection, NULL, 0);
-  struct range_tree* copy = range_tree_copy(&src->selection, 0, range_tree_node_length(src->selection.root), file);
+  struct range_tree* copy = range_tree_copy(&src->selection, 0, range_tree_length(&src->selection), file);
   dst->selection.root = copy->root;
   copy->root = NULL; // TODO: Not nice
   range_tree_destroy(copy);
@@ -61,18 +61,18 @@ void document_view_filechange(struct document_view* base, struct document_file* 
 
   base->line_select = file->line_select;
   base->bracket_indentation = 0;
-  range_tree_resize(&base->selection, range_tree_node_length(file->buffer.root), 0);
+  range_tree_resize(&base->selection, range_tree_length(&file->buffer), 0);
 }
 
 // Select all
 void document_view_select_all(struct document_view* base, struct document_file* file) {
-  range_tree_static(&base->selection, range_tree_node_length(file->buffer.root), TIPPSE_INSERTER_MARK);
+  range_tree_static(&base->selection, range_tree_length(&file->buffer), TIPPSE_INSERTER_MARK);
   base->selection_reset = 1;
 }
 
 // Select nothing
 void document_view_select_nothing(struct document_view* base, struct document_file* file) {
-  range_tree_static(&base->selection, range_tree_node_length(file->buffer.root), 0);
+  range_tree_static(&base->selection, range_tree_length(&file->buffer), 0);
   base->selection_reset = 1;
 }
 

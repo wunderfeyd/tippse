@@ -86,7 +86,7 @@ int document_search(struct document_file* file, struct document_view* view, stru
       file_offset_t end = start;
       if (replacement) {
         if (begin!=view->offset) {
-          document_file_expand(&begin, view->offset, replacement->root->length);
+          document_file_expand(&begin, view->offset, range_tree_length(replacement));
         }
         document_file_insert_buffer(file, view->offset, replacement->root);
         end = view->offset;
@@ -115,7 +115,7 @@ int document_search(struct document_file* file, struct document_view* view, stru
         if (selection_low!=FILE_OFFSET_T_MAX) {
           offset = (first && replace)?selection_high:selection_low;
           if (offset==0) {
-            offset = file->buffer.root->length;
+            offset = range_tree_length(&file->buffer);
           } else {
             offset--;
           }
@@ -123,8 +123,8 @@ int document_search(struct document_file* file, struct document_view* view, stru
       }
     }
 
-    if (offset>file->buffer.root->length) {
-      offset = file->buffer.root->length;
+    if (offset>range_tree_length(&file->buffer)) {
+      offset = range_tree_length(&file->buffer);
     }
 
     if (first) {
@@ -143,7 +143,7 @@ int document_search(struct document_file* file, struct document_view* view, stru
       } else if (offset<begin) {
         left = begin-offset;
       } else {
-        left = file->buffer.root->length-offset;
+        left = range_tree_length(&file->buffer)-offset;
       }
     } else {
       if (wrapped && offset<=begin) {
@@ -197,7 +197,7 @@ int document_search(struct document_file* file, struct document_view* view, stru
         if (!reverse) {
           offset = 0;
         } else {
-          offset = file->buffer.root->length;
+          offset = range_tree_length(&file->buffer);
         }
 
         wrapped = 1;
@@ -416,7 +416,7 @@ void document_directory(struct document_file* file, struct stream* filter_stream
 
   if (predefined && *predefined) {
     char* combined = combine_path_file(file->filename, predefined);
-    document_file_insert(file, range_tree_node_length(file->buffer.root), (uint8_t*)predefined, strlen(predefined), TIPPSE_INSERTER_NOFUSE|document_directory_highlight(combined));
+    document_file_insert(file, range_tree_length(&file->buffer), (uint8_t*)predefined, strlen(predefined), TIPPSE_INSERTER_NOFUSE|document_directory_highlight(combined));
     free(combined);
   }
 
@@ -451,24 +451,24 @@ void document_directory(struct document_file* file, struct stream* filter_stream
 // Document insert search string
 void document_insert_search(struct document_file* file, struct search* search, const char* output, size_t length, int inserter) {
   if (file->buffer.root) {
-    document_file_insert_utf8(file, range_tree_node_length(file->buffer.root), "\n", 1, TIPPSE_INSERTER_NOFUSE);
+    document_file_insert_utf8(file, range_tree_length(&file->buffer), "\n", 1, TIPPSE_INSERTER_NOFUSE);
   }
 
   inserter |= TIPPSE_INSERTER_NOFUSE;
   if (search) {
     size_t start = (size_t)stream_offset(&search->hit_start);
     size_t end = (size_t)stream_offset(&search->hit_end);
-    document_file_insert(file, range_tree_node_length(file->buffer.root), (uint8_t*)&output[0], start, inserter);
-    document_file_insert(file, range_tree_node_length(file->buffer.root), (uint8_t*)&output[start], end-start, TIPPSE_INSERTER_NOFUSE|TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_STRING<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT));
-    document_file_insert(file, range_tree_node_length(file->buffer.root), (uint8_t*)&output[end], length-end, inserter);
+    document_file_insert(file, range_tree_length(&file->buffer), (uint8_t*)&output[0], start, inserter);
+    document_file_insert(file, range_tree_length(&file->buffer), (uint8_t*)&output[start], end-start, TIPPSE_INSERTER_NOFUSE|TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_STRING<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT));
+    document_file_insert(file, range_tree_length(&file->buffer), (uint8_t*)&output[end], length-end, inserter);
   } else {
-    document_file_insert(file, range_tree_node_length(file->buffer.root), (uint8_t*)&output[0],  length, inserter);
+    document_file_insert(file, range_tree_length(&file->buffer), (uint8_t*)&output[0],  length, inserter);
   }
 }
 
 // Select whole document
 void document_select_all(struct document_file* file, struct document_view* view, int update_offset) {
-  file_offset_t end = range_tree_node_length(file->buffer.root);
+  file_offset_t end = range_tree_length(&file->buffer);
   if (update_offset) {
     view->offset = end;
   }
@@ -580,6 +580,6 @@ void document_bookmark_prev(struct document_file* file, struct document_view* vi
       break;
     }
     wrap = 0;
-    offset = range_tree_node_length(file->buffer.root);
+    offset = range_tree_length(&file->buffer);
   }
 }

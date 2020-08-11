@@ -64,7 +64,7 @@ void document_text_reset(struct document* base, struct splitter* splitter) {
   struct document_view* view = splitter->view;
 
   if (file->buffer.root) {
-    struct range_tree_node* node = range_tree_node_first(file->buffer.root);
+    struct range_tree_node* node = range_tree_first(&file->buffer);
     if (node) {
       range_tree_node_invalidate(node, &file->buffer);
     }
@@ -232,7 +232,7 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
 
   if (dirty && (!buffer_new || render_info->buffer!=next) && render_info->buffer!=buffer_new) {
     rerender = 1;
-  } else if (!dirty && ((next && render_info->offset+range_tree_node_length(render_info->buffer)<range_tree_node_offset(next)) || (!next && render_info->offset+range_tree_node_length(render_info->buffer)<range_tree_node_length(buffer->root)) || !render_info->buffer || !buffer_new)) {
+  } else if (!dirty && ((next && render_info->offset+range_tree_node_length(render_info->buffer)<range_tree_node_offset(next)) || (!next && render_info->offset+range_tree_node_length(render_info->buffer)<range_tree_length(buffer)) || !render_info->buffer || !buffer_new)) {
     rerender = 1;
   }
 
@@ -534,7 +534,7 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
     page_dirty = 1;
   }
 
-  editor_process_message(file->editor, "Locating...", render_info->offset, range_tree_node_length(file->buffer.root));
+  editor_process_message(file->editor, "Locating...", render_info->offset, range_tree_length(&file->buffer));
 
   bool_t bracketed_line = render_info->bracketed_line;
   bool_t wrapping = view->wrapping;
@@ -650,7 +650,7 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
         encoding_cache_clear(&render_info->cache,  encoding_native_static(), &render_info->stream);
       }*/
 
-      editor_process_message(file->editor, "Locating...", render_info->offset, range_tree_node_length(file->buffer.root));
+      editor_process_message(file->editor, "Locating...", render_info->offset, range_tree_length(&file->buffer));
     }
 
     render_info->sequence = render_info->sequence_next?render_info->sequence_next:unicode_sequencer_find(&render_info->sequencer, 0);
@@ -1278,7 +1278,7 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
   if (file->buffer.root && file->buffer.root->visuals.dirty) {
     struct document_text_position in;
     in.type = VISUAL_SEEK_OFFSET;
-    in.offset = range_tree_node_length(file->buffer.root);
+    in.offset = range_tree_length(&file->buffer);
     in.clip = 0;
 
     struct document_text_render_info render_info;
@@ -1288,7 +1288,7 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
     document_text_render_destroy(&render_info);
   }
 
-  file_offset_t autocomplete_length = range_tree_node_length(file->buffer.root);
+  file_offset_t autocomplete_length = range_tree_length(&file->buffer);
   if (autocomplete_length>TIPPSE_AUTOCOMPLETE_MAX) {
     autocomplete_length = TIPPSE_AUTOCOMPLETE_MAX;
   }
@@ -1349,7 +1349,7 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
     stream_destroy(&stream);
   }
 
-  if (file->autocomplete_offset>=range_tree_node_length(file->buffer.root) && file->autocomplete_rescan>1) {
+  if (file->autocomplete_offset>=range_tree_length(&file->buffer) && file->autocomplete_rescan>1) {
     file->autocomplete_rescan = 0;
     file->autocomplete_offset = 0;
   }
@@ -1365,8 +1365,8 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
-  if (file->save && file->buffer.root && file->buffer.root->length!=view->selection.root->length) {
-    printf("\r\nSelection area and file length differ %d<>%d\r\n", (int)file->buffer.root->length, (int)view->selection.root->length);
+  if (file->save && file->buffer.root && range_tree_length(&file->buffer)!=range_tree_length(&view->selection)) {
+    printf("\r\nSelection area and file length differ %d<>%d\r\n", (int)range_tree_length(&file->buffer), (int)range_tree_length(&view->selection));
     exit(0);
   }
 
@@ -1562,7 +1562,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   }
 
   // Auto complete hint
-  if (file->autocomplete_last && range_tree_node_length(file->buffer.root)>0 && !document_view_select_active(view)) {
+  if (file->autocomplete_last && range_tree_length(&file->buffer)>0 && !document_view_select_active(view)) {
     char text[1024];
     size_t length = 0;
 
@@ -1650,7 +1650,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   const char* tabstop[TIPPSE_TABSTOP_MAX] = {"Auto", "Tab", "Space"};
 
   char status[1024];
-  sprintf(&status[0], "%s%s%lld/%lld:%lld - %lld/%lld byte - %s*%d %s %s/%s %s", (file->buffer.root?file->buffer.root->visuals.dirty:0)?"? ":"", (file->buffer.root?(file->buffer.root->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (long long int)(file->buffer.root?file->buffer.root->visuals.lines+1:0), (long long int)(cursor.line+1), (long long int)(cursor.column+1), (long long int)view->offset, (long long int)range_tree_node_length(file->buffer.root), tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->type->type)(file->type), (*file->encoding->name)());
+  sprintf(&status[0], "%s%s%lld/%lld:%lld - %lld/%lld byte - %s*%d %s %s/%s %s", (file->buffer.root?file->buffer.root->visuals.dirty:0)?"? ":"", (file->buffer.root?(file->buffer.root->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (long long int)(file->buffer.root?file->buffer.root->visuals.lines+1:0), (long long int)(cursor.line+1), (long long int)(cursor.column+1), (long long int)view->offset, (long long int)range_tree_length(&file->buffer), tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->type->type)(file->type), (*file->encoding->name)());
   splitter_status(splitter, &status[0]);
 
   view->scroll_y_max = file->buffer.root?file->buffer.root->visuals.ys:0;
@@ -1680,7 +1680,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   in_line_column.type = VISUAL_SEEK_LINE_COLUMN;
   in_line_column.clip = 0;
 
-  file_offset_t file_size = range_tree_node_length(file->buffer.root);
+  file_offset_t file_size = range_tree_length(&file->buffer);
   file_offset_t offset_old = view->offset;
   int seek = 0;
   int selection_keep = 0;
@@ -1757,7 +1757,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
     seek = 1;
   } else if (command==TIPPSE_CMD_FIRST || command==TIPPSE_CMD_SELECT_FIRST) {
-    struct range_tree_node* first = visual_info_find_indentation_last(out.buffer, out.lines, out.buffer?out.buffer:range_tree_node_last(file->buffer.root));
+    struct range_tree_node* first = visual_info_find_indentation_last(out.buffer, out.lines, out.buffer?out.buffer:range_tree_last(&file->buffer));
     bool_t seek_first = 1;
 
     if (first) {
@@ -1860,25 +1860,25 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     if (selection_low!=FILE_OFFSET_T_MAX) {
       document_text_transform(base, unicode_transform_upper, file, selection_low, selection_high);
     } else {
-      document_text_transform(base, unicode_transform_upper, file, 0, range_tree_node_length(file->buffer.root));
+      document_text_transform(base, unicode_transform_upper, file, 0, range_tree_length(&file->buffer));
     }
   } else if (command==TIPPSE_CMD_LOWER) {
     if (selection_low!=FILE_OFFSET_T_MAX) {
       document_text_transform(base, unicode_transform_lower, file, selection_low, selection_high);
     } else {
-      document_text_transform(base, unicode_transform_lower, file, 0, range_tree_node_length(file->buffer.root));
+      document_text_transform(base, unicode_transform_lower, file, 0, range_tree_length(&file->buffer));
     }
   } else if (command==TIPPSE_CMD_NFC_NFD) {
     if (selection_low!=FILE_OFFSET_T_MAX) {
       document_text_transform(base, unicode_transform_nfc_nfd, file, selection_low, selection_high);
     } else {
-      document_text_transform(base, unicode_transform_nfc_nfd, file, 0, range_tree_node_length(file->buffer.root));
+      document_text_transform(base, unicode_transform_nfc_nfd, file, 0, range_tree_length(&file->buffer));
     }
   } else if (command==TIPPSE_CMD_NFD_NFC) {
     if (selection_low!=FILE_OFFSET_T_MAX) {
       document_text_transform(base, unicode_transform_nfd_nfc, file, selection_low, selection_high);
     } else {
-      document_text_transform(base, unicode_transform_nfd_nfc, file, 0, range_tree_node_length(file->buffer.root));
+      document_text_transform(base, unicode_transform_nfd_nfc, file, 0, range_tree_length(&file->buffer));
     }
   } else if (command==TIPPSE_CMD_TAB) {
     document_undo_chain(file, file->undos);
@@ -1986,9 +1986,9 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 
     struct range_tree* clipboard = view->line_cut?clipboard_get(NULL):NULL;
     view->line_cut = 1;
-    struct range_tree* rootold = range_tree_copy(clipboard, 0, range_tree_node_length(clipboard->root), NULL);
+    struct range_tree* rootold = range_tree_copy(clipboard, 0, range_tree_length(clipboard), NULL);
     struct range_tree* rootnew = range_tree_copy(&file->buffer, from, to-from, NULL);
-    range_tree_paste(rootold, rootnew->root, range_tree_node_length(rootold->root));
+    range_tree_paste(rootold, rootnew->root, range_tree_length(rootold));
     range_tree_destroy(rootnew);
 
     clipboard_set(rootold, file->binary, file->encoding);
@@ -2028,8 +2028,8 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     in_offset.offset = view->offset;
     document_text_cursor_position(splitter, &in_offset, &out_begin, 1, 1);
 
-    if (out_begin.lines==0 && range_tree_node_first(file->buffer.root)!=out_begin.buffer) {
-      visual_info_find_bracket_lowest(out_begin.buffer, out_begin.min_line, out_begin.buffer?out_begin.buffer:range_tree_node_last(file->buffer.root));
+    if (out_begin.lines==0 && range_tree_first(&file->buffer)!=out_begin.buffer) {
+      visual_info_find_bracket_lowest(out_begin.buffer, out_begin.min_line, out_begin.buffer?out_begin.buffer:range_tree_last(&file->buffer));
     }
 
     struct document_text_position out_indentation_copy;
@@ -2446,7 +2446,7 @@ void document_text_move_block(struct document* base, struct splitter* splitter, 
   in_line_column.line = up?out_line_start.line-1:out_line_end.line+2;
   document_text_cursor_position(splitter, &in_line_column, &out_insert, 0, 1);
 
-  if (out_line_end.offset!=range_tree_node_length(file->buffer.root)) {
+  if (out_line_end.offset!=range_tree_length(&file->buffer)) {
     in_line_column.column = 0;
     in_line_column.line = out_line_end.line+1;
     document_text_cursor_position(splitter, &in_line_column, &out_line_return_end, 0, 1);
@@ -2458,7 +2458,7 @@ void document_text_move_block(struct document* base, struct splitter* splitter, 
     out_line_return_end.offset = out_line_start.offset;
   }
 
-  bool_t exchange = (out_insert.offset==range_tree_node_length(file->buffer.root))?1:0;
+  bool_t exchange = (out_insert.offset==range_tree_length(&file->buffer))?1:0;
 
   if (out_insert.offset<out_line_start.offset || out_insert.offset>out_line_end.offset) {
     file_offset_t length_text = out_line_end.offset-out_line_start.offset;
@@ -2589,7 +2589,7 @@ void document_text_search_brackets(struct document* base, struct splitter* split
       if (cursor->bracket_match&VISUAL_BRACKET_OPEN) {
         struct range_tree_node* node = visual_info_find_bracket_forward(render_info.buffer, in.bracket, in.bracket_search);
         if (!node) {
-          node = range_tree_node_last(file->buffer.root);
+          node = range_tree_last(&file->buffer);
           if (render_info.buffer==node) {
             break;
           }
@@ -2599,10 +2599,10 @@ void document_text_search_brackets(struct document* base, struct splitter* split
       } else {
         struct range_tree_node* node = visual_info_find_bracket_backward(render_info.buffer, in.bracket, in.bracket_search);
         if (!node) {
-          node = range_tree_node_first(file->buffer.root);
+          node = range_tree_first(&file->buffer);
         }
 
-        if (render_info.buffer==range_tree_node_first(file->buffer.root)) {
+        if (render_info.buffer==range_tree_first(&file->buffer)) {
           break;
         }
 
@@ -2655,11 +2655,11 @@ file_offset_t document_text_word_transition_next(struct document* base, struct s
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
-  if (offset<range_tree_node_length(file->buffer.root)) {
+  if (offset<range_tree_length(&file->buffer)) {
     offset++;
   }
 
-  while (offset<range_tree_node_length(file->buffer.root)) {
+  while (offset<range_tree_length(&file->buffer)) {
     struct document_text_position out;
     struct document_text_position in;
     in.type = VISUAL_SEEK_WORD_TRANSITION_NEXT;

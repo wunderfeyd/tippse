@@ -92,7 +92,7 @@ struct file_cache_node* file_cache_invoke(struct file_cache* base, file_offset_t
   file_offset_t index = offset/FILE_CACHE_PAGE_SIZE;
   file_offset_t low = index*FILE_CACHE_PAGE_SIZE;
   file_offset_t high = low+FILE_CACHE_PAGE_SIZE;
-  if (range_tree_node_length(base->index.root)<high) {
+  if (range_tree_length(&base->index)<high) {
     range_tree_resize(&base->index, high, 0);
   }
 
