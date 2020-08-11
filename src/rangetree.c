@@ -264,6 +264,7 @@ uint8_t* range_tree_raw(struct range_tree* base, file_offset_t start, file_offse
 void range_tree_static(struct range_tree* base, file_offset_t length, int inserter) {
   if (base->root) {
     range_tree_node_destroy(base->root, base);
+    base->root = NULL;
   }
 
   if (length==0) {
