@@ -117,10 +117,15 @@ file_offset_t document_text_cursor_position_partial(struct document_text_render_
         *y = 0;
         *x = 0;
       } else if (*y>0) {
-        if (in->type==VISUAL_SEEK_X_Y) {
-          *y = file->buffer.root?file->buffer.root->visuals.ys:0;
+        if (!file->buffer.root) {
+          *y = 0;
         } else {
-          *y = file->buffer.root?file->buffer.root->visuals.lines:0;
+          struct visual_info* visuals = visual_info_create(&file->buffer.root->visuals);
+          if (in->type==VISUAL_SEEK_X_Y) {
+            *y = visuals->ys;
+          } else {
+            *y = visuals->lines;
+          }
         }
 
         *x = POSITION_T_MAX;
@@ -227,7 +232,8 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
   int dirty = 0;
   struct range_tree_node* next = range_tree_node_next(buffer_new);
   if (next) {
-    dirty = range_tree_node_next(buffer_new)->visuals.dirty;
+    struct visual_info* visuals = visual_info_create(&next->visuals);
+    dirty = visuals->dirty;
   }
 
   if (dirty && (!buffer_new || render_info->buffer!=next) && render_info->buffer!=buffer_new) {
@@ -241,10 +247,11 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
     debug_relocates++;
     render_info->append = 1;
     if (buffer_new) {
-      render_info->visual_detail = buffer_new->visuals.detail_before;
-      render_info->offset_sync = offset_new-buffer_new->visuals.rewind;
-      render_info->displacement = buffer_new->visuals.displacement;
-      render_info->offset = offset_new+buffer_new->visuals.displacement;
+      struct visual_info* visuals = visual_info_create(&buffer_new->visuals);
+      render_info->visual_detail = visuals->detail_before;
+      render_info->offset_sync = offset_new-visuals->rewind;
+      render_info->displacement = visuals->displacement;
+      render_info->offset = offset_new+visuals->displacement;
       if (offset_new==0) {
         render_info->visual_detail = VISUAL_DETAIL_NEWLINE;
       }
@@ -271,8 +278,8 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
       render_info->indentations_extra = 0;
       render_info->buffer_tree = buffer;
       render_info->buffer = buffer_new;
-      render_info->keyword_color = buffer_new->visuals.keyword_color;
-      render_info->keyword_length = buffer_new->visuals.keyword_length;
+      render_info->keyword_color = visuals->keyword_color;
+      render_info->keyword_length = visuals->keyword_length;
       render_info->selection = range_tree_node_find_offset(render_info->selection_tree->root, render_info->offset, &render_info->selection_displacement);
       for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
         render_info->depth_new[n] = visual_info_find_bracket(buffer_new, n);
@@ -513,7 +520,8 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
   int rendered = 1;
   int stop = render_info->buffer?0:1;
   int page_count = 0;
-  bool_t page_dirty = (render_info->buffer && render_info->buffer->visuals.dirty)?1:0;
+  struct visual_info* visuals = render_info->buffer?visual_info_create(&render_info->buffer->visuals):NULL;
+  bool_t page_dirty = (render_info->buffer && visuals->dirty)?1:0;
 
   render_info->visual_detail |= (view->wrapping)?VISUAL_DETAIL_WRAPPING:0;
   render_info->visual_detail |= (view->show_invisibles)?VISUAL_DETAIL_SHOW_INVISIBLES:0;
@@ -551,27 +559,27 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
         render_info->keyword_length = 0;
       }
 
-      bool_t dirty = (render_info->buffer->visuals.xs!=render_info->xs || render_info->buffer->visuals.ys!=render_info->ys || render_info->buffer->visuals.lines!=render_info->lines ||  render_info->buffer->visuals.columns!=render_info->columns || render_info->buffer->visuals.indentation!=render_info->indentations || render_info->buffer->visuals.indentation_extra!=render_info->indentations_extra || render_info->buffer->visuals.detail_after!=render_info->visual_detail || (render_info->ys==0 && render_info->buffer->visuals.dirty && wrapping))?1:0;
+      bool_t dirty = (visuals->xs!=render_info->xs || visuals->ys!=render_info->ys || visuals->lines!=render_info->lines ||  visuals->columns!=render_info->columns || visuals->indentation!=render_info->indentations || visuals->indentation_extra!=render_info->indentations_extra || visuals->detail_after!=render_info->visual_detail || (render_info->ys==0 && visuals->dirty && wrapping))?1:0;
       for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
-        if (render_info->buffer->visuals.brackets[n].diff!=render_info->brackets[n].diff || render_info->buffer->visuals.brackets[n].min!=render_info->brackets[n].min || render_info->buffer->visuals.brackets[n].max!=render_info->brackets[n].max || render_info->buffer->visuals.brackets_line[n].diff!=render_info->brackets_line[n].diff || render_info->buffer->visuals.brackets_line[n].min!=render_info->brackets_line[n].min || render_info->buffer->visuals.brackets_line[n].max!=render_info->brackets_line[n].max) {
+        if (visuals->brackets[n].diff!=render_info->brackets[n].diff || visuals->brackets[n].min!=render_info->brackets[n].min || visuals->brackets[n].max!=render_info->brackets[n].max || visuals->brackets_line[n].diff!=render_info->brackets_line[n].diff || visuals->brackets_line[n].min!=render_info->brackets_line[n].min || visuals->brackets_line[n].max!=render_info->brackets_line[n].max) {
           dirty = 1;
           break;
         }
       }
 
-      if (render_info->buffer->visuals.dirty || dirty) {
-        render_info->buffer->visuals.dirty = 0;
-        render_info->buffer->visuals.xs = render_info->xs;
-        render_info->buffer->visuals.ys = render_info->ys;
-        render_info->buffer->visuals.lines = render_info->lines;
-        render_info->buffer->visuals.columns = render_info->columns;
-        render_info->buffer->visuals.characters = render_info->characters;
-        render_info->buffer->visuals.indentation = render_info->indentations;
-        render_info->buffer->visuals.indentation_extra = render_info->indentations_extra;
-        render_info->buffer->visuals.detail_after = render_info->visual_detail;
+      if (visuals->dirty || dirty) {
+        visuals->dirty = 0;
+        visuals->xs = render_info->xs;
+        visuals->ys = render_info->ys;
+        visuals->lines = render_info->lines;
+        visuals->columns = render_info->columns;
+        visuals->characters = render_info->characters;
+        visuals->indentation = render_info->indentations;
+        visuals->indentation_extra = render_info->indentations_extra;
+        visuals->detail_after = render_info->visual_detail;
         for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
-          render_info->buffer->visuals.brackets[n] = render_info->brackets[n];
-          render_info->buffer->visuals.brackets_line[n] = render_info->brackets_line[n];
+          visuals->brackets[n] = render_info->brackets[n];
+          visuals->brackets_line[n] = render_info->brackets_line[n];
         }
 
         range_tree_node_update_calc_all(render_info->buffer, render_info->buffer_tree);
@@ -580,22 +588,23 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
       render_info->displacement -= render_info->buffer->length;
       file_offset_t rewind = render_info->offset-render_info->offset_sync-render_info->displacement;
       render_info->buffer = range_tree_node_next(render_info->buffer);
+      visuals = render_info->buffer?visual_info_create(&render_info->buffer->visuals):NULL;
       if (document_text_split_buffer(render_info->buffer, file)) {
         dirty = 1;
       }
 
       if (render_info->buffer) {
-        if (render_info->visual_detail!=render_info->buffer->visuals.detail_before || render_info->keyword_length!=render_info->buffer->visuals.keyword_length || (render_info->keyword_color!=render_info->buffer->visuals.keyword_color && render_info->keyword_length>0) || render_info->displacement!=render_info->buffer->visuals.displacement || rewind!=render_info->buffer->visuals.rewind || dirty) {
-          render_info->buffer->visuals.keyword_length = render_info->keyword_length;
-          render_info->buffer->visuals.keyword_color = render_info->keyword_color;
-          render_info->buffer->visuals.detail_before = render_info->visual_detail;
-          render_info->buffer->visuals.displacement = render_info->displacement;
-          render_info->buffer->visuals.rewind = rewind;
-          render_info->buffer->visuals.dirty |= VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
+        if (render_info->visual_detail!=visuals->detail_before || render_info->keyword_length!=visuals->keyword_length || (render_info->keyword_color!=visuals->keyword_color && render_info->keyword_length>0) || render_info->displacement!=visuals->displacement || rewind!=visuals->rewind || dirty) {
+          visuals->keyword_length = render_info->keyword_length;
+          visuals->keyword_color = render_info->keyword_color;
+          visuals->detail_before = render_info->visual_detail;
+          visuals->displacement = render_info->displacement;
+          visuals->rewind = rewind;
+          visuals->dirty |= VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
           range_tree_node_update_calc_all(render_info->buffer, render_info->buffer_tree);
         }
 
-        if (render_info->buffer->visuals.dirty) {
+        if (visuals->dirty) {
           if (dirty_pages!=~0) {
             dirty_pages--;
             if (dirty_pages==0 && stop==0) {
@@ -634,7 +643,7 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
       }
       bracketed_line = 0;
 
-      page_dirty = (render_info->buffer && render_info->buffer->visuals.dirty)?1:0;
+      page_dirty = (render_info->buffer && visuals->dirty)?1:0;
       debug_pages_collect++;
 
       stream_destroy(&render_info->stream);
@@ -1275,17 +1284,20 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
-  if (file->buffer.root && file->buffer.root->visuals.dirty) {
-    struct document_text_position in;
-    in.type = VISUAL_SEEK_OFFSET;
-    in.offset = range_tree_length(&file->buffer);
-    in.clip = 0;
+  if (file->buffer.root) {
+    struct visual_info* visuals = visual_info_create(&file->buffer.root->visuals);
+    if (visuals->dirty) {
+      struct document_text_position in;
+      in.type = VISUAL_SEEK_OFFSET;
+      in.offset = range_tree_length(&file->buffer);
+      in.clip = 0;
 
-    struct document_text_render_info render_info;
-    document_text_render_clear(&render_info, document_text_line_width(splitter), &view->selection);
-    document_text_render_seek(&render_info, &file->buffer, file->encoding, &in);
-    document_text_collect_span(&render_info, view, file, &in, NULL, 16, 1);
-    document_text_render_destroy(&render_info);
+      struct document_text_render_info render_info;
+      document_text_render_clear(&render_info, document_text_line_width(splitter), &view->selection);
+      document_text_render_seek(&render_info, &file->buffer, file->encoding, &in);
+      document_text_collect_span(&render_info, view, file, &in, NULL, 16, 1);
+      document_text_render_destroy(&render_info);
+    }
   }
 
   file_offset_t autocomplete_length = range_tree_length(&file->buffer);
@@ -1354,7 +1366,12 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
     file->autocomplete_offset = 0;
   }
 
-  return file->buffer.root?file->buffer.root->visuals.dirty:0;
+  if (file->buffer.root) {
+    struct visual_info* visuals = visual_info_create(&file->buffer.root->visuals);
+    return visuals->dirty;
+  } else {
+    return 0;
+  }
 }
 
 // Draw entire visible screen space
@@ -1381,6 +1398,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   // TODO: cursor position is already known by seek flag in keypress function? Test me.
   document_text_cursor_position(splitter, &in, &cursor, 0, 1);
 
+  struct visual_info* visuals = file->buffer.root?visual_info_create(&file->buffer.root->visuals):NULL;
   int max_width = document_text_line_width(splitter);
   while (1) {
     position_t scroll_x = view->scroll_x;
@@ -1397,8 +1415,8 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     if (cursor.y>=view->scroll_y+splitter->client_height-1) {
       view->scroll_y = cursor.y-(splitter->client_height-1);
     }
-    if (view->scroll_y+splitter->client_height>(file->buffer.root?file->buffer.root->visuals.ys+1:0) && (file->buffer.root?file->buffer.root->visuals.dirty:0)==0) {
-      view->scroll_y = (file->buffer.root?file->buffer.root->visuals.ys+1:0)-(splitter->client_height);
+    if (view->scroll_y+splitter->client_height>(visuals?visuals->ys+1:0) && (visuals?visuals->dirty:0)==0) {
+      view->scroll_y = (visuals?visuals->ys+1:0)-(splitter->client_height);
     }
     if (view->scroll_y<0) {
       view->scroll_y = 0;
@@ -1487,7 +1505,8 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     // Bookmark detection
     int marked = range_tree_node_marked(file->bookmarks.root, out.offset, render_info.offset-out.offset, TIPPSE_INSERTER_MARK);
 
-    if (in.y<=(file->buffer.root?file->buffer.root->visuals.ys:0)) {
+    visuals = file->buffer.root?visual_info_create(&file->buffer.root->visuals):NULL;
+    if (in.y<=(visuals?visuals->ys:0)) {
       char line[1024];
       int size = 0;
       if (out.line!=last_line) {
@@ -1649,11 +1668,12 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   const char* newline[TIPPSE_NEWLINE_MAX] = {"Auto", "Lf", "Cr", "CrLf"};
   const char* tabstop[TIPPSE_TABSTOP_MAX] = {"Auto", "Tab", "Space"};
 
+  visuals = file->buffer.root?visual_info_create(&file->buffer.root->visuals):NULL;
   char status[1024];
-  sprintf(&status[0], "%s%s%lld/%lld:%lld - %lld/%lld byte - %s*%d %s %s/%s %s", (file->buffer.root?file->buffer.root->visuals.dirty:0)?"? ":"", (file->buffer.root?(file->buffer.root->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (long long int)(file->buffer.root?file->buffer.root->visuals.lines+1:0), (long long int)(cursor.line+1), (long long int)(cursor.column+1), (long long int)view->offset, (long long int)range_tree_length(&file->buffer), tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->type->type)(file->type), (*file->encoding->name)());
+  sprintf(&status[0], "%s%s%lld/%lld:%lld - %lld/%lld byte - %s*%d %s %s/%s %s", (visuals?visuals->dirty:0)?"? ":"", (file->buffer.root?(file->buffer.root->inserter&TIPPSE_INSERTER_FILE):0)?"File ":"", (long long int)(visuals?visuals->lines+1:0), (long long int)(cursor.line+1), (long long int)(cursor.column+1), (long long int)view->offset, (long long int)range_tree_length(&file->buffer), tabstop[file->tabstop], file->tabstop_width, newline[file->newline], (*file->type->name)(), (*file->type->type)(file->type), (*file->encoding->name)());
   splitter_status(splitter, &status[0]);
 
-  view->scroll_y_max = file->buffer.root?file->buffer.root->visuals.ys:0;
+  view->scroll_y_max = visuals?visuals->ys:0;
   splitter_scrollbar(splitter, screen);
 }
 
@@ -2595,7 +2615,8 @@ void document_text_search_brackets(struct document* base, struct splitter* split
           }
         }
 
-        in.offset = range_tree_node_offset(node)+node->visuals.displacement;
+        struct visual_info* visuals = visual_info_create(&node->visuals);
+        in.offset = range_tree_node_offset(node)+visuals->displacement;
       } else {
         struct range_tree_node* node = visual_info_find_bracket_backward(render_info.buffer, in.bracket, in.bracket_search);
         if (!node) {

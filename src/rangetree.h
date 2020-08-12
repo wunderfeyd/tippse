@@ -25,6 +25,7 @@
 #define TIPPSE_RANGETREE_CAPS_VISUAL 1
 
 #include "visualinfo.h"
+#include "list.h"
 
 struct range_tree_node {
   struct range_tree_node* parent;   // parent node
@@ -40,7 +41,7 @@ struct range_tree_node {
   struct fragment* buffer;          // Buffer to file content
   file_offset_t offset;             // Relative start offset to the beginning of the file content buffer
   void* user_data;                  // User defined data
-  struct visual_info visuals;       // Visual information
+  struct visual_info* visuals;      // Visual information
 };
 
 struct range_tree {
@@ -55,6 +56,10 @@ struct range_tree* range_tree_create(struct document_file* file, int caps);
 void range_tree_create_inplace(struct range_tree* base, struct document_file* file, int caps);
 void range_tree_destroy(struct range_tree* base);
 void range_tree_destroy_inplace(struct range_tree* base);
+
+struct range_tree_node* range_tree_invoke(struct range_tree* base);
+void range_tree_revoke(struct range_tree* base, struct range_tree_node* node);
+
 void range_tree_fuse(struct range_tree* base, struct range_tree_node* first, struct range_tree_node* last);
 void range_tree_insert(struct range_tree* base, file_offset_t offset, struct fragment* buffer, file_offset_t buffer_offset, file_offset_t buffer_length, int inserter, int64_t fuse_id, void* user_data);
 void range_tree_insert_split(struct range_tree* base, file_offset_t offset, const uint8_t* text, size_t length, int inserter);

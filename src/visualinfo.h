@@ -109,12 +109,15 @@ void visual_info_combine(struct visual_info* visuals, const struct visual_info* 
 void visual_info_invalidate(struct range_tree_node* node, struct range_tree* tree);
 
 struct range_tree_node* visual_info_find(struct range_tree_node* node, int find_type, file_offset_t find_offset, position_t find_x, position_t find_y, position_t find_line, position_t find_column, file_offset_t* offset, position_t* x, position_t* y, position_t* line, position_t* column, int* indentation, int* indentation_extra, file_offset_t* character, int retry, file_offset_t before);
-int visual_info_find_bracket(const struct range_tree_node* node, size_t bracket);
+int visual_info_find_bracket(struct range_tree_node* node, size_t bracket);
 struct range_tree_node* visual_info_find_bracket_forward(struct range_tree_node* node, size_t bracket, int search);
 struct range_tree_node* visual_info_find_bracket_backward(struct range_tree_node* node, size_t bracket, int search);
-void visual_info_find_bracket_lowest(const struct range_tree_node* node, int* mins, const struct range_tree_node* last);
+void visual_info_find_bracket_lowest(struct range_tree_node* node, int* mins, struct range_tree_node* last);
 struct range_tree_node* visual_info_find_indentation_last(struct range_tree_node* node, position_t lines, struct range_tree_node* last);
-int visual_info_find_indentation(const struct range_tree_node* node);
-int visual_info_find_whitespaced(const struct range_tree_node* node);
+int visual_info_find_indentation(struct range_tree_node* node);
+int visual_info_find_whitespaced(struct range_tree_node* node);
+
+struct visual_info* visual_info_create(struct visual_info** base);
+void visual_info_destroy(struct visual_info** base);
 
 #endif /* #ifndef TIPPSE_VISUALINFO_H */

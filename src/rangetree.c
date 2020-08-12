@@ -32,10 +32,27 @@ void range_tree_destroy_inplace(struct range_tree* base) {
   }
 }
 
-// Reallocate the fragment if it is references only once and had become smaller due to the edit process (save memory)
+// Allocate range tree node
+struct range_tree_node* range_tree_invoke(struct range_tree* base) {
+  struct range_tree_node* node = (struct range_tree_node*)malloc(sizeof(struct range_tree_node));
+  return node;
+}
+
+// Deallocate range tree node
+void range_tree_revoke(struct range_tree* base, struct range_tree_node* node) {
+  if ((base->caps&TIPPSE_RANGETREE_CAPS_VISUAL)) {
+    visual_info_destroy(&node->visuals);
+  }
+
+  free(node);
+}
+
+// Reallocate the fragment if it is referenced only once and had become smaller due to the edit process (save memory)
 void range_tree_node_invalidate(struct range_tree_node* node, struct range_tree* base) {
   if (node->buffer) {
-    visual_info_invalidate(node, base);
+    if ((base->caps&TIPPSE_RANGETREE_CAPS_VISUAL)) {
+      visual_info_invalidate(node, base);
+    }
 
     if (node->buffer->count==1 && (node->offset!=0 || node->length!=node->buffer->length) && node->length>0) {
       if (node->buffer->type==FRAGMENT_MEMORY) {
@@ -501,7 +518,10 @@ void range_tree_node_update_calc(struct range_tree_node* node, struct range_tree
     node->depth = ((node->side[0]->depth>node->side[1]->depth)?node->side[0]->depth:node->side[1]->depth)+1;
     node->inserter = ((node->side[0]?node->side[0]->inserter:0)|(node->side[1]?node->side[1]->inserter:0))&~TIPPSE_INSERTER_LEAF;
     if ((tree->caps&TIPPSE_RANGETREE_CAPS_VISUAL)) {
-      visual_info_combine(&node->visuals, &node->side[0]->visuals, &node->side[1]->visuals);
+      struct visual_info* visuals = visual_info_create(&node->visuals);
+      struct visual_info* visuals0 = visual_info_create(&node->side[0]->visuals);
+      struct visual_info* visuals1 = visual_info_create(&node->side[1]->visuals);
+      visual_info_combine(visuals, visuals0, visuals1);
     }
   }
 }
@@ -527,12 +547,13 @@ void range_tree_node_destroy(struct range_tree_node* node, struct range_tree* tr
     fragment_dereference(node->buffer, tree->file);
   }
 
-  free(node);
+  range_tree_revoke(tree, node);
 }
 
 // Create node with given fragment
 struct range_tree_node* range_tree_node_create(struct range_tree_node* parent, struct range_tree* tree, struct range_tree_node* side0, struct range_tree_node* side1, struct fragment* buffer, file_offset_t offset, file_offset_t length, int inserter, int64_t fuse_id, void* user_data) {
-  struct range_tree_node* node = (struct range_tree_node*)malloc(sizeof(struct range_tree_node));
+  // struct range_tree_node* node = (struct range_tree_node*)malloc(sizeof(struct range_tree_node));
+  struct range_tree_node* node = range_tree_invoke(tree);
   node->parent = parent;
   node->side[0] = side0;
   node->side[1] = side1;
@@ -552,10 +573,7 @@ struct range_tree_node* range_tree_node_create(struct range_tree_node* parent, s
   node->depth = 0;
   node->fuse_id = fuse_id;
   node->user_data = user_data;
-  if ((tree->caps&TIPPSE_RANGETREE_CAPS_VISUAL)) {
-    visual_info_clear(&node->visuals);
-  }
-
+  node->visuals = NULL;
   return node;
 }
 
@@ -653,7 +671,8 @@ void range_tree_node_update(struct range_tree_node* node, struct range_tree* tre
         node->next->prev = node->prev;
       }
 
-      free(node);
+      //free(node);
+      range_tree_revoke(tree, node);
       last = parent;
       node = parent;
       continue;
@@ -670,7 +689,8 @@ void range_tree_node_update(struct range_tree_node* node, struct range_tree* tre
 
       child->parent = parent;
 
-      free(node);
+      //free(node);
+      range_tree_revoke(tree, node);
       node = parent;
       continue;
     }

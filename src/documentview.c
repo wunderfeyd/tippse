@@ -44,7 +44,7 @@ void document_view_clone(struct document_view* dst, struct document_view* src, s
 
   *dst = *src;
   range_tree_create_inplace(&dst->selection, NULL, 0);
-  struct range_tree* copy = range_tree_copy(&src->selection, 0, range_tree_length(&src->selection), file);
+  struct range_tree* copy = range_tree_copy(&src->selection, 0, range_tree_length(&src->selection), NULL);
   dst->selection.root = copy->root;
   copy->root = NULL; // TODO: Not nice
   range_tree_destroy(copy);

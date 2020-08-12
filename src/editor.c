@@ -326,7 +326,8 @@ void editor_destroy(struct editor* base) {
 int editor_update_panel_height(struct editor* base, struct splitter* panel, int max) {
   (*panel->document->incremental_update)(panel->document, panel);
 
-  int height = (int)(panel->file->buffer.root?panel->file->buffer.root->visuals.ys:0)+1;
+  struct visual_info* visuals = panel->file->buffer.root?visual_info_create(&panel->file->buffer.root->visuals):NULL;
+  int height = (int)(visuals?visuals->ys:0)+1;
   if (height>max) {
     height = max;
   }
