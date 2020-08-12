@@ -19,6 +19,7 @@ struct document_view {
 
   int line_cut;                         // Previous action was a line cut
 
+  position_t width;                     // last known size of viewport
   position_t scroll_x;                  // scroll X offset
   position_t scroll_y;                  // scroll Y offset
   position_t scroll_x_old;              // scroll X offset, last rendering
@@ -31,6 +32,8 @@ struct document_view {
   int show_invisibles;                  // show invisibles?
   int wrapping;                         // show word wrapping?
   int line_select;                      // show whole line selected?
+
+  struct range_tree visuals;            // visualization index
 };
 
 struct document_view* document_view_create(void);
@@ -45,5 +48,9 @@ int document_view_select_active(struct document_view* base);
 int document_view_select_next(struct document_view* base, file_offset_t offset, file_offset_t* low, file_offset_t* high);
 void document_view_select_range(struct document_view* base, file_offset_t start, file_offset_t end, int inserter);
 void document_view_select_invert(struct document_view* base);
+
+struct visual_info* document_view_visual_create(struct document_view* base, struct range_tree_node* node);
+void document_view_visual_destroy(struct document_view* base, struct range_tree_node* node);
+void document_view_visual_clear(struct document_view* base);
 
 #endif /* #ifndef TIPPSE_DOCUMENTVIEW_H */

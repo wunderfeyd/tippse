@@ -135,6 +135,9 @@ void document_file_move(struct document_file* base, file_offset_t from, file_off
 
 void document_file_change_views(struct document_file* base, int defaults);
 void document_file_reset_views(struct document_file* base, int defaults);
+void document_file_invalidate_view_node(struct document_file* base, struct range_tree_node* node, struct range_tree* tree);
+void document_file_destroy_view_node(struct document_file* base, struct range_tree_node* node);
+void document_file_combine_view_node(struct document_file* base, struct range_tree_node* node);
 
 void document_file_reference_cache(struct document_file* base, struct file_cache* cache);
 void document_file_dereference_cache(struct document_file* base, struct file_cache* cache);

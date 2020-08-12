@@ -23,6 +23,7 @@
 #define TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT 16
 
 #define TIPPSE_RANGETREE_CAPS_VISUAL 1
+#define TIPPSE_RANGETREE_CAPS_DEALLOCATE_USER_DATA 2
 
 #include "visualinfo.h"
 #include "list.h"
@@ -74,8 +75,8 @@ void range_tree_static(struct range_tree* base, file_offset_t length, int insert
 void range_tree_resize(struct range_tree* base, file_offset_t length, int inserter);
 void range_tree_expand(struct range_tree* base, file_offset_t offset, file_offset_t length);
 void range_tree_reduce(struct range_tree* base, file_offset_t offset, file_offset_t length);
-int range_tree_marked_next(struct range_tree* base, file_offset_t offset, file_offset_t* low, file_offset_t* high, int skip_first);
-int range_tree_marked_prev(struct range_tree* base, file_offset_t offset, file_offset_t* low, file_offset_t* high, int skip_first);
+struct range_tree_node* range_tree_marked_next(struct range_tree* base, file_offset_t offset, file_offset_t* low, file_offset_t* high, int skip_first);
+struct range_tree_node* range_tree_marked_prev(struct range_tree* base, file_offset_t offset, file_offset_t* low, file_offset_t* high, int skip_first);
 
 void range_tree_node_print(const struct range_tree_node* node, int depth, int side);
 void range_tree_node_check(const struct range_tree_node* node);

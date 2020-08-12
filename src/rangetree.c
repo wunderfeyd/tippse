@@ -4,6 +4,7 @@
 
 #include "fragment.h"
 #include "stream.h"
+#include "documentfile.h"
 
 int64_t range_tree_node_fuse_id = 1;
 
@@ -41,7 +42,11 @@ struct range_tree_node* range_tree_invoke(struct range_tree* base) {
 // Deallocate range tree node
 void range_tree_revoke(struct range_tree* base, struct range_tree_node* node) {
   if ((base->caps&TIPPSE_RANGETREE_CAPS_VISUAL)) {
-    visual_info_destroy(&node->visuals);
+    document_file_destroy_view_node(base->file, node);
+  }
+
+  if ((base->caps&TIPPSE_RANGETREE_CAPS_DEALLOCATE_USER_DATA)) {
+    free(node->user_data);
   }
 
   free(node);
@@ -51,7 +56,7 @@ void range_tree_revoke(struct range_tree* base, struct range_tree_node* node) {
 void range_tree_node_invalidate(struct range_tree_node* node, struct range_tree* base) {
   if (node->buffer) {
     if ((base->caps&TIPPSE_RANGETREE_CAPS_VISUAL)) {
-      visual_info_invalidate(node, base);
+      document_file_invalidate_view_node(base->file, node, base);
     }
 
     if (node->buffer->count==1 && (node->offset!=0 || node->length!=node->buffer->length) && node->length>0) {
@@ -394,16 +399,16 @@ void range_tree_mark(struct range_tree* base, file_offset_t offset, file_offset_
 }
 
 // Return next marked block after/at offset given
-int range_tree_marked_next(struct range_tree* base, file_offset_t offset, file_offset_t* low, file_offset_t* high, int skip_first) {
+struct range_tree_node* range_tree_marked_next(struct range_tree* base, file_offset_t offset, file_offset_t* low, file_offset_t* high, int skip_first) {
   if (base->root && offset<range_tree_length(base)) {
     file_offset_t displacement;
-    const struct range_tree_node* node = range_tree_node_find_offset(base->root, offset, &displacement);
+    struct range_tree_node* node = range_tree_node_find_offset(base->root, offset, &displacement);
     offset -= displacement;
     while (node) {
       if (node->inserter&TIPPSE_INSERTER_MARK && !skip_first) {
         *low = offset;
         *high = offset+node->length;
-        return 1;
+        return node;
       }
       skip_first = 0;
       offset += node->length;
@@ -413,20 +418,20 @@ int range_tree_marked_next(struct range_tree* base, file_offset_t offset, file_o
 
   *low = FILE_OFFSET_T_MAX;
   *high = FILE_OFFSET_T_MAX;
-  return 0;
+  return NULL;
 }
 
 // Return previous marked block before/at offset given
-int range_tree_marked_prev(struct range_tree* base, file_offset_t offset, file_offset_t* low, file_offset_t* high, int skip_first) {
+struct range_tree_node* range_tree_marked_prev(struct range_tree* base, file_offset_t offset, file_offset_t* low, file_offset_t* high, int skip_first) {
   if (base->root && (offset>0 || !skip_first)) {
     file_offset_t displacement;
-    const struct range_tree_node* node = range_tree_node_find_offset(base->root, offset, &displacement);
+    struct range_tree_node* node = range_tree_node_find_offset(base->root, offset, &displacement);
     offset -= displacement;
     while (node) {
       if (node->inserter&TIPPSE_INSERTER_MARK && !skip_first) {
         *low = offset;
         *high = offset+node->length;
-        return 1;
+        return node;
       }
       skip_first = 0;
       node = range_tree_node_prev(node);
@@ -438,7 +443,7 @@ int range_tree_marked_prev(struct range_tree* base, file_offset_t offset, file_o
 
   *low = FILE_OFFSET_T_MAX;
   *high = FILE_OFFSET_T_MAX;
-  return 0;
+  return NULL;
 }
 
 
@@ -518,10 +523,7 @@ void range_tree_node_update_calc(struct range_tree_node* node, struct range_tree
     node->depth = ((node->side[0]->depth>node->side[1]->depth)?node->side[0]->depth:node->side[1]->depth)+1;
     node->inserter = ((node->side[0]?node->side[0]->inserter:0)|(node->side[1]?node->side[1]->inserter:0))&~TIPPSE_INSERTER_LEAF;
     if ((tree->caps&TIPPSE_RANGETREE_CAPS_VISUAL)) {
-      struct visual_info* visuals = visual_info_create(&node->visuals);
-      struct visual_info* visuals0 = visual_info_create(&node->side[0]->visuals);
-      struct visual_info* visuals1 = visual_info_create(&node->side[1]->visuals);
-      visual_info_combine(visuals, visuals0, visuals1);
+      document_file_combine_view_node(tree->file, node);
     }
   }
 }
@@ -671,7 +673,6 @@ void range_tree_node_update(struct range_tree_node* node, struct range_tree* tre
         node->next->prev = node->prev;
       }
 
-      //free(node);
       range_tree_revoke(tree, node);
       last = parent;
       node = parent;
@@ -689,7 +690,6 @@ void range_tree_node_update(struct range_tree_node* node, struct range_tree* tre
 
       child->parent = parent;
 
-      //free(node);
       range_tree_revoke(tree, node);
       node = parent;
       continue;

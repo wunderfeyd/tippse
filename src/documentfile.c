@@ -843,6 +843,40 @@ void document_file_reset_views(struct document_file* base, int defaults) {
   }
 }
 
+// Invalidate node in all views
+void document_file_invalidate_view_node(struct document_file* base, struct range_tree_node* node, struct range_tree* tree) {
+  struct list_node* views = base->views->first;
+  while (views) {
+    struct document_view* view = *(struct document_view**)list_object(views);
+    visual_info_invalidate(view, node, tree);
+
+    views = views->next;
+  }
+}
+
+void document_file_destroy_view_node(struct document_file* base, struct range_tree_node* node) {
+  struct list_node* views = base->views->first;
+  while (views) {
+    struct document_view* view = *(struct document_view**)list_object(views);
+    document_view_visual_destroy(view, node);
+
+    views = views->next;
+  }
+}
+
+void document_file_combine_view_node(struct document_file* base, struct range_tree_node* node) {
+  struct list_node* views = base->views->first;
+  while (views) {
+    struct document_view* view = *(struct document_view**)list_object(views);
+    struct visual_info* visuals = document_view_visual_create(view, node);
+    struct visual_info* visuals0 = document_view_visual_create(view, node->side[0]);
+    struct visual_info* visuals1 = document_view_visual_create(view, node->side[1]);
+    visual_info_combine(view, visuals, visuals0, visuals1);
+
+    views = views->next;
+  }
+}
+
 // Reload file configuration
 void document_file_reload_config(struct document_file* base) {
   if (!base->config) {

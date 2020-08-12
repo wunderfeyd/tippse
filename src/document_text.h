@@ -113,11 +113,11 @@ void document_text_toggle_bookmark(struct document* base, struct splitter* split
 
 void document_text_render_clear(struct document_text_render_info* render_info, position_t width, struct range_tree* selection);
 void document_text_render_destroy(struct document_text_render_info* render_info);
-void document_text_render_seek(struct document_text_render_info* render_info, struct range_tree* buffer, struct encoding* encoding, const struct document_text_position* in);
+void document_text_render_seek(struct document_text_render_info* render_info, struct document_view* view, struct range_tree* buffer, struct encoding* encoding, const struct document_text_position* in);
 int document_text_split_buffer(struct range_tree_node* buffer, struct document_file* file);
-int document_text_collect_span(struct document_text_render_info* render_info, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel);
+int document_text_collect_span(struct document_text_render_info* render_info, struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel);
 int document_text_prerender_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel);
-int document_text_render_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel);
+int document_text_render_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel);
 
 file_offset_t document_text_cursor_position_partial(struct document_text_render_info* render_info, struct splitter* splitter, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel);
 file_offset_t document_text_cursor_position(struct splitter* splitter, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel);

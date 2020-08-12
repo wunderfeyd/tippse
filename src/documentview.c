@@ -9,11 +9,14 @@
 struct document_view* document_view_create(void) {
   struct document_view* base = (struct document_view*)malloc(sizeof(struct document_view));
   range_tree_create_inplace(&base->selection, NULL, 0);
+  range_tree_create_inplace(&base->visuals, NULL, TIPPSE_RANGETREE_CAPS_DEALLOCATE_USER_DATA);
+  range_tree_static(&base->visuals, FILE_OFFSET_T_MAX, 0);
   return base;
 }
 
 // Destroy view
 void document_view_destroy(struct document_view* base) {
+  range_tree_destroy_inplace(&base->visuals);
   range_tree_destroy_inplace(&base->selection);
   free(base);
 }
@@ -31,6 +34,7 @@ void document_view_reset(struct document_view* base, struct document_file* file,
   base->scroll_x_old = 0;
   base->scroll_y_old = 0;
   base->scroll_y_max = 0;
+  base->width = 0;
   base->show_scrollbar = 0;
   base->scrollbar_timeout = 0;
   base->selection_start = FILE_OFFSET_T_MAX;
@@ -41,8 +45,11 @@ void document_view_reset(struct document_view* base, struct document_file* file,
 // Clone view
 void document_view_clone(struct document_view* dst, struct document_view* src, struct document_file* file) {
   range_tree_destroy_inplace(&dst->selection);
+  range_tree_destroy_inplace(&dst->visuals);
 
   *dst = *src;
+  range_tree_create_inplace(&dst->visuals, NULL, TIPPSE_RANGETREE_CAPS_DEALLOCATE_USER_DATA);
+  range_tree_static(&dst->visuals, FILE_OFFSET_T_MAX, 0);
   range_tree_create_inplace(&dst->selection, NULL, 0);
   struct range_tree* copy = range_tree_copy(&src->selection, 0, range_tree_length(&src->selection), NULL);
   dst->selection.root = copy->root;
@@ -83,7 +90,7 @@ int document_view_select_active(struct document_view* base) {
 
 // Retrieve next active selection
 int document_view_select_next(struct document_view* base, file_offset_t offset, file_offset_t* low, file_offset_t* high) {
-  return range_tree_marked_next(&base->selection, offset, low, high, 0);
+  return range_tree_marked_next(&base->selection, offset, low, high, 0)?1:0;
 }
 
 // Activate or deactivate selection for specified range
@@ -102,4 +109,40 @@ void document_view_select_range(struct document_view* base, file_offset_t start,
 // Invert selection
 void document_view_select_invert(struct document_view* base) {
   base->selection.root = range_tree_node_invert_mark(base->selection.root, &base->selection, TIPPSE_INSERTER_MARK);
+}
+
+// Allocate visual information
+struct visual_info* document_view_visual_create(struct document_view* base, struct range_tree_node* node) {
+  file_offset_t low = (file_offset_t)node;
+  file_offset_t diff;
+  struct range_tree_node* tree;
+  if (range_tree_node_marked(base->visuals.root, low, 1, TIPPSE_INSERTER_MARK)) {
+    tree = range_tree_node_find_offset(base->visuals.root, low, &diff);
+  } else {
+    range_tree_mark(&base->visuals, low, 1, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
+    tree = range_tree_node_find_offset(base->visuals.root, low, &diff);
+    tree->user_data = malloc(sizeof(struct visual_info));
+    visual_info_clear(base, (struct visual_info*)tree->user_data);
+  }
+
+  return (struct visual_info*)tree->user_data;
+}
+
+// Deallocate visual information
+void document_view_visual_destroy(struct document_view* base, struct range_tree_node* node) {
+  file_offset_t low = (file_offset_t)node;
+  if (!range_tree_node_marked(base->visuals.root, low, 1, TIPPSE_INSERTER_MARK)) {
+    return;
+  }
+
+  file_offset_t diff;
+  struct range_tree_node* tree = range_tree_node_find_offset(base->visuals.root, low, &diff);
+  free(tree->user_data);
+
+  range_tree_mark(&base->visuals, low, 1, 0);
+}
+
+// Empty tree
+void document_view_visual_clear(struct document_view* base) {
+  range_tree_static(&base->visuals, FILE_OFFSET_T_MAX, 0);
 }

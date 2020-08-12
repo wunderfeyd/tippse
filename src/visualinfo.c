@@ -4,6 +4,7 @@
 
 #include "config.h"
 #include "rangetree.h"
+#include "documentview.h"
 
 // color entry names
 struct config_cache visual_color_codes[VISUAL_FLAG_COLOR_MAX+1] = {
@@ -34,13 +35,13 @@ struct config_cache visual_color_codes[VISUAL_FLAG_COLOR_MAX+1] = {
 };
 
 // Reset structure to known state
-void visual_info_clear(struct visual_info* visuals) {
+void visual_info_clear(struct document_view* view, struct visual_info* visuals) {
   memset(visuals, 0, sizeof(struct visual_info));
   visuals->dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
 }
 
 // Update page with informations about two other pages (usally its children)
-void visual_info_combine(struct visual_info* visuals, const struct visual_info* left, const struct visual_info* right) {
+void visual_info_combine(struct document_view* view, struct visual_info* visuals, const struct visual_info* left, const struct visual_info* right) {
   visuals->characters = left->characters+right->characters;
   visuals->lines = left->lines+right->lines;
   visuals->ys = left->ys+right->ys;
@@ -100,12 +101,12 @@ void visual_info_combine(struct visual_info* visuals, const struct visual_info* 
 }
 
 // Invalidate visualization status of current node and maybe previous nodes
-void visual_info_invalidate(struct range_tree_node* node, struct range_tree* tree) {
+void visual_info_invalidate(struct document_view* view, struct range_tree_node* node, struct range_tree* tree) {
   if (!node->buffer) {
     return;
   }
 
-  struct visual_info* visuals = visual_info_create(&node->visuals);
+  struct visual_info* visuals = document_view_visual_create(view, node);
   visuals->dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
   struct range_tree_node* invalidate = range_tree_node_next(node);
   if (invalidate) {
@@ -139,7 +140,7 @@ void visual_info_invalidate(struct range_tree_node* node, struct range_tree* tre
 }
 
 // Find first non dirty node before or at specified visualisation attributes
-struct range_tree_node* visual_info_find(struct range_tree_node* node, int find_type, file_offset_t find_offset, position_t find_x, position_t find_y, position_t find_line, position_t find_column, file_offset_t* offset, position_t* x, position_t* y, position_t* line, position_t* column, int* indentation, int* indentation_extra, file_offset_t* character, int retry, file_offset_t before) {
+struct range_tree_node* visual_info_find(struct document_view* view, struct range_tree_node* node, int find_type, file_offset_t find_offset, position_t find_x, position_t find_y, position_t find_line, position_t find_column, file_offset_t* offset, position_t* x, position_t* y, position_t* line, position_t* column, int* indentation, int* indentation_extra, file_offset_t* character, int retry, file_offset_t before) {
   struct range_tree_node* root = node;
   file_offset_t location = 0;
   position_t ys = 0;
@@ -154,8 +155,8 @@ struct range_tree_node* visual_info_find(struct range_tree_node* node, int find_
     position_t columns_new = columns;
     int indentations_new = indentations;
     int indentations_extra_new = indentations_extra;
-    struct visual_info* visuals = visual_info_create(&node->visuals);
-    struct visual_info* visuals0 = visual_info_create(&node->side[0]->visuals);
+    struct visual_info* visuals = document_view_visual_create(view, node);
+    struct visual_info* visuals0 = document_view_visual_create(view, node->side[0]);
     if (visuals0->lines!=0) {
       columns_new = visuals0->columns;
       indentations_new = visuals0->indentation;
@@ -195,7 +196,7 @@ struct range_tree_node* visual_info_find(struct range_tree_node* node, int find_
     return NULL;
   }
 
-  struct visual_info* visuals = visual_info_create(&node->visuals);
+  struct visual_info* visuals = document_view_visual_create(view, node);
   if (visuals->dirty) {
     *x = 0;
     *y = 0;
@@ -210,7 +211,7 @@ struct range_tree_node* visual_info_find(struct range_tree_node* node, int find_
 
   if ((node->inserter&TIPPSE_INSERTER_LEAF)) {
     if (visuals->rewind>0 && !retry) {
-      root = visual_info_find(root, VISUAL_SEEK_OFFSET, location-visuals->rewind, find_x, find_y, find_line, find_column, offset, x, y, line, column, indentation, indentation_extra, character, 1, before);
+      root = visual_info_find(view, root, VISUAL_SEEK_OFFSET, location-visuals->rewind, find_x, find_y, find_line, find_column, offset, x, y, line, column, indentation, indentation_extra, character, 1, before);
       if (*offset>=before || location+node->length<=before) {
         return root;
       }
@@ -230,11 +231,11 @@ struct range_tree_node* visual_info_find(struct range_tree_node* node, int find_
 }
 
 // Return bracket depth
-int visual_info_find_bracket(struct range_tree_node* node, size_t bracket) {
+int visual_info_find_bracket(struct document_view* view, struct range_tree_node* node, size_t bracket) {
   int depth = 0;
   while (node->parent) {
     if (node->parent->side[1]==node) {
-      struct visual_info* visuals0 = visual_info_create(&node->parent->side[0]->visuals);
+      struct visual_info* visuals0 = document_view_visual_create(view, node->parent->side[0]);
       depth += visuals0->brackets[bracket].diff;
     }
 
@@ -245,19 +246,19 @@ int visual_info_find_bracket(struct range_tree_node* node, size_t bracket) {
 }
 
 // Find next closest forward match (may be wrong due to page invalidation, but while rendering we should find it anyway)
-struct range_tree_node* visual_info_find_bracket_forward(struct range_tree_node* node, size_t bracket, int search) {
+struct range_tree_node* visual_info_find_bracket_forward(struct document_view* view, struct range_tree_node* node, size_t bracket, int search) {
   if (!node || !node->parent) {
     return NULL;
   }
 
   file_offset_t before = range_tree_node_offset(node);
-  int depth = visual_info_find_bracket(node, bracket);
+  int depth = visual_info_find_bracket(view, node, bracket);
   while (node->parent) {
     if (node->parent->side[1]==node) {
-      struct visual_info* visuals0 = visual_info_create(&node->parent->side[0]->visuals);
+      struct visual_info* visuals0 = document_view_visual_create(view, node->parent->side[0]);
       depth -= visuals0->brackets[bracket].diff;
     } else {
-      struct visual_info* visuals = visual_info_create(&node->parent->visuals);
+      struct visual_info* visuals = document_view_visual_create(view, node->parent);
       if (depth-visuals->brackets[bracket].min<=search && depth+visuals->brackets[bracket].max>=search) {
         node = node->parent;
         break;
@@ -267,12 +268,12 @@ struct range_tree_node* visual_info_find_bracket_forward(struct range_tree_node*
     node = node->parent;
   }
 
-  struct visual_info* visuals0 = visual_info_create(&node->side[0]->visuals);
+  struct visual_info* visuals0 = document_view_visual_create(view, node->side[0]);
   depth += visuals0->brackets[bracket].diff;
   node = node->side[1];
 
   while (node && !(node->inserter&TIPPSE_INSERTER_LEAF)) {
-    struct visual_info* visuals0 = visual_info_create(&node->side[0]->visuals);
+    struct visual_info* visuals0 = document_view_visual_create(view, node->side[0]);
     if (depth-visuals0->brackets[bracket].min<=search && depth+visuals0->brackets[bracket].max>=search) {
       node = node->side[0];
       continue;
@@ -291,15 +292,15 @@ struct range_tree_node* visual_info_find_bracket_forward(struct range_tree_node*
 }
 
 // Find next closest backwards match (may be wrong due to page invalidation, but while rendering we should find it anyway)
-struct range_tree_node* visual_info_find_bracket_backward(struct range_tree_node* node, size_t bracket, int search) {
+struct range_tree_node* visual_info_find_bracket_backward(struct document_view* view, struct range_tree_node* node, size_t bracket, int search) {
   if (!node || !node->parent) {
     return NULL;
   }
 
-  int depth = visual_info_find_bracket(node, bracket);
+  int depth = visual_info_find_bracket(view, node, bracket);
   while (node->parent) {
     if (node->parent->side[1]==node) {
-      struct visual_info* visuals0 = visual_info_create(&node->parent->side[0]->visuals);
+      struct visual_info* visuals0 = document_view_visual_create(view, node->parent->side[0]);
       depth -= visuals0->brackets[bracket].diff;
       if (depth-visuals0->brackets[bracket].min<=search && depth+visuals0->brackets[bracket].max>=search) {
         node = node->parent;
@@ -313,8 +314,8 @@ struct range_tree_node* visual_info_find_bracket_backward(struct range_tree_node
   node = node->side[0];
 
   while (node && !(node->inserter&TIPPSE_INSERTER_LEAF)) {
-    struct visual_info* visuals0 = visual_info_create(&node->side[0]->visuals);
-    struct visual_info* visuals1 = visual_info_create(&node->side[1]->visuals);
+    struct visual_info* visuals0 = document_view_visual_create(view, node->side[0]);
+    struct visual_info* visuals1 = document_view_visual_create(view, node->side[1]);
     if (depth-visuals1->brackets[bracket].min+visuals0->brackets[bracket].diff<=search && depth+visuals1->brackets[bracket].max+visuals0->brackets[bracket].diff>=search) {
       depth += visuals0->brackets[bracket].diff;
       node = node->side[1];
@@ -328,7 +329,7 @@ struct range_tree_node* visual_info_find_bracket_backward(struct range_tree_node
 }
 
 // Check for lowest bracket depth
-void visual_info_find_bracket_lowest(struct range_tree_node* node, int* mins, struct range_tree_node* last) {
+void visual_info_find_bracket_lowest(struct document_view* view, struct range_tree_node* node, int* mins, struct range_tree_node* last) {
   if (!node) {
     if (!last) {
       return;
@@ -336,7 +337,7 @@ void visual_info_find_bracket_lowest(struct range_tree_node* node, int* mins, st
 
     node = last;
 
-    struct visual_info* visuals = visual_info_create(&node->visuals);
+    struct visual_info* visuals = document_view_visual_create(view, node);
     for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
       int min1 = mins[n]-visuals->brackets_line[n].diff;
       int min2 = visuals->brackets_line[n].min;
@@ -350,7 +351,7 @@ void visual_info_find_bracket_lowest(struct range_tree_node* node, int* mins, st
 
   while (node->parent) {
     if (node->parent->side[1]==node) {
-      struct visual_info* visuals0 = visual_info_create(&node->parent->side[0]->visuals);
+      struct visual_info* visuals0 = document_view_visual_create(view, node->parent->side[0]);
       if (visuals0->lines!=0) {
         node = node->parent;
         break;
@@ -370,7 +371,7 @@ void visual_info_find_bracket_lowest(struct range_tree_node* node, int* mins, st
     node = node->side[0];
 
     while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
-      struct visual_info* visuals1 = visual_info_create(&node->side[1]->visuals);
+      struct visual_info* visuals1 = document_view_visual_create(view, node->side[1]);
       if (visuals1->lines==0) {
         for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
           int min1 = mins[n]-visuals1->brackets_line[n].diff;
@@ -386,7 +387,7 @@ void visual_info_find_bracket_lowest(struct range_tree_node* node, int* mins, st
   }
 
   for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
-    struct visual_info* visuals = visual_info_create(&node->visuals);
+    struct visual_info* visuals = document_view_visual_create(view, node);
     int min1 = mins[n]-visuals->brackets_line[n].diff;
     int min2 = visuals->brackets_line[n].min;
     mins[n] = (min2>min1)?min2:min1;
@@ -394,7 +395,7 @@ void visual_info_find_bracket_lowest(struct range_tree_node* node, int* mins, st
 }
 
 // Find last indentation on line
-struct range_tree_node* visual_info_find_indentation_last(struct range_tree_node* node, position_t lines, struct range_tree_node* last) {
+struct range_tree_node* visual_info_find_indentation_last(struct document_view* view, struct range_tree_node* node, position_t lines, struct range_tree_node* last) {
   if (!node) {
     if (!last) {
       return NULL;
@@ -413,7 +414,7 @@ struct range_tree_node* visual_info_find_indentation_last(struct range_tree_node
   if (lines==0 && node->prev!=NULL) {
     while (node->parent) {
       if (node->parent->side[1]==node) {
-        struct visual_info* visuals0 = visual_info_create(&node->parent->side[0]->visuals);
+        struct visual_info* visuals0 = document_view_visual_create(view, node->parent->side[0]);
         if (visuals0->lines!=0) {
           node = node->parent;
           break;
@@ -426,7 +427,7 @@ struct range_tree_node* visual_info_find_indentation_last(struct range_tree_node
     node = node->side[0];
 
     while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
-      struct visual_info* visuals1 = visual_info_create(&node->side[1]->visuals);
+      struct visual_info* visuals1 = document_view_visual_create(view, node->side[1]);
       if (visuals1->lines==0) {
         node = node->side[0];
       } else {
@@ -435,7 +436,7 @@ struct range_tree_node* visual_info_find_indentation_last(struct range_tree_node
     }
   }
 
-  struct visual_info* visuals = visual_info_create(&node->visuals);
+  struct visual_info* visuals = document_view_visual_create(view, node);
   if ((visuals->lines!=lines && from==node) || (visuals->detail_after&VISUAL_DETAIL_STOPPED_INDENTATION)) {
     return node;
   }
@@ -443,7 +444,7 @@ struct range_tree_node* visual_info_find_indentation_last(struct range_tree_node
   // Climb to last node of line or not indented node
   while (node->parent) {
     if (node->parent->side[0]==node) {
-      struct visual_info* visuals1 = visual_info_create(&node->parent->side[1]->visuals);
+      struct visual_info* visuals1 = document_view_visual_create(view, node->parent->side[1]);
       if (visuals1->lines!=0 || (visuals1->detail_after&VISUAL_DETAIL_STOPPED_INDENTATION)) {
         node = node->parent;
         break;
@@ -456,7 +457,7 @@ struct range_tree_node* visual_info_find_indentation_last(struct range_tree_node
   node = node->side[1];
 
   while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
-    struct visual_info* visuals0 = visual_info_create(&node->side[0]->visuals);
+    struct visual_info* visuals0 = document_view_visual_create(view, node->side[0]);
     if (visuals0->lines==0 && !(visuals0->detail_after&VISUAL_DETAIL_STOPPED_INDENTATION)) {
       node = node->side[1];
     } else {
@@ -468,14 +469,14 @@ struct range_tree_node* visual_info_find_indentation_last(struct range_tree_node
 }
 
 // Check for identation reaching given node
-int visual_info_find_indentation(struct range_tree_node* node) {
+int visual_info_find_indentation(struct document_view* view, struct range_tree_node* node) {
   if (!node || !node->parent) {
     return 0;
   }
 
   while (node->parent) {
     if (node->parent->side[1]==node) {
-      struct visual_info* visuals0 = visual_info_create(&node->parent->side[0]->visuals);
+      struct visual_info* visuals0 = document_view_visual_create(view, node->parent->side[0]);
       if (visuals0->lines!=0) {
         node = node->parent;
         break;
@@ -492,7 +493,7 @@ int visual_info_find_indentation(struct range_tree_node* node) {
   node = node->side[0];
 
   while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
-    struct visual_info* visuals1 = visual_info_create(&node->side[1]->visuals);
+    struct visual_info* visuals1 = document_view_visual_create(view, node->side[1]);
     if (visuals1->lines==0) {
       if (visuals1->detail_after&VISUAL_DETAIL_STOPPED_INDENTATION) {
         return 0;
@@ -504,13 +505,13 @@ int visual_info_find_indentation(struct range_tree_node* node) {
     }
   }
 
-  struct visual_info* visuals = visual_info_create(&node->visuals);
+  struct visual_info* visuals = document_view_visual_create(view, node);
   return (visuals->detail_after&VISUAL_DETAIL_STOPPED_INDENTATION)?0:1;
 }
 
 // Check if whitespacing stops at line end
-int visual_info_find_whitespaced(struct range_tree_node* node) {
-  struct visual_info* visuals = visual_info_create(&node->visuals);
+int visual_info_find_whitespaced(struct document_view* view, struct range_tree_node* node) {
+  struct visual_info* visuals = document_view_visual_create(view, node);
   if (visuals->detail_after&VISUAL_DETAIL_WHITESPACED_START) {
     return 1;
   }
@@ -521,7 +522,7 @@ int visual_info_find_whitespaced(struct range_tree_node* node) {
 
   while (node->parent) {
     if (node->parent->side[0]==node) {
-      struct visual_info* visuals1 = visual_info_create(&node->parent->side[1]->visuals);
+      struct visual_info* visuals1 = document_view_visual_create(view, node->parent->side[1]);
       if (!(visuals1->detail_after&VISUAL_DETAIL_WHITESPACED_COMPLETE)) {
         node = node->parent->side[1];
         break;
@@ -536,7 +537,7 @@ int visual_info_find_whitespaced(struct range_tree_node* node) {
   }
 
   while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
-    struct visual_info* visuals0 = visual_info_create(&node->side[0]->visuals);
+    struct visual_info* visuals0 = document_view_visual_create(view, node->side[0]);
     if (!(visuals0->detail_after&VISUAL_DETAIL_WHITESPACED_COMPLETE)) {
       node = node->side[0];
     } else {
@@ -544,22 +545,6 @@ int visual_info_find_whitespaced(struct range_tree_node* node) {
     }
   }
 
-  visuals = visual_info_create(&node->visuals);
+  visuals = document_view_visual_create(view, node);
   return (visuals->detail_after&(VISUAL_DETAIL_WHITESPACED_COMPLETE|VISUAL_DETAIL_WHITESPACED_START))?1:0;
-}
-
-// Allocate visual information
-struct visual_info* visual_info_create(struct visual_info** base) {
-  if (!*base) {
-    *base = (struct visual_info*)malloc(sizeof(struct visual_info));
-    visual_info_clear(*base);
-  }
-
-  return *base;
-}
-
-// Deallocate visual information
-void visual_info_destroy(struct visual_info** base) {
-  free(*base);
-  *base = NULL;
 }
