@@ -108,15 +108,16 @@ void visual_info_invalidate(struct document_view* view, struct range_tree_node* 
 
   struct visual_info* visuals = document_view_visual_create(view, node);
   visuals->dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
+  file_offset_t rewind = visuals->rewind;
+
   struct range_tree_node* invalidate = range_tree_node_next(node);
   if (invalidate) {
+    struct visual_info* visuals = document_view_visual_create(view, invalidate);
     visuals->dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
     range_tree_node_update_calc_all(invalidate, tree);
   }
 
   invalidate = node;
-
-  file_offset_t rewind = visuals->rewind;
 
   // TODO: Rewind is needed for word wrapping correction ... figure out when exactly and reduce the rewind as much as possible for performance
   if (rewind<1024) {
@@ -129,6 +130,7 @@ void visual_info_invalidate(struct document_view* view, struct range_tree_node* 
       break;
     }
 
+    struct visual_info* visuals = document_view_visual_create(view, invalidate);
     visuals->dirty = VISUAL_DIRTY_UPDATE|VISUAL_DIRTY_LEFT;
     range_tree_node_update_calc_all(invalidate, tree);
     if (invalidate->length>rewind) {

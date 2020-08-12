@@ -118,10 +118,10 @@ void document_file_clear(struct document_file* base, int all) {
     base->cache = NULL;
   }
 
-  range_tree_destroy_inplace(&base->buffer);
+  range_tree_empty(&base->buffer);
 
   if (all) {
-    range_tree_destroy_inplace(&base->bookmarks);
+    range_tree_empty(&base->bookmarks);
 
     if (base->config) {
       config_clear(base->config);
@@ -132,6 +132,8 @@ void document_file_clear(struct document_file* base, int all) {
 // Destroy file operations
 void document_file_destroy(struct document_file* base) {
   document_file_clear(base, 1);
+  range_tree_destroy_inplace(&base->buffer);
+  range_tree_destroy_inplace(&base->bookmarks);
 #ifdef _ANSI_POSIX
   document_file_close_pipe(base);
 #endif

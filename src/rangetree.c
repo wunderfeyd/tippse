@@ -227,6 +227,14 @@ void range_tree_delete(struct range_tree* base, file_offset_t offset, file_offse
     node->inserter &= ~TIPPSE_INSERTER_LEAF;
 
     range_tree_node_update(node, base);
+    if (before) {
+      range_tree_node_invalidate(before, base);
+    }
+
+    if (after) {
+      range_tree_node_invalidate(after, base);
+    }
+
     if (base->root) {
       range_tree_fuse(base, before, after);
     }
@@ -283,12 +291,17 @@ uint8_t* range_tree_raw(struct range_tree* base, file_offset_t start, file_offse
   return text;
 }
 
-// Cleanup base and build single full length node
-void range_tree_static(struct range_tree* base, file_offset_t length, int inserter) {
+// Cleanup base
+void range_tree_empty(struct range_tree* base) {
   if (base->root) {
     range_tree_node_destroy(base->root, base);
     base->root = NULL;
   }
+}
+
+// Cleanup base and build single full length node
+void range_tree_static(struct range_tree* base, file_offset_t length, int inserter) {
+  range_tree_empty(base);
 
   if (length==0) {
     return;
