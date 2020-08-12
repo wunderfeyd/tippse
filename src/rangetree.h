@@ -25,7 +25,6 @@
 #define TIPPSE_RANGETREE_CAPS_VISUAL 1
 #define TIPPSE_RANGETREE_CAPS_DEALLOCATE_USER_DATA 2
 
-#include "visualinfo.h"
 #include "list.h"
 
 struct range_tree_node {

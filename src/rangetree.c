@@ -47,6 +47,7 @@ void range_tree_revoke(struct range_tree* base, struct range_tree_node* node) {
 
   if ((base->caps&TIPPSE_RANGETREE_CAPS_DEALLOCATE_USER_DATA)) {
     free(node->user_data);
+    node->user_data = NULL;
   }
 
   free(node);

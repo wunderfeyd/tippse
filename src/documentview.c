@@ -112,7 +112,7 @@ void document_view_select_invert(struct document_view* base) {
 }
 
 // Allocate visual information
-struct visual_info* document_view_visual_create(struct document_view* base, struct range_tree_node* node) {
+struct visual_info* document_view_visual_create(struct document_view* base, const struct range_tree_node* node) {
   file_offset_t low = (file_offset_t)node;
   file_offset_t diff;
   struct range_tree_node* tree;
@@ -129,15 +129,11 @@ struct visual_info* document_view_visual_create(struct document_view* base, stru
 }
 
 // Deallocate visual information
-void document_view_visual_destroy(struct document_view* base, struct range_tree_node* node) {
+void document_view_visual_destroy(struct document_view* base, const struct range_tree_node* node) {
   file_offset_t low = (file_offset_t)node;
   if (!range_tree_node_marked(base->visuals.root, low, 1, TIPPSE_INSERTER_MARK)) {
     return;
   }
-
-  file_offset_t diff;
-  struct range_tree_node* tree = range_tree_node_find_offset(base->visuals.root, low, &diff);
-  free(tree->user_data);
 
   range_tree_mark(&base->visuals, low, 1, 0);
 }
