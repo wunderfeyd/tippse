@@ -225,9 +225,18 @@ int main(int argc, const char** argv) {
       int64_t tick = tick_count();
       if (!stop) {
         start = tick;
+      } else {
+#ifdef _TESTSUITE
+        break;
+#endif
       }
 
+#ifdef _TESTSUITE
+      int64_t left = tick_ms(1)-(tick-start);
+      stop = 1;
+#else
       int64_t left = tick_ms(100)-(tick-start);
+#endif
       if (left<=0) {
         break;
       }
@@ -373,6 +382,10 @@ int main(int argc, const char** argv) {
     if (check>0) {
       memmove(&input_buffer[0], &input_buffer[check], input_pos);
     }
+
+#ifdef _TESTSUITE
+    editor_test_read(editor);
+#endif
   }
 #else
   {

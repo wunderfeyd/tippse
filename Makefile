@@ -77,6 +77,15 @@ perf: CFLAGSEXTRA=-D_PERFORMANCE
 perf: $(TARGET)
 	@echo OK
 
+test: CFLAGSEXTRA=-D_TESTSUITE
+test: $(TARGET)
+	@rm -rf test/output
+	@mkdir test/output
+	@./$(TARGET) test/hello/script test/hello/verify test/output/hello.output
+	@./$(TARGET) test/deepsplit/script test/deepsplit/verify test/output/deepsplit.output
+	@./$(TARGET) test/viewrestore/script test/viewrestore/verify test/output/viewrestore.output
+	@echo OK
+
 download-unicode:
 	@mkdir -p tmp/tools/unicode/download
 	@mkdir -p tmp/tools/unicode/output

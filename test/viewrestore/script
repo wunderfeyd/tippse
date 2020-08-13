@@ -1,0 +1,19 @@
+# write some lines open another document and return, cursor should be in same position
+
+str,0,hello
+cmd,return
+str,0,hello
+cmd,return
+str,0,hello
+cmd,return
+cmd,goto
+str,0,2
+cmd,return
+cmd,new
+cmd,close
+str,0,here
+cmd,return
+cmd,saveas
+str,0,test/output/viewrestore.output
+cmd,return
+cmd,quitforce

@@ -1,0 +1,19 @@
+# write hello after splitting and exit
+
+cmd,split
+cmd,split
+cmd,split
+cmd,split
+cmd,split
+cmd,split
+str,0,hello
+cmd,unsplit
+cmd,unsplit
+cmd,unsplit
+cmd,unsplit
+cmd,unsplit
+key,0,10,0,0,0,0
+cmd,saveas
+str,0,test/output/deepsplit.output
+cmd,return
+cmd,quitforce

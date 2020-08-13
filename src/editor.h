@@ -240,6 +240,13 @@ struct editor {
   struct document_file* task_focus;   // delete task list if file is nor focused
 
   struct list* menu;                  // menu selections
+
+#ifdef _TESTSUITE
+  char* test_script_path;
+  struct file* test_script;
+  char* test_output_path;
+  char* test_verify_path;
+#endif
 };
 
 struct editor* editor_create(const char* base_path, struct screen* screen, int argc, const char** argv);
@@ -298,6 +305,7 @@ void editor_task_document_removed(struct editor* base, struct document_file* fil
 void editor_task_clear(struct editor* base);
 void editor_task_stop(struct editor* base);
 void editor_task_remove_stop(struct editor* base);
+void editor_task_dispatch(struct editor* base);
 
 void editor_menu_title(struct editor* base, const char* title);
 void editor_menu_clear(struct editor* base);
@@ -306,4 +314,9 @@ void editor_menu_append(struct editor* base, const char* title, int command, str
 void editor_process_message(struct editor* base, const char* message, file_offset_t position, file_offset_t length);
 
 void editor_open_error(struct editor* base, int reverse);
+
+#ifdef _TESTSUITE
+void editor_test_read(struct editor* base);
+#endif
+
 #endif /* #ifndef TIPPSE_EDITOR_H */

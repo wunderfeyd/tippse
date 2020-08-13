@@ -192,8 +192,12 @@ void splitter_unassign_document_file(struct splitter* base) {
   struct list_node* view = base->file->views->first;
   while (view) {
     if (*(struct document_view**)list_object(view)==base->view) {
-      document_view_destroy(base->view);
       list_remove(base->file->views, view);
+      if (base->file->views->count!=0) {
+        document_view_destroy(base->view);
+      } else {
+        base->file->view_inactive = base->view;
+      }
       break;
     }
 
@@ -216,8 +220,13 @@ void splitter_assign_document_file(struct splitter* base, struct document_file* 
   if (base->file->views->first) {
     base->view = document_view_clone(*(struct document_view**)list_object(base->file->views->first), base->file);
   } else {
-    base->view = document_view_create();
-    document_view_reset(base->view, file, 1);
+    if (base->file->view_inactive) {
+      base->view = base->file->view_inactive;
+      base->file->view_inactive = NULL;
+    } else {
+      base->view = document_view_create();
+      document_view_reset(base->view, file, 1);
+    }
   }
 
   list_insert(base->file->views, NULL, &base->view);

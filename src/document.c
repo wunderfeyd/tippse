@@ -508,7 +508,7 @@ void document_clipboard_copy(struct document_file* file, struct document_view* v
 void document_clipboard_paste(struct document_file* file, struct document_view* view) {
   struct encoding* encoding = NULL;
   struct range_tree* buffer = clipboard_get(&encoding);
-  if (buffer) {
+  if (buffer && buffer->root) {
     struct range_tree* transform = encoding_transform_page(buffer->root, 0, FILE_OFFSET_T_MAX, encoding, file->encoding);
     document_file_insert_buffer(file, view->offset, transform->root);
     range_tree_destroy(transform);

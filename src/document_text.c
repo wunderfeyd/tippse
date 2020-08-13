@@ -2014,7 +2014,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 
     struct range_tree* clipboard = view->line_cut?clipboard_get(NULL):NULL;
     view->line_cut = 1;
-    struct range_tree* rootold = range_tree_copy(clipboard, 0, range_tree_length(clipboard), NULL);
+    struct range_tree* rootold = clipboard?range_tree_copy(clipboard, 0, range_tree_length(clipboard), NULL):range_tree_create(NULL, 0);
     struct range_tree* rootnew = range_tree_copy(&file->buffer, from, to-from, NULL);
     range_tree_paste(rootold, rootnew->root, range_tree_length(rootold));
     range_tree_destroy(rootnew);
@@ -2024,6 +2024,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 
     selection_keep = 1;
     document_undo_chain(file, file->undos);
+
     seek = 1;
   } else if (command==TIPPSE_CMD_COPY || command==TIPPSE_CMD_CUT) {
     document_undo_chain(file, file->undos);

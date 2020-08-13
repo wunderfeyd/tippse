@@ -9,6 +9,11 @@
 #include "encoding/utf16le.h"
 #include "unicode.h"
 
+#ifdef _TESTSUITE
+#define _TESTSUITE_SCREEN
+#endif
+
+#ifndef _TESTSUITE_SCREEN
 // Screen ANSI initialization
 static const char* screen_ansi_init =
   "\x1b[?47h"    // Switch buffer
@@ -28,6 +33,7 @@ static const char* screen_ansi_restore =
   "\x1b[?25h"    // Show cursor
   "\x1b[?47l"    // Switch back to normal output
   "\x1b[39;49m"; // Restore colors
+#endif
 
 // color names from https://jonasjacek.github.io/colors
 struct config_cache screen_color_codes[] = {
@@ -101,6 +107,7 @@ struct screen* screen_create(void) {
 
   tcgetattr(STDIN_FILENO, &base->termios_original);
 
+#ifndef _TESTSUITE_SCREEN
   struct termios raw;
   memset(&raw, 0, sizeof(raw));
   cfmakeraw(&raw);
@@ -108,6 +115,7 @@ struct screen* screen_create(void) {
   UNUSED(signal(SIGWINCH, screen_size_changed));
 
   UNUSED(write(STDOUT_FILENO, screen_ansi_init, strlen(screen_ansi_init)));
+#endif
 #endif
 #ifdef _EMSCRIPTEN
   base->encoding = encoding_utf8_create();
@@ -118,8 +126,10 @@ struct screen* screen_create(void) {
 // Destroy screen
 void screen_destroy(struct screen* base) {
 #ifdef _ANSI_POSIX
+#ifndef _TESTSUITE_SCREEN
   UNUSED(write(STDOUT_FILENO, screen_ansi_restore, strlen(screen_ansi_restore)));
   tcsetattr(STDIN_FILENO, TCSANOW, &base->termios_original);
+#endif
 #endif
 
   free(base->title);
@@ -204,7 +214,9 @@ void screen_character_width_detect(struct screen* base) {
     pos += (*base->encoding->encode)(NULL, cp, (uint8_t*)pos, SIZE_T_MAX);
     pos += sprintf(pos, "\x1b[6n");
   }
+#ifndef _TESTSUITE_SCREEN
   UNUSED(write(STDOUT_FILENO, output, (size_t)(pos-output)));
+#endif
   free(output);
 
   int width = 0;
@@ -483,7 +495,9 @@ void screen_draw(struct screen* base) {
     pos += sprintf(pos, "\x1b[%d;%dH\x1b[?25h", base->cursor_y+1, base->cursor_x+1);
   }
 
+#ifndef _TESTSUITE_SCREEN
   UNUSED(write(STDOUT_FILENO, output, (size_t)(pos-output)));
+#endif
   free(output);
 }
 #endif

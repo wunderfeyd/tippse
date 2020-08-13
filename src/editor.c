@@ -17,6 +17,7 @@
 #include "search.h"
 #include "splitter.h"
 #include "trie.h"
+#include "file.h"
 
 // Documentation
 #include "../tmp/doc/index.h"
@@ -284,9 +285,26 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   list_insert(base->documents, NULL, &base->menu_doc);
   list_insert(base->documents, NULL, &base->help_doc);
 
+#ifndef _TESTSUITE
   for (int n = argc-1; n>=1; n--) {
     editor_open_document(base, argv[n], NULL, base->document, TIPPSE_BROWSERTYPE_OPEN, NULL);
   }
+#else
+  if (argc>3) {
+    base->test_script_path = strdup(argv[1]);
+    base->test_script = file_create(base->test_script_path, TIPPSE_FILE_READ);
+    if (!base->test_script) {
+      fprintf(stderr, "can't open test script (%s)\r\n", base->test_script_path);
+      exit(1);
+    }
+
+    base->test_verify_path = strdup(argv[2]);
+    base->test_output_path = strdup(argv[3]);
+  } else {
+    fprintf(stderr, "not enough test parameter\r\n");
+    exit(1);
+  }
+#endif
 
   if (!base->document->file) {
     struct document_file* empty = editor_empty_document(base);
@@ -319,6 +337,49 @@ void editor_destroy(struct editor* base) {
 
   free(base->browser_preset);
   free(base->console_text);
+
+#ifdef _TESTSUITE
+  struct file* test_verify = file_create(base->test_verify_path, TIPPSE_FILE_READ);
+  if (!test_verify) {
+    fprintf(stderr, "can't open test verify (%s)\r\n", base->test_script_path);
+    exit(1);
+  }
+
+  struct file* test_output = file_create(base->test_output_path, TIPPSE_FILE_READ);
+  if (!test_output) {
+    fprintf(stderr, "can't open test output (%s)\r\n", base->test_script_path);
+    exit(1);
+  }
+
+  while (1) {
+    uint8_t buffer_verify[4096];
+    uint8_t buffer_output[4096];
+    size_t size_verify = file_read(test_verify, &buffer_verify[0], 4096);
+    size_t size_output = file_read(test_output, &buffer_output[0], 4096);
+    if (size_verify!=size_output) {
+      fprintf(stderr, "test verification failed due to different size (%s)\r\n", base->test_script_path);
+      exit(1);
+    }
+
+    if (size_verify==0) {
+      break;
+    }
+
+    if (memcmp(&buffer_verify[0], &buffer_output[0], size_verify)!=0) {
+      fprintf(stderr, "test verification failed due to binary difference (%s)\r\n", base->test_script_path);
+      exit(1);
+    }
+  }
+
+  free(base->test_script_path);
+  free(base->test_verify_path);
+  free(base->test_output_path);
+
+  file_destroy(base->test_script);
+  file_destroy(test_verify);
+  file_destroy(test_output);
+#endif
+
   free(base);
 }
 
@@ -482,20 +543,7 @@ void editor_keypress(struct editor* base, int key, codepoint_t cp, int button, i
     }
   }
 
-  while (base->tasks->first) {
-    if (base->tasks->first==base->task_stop) {
-      break;
-    }
-
-    struct editor_task* task = (struct editor_task*)list_object(base->tasks->first);
-
-    base->task_active = base->tasks->first;
-    editor_intercept(base, task->command, task->arguments, task->key, task->cp, task->button, task->button_old, task->x, task->y, task->file);
-    if (base->task_active && base->task_active!=base->task_stop) {
-      editor_task_destroy_inplace(task);
-      list_remove(base->tasks, base->task_active);
-    }
-  }
+  editor_task_dispatch(base);
 }
 
 // After event translation we can intercept the core commands (for now)
@@ -1645,6 +1693,24 @@ void editor_task_remove_stop(struct editor* base) {
   }
 }
 
+// Dispatch tasks
+void editor_task_dispatch(struct editor* base) {
+  while (base->tasks->first) {
+    if (base->tasks->first==base->task_stop) {
+      break;
+    }
+
+    struct editor_task* task = (struct editor_task*)list_object(base->tasks->first);
+
+    base->task_active = base->tasks->first;
+    editor_intercept(base, task->command, task->arguments, task->key, task->cp, task->button, task->button_old, task->x, task->y, task->file);
+    if (base->task_active && base->task_active!=base->task_stop) {
+      editor_task_destroy_inplace(task);
+      list_remove(base->tasks, base->task_active);
+    }
+  }
+}
+
 // Change title for active menu
 void editor_menu_title(struct editor* base, const char* title) {
   document_file_name(base->menu_doc, title);
@@ -1753,3 +1819,70 @@ void editor_open_error(struct editor* base, int reverse) {
     }
   }
 }
+
+#ifdef _TESTSUITE
+void editor_test_read(struct editor* base) {
+  size_t count = 0;
+  char buffer[1024*10+1];
+  size_t pos = 0;
+  char* params[10+1];
+
+  params[count] = &buffer[pos];
+
+  while (1) {
+    if (pos>=1024*10) {
+      fprintf(stderr, "test script line too long (%s)\r\n", base->test_script_path);
+      exit(1);
+    }
+
+    if (count>=10) {
+      fprintf(stderr, "test script too much parameters in line (%s)\r\n", base->test_script_path);
+      exit(1);
+    }
+
+    char c = '\n';
+    size_t in = file_read(base->test_script, &c, 1);
+
+    if (c=='\r') {
+    } else if (c==',' || c=='\n') {
+      if (in==0 && pos==0) {
+        fprintf(stderr, "test script end reached but editor is alive (%s)\r\n", base->test_script_path);
+        exit(1);
+      }
+
+      buffer[pos++] = 0;
+      count++;
+      params[count] = &buffer[pos];
+
+      if (c=='\n') {
+        break;
+      }
+    } else {
+      if (&buffer[pos]!=params[count] || (c!=' ' && c!='\t')) {
+        buffer[pos++] = c;
+      }
+    }
+  }
+
+  if (count>=1) {
+    if (strcmp(params[0], "key")==0 && count>=7) {
+      editor_task_append(base, 3, TIPPSE_CMD_CHARACTER, NULL, (int)strtol(params[1], NULL, 0), (codepoint_t)strtol(params[2], NULL, 0), (int)strtol(params[3], NULL, 0), (int)strtol(params[4], NULL, 0), (int)strtol(params[5], NULL, 0), (int)strtol(params[6], NULL, 0), NULL);
+    } else if (strcmp(params[0], "str")==0 && count>=3) {
+      while (*params[2]) {
+        editor_task_append(base, 3, TIPPSE_CMD_CHARACTER, NULL, (int)strtol(params[1], NULL, 0), (codepoint_t)*params[2], 0, 0, 0, 0, NULL);
+        editor_task_dispatch(base);
+        params[2]++;
+      }
+    } else if (strcmp(params[0], "cmd")==0 && count>=2) {
+      for (int check = 0; editor_commands[check].text; check++) {
+        if (strcmp(params[1], editor_commands[check].text)==0) {
+          editor_task_append(base, 3, editor_commands[check].value, NULL, 0, 0, 0, 0, 0, 0, NULL);
+        }
+      }
+    }
+  }
+
+  editor_task_dispatch(base);
+}
+
+#endif
