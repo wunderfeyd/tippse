@@ -10,3 +10,4 @@ Tippse is a text editor.
 Additional information...
 * [Tippse help files](doc/index.md)
 * [License](LICENSE.md)
+* ![Compile](https://github.com/wunderfeyd/tippse/workflows/C%2fC%2b%2b%20CI/badge.svg)
