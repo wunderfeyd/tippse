@@ -1,4 +1,5 @@
-CC_HOST?=$(CC)
+CC_HOST_AUTO:=$(CC)
+CC_HOST?=$(CC_HOST_AUTO)
 
 ifeq ($(OS),emscripten)
 	CC=emcc

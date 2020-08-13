@@ -87,7 +87,6 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->newline = TIPPSE_NEWLINE_AUTO;
   base->config = config?config_create():NULL;
   base->type = file_type_text_create(base->config, "");
-  base->view = document_view_create();
 #ifdef _ANSI_POSIX
   base->pipefd[0] = -1;
   base->pipefd[1] = -1;
@@ -146,7 +145,6 @@ void document_file_destroy(struct document_file* base) {
   free(base->filename);
   (*base->type->destroy)(base->type);
   (*base->encoding->destroy)(base->encoding);
-  document_view_destroy(base->view);
   if (base->autocomplete_build) {
     trie_destroy(base->autocomplete_build);
   }
@@ -822,8 +820,6 @@ void document_file_move(struct document_file* base, file_offset_t from, file_off
 void document_file_change_views(struct document_file* base, int defaults) {
   range_tree_resize(&base->bookmarks, range_tree_length(&base->buffer), 0);
 
-  document_view_filechange(base->view, base, defaults);
-
   struct list_node* views = base->views->first;
   while (views) {
     struct document_view* view = *(struct document_view**)list_object(views);
@@ -835,7 +831,6 @@ void document_file_change_views(struct document_file* base, int defaults) {
 
 // Reset all active views to the document
 void document_file_reset_views(struct document_file* base, int defaults) {
-  document_view_reset(base->view, base, defaults);
   struct list_node* views = base->views->first;
   while (views) {
     struct document_view* view = *(struct document_view**)list_object(views);

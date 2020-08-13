@@ -1728,7 +1728,11 @@ void editor_view_help(struct editor* base, const char* name) {
 
 // Try to grep next error message
 void editor_open_error(struct editor* base, int reverse) {
-  struct document_view* compiler_view = (base->compiler_doc->views->count>0)?*(struct document_view**)list_object(base->compiler_doc->views->first):base->compiler_doc->view;
+  if (base->compiler_doc->views->count==0) {
+    return;
+  }
+
+  struct document_view* compiler_view = *(struct document_view**)list_object(base->compiler_doc->views->first);
 
   char* pattern_text = (char*)config_convert_encoding(config_find_ascii(base->compiler_doc->config, "/errorpattern"), encoding_utf8_static());
   struct range_tree* root = range_tree_create(NULL, 0);

@@ -156,7 +156,7 @@ struct range_tree* clipboard_command_get(struct encoding** encoding, const char*
 }
 
 #ifdef _WINDOWS
-struct range_tree_node* clipboard_windows_get(void) {
+struct range_tree* clipboard_windows_get(void) {
   //TODO: implement clipboard for Windows
   return NULL;
 }

@@ -168,12 +168,14 @@ void screen_check(struct screen* base) {
         c->foreground = 15;
         c->background = 0;
         c->modified = 1;
+        c->width = 1;
 
         c = &base->visible[y*base->width+x];
         c->sequence.length = 0;
         c->sequence.cp[0] = 0x20;
         c->foreground = 15;
         c->background = 0;
+        c->width = 1;
       }
     }
   }

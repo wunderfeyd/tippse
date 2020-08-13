@@ -212,7 +212,7 @@ struct range_tree_node* visual_info_find(struct document_view* view, struct rang
   }
 
   if ((node->inserter&TIPPSE_INSERTER_LEAF)) {
-    if (visuals->rewind>0 && !retry) {
+    if (visuals->rewind>0 && !retry && find_type==VISUAL_SEEK_OFFSET) {
       root = visual_info_find(view, root, VISUAL_SEEK_OFFSET, location-visuals->rewind, find_x, find_y, find_line, find_column, offset, x, y, line, column, indentation, indentation_extra, character, 1, before);
       if (*offset>=before || location+node->length<=before) {
         return root;

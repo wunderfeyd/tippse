@@ -77,6 +77,7 @@ void document_text_reset(struct document* base, struct splitter* splitter) {
   in.clip = 0;
 
   view->offset = document_text_cursor_position(splitter, &in, &out, 0, 1);
+  view->offset_calculated = FILE_OFFSET_T_MAX;
 }
 
 // Goto specified location, apply cursor clipping/wrapping and render dirty pages as necessary
@@ -1387,6 +1388,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   if (view->width!=max_width) {
     view->width = max_width;
     document_view_visual_clear(view);
+    view->offset_calculated = FILE_OFFSET_T_MAX;
   }
 
   if (file->save && file->buffer.root && range_tree_length(&file->buffer)!=range_tree_length(&view->selection)) {

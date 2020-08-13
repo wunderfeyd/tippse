@@ -22,7 +22,7 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
   base->document_text = NULL;
   base->document_hex = NULL;
   base->document = NULL;
-  base->view = document_view_create();
+  base->view = NULL;
   base->cursor_x = -1;
   base->cursor_y = -1;
   base->width = 0;
@@ -61,7 +61,6 @@ void splitter_destroy(struct splitter* base) {
   }
 
   splitter_unassign_document_file(base);
-  document_view_destroy(base->view);
   document_text_destroy(base->document_text);
   document_hex_destroy(base->document_hex);
 
@@ -193,6 +192,7 @@ void splitter_unassign_document_file(struct splitter* base) {
   struct list_node* view = base->file->views->first;
   while (view) {
     if (*(struct document_view**)list_object(view)==base->view) {
+      document_view_destroy(base->view);
       list_remove(base->file->views, view);
       break;
     }
@@ -200,10 +200,7 @@ void splitter_unassign_document_file(struct splitter* base) {
     view = view->next;
   }
 
-  if (!base->file->views->first) {
-    document_view_clone(base->file->view, base->view, base->file);
-  }
-
+  base->view = NULL;
   base->file = NULL;
 }
 
@@ -211,15 +208,16 @@ void splitter_unassign_document_file(struct splitter* base) {
 void splitter_assign_document_file(struct splitter* base, struct document_file* file) {
   splitter_unassign_document_file(base);
 
-  if (!file) {
+  if (!file || base->file==file) {
     return;
   }
 
   base->file = file;
   if (base->file->views->first) {
-    document_view_clone(base->view, *(struct document_view**)list_object(base->file->views->first), base->file);
+    base->view = document_view_clone(*(struct document_view**)list_object(base->file->views->first), base->file);
   } else {
-    document_view_clone(base->view, base->file->view, base->file);
+    base->view = document_view_create();
+    document_view_reset(base->view, file, 1);
   }
 
   list_insert(base->file->views, NULL, &base->view);
@@ -579,5 +577,10 @@ struct splitter* splitter_unsplit(struct splitter* base, struct splitter* root) 
   parent->side[1] = NULL;
   splitter_destroy(parent);
   splitter_destroy(base);
+
+  while (other->side[0]) {
+    other = other->side[0];
+  }
+
   return other;
 }

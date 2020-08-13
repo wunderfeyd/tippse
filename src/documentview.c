@@ -8,10 +8,15 @@
 // Create view
 struct document_view* document_view_create(void) {
   struct document_view* base = (struct document_view*)malloc(sizeof(struct document_view));
+  document_view_create_inplace(base);
+  return base;
+}
+
+// Create view inplace
+void document_view_create_inplace(struct document_view* base) {
   range_tree_create_inplace(&base->selection, NULL, 0);
   range_tree_create_inplace(&base->visuals, NULL, TIPPSE_RANGETREE_CAPS_DEALLOCATE_USER_DATA);
   range_tree_static(&base->visuals, FILE_OFFSET_T_MAX, 0);
-  return base;
 }
 
 // Destroy view
@@ -43,19 +48,12 @@ void document_view_reset(struct document_view* base, struct document_file* file,
 }
 
 // Clone view
-void document_view_clone(struct document_view* dst, struct document_view* src, struct document_file* file) {
-  range_tree_destroy_inplace(&dst->selection);
-  range_tree_destroy_inplace(&dst->visuals);
-
-  *dst = *src;
-  range_tree_create_inplace(&dst->visuals, NULL, TIPPSE_RANGETREE_CAPS_DEALLOCATE_USER_DATA);
-  range_tree_static(&dst->visuals, FILE_OFFSET_T_MAX, 0);
-  range_tree_create_inplace(&dst->selection, NULL, 0);
-  struct range_tree* copy = range_tree_copy(&src->selection, 0, range_tree_length(&src->selection), NULL);
-  dst->selection.root = copy->root;
-  copy->root = NULL; // TODO: Not nice
-  range_tree_destroy(copy);
+struct document_view* document_view_clone(struct document_view* base, struct document_file* file) {
+  struct document_view* dst = (struct document_view*)malloc(sizeof(struct document_view));
+  memcpy(dst, base, sizeof(struct document_view));
+  document_view_create_inplace(dst);
   document_view_filechange(dst, file, 0);
+  return dst;
 }
 
 // Copy file defaults

@@ -229,10 +229,12 @@ void range_tree_delete(struct range_tree* base, file_offset_t offset, file_offse
     range_tree_node_update(node, base);
     if (before) {
       range_tree_node_invalidate(before, base);
+      range_tree_node_update(before, base);
     }
 
     if (after) {
       range_tree_node_invalidate(after, base);
+      range_tree_node_update(after, base);
     }
 
     if (base->root) {

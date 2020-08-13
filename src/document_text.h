@@ -56,9 +56,9 @@ struct document_text_render_info {
   struct visual_bracket brackets[VISUAL_BRACKET_MAX]; // block structure for bracket matching
   bool_t bracketed_line;            // bracket found on current line
   struct visual_bracket brackets_line[VISUAL_BRACKET_MAX]; // block structure for bracket matching at line
+  bool_t append;                    // continue status?
   struct stream stream;    // access to byte stream
   struct unicode_sequencer sequencer; // access to Unicode sequencer cache
-  bool_t append;                    // continue status?
   struct file_type* file_type;
   struct range_tree* selection_tree; // root of selection buffer
   const struct range_tree_node* selection; // access to selection buffer, current page in tree

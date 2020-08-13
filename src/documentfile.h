@@ -80,7 +80,6 @@ struct document_file {
   size_t undo_save_point;               // last save point in undo information
 
   struct document_file_defaults defaults; // configuration
-  struct document_view* view;           // last used view
   struct list* views;                   // available views
 
   struct list* caches;                  // attached caches
