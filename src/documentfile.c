@@ -77,7 +77,7 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->undos = list_create(sizeof(struct document_undo));
   base->redos = list_create(sizeof(struct document_undo));
   base->filename = strdup("");
-  base->view_inactive = NULL;
+  base->view_inactive = 0;
   base->views = list_create(sizeof(struct document_view*));
   base->save = save;
   base->save_skip = 0;
@@ -142,8 +142,9 @@ void document_file_destroy(struct document_file* base) {
   list_destroy(base->undos);
   list_destroy(base->redos);
 
-  if (base->view_inactive) {
-    document_view_destroy(base->view_inactive);
+  while (base->views->first) {
+    document_view_destroy(*(struct document_view**)list_object(base->views->first));
+    list_remove(base->views, base->views->first);
   }
 
   list_destroy(base->views);

@@ -1,5 +1,6 @@
 # write test linecut feature
 
+cmd,cutline
 str,0,hello1
 cmd,return
 str,0,hello2

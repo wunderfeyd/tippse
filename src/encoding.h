@@ -21,7 +21,8 @@ void encoding_free(void);
 struct encoding* encoding_native_static(void);
 struct encoding* encoding_utf8_static(void);
 
-uint16_t* encoding_reverse_table(uint16_t* table, size_t length, size_t max);
+void encoding_reverse_table_reference(int* refs, uint16_t** referenced, uint16_t* table, size_t length, size_t max);
+void encoding_reverse_table_dereference(int* refs, uint16_t* referenced);
 
 struct range_tree* encoding_transform_stream(struct stream* stream, struct encoding* from, struct encoding* to, file_offset_t max);
 uint8_t* encoding_transform_plain(const uint8_t* buffer, size_t length, struct encoding* from, struct encoding* to);

@@ -106,7 +106,9 @@ void document_view_select_range(struct document_view* base, file_offset_t start,
 
 // Invert selection
 void document_view_select_invert(struct document_view* base) {
-  base->selection.root = range_tree_node_invert_mark(base->selection.root, &base->selection, TIPPSE_INSERTER_MARK);
+  if (base->selection.root) {
+    base->selection.root = range_tree_node_invert_mark(base->selection.root, &base->selection, TIPPSE_INSERTER_MARK);
+  }
 }
 
 // Allocate visual information

@@ -64,15 +64,17 @@ void clipboard_command_set(struct range_tree* data, int binary, struct encoding*
       stream_destroy(&stream);
     } else {
       struct range_tree* transform = encoding_transform_page(data->root, 0, FILE_OFFSET_T_MAX, encoding, encoding_utf8_static());
-      struct stream stream;
-      stream_from_page(&stream, range_tree_first(transform), 0);
-      while (!stream_end(&stream)) {
-        size_t length = stream_cache_length(&stream)-stream_displacement(&stream);
-        fwrite(stream_buffer(&stream), 1, length, pipe);
-        stream_next(&stream);
+      if (transform) {
+        struct stream stream;
+        stream_from_page(&stream, range_tree_first(transform), 0);
+        while (!stream_end(&stream)) {
+          size_t length = stream_cache_length(&stream)-stream_displacement(&stream);
+          fwrite(stream_buffer(&stream), 1, length, pipe);
+          stream_next(&stream);
+        }
+        stream_destroy(&stream);
+        range_tree_destroy(transform);
       }
-      stream_destroy(&stream);
-      range_tree_destroy(transform);
     }
     pclose(pipe);
   }

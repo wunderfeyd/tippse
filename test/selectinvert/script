@@ -1,0 +1,15 @@
+# write hello mark the 'll' and invert selection and delete
+
+cmd,selectinvert
+str,0,hello
+cmd,home
+cmd,right
+cmd,right
+cmd,selectright
+cmd,selectright
+cmd,selectinvert
+cmd,delete
+cmd,saveas
+str,0,tmp/test/selectinvert.output
+cmd,return
+cmd,quitforce

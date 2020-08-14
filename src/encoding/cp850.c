@@ -25,6 +25,7 @@ uint16_t translate_cp850_unicode[256] = {
 #define CODEPOINT_MAX_CP850 0x3000
 
 uint16_t* translate_unicode_cp850 = NULL;
+int translate_unicode_cp850_refs = 0;
 
 struct encoding* encoding_cp850_create(void) {
   struct encoding_cp850* self = (struct encoding_cp850*)malloc(sizeof(struct encoding_cp850));
@@ -37,10 +38,7 @@ struct encoding* encoding_cp850_create(void) {
   self->vtbl.visual = encoding_cp850_visual;
   self->vtbl.next = encoding_cp850_next;
 
-  if (!translate_unicode_cp850) {
-    // TODO: self isn't freed at the moment
-    translate_unicode_cp850 = encoding_reverse_table(&translate_cp850_unicode[0], 256, CODEPOINT_MAX_CP850);
-  }
+  encoding_reverse_table_reference(&translate_unicode_cp850_refs, &translate_unicode_cp850, &translate_cp850_unicode[0], 256, CODEPOINT_MAX_CP850);
 
   return (struct encoding*)self;
 }
@@ -48,6 +46,7 @@ struct encoding* encoding_cp850_create(void) {
 void encoding_cp850_destroy(struct encoding* base) {
   struct encoding_cp850* self = (struct encoding_cp850*)base;
   free(self);
+  encoding_reverse_table_dereference(&translate_unicode_cp850_refs, translate_unicode_cp850);
 }
 
 const char* encoding_cp850_name(void) {

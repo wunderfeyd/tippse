@@ -30,20 +30,29 @@ struct encoding* encoding_utf8_static(void) {
 }
 
 // Invert lookup table for unicode and codepage translation
-uint16_t* encoding_reverse_table(uint16_t* table, size_t length, size_t max) {
-  uint16_t* output = (uint16_t*)malloc(sizeof(uint16_t)*max);
-  for (size_t n = 0; n<max; n++) {
-    output[n] = (uint16_t)~0u;
-  }
-
-  for (size_t n = 0; n<length; n++) {
-    size_t set = (size_t)table[n];
-    if (set<max) {
-      output[set] = (uint16_t)n;
+void encoding_reverse_table_reference(int* refs, uint16_t** referenced, uint16_t* table, size_t length, size_t max) {
+  if (*refs==0) {
+    uint16_t* output = (uint16_t*)malloc(sizeof(uint16_t)*max);
+    for (size_t n = 0; n<max; n++) {
+      output[n] = (uint16_t)~0u;
     }
-  }
 
-  return output;
+    for (size_t n = 0; n<length; n++) {
+      size_t set = (size_t)table[n];
+      if (set<max) {
+        output[set] = (uint16_t)n;
+      }
+    }
+    *referenced = output;
+    (*refs)++;
+  }
+}
+
+void encoding_reverse_table_dereference(int* refs, uint16_t* referenced) {
+  (*refs)--;
+  if (*refs==0) {
+    free(referenced);
+  }
 }
 
 // sequence stream to different encoding

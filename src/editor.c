@@ -762,7 +762,6 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
         }
 
         if (parent && parent->end) {
-          // TODO: Use current shell encoding (get it somewhere)
           char* shell = (char*)config_convert_encoding(parent, encoding_utf8_static());
           document_file_pipe(assign->file, shell);
           free(shell);
