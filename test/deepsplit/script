@@ -14,6 +14,6 @@ cmd,unsplit
 cmd,unsplit
 key,0,10,0,0,0,0
 cmd,saveas
-str,0,test/output/deepsplit.output
+str,0,tmp/test/deepsplit.output
 cmd,return
 cmd,quitforce

@@ -24,6 +24,7 @@ void clipboard_free(void) {
 
 // Write text to clipboard
 void clipboard_set(struct range_tree* data, int binary, struct encoding* encoding) {
+#ifndef _TESTSUITE
 #ifdef __APPLE__
   clipboard_command_set(data, binary, encoding, "pbcopy");
 #elif __linux__
@@ -31,6 +32,7 @@ void clipboard_set(struct range_tree* data, int binary, struct encoding* encodin
   clipboard_command_set(data, binary, encoding, "xsel -i -b 2>/dev/null");
 #elif _WIN32
   clipboard_windows_set(data, binary);
+#endif
 #endif
   if (clipboard_data) {
     range_tree_destroy(clipboard_data);
@@ -85,12 +87,14 @@ void clipboard_windows_set(struct range_tree* data, int binary) {
 // Get text from clipboard
 struct range_tree* clipboard_get(struct encoding** encoding) {
   struct range_tree* data = NULL;
+#ifndef _TESTSUITE
 #ifdef __APPLE__
   data = clipboard_command_get(encoding, "pbpaste");
 #elif __linux__
   data = clipboard_command_get(encoding, "xsel -o 2>/dev/null");
 #elif _WIN32
   data = clipboard_windows_get();
+#endif
 #endif
   if (!data) {
     data = clipboard_data;

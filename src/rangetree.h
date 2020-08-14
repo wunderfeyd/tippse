@@ -101,7 +101,7 @@ void range_tree_node_copy_insert(struct range_tree_node* root_from, file_offset_
 int range_tree_node_marked(const struct range_tree_node* node, file_offset_t offset, file_offset_t length, int inserter);
 struct range_tree_node* range_tree_node_invert_mark(struct range_tree_node* node, struct range_tree* tree, int inserter);
 
-TIPPSE_INLINE file_offset_t range_tree_length(const struct range_tree* base) {return range_tree_node_length(base->root);}
-TIPPSE_INLINE struct range_tree_node* range_tree_first(struct range_tree* base) {return range_tree_node_first(base->root);}
-TIPPSE_INLINE struct range_tree_node* range_tree_last(struct range_tree* base) {return range_tree_node_last(base->root);}
+TIPPSE_INLINE file_offset_t range_tree_length(const struct range_tree* base) {return base?range_tree_node_length(base->root):0;}
+TIPPSE_INLINE struct range_tree_node* range_tree_first(struct range_tree* base) {return base?range_tree_node_first(base->root):NULL;}
+TIPPSE_INLINE struct range_tree_node* range_tree_last(struct range_tree* base) {return base?range_tree_node_last(base->root):NULL;}
 #endif /* #ifndef TIPPSE_RANGETREE_H */

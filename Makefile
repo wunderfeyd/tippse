@@ -23,6 +23,7 @@ SRCS=$(wildcard src/lib/*.c) $(wildcard src/*.c) $(wildcard src/filetype/*.c) $(
 OBJS=$(addprefix $(OBJDIR)/,$(addsuffix .o,$(basename $(SRCS))))
 DOCS=$(wildcard doc/*.md) LICENSE.md
 COMPILED_DOCS=$(addprefix $(OBJDIR)/,$(addsuffix .h,$(basename $(DOCS))))
+TESTS=$(addsuffix .output,$(addprefix $(OBJDIR)/,$(wildcard test/*)))
 
 src/editor.c: $(COMPILED_DOCS)
 	@rm -rf tmp/editor.o
@@ -65,7 +66,7 @@ debug: CFLAGSEXTRA=-g
 debug: $(TARGET)
 	@echo OK
 
-sanitize: CFLAGSEXTRA=-g -flto -fsanitize=address
+sanitize: CFLAGSEXTRA=-g -O0 -fno-omit-frame-pointer -fsanitize=address
 sanitize: $(TARGET)
 	@echo OK
 
@@ -77,13 +78,13 @@ perf: CFLAGSEXTRA=-D_PERFORMANCE
 perf: $(TARGET)
 	@echo OK
 
+tmp/test/%.output: $(TARGET)
+	@echo TS $(notdir $(basename $@))
+	@mkdir -p tmp/test
+	@./$(TARGET) test/$(notdir $(basename $@))/script test/$(notdir $(basename $@))/verify $@
+
 test: CFLAGSEXTRA=-D_TESTSUITE
-test: $(TARGET)
-	@rm -rf test/output
-	@mkdir test/output
-	@./$(TARGET) test/hello/script test/hello/verify test/output/hello.output
-	@./$(TARGET) test/deepsplit/script test/deepsplit/verify test/output/deepsplit.output
-	@./$(TARGET) test/viewrestore/script test/viewrestore/verify test/output/viewrestore.output
+test: $(TESTS)
 	@echo OK
 
 download-unicode:

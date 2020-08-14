@@ -14,6 +14,6 @@ cmd,close
 str,0,here
 cmd,return
 cmd,saveas
-str,0,test/output/viewrestore.output
+str,0,tmp/test/viewrestore.output
 cmd,return
 cmd,quitforce

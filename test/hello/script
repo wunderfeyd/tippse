@@ -3,6 +3,6 @@
 str,0,hello
 key,0,10,0,0,0,0
 cmd,saveas
-str,0,test/output/hello.output
+str,0,tmp/test/hello.output
 cmd,return
 cmd,quitforce

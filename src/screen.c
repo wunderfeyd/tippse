@@ -143,6 +143,7 @@ void screen_destroy(struct screen* base) {
 // Initialise screen
 void screen_check(struct screen* base) {
   base->resize_check = screen_resize_counter;
+#ifndef _TESTSUITE_SCREEN
   int width = 0;
   int height = 0;
 #ifdef _WINDOWS
@@ -160,6 +161,10 @@ void screen_check(struct screen* base) {
 #ifdef _EMSCRIPTEN
   width = base->resize_width;
   height = base->resize_height;
+#endif
+#else
+  int width = 101;
+  int height = 61;
 #endif
 
   if (base->width!=width || base->height!=height) {
