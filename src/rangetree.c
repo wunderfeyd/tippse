@@ -539,6 +539,7 @@ void range_tree_node_update_calc(struct range_tree_node* node, struct range_tree
     node->depth = ((node->side[0]->depth>node->side[1]->depth)?node->side[0]->depth:node->side[1]->depth)+1;
     node->inserter = ((node->side[0]?node->side[0]->inserter:0)|(node->side[1]?node->side[1]->inserter:0))&~TIPPSE_INSERTER_LEAF;
     if ((tree->caps&TIPPSE_RANGETREE_CAPS_VISUAL)) {
+      //visual_info_combine(NULL, node->visuals, node->side[0]->visuals, node->side[1]->visuals);
       document_file_combine_view_node(tree->file, node);
     }
   }
@@ -570,7 +571,6 @@ void range_tree_node_destroy(struct range_tree_node* node, struct range_tree* tr
 
 // Create node with given fragment
 struct range_tree_node* range_tree_node_create(struct range_tree_node* parent, struct range_tree* tree, struct range_tree_node* side0, struct range_tree_node* side1, struct fragment* buffer, file_offset_t offset, file_offset_t length, int inserter, int64_t fuse_id, void* user_data) {
-  // struct range_tree_node* node = (struct range_tree_node*)malloc(sizeof(struct range_tree_node));
   struct range_tree_node* node = range_tree_invoke(tree);
   node->parent = parent;
   node->side[0] = side0;
@@ -592,6 +592,7 @@ struct range_tree_node* range_tree_node_create(struct range_tree_node* parent, s
   node->fuse_id = fuse_id;
   node->user_data = user_data;
   node->visuals = NULL;
+  node->view_uid = 0;
   return node;
 }
 

@@ -5,6 +5,8 @@
 #include "documentfile.h"
 #include "rangetree.h"
 
+static int document_view_uid = 1; // Unique view identifier for visual caching
+
 // Create view
 struct document_view* document_view_create(void) {
   struct document_view* base = (struct document_view*)malloc(sizeof(struct document_view));
@@ -17,6 +19,7 @@ void document_view_create_inplace(struct document_view* base) {
   range_tree_create_inplace(&base->selection, NULL, 0);
   range_tree_create_inplace(&base->visuals, NULL, TIPPSE_RANGETREE_CAPS_DEALLOCATE_USER_DATA);
   range_tree_static(&base->visuals, FILE_OFFSET_T_MAX, 0);
+  base->uid = document_view_uid++;
 }
 
 // Destroy view
@@ -112,7 +115,11 @@ void document_view_select_invert(struct document_view* base) {
 }
 
 // Allocate visual information
-struct visual_info* document_view_visual_create(struct document_view* base, const struct range_tree_node* node) {
+struct visual_info* document_view_visual_create(struct document_view* base, struct range_tree_node* node) {
+  if (node->view_uid==base->uid) {
+    return node->visuals;
+  }
+
   file_offset_t low = (file_offset_t)node;
   file_offset_t diff;
   struct range_tree_node* tree;
@@ -125,14 +132,20 @@ struct visual_info* document_view_visual_create(struct document_view* base, cons
     visual_info_clear(base, (struct visual_info*)tree->user_data);
   }
 
-  return (struct visual_info*)tree->user_data;
+  node->visuals = (struct visual_info*)tree->user_data;
+  node->view_uid = base->uid;
+  return node->visuals;
 }
 
 // Deallocate visual information
-void document_view_visual_destroy(struct document_view* base, const struct range_tree_node* node) {
+void document_view_visual_destroy(struct document_view* base, struct range_tree_node* node) {
   file_offset_t low = (file_offset_t)node;
   if (!range_tree_node_marked(base->visuals.root, low, 1, TIPPSE_INSERTER_MARK)) {
     return;
+  }
+
+  if (node->view_uid==base->uid) {
+    node->view_uid = 0;
   }
 
   range_tree_mark(&base->visuals, low, 1, 0);
@@ -140,5 +153,6 @@ void document_view_visual_destroy(struct document_view* base, const struct range
 
 // Empty tree
 void document_view_visual_clear(struct document_view* base) {
+  base->uid = document_view_uid++;
   range_tree_static(&base->visuals, FILE_OFFSET_T_MAX, 0);
 }

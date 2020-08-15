@@ -217,19 +217,18 @@ void splitter_assign_document_file(struct splitter* base, struct document_file* 
   }
 
   base->file = file;
-  if (base->file->views->first) {
-    base->view = document_view_clone(*(struct document_view**)list_object(base->file->views->first), base->file);
+  if (base->file->view_inactive) {
+    base->view = *(struct document_view**)list_object(base->file->views->first);
+    base->file->view_inactive = 0;
   } else {
-    if (base->file->view_inactive) {
-      base->view = *(struct document_view**)list_object(base->file->views->first);
-      base->file->view_inactive = 0;
+    if (base->file->views->first) {
+      base->view = document_view_clone(*(struct document_view**)list_object(base->file->views->first), base->file);
     } else {
       base->view = document_view_create();
       document_view_reset(base->view, file, 1);
     }
+    list_insert(base->file->views, NULL, &base->view);
   }
-
-  list_insert(base->file->views, NULL, &base->view);
 
   (*base->document_text->reset)(base->document, base);
   (*base->document_hex->reset)(base->document, base);

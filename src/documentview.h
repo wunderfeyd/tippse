@@ -33,6 +33,7 @@ struct document_view {
   int wrapping;                         // show word wrapping?
   int line_select;                      // show whole line selected?
 
+  int uid;                              // associated view uid for visual caching
   struct range_tree visuals;            // visualization index
 };
 
@@ -50,8 +51,8 @@ int document_view_select_next(struct document_view* base, file_offset_t offset, 
 void document_view_select_range(struct document_view* base, file_offset_t start, file_offset_t end, int inserter);
 void document_view_select_invert(struct document_view* base);
 
-struct visual_info* document_view_visual_create(struct document_view* base, const struct range_tree_node* node);
-void document_view_visual_destroy(struct document_view* base, const struct range_tree_node* node);
+struct visual_info* document_view_visual_create(struct document_view* base, struct range_tree_node* node);
+void document_view_visual_destroy(struct document_view* base, struct range_tree_node* node);
 void document_view_visual_clear(struct document_view* base);
 
 #endif /* #ifndef TIPPSE_DOCUMENTVIEW_H */

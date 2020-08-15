@@ -718,7 +718,7 @@ void document_file_insert_buffer(struct document_file* base, file_offset_t offse
 void document_file_reduce(file_offset_t* pos, file_offset_t offset, file_offset_t length) {
   if (*pos>=offset && *pos!=FILE_OFFSET_T_MAX) {
     if ((*pos-offset)>=length) {
-      *pos-=length;
+      *pos -= length;
     } else {
       *pos = offset;
     }

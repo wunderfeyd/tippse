@@ -41,7 +41,8 @@ struct range_tree_node {
   struct fragment* buffer;          // Buffer to file content
   file_offset_t offset;             // Relative start offset to the beginning of the file content buffer
   void* user_data;                  // User defined data
-  struct visual_info* visuals;      // Visual information
+  struct visual_info* visuals;      // Cached visual information by view_uid
+  int view_uid;                     // Unique view identifier for caching
 };
 
 struct range_tree {
