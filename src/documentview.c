@@ -42,7 +42,9 @@ void document_view_reset(struct document_view* base, struct document_file* file,
   base->scroll_x_old = 0;
   base->scroll_y_old = 0;
   base->scroll_y_max = 0;
-  base->width = 0;
+  base->max_width = 0;
+  base->client_width = 0;
+  base->client_height = 0;
   base->show_scrollbar = 0;
   base->scrollbar_timeout = 0;
   base->selection_start = FILE_OFFSET_T_MAX;

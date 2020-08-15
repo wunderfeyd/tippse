@@ -6,10 +6,10 @@
 #include "types.h"
 
 struct document {
-  void (*reset)(struct document* base, struct splitter* splitter);
+  void (*reset)(struct document* base, struct document_view* view, struct document_file* file);
   void (*draw)(struct document* base, struct screen* screen, struct splitter* splitter);
-  void (*keypress)(struct document* base, struct splitter* splitter, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y);
-  int (*incremental_update)(struct document* base, struct splitter* splitter);
+  void (*keypress)(struct document* base, struct document_view* view, struct document_file* file, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y);
+  int (*incremental_update)(struct document* base, struct document_view* view, struct document_file* file);
 };
 
 int document_search(struct document_file* file, struct document_view* view, struct range_tree* search_text, struct encoding* search_encoding, struct range_tree* replace_text, struct encoding* replace_encoding, int reverse, int ignore_case, int regex, int all, int replace);

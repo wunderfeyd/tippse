@@ -35,18 +35,18 @@ void document_hex_destroy(struct document* base) {
 }
 
 // Called after a new document was assigned
-void document_hex_reset(struct document* base, struct splitter* splitter) {
+void document_hex_reset(struct document* base, struct document_view* view, struct document_file* file) {
 }
 
 // Find next dirty pages and rerender them (background task)
-int document_hex_incremental_update(struct document* base, struct splitter* splitter) {
+int document_hex_incremental_update(struct document* base, struct document_view* view, struct document_file* file) {
   return 0;
 }
 
 // Return best fitting line width
-position_t document_hex_width(struct splitter* splitter) {
-  position_t max = ((splitter->client_width-1-splitter->view->address_width)/4);
-  position_t selected = splitter->file->defaults.hex_width;
+position_t document_hex_width(struct document_view* view, struct document_file* file) {
+  position_t max = ((view->client_width-1-view->address_width)/4);
+  position_t selected = file->defaults.hex_width;
   if (selected==0 || max<selected) {
     return max;
   }
@@ -64,6 +64,9 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
+  view->client_width = splitter->client_width;
+  view->client_height = splitter->client_height;
+
   if (!screen) {
     return;
   }
@@ -73,18 +76,18 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   int selectionx = file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
   int bookmarkx = file->defaults.colors[VISUAL_FLAG_COLOR_BOOKMARK];
 
-  position_t data_size = document_hex_width(splitter);
+  position_t data_size = document_hex_width(view, file);
   file_offset_t file_size = range_tree_length(&file->buffer);
   view->cursor_x = (position_t)(view->offset%(file_offset_t)data_size);
   view->cursor_y = (position_t)(view->offset/(file_offset_t)data_size);
-  if (view->cursor_y>=view->scroll_y+splitter->client_height) {
-    view->scroll_y = view->cursor_y-splitter->client_height+1;
+  if (view->cursor_y>=view->scroll_y+view->client_height) {
+    view->scroll_y = view->cursor_y-view->client_height+1;
   }
   view->scroll_y_max = (position_t)(file_size/(file_offset_t)data_size)+1;
   if (view->cursor_y<view->scroll_y) {
     view->scroll_y = view->cursor_y;
   }
-  position_t max_height = view->scroll_y_max-splitter->client_height;
+  position_t max_height = view->scroll_y_max-view->client_height;
   if (view->scroll_y>max_height) {
     view->scroll_y = max_height;
   }
@@ -132,7 +135,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   splitter_status(splitter, &status[0]);
 
   size_t char_size = 1;
-  for (int y = 0; y<splitter->client_height; y++) {
+  for (int y = 0; y<view->client_height; y++) {
     char line[1024];
     int size = sprintf(line, "%llx", (long long unsigned int)offset);
 
@@ -234,13 +237,10 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
 }
 
 // Handle key press
-void document_hex_keypress(struct document* base, struct splitter* splitter, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y) {
+void document_hex_keypress(struct document* base, struct document_view* view, struct document_file* file, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y) {
   struct document_hex* document = (struct document_hex*)base;
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
   file_offset_t file_size = range_tree_length(&file->buffer);
-  position_t data_size = document_hex_width(splitter);
+  position_t data_size = document_hex_width(view, file);
   file_offset_t offset_old = view->offset;
   int selection_keep = 0;
   file_offset_t selection_low;
@@ -258,12 +258,12 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
   } else if (command==TIPPSE_CMD_RIGHT || command==TIPPSE_CMD_SELECT_RIGHT) {
     view->offset++;
   } else if (command==TIPPSE_CMD_PAGEUP || command==TIPPSE_CMD_SELECT_PAGEUP) {
-    view->offset -= (file_offset_t)(splitter->client_height*data_size);
-    view->scroll_y -= splitter->client_height;
+    view->offset -= (file_offset_t)(view->client_height*data_size);
+    view->scroll_y -= view->client_height;
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_PAGEDOWN || command==TIPPSE_CMD_SELECT_PAGEDOWN) {
-    view->offset += (file_offset_t)(splitter->client_height*data_size);
-    view->scroll_y += splitter->client_height;
+    view->offset += (file_offset_t)(view->client_height*data_size);
+    view->scroll_y += view->client_height;
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_FIRST || command==TIPPSE_CMD_SELECT_FIRST) {
     view->offset -= view->offset%(file_offset_t)data_size;
@@ -277,14 +277,14 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_MOUSE) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
-      document_hex_cursor_from_point(base, splitter, x, y, &view->offset);
+      document_hex_cursor_from_point(base, view, file, x, y, &view->offset);
     } else if (button&TIPPSE_MOUSE_WHEEL_UP) {
-      view->offset -= (file_offset_t)((splitter->client_height/3)*data_size);
-      view->scroll_y -= splitter->client_height/3;
+      view->offset -= (file_offset_t)((view->client_height/3)*data_size);
+      view->scroll_y -= view->client_height/3;
       view->show_scrollbar = 1;
     } else if (button&TIPPSE_MOUSE_WHEEL_DOWN) {
-      view->offset += (file_offset_t)((splitter->client_height/3)*data_size);
-      view->scroll_y += splitter->client_height/3;
+      view->offset += (file_offset_t)((view->client_height/3)*data_size);
+      view->scroll_y += view->client_height/3;
       view->show_scrollbar = 1;
     }
   } else if (command==TIPPSE_CMD_SELECT_ALL) {
@@ -416,15 +416,13 @@ void document_hex_keypress(struct document* base, struct splitter* splitter, int
 }
 
 // Return cursor position from point
-void document_hex_cursor_from_point(struct document* base, struct splitter* splitter, int x, int y, file_offset_t* offset) {
+void document_hex_cursor_from_point(struct document* base, struct document_view* view, struct document_file* file, int x, int y, file_offset_t* offset) {
   struct document_hex* document = (struct document_hex*)base;
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
 
   file_offset_t file_size = range_tree_length(&file->buffer);
-  position_t data_size = document_hex_width(splitter);
+  position_t data_size = document_hex_width(view, file);
   if (y<0) *offset = 0;
-  if (y>=0 && y<splitter->client_height) {
+  if (y>=0 && y<view->client_height) {
     int byte = 0;
     if (x>=view->address_width && x<view->address_width+(3*data_size)) {
       byte = (x-view->address_width)/3;

@@ -62,7 +62,7 @@ $(TARGET): $(OBJS)
 all: $(TARGET)
 	@echo OK
 
-debug: CFLAGSEXTRA=-g
+debug: CFLAGSEXTRA=-g -O0
 debug: $(TARGET)
 	@echo OK
 

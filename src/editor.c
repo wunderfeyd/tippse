@@ -385,7 +385,7 @@ void editor_destroy(struct editor* base) {
 
 // Check height of panel content
 int editor_update_panel_height(struct editor* base, struct splitter* panel, int max) {
-  (*panel->document->incremental_update)(panel->document, panel);
+  (*panel->document->incremental_update)(panel->document, panel->view, panel->file);
 
   struct visual_info* visuals = panel->file->buffer.root?document_view_visual_create(panel->view, panel->file->buffer.root):NULL;
   int height = (int)(visuals?visuals->ys:0)+1;
@@ -690,7 +690,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
       advanced++;
       position_t column = (position_t)decode_based_unsigned_offset(&sequencer, 10, &advanced, SIZE_T_MAX);
       if (line>0) {
-        document_text_goto(base->document->document, base->document, line-1, (column>0)?column-1:0);
+        document_text_goto(base->document->document, base->document->view, base->document->file, line-1, (column>0)?column-1:0);
         document_select_nothing(base->document->file, base->document->view);
       }
     }
@@ -816,11 +816,11 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
 
       file_offset_t before = range_tree_length(&base->filter->file->buffer);
       if (send_panel) {
-        (*base->panel->document->keypress)(base->panel->document, base->panel, command, arguments, key, cp, button, button_old, x-base->panel->x, y-base->panel->y);
+        (*base->panel->document->keypress)(base->panel->document, base->panel->view, base->panel->file, command, arguments, key, cp, button, button_old, x-base->panel->x, y-base->panel->y);
       }
 
       if (send_filter) {
-        (*base->filter->document->keypress)(base->filter->document, base->filter, command, arguments, key, cp, button, button_old, x-base->filter->x, y-base->filter->y);
+        (*base->filter->document->keypress)(base->filter->document, base->filter->view, base->filter->file, command, arguments, key, cp, button, button_old, x-base->filter->x, y-base->filter->y);
       }
 
       int selected = 0;
@@ -857,7 +857,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
       }
     } else {
       editor_grab(base, NULL, 1);
-      (*base->focus->document->keypress)(base->focus->document, base->focus, command, arguments, key, cp, button, button_old, x-base->focus->x, y-base->focus->y);
+      (*base->focus->document->keypress)(base->focus->document, base->focus->view, base->focus->file, command, arguments, key, cp, button, button_old, x-base->focus->x, y-base->focus->y);
     }
   }
 }
@@ -1034,7 +1034,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
     free(name);
   } else {
     if (node->document==node->document_text) {
-      file_offset_t offset = document_text_line_start_offset(node->document, node);
+      file_offset_t offset = document_text_line_start_offset(node->document, node->view, node->file);
       file_offset_t displacement;
       struct range_tree_node* buffer = range_tree_node_find_offset(node->file->buffer.root, offset, &displacement);
       struct stream text_stream;
@@ -1073,7 +1073,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
           struct splitter* output;
           editor_open_document(base, name, NULL, destination, TIPPSE_BROWSERTYPE_OPEN, &output);
           if (line>0) {
-            document_text_goto(output->document, output, line-1, (column>0)?column-1:0);
+            document_text_goto(output->document, output->view, output->file, line-1, (column>0)?column-1:0);
             document_select_nothing(output->file, output->view);
           }
         }
@@ -1364,17 +1364,17 @@ void editor_view_browser(struct editor* base, const char* filename, struct strea
 
   editor_panel_assign(base, base->browser_doc);
 
+  if (filename) {
+    document_file_name(base->panel->file, filename);
+  }
+
   if (!filter_stream) {
-    editor_filter_clear(base);
+    editor_filter_clear(base, base->browser_doc->filename);
     if (base->browser_preset && *base->browser_preset) {
       document_file_insert(base->filter_doc, 0, (uint8_t*)base->browser_preset, strlen(base->browser_preset), 0);
       document_view_select_all(base->filter->view, base->filter->file);
       editor_focus(base, base->filter, 1);
     }
-  }
-
-  if (filename) {
-    document_file_name(base->panel->file, filename);
   }
 
   document_directory(base->browser_doc, filter_stream, filter_encoding, (predefined && *predefined)?predefined:base->browser_preset);
@@ -1384,13 +1384,13 @@ void editor_view_browser(struct editor* base, const char* filename, struct strea
   base->browser_type = type;
   base->browser_file = file;
 
-  (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
+  (*base->panel->document->keypress)(base->panel->document, base->panel->view, base->panel->file, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
 }
 
 // Update and change to document view
 void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding) {
   if (!filter_stream) {
-    editor_filter_clear(base);
+    editor_filter_clear(base, base->tabs_doc->filename);
   }
 
   editor_panel_assign(base, base->tabs_doc);
@@ -1420,14 +1420,14 @@ void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct 
   document_view_reset(base->panel->view, base->tabs_doc, 1);
   base->panel->view->line_select = 1;
 
-  (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
+  (*base->panel->document->keypress)(base->panel->document, base->panel->view, base->panel->file, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
 }
 
 // Update and change to commands view
 void editor_view_commands(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding) {
   if (!filter_stream) {
     editor_command_map_read(base, base->document->file);
-    editor_filter_clear(base);
+    editor_filter_clear(base, base->commands_doc->filename);
   }
 
   editor_panel_assign(base, base->commands_doc);
@@ -1457,14 +1457,14 @@ void editor_view_commands(struct editor* base, struct stream* filter_stream, str
   document_view_reset(base->panel->view, base->commands_doc, 1);
   base->panel->view->line_select = 1;
 
-  (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
+  (*base->panel->document->keypress)(base->panel->document, base->panel->view, base->panel->file, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
 }
 
 // Update and change to commands view
 void editor_view_menu(struct editor* base, struct stream* filter_stream, struct encoding* filter_encoding) {
   if (!filter_stream) {
     editor_command_map_read(base, base->document->file);
-    editor_filter_clear(base);
+    editor_filter_clear(base, base->menu_doc->filename);
   }
 
   editor_panel_assign(base, base->menu_doc);
@@ -1495,7 +1495,7 @@ void editor_view_menu(struct editor* base, struct stream* filter_stream, struct 
   document_view_reset(base->panel->view, base->menu_doc, 1);
   base->panel->view->line_select = 1;
 
-  (*base->panel->document->keypress)(base->panel->document, base->panel, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
+  (*base->panel->document->keypress)(base->panel->document, base->panel->view, base->panel->file, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
 }
 
 // Setup command map array
@@ -1604,8 +1604,11 @@ void editor_search(struct editor* base) {
 }
 
 // Empty filter text
-void editor_filter_clear(struct editor* base) {
+void editor_filter_clear(struct editor* base, const char* text) {
   document_file_empty(base->filter_doc);
+  char* title = combine_string("Filter - ", text);
+  document_file_name(base->filter_doc, title);
+  free(title);
 }
 
 // Destroy task contents
@@ -1791,7 +1794,7 @@ void editor_view_help(struct editor* base, const char* name) {
   splitter_assign_document_file(editor_document_splitter(base, base->document, base->help_doc), base->help_doc);
 }
 
-// Try to grep next error message
+// Try to grab next error message
 void editor_open_error(struct editor* base, int reverse) {
   if (base->compiler_doc->views->count==0) {
     return;

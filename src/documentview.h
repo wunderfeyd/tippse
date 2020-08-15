@@ -19,7 +19,10 @@ struct document_view {
 
   int line_cut;                         // Previous action was a line cut
 
-  position_t width;                     // last known size of viewport
+  position_t max_width;                 // last known render size
+  position_t client_width;              // last known width of viewport
+  position_t client_height;             // last known height of viewport
+
   position_t scroll_x;                  // scroll X offset
   position_t scroll_y;                  // scroll Y offset
   position_t scroll_x_old;              // scroll X offset, last rendering

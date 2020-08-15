@@ -230,8 +230,8 @@ void splitter_assign_document_file(struct splitter* base, struct document_file* 
     list_insert(base->file->views, NULL, &base->view);
   }
 
-  (*base->document_text->reset)(base->document, base);
-  (*base->document_hex->reset)(base->document, base);
+  (*base->document_text->reset)(base->document, base->view, base->file);
+  (*base->document_hex->reset)(base->document, base->view, base->file);
 
   if (file->binary) {
     base->document = base->document_hex;
@@ -389,7 +389,7 @@ void splitter_draw_multiple_recursive(struct splitter* base, struct screen* scre
       base->timeout = 0;
       splitter_draw(base, screen);
     } else {
-      (*base->document->incremental_update)(base->document, base);
+      (*base->document->incremental_update)(base->document, base->view, base->file);
     }
     if (base->active) {
       if (base->cursor_x>=0 && base->cursor_y>=0 && base->cursor_x<base->width && base->cursor_y<base->height) {

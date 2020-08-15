@@ -297,7 +297,7 @@ void editor_command_map_create(struct editor* base);
 void editor_command_map_destroy(struct editor* base);
 void editor_command_map_read(struct editor* base, struct document_file* file);
 
-void editor_filter_clear(struct editor* base);
+void editor_filter_clear(struct editor* base, const char* text);
 
 struct editor_task* editor_task_append(struct editor* base, int front, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y, struct document_file* file);
 void editor_task_destroy_inplace(struct editor_task* base);

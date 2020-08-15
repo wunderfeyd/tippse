@@ -59,10 +59,7 @@ void document_text_destroy(struct document* base) {
 }
 
 // Called after a new document was assigned (correct to next character)
-void document_text_reset(struct document* base, struct splitter* splitter) {
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
+void document_text_reset(struct document* base, struct document_view* view, struct document_file* file) {
   if (file->buffer.root) {
     struct range_tree_node* node = range_tree_first(&file->buffer);
     if (node) {
@@ -76,15 +73,12 @@ void document_text_reset(struct document* base, struct splitter* splitter) {
   in.offset = view->offset;
   in.clip = 0;
 
-  view->offset = document_text_cursor_position(splitter, &in, &out, 0, 1);
+  view->offset = document_text_cursor_position(view, file, &in, &out, 0, 1);
   view->offset_calculated = FILE_OFFSET_T_MAX;
 }
 
 // Goto specified location, apply cursor clipping/wrapping and render dirty pages as necessary
-file_offset_t document_text_cursor_position_partial(struct document_text_render_info* render_info, struct splitter* splitter, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel) {
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
+file_offset_t document_text_cursor_position_partial(struct document_text_render_info* render_info, struct document_view* view, struct document_file* file, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel) {
   position_t* x;
   position_t* y;
   if (in->type==VISUAL_SEEK_X_Y) {
@@ -99,7 +93,7 @@ file_offset_t document_text_cursor_position_partial(struct document_text_render_
     while (1) {
       document_text_render_seek(render_info, view, &file->buffer, file->encoding, in);
       if (in->clip) {
-        if (document_text_prerender_span(render_info, NULL, NULL, view, file, in, out, ~0, cancel)) {
+        if (document_text_prerender_span(render_info, NULL, view, file, in, out, ~0, cancel)) {
           break;
         }
       } else {
@@ -160,9 +154,9 @@ file_offset_t document_text_cursor_position_partial(struct document_text_render_
 }
 
 // Return best fitting line width
-position_t document_text_line_width(struct splitter* splitter) {
-  position_t max = splitter->client_width-splitter->view->address_width;
-  position_t selected = splitter->file->defaults.line_width;
+position_t document_text_line_width(struct document_view* view, struct document_file* file) {
+  position_t max = view->client_width-view->address_width;
+  position_t selected = file->defaults.line_width;
   if (selected==0 || max<selected) {
     return max;
   }
@@ -171,10 +165,10 @@ position_t document_text_line_width(struct splitter* splitter) {
 }
 
 // Goto specified position
-file_offset_t document_text_cursor_position(struct splitter* splitter, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel) {
+file_offset_t document_text_cursor_position(struct document_view* view, struct document_file* file, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel) {
   struct document_text_render_info render_info;
-  document_text_render_clear(&render_info, document_text_line_width(splitter), &splitter->view->selection);
-  file_offset_t offset = document_text_cursor_position_partial(&render_info, splitter, in, out, wrap, cancel);
+  document_text_render_clear(&render_info, document_text_line_width(view, file), &view->selection);
+  file_offset_t offset = document_text_cursor_position_partial(&render_info, view, file, in, out, wrap, cancel);
   document_text_render_destroy(&render_info);
   return offset;
 }
@@ -965,7 +959,7 @@ int document_text_collect_span(struct document_text_render_info* render_info, st
   return document_text_collect_span_base(render_info, view, file, in, out, dirty_pages, cancel);
 }
 
-int document_text_prerender_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
+int document_text_prerender_span(struct document_text_render_info* render_info, struct screen* screen, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
   // TODO: Following initializations shouldn't be needed since the caller should check the type / verify
   if (out) {
     out->type = VISUAL_SEEK_NONE;
@@ -1281,10 +1275,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 }
 
 // Find next dirty pages and rerender them (background task)
-int document_text_incremental_update(struct document* base, struct splitter* splitter) {
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
+int document_text_incremental_update(struct document* base, struct document_view* view, struct document_file* file) {
   if (file->buffer.root) {
     struct visual_info* visuals = document_view_visual_create(view, file->buffer.root);
     if (visuals->dirty) {
@@ -1294,7 +1285,7 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
       in.clip = 0;
 
       struct document_text_render_info render_info;
-      document_text_render_clear(&render_info, document_text_line_width(splitter), &view->selection);
+      document_text_render_clear(&render_info, document_text_line_width(view, file), &view->selection);
       document_text_render_seek(&render_info, view, &file->buffer, file->encoding, &in);
       document_text_collect_span(&render_info, view, file, &in, NULL, 16, 1);
       document_text_render_destroy(&render_info);
@@ -1377,16 +1368,17 @@ int document_text_incremental_update(struct document* base, struct splitter* spl
 
 // Draw entire visible screen space
 void document_text_draw(struct document* base, struct screen* screen, struct splitter* splitter) {
-
   debug_screen = screen;
   debug_splitter = splitter;
   struct document_file* file = splitter->file;
   struct document_view* view = splitter->view;
 
-  int max_width = document_text_line_width(splitter);
+  view->client_width = splitter->client_width;
+  view->client_height = splitter->client_height;
+  int max_width = document_text_line_width(view, file);
 
-  if (view->width!=max_width) {
-    view->width = max_width;
+  if (view->max_width!=max_width) {
+    view->max_width = max_width;
     document_view_visual_clear(view);
     view->offset_calculated = FILE_OFFSET_T_MAX;
   }
@@ -1405,7 +1397,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   in.offset = view->offset;
 
   // TODO: cursor position is already known by seek flag in keypress function? Test me.
-  document_text_cursor_position(splitter, &in, &cursor, 0, 1);
+  document_text_cursor_position(view, file, &in, &cursor, 0, 1);
 
   struct visual_info* visuals = file->buffer.root?document_view_visual_create(view, file->buffer.root):NULL;
   while (1) {
@@ -1420,11 +1412,11 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     if (cursor.y<view->scroll_y) {
       view->scroll_y = cursor.y;
     }
-    if (cursor.y>=view->scroll_y+splitter->client_height-1) {
-      view->scroll_y = cursor.y-(splitter->client_height-1);
+    if (cursor.y>=view->scroll_y+view->client_height-1) {
+      view->scroll_y = cursor.y-(view->client_height-1);
     }
-    if (view->scroll_y+splitter->client_height>(visuals?visuals->ys+1:0) && (visuals?visuals->dirty:0)==0) {
-      view->scroll_y = (visuals?visuals->ys+1:0)-(splitter->client_height);
+    if (view->scroll_y+view->client_height>(visuals?visuals->ys+1:0) && (visuals?visuals->dirty:0)==0) {
+      view->scroll_y = (visuals?visuals->ys+1:0)-(view->client_height);
     }
     if (view->scroll_y<0) {
       view->scroll_y = 0;
@@ -1443,8 +1435,8 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     document_text_render_clear(&render_info, max_width, &view->selection);
     in.type = VISUAL_SEEK_X_Y;
     in.clip = 0;
-    in.x = view->scroll_x+splitter->client_width;
-    in.y = view->scroll_y+splitter->client_height;
+    in.x = view->scroll_x+view->client_width;
+    in.y = view->scroll_y+view->client_height;
 
     while (1) {
       document_text_render_seek(&render_info, view, &file->buffer, file->encoding, &in);
@@ -1467,14 +1459,14 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   in.clip = 1;
   in.x = view->scroll_x;
   position_t last_line = -1;
-  for (position_t y = 0; y<splitter->client_height+1; y++) {
-    if (splitter->file->defaults.line_width!=0) {
+  for (position_t y = 0; y<view->client_height+1; y++) {
+    if (file->defaults.line_width!=0) {
       codepoint_t show = 0x250a;
-      splitter_drawchar(splitter, screen, view->address_width+splitter->file->defaults.line_width, (int)y, &show, 1, file->defaults.colors[VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
+      splitter_drawchar(splitter, screen, view->address_width+file->defaults.line_width, (int)y, &show, 1, file->defaults.colors[VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
     }
   }
 
-  for (position_t y = 0; y<splitter->client_height+1; y++) {
+  for (position_t y = 0; y<view->client_height+1; y++) {
     debug_relocates = 0;
     debug_pages_collect = 0;
     debug_pages_prerender = 0;
@@ -1486,9 +1478,9 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     // Get render start offset (for bookmark detection)
     struct document_text_position out;
 
-    //document_text_cursor_position_partial(&render_info, splitter, &in_x_y, &out, 0, 1);
+    //document_text_cursor_position_partial(&render_info, view, file, &in_x_y, &out, 0, 1);
     document_text_render_seek(&render_info, view, &file->buffer, file->encoding, &in);
-    document_text_prerender_span(&render_info, screen, splitter, view, file, &in, &out, ~0, 1);
+    document_text_prerender_span(&render_info, screen, view, file, &in, &out, ~0, 1);
 
     int debug_seek_chars = debug_chars;
 
@@ -1577,7 +1569,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
       in.line = cursor.line;
       in.column = cursor.column-1;
 
-      document_text_cursor_position(splitter, &in, &left, 0, 1);
+      document_text_cursor_position(view, file, &in, &left, 0, 1);
       mark2 = document_text_mark_brackets(base, screen, splitter, &left);
     }
 
@@ -1686,12 +1678,9 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 }
 
 // Handle key press
-void document_text_keypress(struct document* base, struct splitter* splitter, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y) {
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
+void document_text_keypress(struct document* base, struct document_view* view, struct document_file* file, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y) {
   if (view->line_select) {
-    document_text_keypress_line_select(base, splitter, command, arguments, key, cp, button, button_old, x, y);
+    document_text_keypress_line_select(base, view, file, command, arguments, key, cp, button, button_old, x, y);
     return;
   }
 
@@ -1718,7 +1707,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 
   if ((command!=TIPPSE_CMD_UP && command!=TIPPSE_CMD_DOWN && command!=TIPPSE_CMD_PAGEDOWN && command!=TIPPSE_CMD_PAGEUP && command!=TIPPSE_CMD_SELECT_UP && command!=TIPPSE_CMD_SELECT_DOWN && command!=TIPPSE_CMD_SELECT_PAGEDOWN && command!=TIPPSE_CMD_SELECT_PAGEUP) || view->offset!=view->offset_calculated) {
     in_offset.offset = view->offset;
-    document_text_cursor_position(splitter, &in_offset, &out, 1, 1);
+    document_text_cursor_position(view, file, &in_offset, &out, 1, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
   }
@@ -1736,51 +1725,51 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 
   if (command==TIPPSE_CMD_UP || command==TIPPSE_CMD_SELECT_UP) {
     in_x_y.y--;
-    view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
+    view->offset = document_text_cursor_position(view, file, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_DOWN || command==TIPPSE_CMD_SELECT_DOWN) {
     in_x_y.y++;
-    view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
+    view->offset = document_text_cursor_position(view, file, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_LEFT || command==TIPPSE_CMD_SELECT_LEFT) {
     in_x_y.x--;
-    view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
+    view->offset = document_text_cursor_position(view, file, &in_x_y, &out, 1, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
     seek = 1;
   } else if (command==TIPPSE_CMD_RIGHT || command==TIPPSE_CMD_SELECT_RIGHT) {
     in_x_y.x++;
-    view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 0);
+    view->offset = document_text_cursor_position(view, file, &in_x_y, &out, 1, 0);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
     seek = 1;
   } else if (command==TIPPSE_CMD_PAGEDOWN || command==TIPPSE_CMD_SELECT_PAGEDOWN) {
-    int page = splitter->client_height;
+    int page = view->client_height;
     in_x_y.y += page;
     view->scroll_y += page;
-    view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
+    view->offset = document_text_cursor_position(view, file, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_PAGEUP || command==TIPPSE_CMD_SELECT_PAGEUP) {
-    int page = splitter->client_height;
+    int page = view->client_height;
     in_x_y.y -= page;
     view->scroll_y -= page;
-    view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
+    view->offset = document_text_cursor_position(view, file, &in_x_y, &out, 0, 1);
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_BACKSPACE) {
     if (!document_select_delete(file, view)) {
       in_x_y.x--;
-      file_offset_t start = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
+      file_offset_t start = document_text_cursor_position(view, file, &in_x_y, &out, 1, 1);
       document_file_delete(file, start, view->offset-start);
     }
     seek = 1;
   } else if (command==TIPPSE_CMD_DELETE) {
     if (!document_select_delete(file, view)) {
       in_x_y.x++;
-      file_offset_t end = document_text_cursor_position(splitter, &in_x_y, &out, 1, 0);
+      file_offset_t end = document_text_cursor_position(view, file, &in_x_y, &out, 1, 0);
       document_file_delete(file, view->offset, end-view->offset);
     }
     seek = 1;
@@ -1796,7 +1785,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       in_last.line = out.line;
 
       struct document_text_position out_first;
-      document_text_cursor_position(splitter, &in_last, &out_first, 0, 1);
+      document_text_cursor_position(view, file, &in_last, &out_first, 0, 1);
 
       if (out_first.type!=VISUAL_SEEK_NONE) {
         view->cursor_x = out_first.x;
@@ -1809,27 +1798,27 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     if (seek_first) {
       in_line_column.line = out.line;
       in_line_column.column = 0;
-      view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+      view->offset = document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
       view->cursor_x = out.x;
       view->cursor_y = out.y;
     }
   } else if (command==TIPPSE_CMD_LAST || command==TIPPSE_CMD_SELECT_LAST) {
     in_line_column.line = out.line;
     in_line_column.column = POSITION_T_MAX;
-    view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    view->offset = document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
   } else if (command==TIPPSE_CMD_HOME || command==TIPPSE_CMD_SELECT_HOME) {
     in_x_y.x = 0;
     in_x_y.y = 0;
-    view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
+    view->offset = document_text_cursor_position(view, file, &in_x_y, &out, 1, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_END || command==TIPPSE_CMD_SELECT_END) {
     in_x_y.x = POSITION_T_MAX;
     in_x_y.y = POSITION_T_MAX;
-    view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
+    view->offset = document_text_cursor_position(view, file, &in_x_y, &out, 0, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
@@ -1844,7 +1833,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       document_bookmark_toggle_selection(file, view);
       document_view_select_nothing(view, file);
     } else {
-      document_text_toggle_bookmark(base, splitter, view->offset);
+      document_text_toggle_bookmark(base, view, file, view->offset);
     }
   } else if (command==TIPPSE_CMD_BOOKMARK_NEXT) {
     document_bookmark_next(file, view);
@@ -1856,7 +1845,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     if (button&TIPPSE_MOUSE_LBUTTON) {
       in_x_y.x = x+view->scroll_x-view->address_width;
       in_x_y.y = y+view->scroll_y;
-      view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
+      view->offset = document_text_cursor_position(view, file, &in_x_y, &out, 0, 1);
       view->cursor_x = out.x;
       view->cursor_y = out.y;
       if (view->selection_start==FILE_OFFSET_T_MAX) {
@@ -1866,19 +1855,19 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       view->selection_end = view->offset;
       view->line_cut = 0;
     } else if (button&TIPPSE_MOUSE_WHEEL_DOWN) {
-      int page = ((splitter->height-2)/3)+1;
+      int page = ((view->client_height)/3)+1;
       in_x_y.y += page;
       view->scroll_y += page;
-      view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
+      view->offset = document_text_cursor_position(view, file, &in_x_y, &out, 1, 1);
       view->cursor_x = out.x;
       view->cursor_y = out.y;
       view->show_scrollbar = 1;
       view->line_cut = 0;
     } else if (button&TIPPSE_MOUSE_WHEEL_UP) {
-      int page = ((splitter->height-2)/3)+1;
+      int page = ((view->client_height)/3)+1;
       in_x_y.y -= page;
       view->scroll_y -= page;
-      view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
+      view->offset = document_text_cursor_position(view, file, &in_x_y, &out, 1, 1);
       view->cursor_x = out.x;
       view->cursor_y = out.y;
       view->show_scrollbar = 1;
@@ -1929,7 +1918,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 
       document_file_insert_utf8(file, view->offset, &utf8[0], size, 0);
     } else {
-      document_text_raise_indentation(base, splitter, selection_low, selection_high-1, 1);
+      document_text_raise_indentation(base, view, file, selection_low, selection_high-1, 1);
     }
     document_undo_chain(file, file->undos);
     seek = 1;
@@ -1937,9 +1926,9 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   } else if (command==TIPPSE_CMD_UNTAB) {
     document_undo_chain(file, file->undos);
     if (selection_low!=FILE_OFFSET_T_MAX) {
-      document_text_lower_indentation(base, splitter, selection_low, selection_high-1);
+      document_text_lower_indentation(base, view, file, selection_low, selection_high-1);
     } else {
-      document_text_lower_indentation(base, splitter, view->offset, view->offset);
+      document_text_lower_indentation(base, view, file, view->offset, view->offset);
     }
     document_undo_chain(file, file->undos);
     seek = 1;
@@ -1947,39 +1936,39 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   } else if (command==TIPPSE_CMD_BLOCK_UP || command==TIPPSE_CMD_BLOCK_DOWN) {
     document_undo_chain(file, file->undos);
     if (selection_low!=FILE_OFFSET_T_MAX) {
-      document_text_move_block(base, splitter, selection_low, selection_high>selection_low?selection_high-1:selection_high, (command==TIPPSE_CMD_BLOCK_UP)?1:0);
+      document_text_move_block(base, view, file, selection_low, selection_high>selection_low?selection_high-1:selection_high, (command==TIPPSE_CMD_BLOCK_UP)?1:0);
     } else {
-      document_text_move_block(base, splitter, view->offset, view->offset, (command==TIPPSE_CMD_BLOCK_UP)?1:0);
+      document_text_move_block(base, view, file, view->offset, view->offset, (command==TIPPSE_CMD_BLOCK_UP)?1:0);
     }
     document_undo_chain(file, file->undos);
     seek = 1;
     selection_keep = 1;
   } else if (command==TIPPSE_CMD_WORD_NEXT || command==TIPPSE_CMD_SELECT_WORD_NEXT) {
-    view->offset = document_text_word_transition_next(base, splitter, view->offset);
+    view->offset = document_text_word_transition_next(base, view, file, view->offset);
     if (selection_low==FILE_OFFSET_T_MAX && command==TIPPSE_CMD_SELECT_WORD_NEXT) {
-      offset_old = document_text_word_transition_prev(base, splitter, view->offset);
+      offset_old = document_text_word_transition_prev(base, view, file, view->offset);
     }
     seek = 1;
   } else if (command==TIPPSE_CMD_WORD_PREV || command==TIPPSE_CMD_SELECT_WORD_PREV) {
-    view->offset = document_text_word_transition_prev(base, splitter, view->offset);
+    view->offset = document_text_word_transition_prev(base, view, file, view->offset);
     if (selection_low==FILE_OFFSET_T_MAX && command==TIPPSE_CMD_SELECT_WORD_PREV) {
-      offset_old = document_text_word_transition_next(base, splitter, view->offset);
+      offset_old = document_text_word_transition_next(base, view, file, view->offset);
     }
     seek = 1;
   } else if (command==TIPPSE_CMD_DELETE_WORD_NEXT) {
-    file_offset_t end = document_text_word_transition_next(base, splitter, view->offset);
+    file_offset_t end = document_text_word_transition_next(base, view, file, view->offset);
     document_file_delete(file, view->offset, end-view->offset);
     seek = 1;
     selection_keep = 1;
   } else if (command==TIPPSE_CMD_DELETE_WORD_PREV) {
-    file_offset_t start = document_text_word_transition_prev(base, splitter, view->offset);
+    file_offset_t start = document_text_word_transition_prev(base, view, file, view->offset);
     document_file_delete(file, start, view->offset-start);
     seek = 1;
     selection_keep = 1;
   } else if (command==TIPPSE_CMD_BRACKET_NEXT) {
     if (!(out.bracket_match&VISUAL_BRACKET_CLOSE)) {
       struct document_text_position bracket;
-      document_text_search_brackets(base, splitter, &out, &bracket, 1);
+      document_text_search_brackets(base, view, file, &out, &bracket, 1);
       if (bracket.type!=VISUAL_SEEK_NONE) {
         view->offset = bracket.offset;
         seek = 1;
@@ -1989,7 +1978,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
   } else if (command==TIPPSE_CMD_BRACKET_PREV) {
     if (!(out.bracket_match&VISUAL_BRACKET_OPEN)) {
       struct document_text_position bracket;
-      document_text_search_brackets(base, splitter, &out, &bracket, 0);
+      document_text_search_brackets(base, view, file, &out, &bracket, 0);
       if (bracket.type!=VISUAL_SEEK_NONE) {
         view->offset = bracket.offset;
         seek = 1;
@@ -2000,7 +1989,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     offset_old = view->selection_start = 0;
     view->offset = view->selection_end = file_size;
   } else if (command==TIPPSE_CMD_SELECT_LINE) {
-    document_text_select_line(base, splitter);
+    document_text_select_line(base, view, file);
     selection_keep = 1;
   } else if (command==TIPPSE_CMD_CUTLINE) {
     document_undo_chain(file, file->undos);
@@ -2008,9 +1997,9 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     position_t line = out.line;
     in_line_column.line = line;
     in_line_column.column = 0;
-    file_offset_t from = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    file_offset_t from = document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
     in_line_column.column = POSITION_T_MAX;
-    file_offset_t to = document_text_cursor_position(splitter, &in_line_column, &out, 1, 1);
+    file_offset_t to = document_text_cursor_position(view, file, &in_line_column, &out, 1, 1);
 
     struct range_tree* clipboard = view->line_cut?clipboard_get(NULL):NULL;
     view->line_cut = 1;
@@ -2046,16 +2035,16 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     seek = 1;
   } else if (command==TIPPSE_CMD_SHOW_INVISIBLES) {
     view->show_invisibles ^= 1;
-    (*base->reset)(base, splitter);
+    (*base->reset)(base, view, file);
   } else if (command==TIPPSE_CMD_WORDWRAP) {
     view->wrapping ^= 1;
-    (*base->reset)(base, splitter);
+    (*base->reset)(base, view, file);
   } else if (command==TIPPSE_CMD_RETURN) {
     document_select_delete(file, view);
 
     struct document_text_position out_begin;
     in_offset.offset = view->offset;
-    document_text_cursor_position(splitter, &in_offset, &out_begin, 1, 1);
+    document_text_cursor_position(view, file, &in_offset, &out_begin, 1, 1);
 
     if (out_begin.lines==0 && range_tree_first(&file->buffer)!=out_begin.buffer) {
       visual_info_find_bracket_lowest(view, out_begin.buffer, out_begin.min_line, out_begin.buffer?out_begin.buffer:range_tree_last(&file->buffer));
@@ -2066,7 +2055,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     if (out_begin.column!=0) {
       in_line_column.line = out_begin.line;
       in_line_column.column = 0;
-      document_text_cursor_position(splitter, &in_line_column, &out_indentation_copy, 0, 1);
+      document_text_cursor_position(view, file, &in_line_column, &out_indentation_copy, 0, 1);
 
       struct document_text_position in_last;
       in_last.type = VISUAL_SEEK_INDENTATION_LAST;
@@ -2074,7 +2063,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
       in_last.offset = out_indentation_copy.offset;
       in_last.line = out_begin.line;
 
-      document_text_cursor_position(splitter, &in_last, &out_indentation_last, 0, 1);
+      document_text_cursor_position(view, file, &in_last, &out_indentation_last, 0, 1);
       if (out_indentation_last.offset>view->offset) {
         out_indentation_last.offset = view->offset;
       }
@@ -2112,7 +2101,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     }
 
     if (diff>0) {
-      document_text_raise_indentation(base, splitter, view->offset, view->offset, 0);
+      document_text_raise_indentation(base, view, file, view->offset, view->offset, 0);
     }
 
     view->bracket_indentation = 1;
@@ -2127,10 +2116,10 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
     struct document_text_position out_bracket;
     in_line_column.line = out.line;
     in_line_column.column = out.column;
-    document_text_cursor_position(splitter, &in_line_column, &out_bracket, 0, 1);
+    document_text_cursor_position(view, file, &in_line_column, &out_bracket, 0, 1);
 
-    if ((out_bracket.bracket_match&VISUAL_BRACKET_CLOSE) && out_bracket.indented && splitter->view->bracket_indentation) {
-      document_text_lower_indentation(base, splitter, view->offset, view->offset);
+    if ((out_bracket.bracket_match&VISUAL_BRACKET_CLOSE) && out_bracket.indented && view->bracket_indentation) {
+      document_text_lower_indentation(base, view, file, view->offset, view->offset);
     }
 
     view->bracket_indentation = 0;
@@ -2140,7 +2129,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 
   if (seek) {
     in_offset.offset = view->offset;
-    document_text_cursor_position(splitter, &in_offset, &out, 1, 1);
+    document_text_cursor_position(view, file, &in_offset, &out, 1, 1);
     view->offset = out.offset;
     view->cursor_x = out.x;
     if (view->cursor_y!=out.y && file->autocomplete_rescan==1) {
@@ -2184,10 +2173,7 @@ void document_text_keypress(struct document* base, struct splitter* splitter, in
 }
 
 // In line select mode the keyboard is used in a different way since the display shows a list of options one can't edit
-void document_text_keypress_line_select(struct document* base, struct splitter* splitter, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y) {
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
+void document_text_keypress_line_select(struct document* base, struct document_view* view, struct document_file* file, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y) {
   struct document_text_position out;
   struct document_text_position in_offset;
   in_offset.type = VISUAL_SEEK_OFFSET;
@@ -2202,7 +2188,7 @@ void document_text_keypress_line_select(struct document* base, struct splitter* 
   in_line_column.clip = 0;
 
   in_offset.offset = view->offset;
-  document_text_cursor_position(splitter, &in_offset, &out, 1, 1);
+  document_text_cursor_position(view, file, &in_offset, &out, 1, 1);
   in_line_column.line = out.line;
   in_line_column.column = 0;
   in_x_y.x = 0;
@@ -2214,61 +2200,61 @@ void document_text_keypress_line_select(struct document* base, struct splitter* 
 
   if (command==TIPPSE_CMD_UP) {
     in_line_column.line--;
-    view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    view->offset = document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_DOWN) {
     in_line_column.line++;
-    view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    view->offset = document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_PAGEDOWN) {
-    int page = splitter->client_height;
+    int page = view->client_height;
     in_x_y.y += page;
-    view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
+    view->offset = document_text_cursor_position(view, file, &in_x_y, &out, 0, 1);
     if (out.line==in_line_column.line) {
       in_line_column.line++;
-      view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+      view->offset = document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
     }
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_PAGEUP) {
-    int page = splitter->client_height;
+    int page = view->client_height;
     in_x_y.y -= page;
-    view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
+    view->offset = document_text_cursor_position(view, file, &in_x_y, &out, 0, 1);
     if (out.line==in_line_column.line) {
       in_line_column.line--;
-      view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+      view->offset = document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
     }
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_HOME) {
     in_line_column.line = 0;
-    view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 1, 1);
+    view->offset = document_text_cursor_position(view, file, &in_line_column, &out, 1, 1);
     view->cursor_x = out.x;
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_END) {
     in_line_column.line = POSITION_T_MAX;
-    view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    view->offset = document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
     view->show_scrollbar = 1;
   } else if (command==TIPPSE_CMD_MOUSE) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
       in_x_y.x = x+view->scroll_x-view->address_width;
       in_x_y.y = y+view->scroll_y;
-      view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 0, 1);
+      view->offset = document_text_cursor_position(view, file, &in_x_y, &out, 0, 1);
     } else if (button&TIPPSE_MOUSE_WHEEL_DOWN) {
-      int page = ((splitter->height-2)/3)+1;
+      int page = ((view->client_height)/3)+1;
       in_x_y.y += page;
-      view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
+      view->offset = document_text_cursor_position(view, file, &in_x_y, &out, 1, 1);
       if (out.line==in_line_column.line) {
         in_line_column.line++;
-        view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+        view->offset = document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
       }
       view->show_scrollbar = 1;
     } else if (button&TIPPSE_MOUSE_WHEEL_UP) {
-      int page = ((splitter->height-2)/3)+1;
+      int page = ((view->client_height)/3)+1;
       in_x_y.y -= page;
-      view->offset = document_text_cursor_position(splitter, &in_x_y, &out, 1, 1);
+      view->offset = document_text_cursor_position(view, file, &in_x_y, &out, 1, 1);
       if (out.line==in_line_column.line) {
         in_line_column.line--;
-        view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+        view->offset = document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
       }
       view->show_scrollbar = 1;
     }
@@ -2276,7 +2262,7 @@ void document_text_keypress_line_select(struct document* base, struct splitter* 
   }
 
   in_offset.offset = view->offset;
-  document_text_cursor_position(splitter, &in_offset, &out, 1, 1);
+  document_text_cursor_position(view, file, &in_offset, &out, 1, 1);
   view->offset = out.offset;
   view->cursor_x = 0;
   view->cursor_y = out.y;
@@ -2286,15 +2272,15 @@ void document_text_keypress_line_select(struct document* base, struct splitter* 
     in_offset.clip = 0;
 
     in_offset.offset = view->offset;
-    document_text_cursor_position(splitter, &in_offset, &out, 0, 1);
+    document_text_cursor_position(view, file, &in_offset, &out, 0, 1);
 
     in_line_column.line = out.line;
     in_line_column.column = 0;
-    document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
     view->selection_start = out.offset;
     view->offset = out.offset;
     in_line_column.column = POSITION_T_MAX;
-    document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
     view->selection_end = out.offset;
   }
 
@@ -2303,9 +2289,7 @@ void document_text_keypress_line_select(struct document* base, struct splitter* 
 }
 
 // Set or clear bookmark range
-void document_text_toggle_bookmark(struct document* base, struct splitter* splitter, file_offset_t offset) {
-  struct document_view* view = splitter->view;
-
+void document_text_toggle_bookmark(struct document* base, struct document_view* view, struct document_file* file, file_offset_t offset) {
   struct document_text_position out;
   struct document_text_position in_offset;
   in_offset.type = VISUAL_SEEK_OFFSET;
@@ -2316,23 +2300,21 @@ void document_text_toggle_bookmark(struct document* base, struct splitter* split
   in_line_column.clip = 0;
 
   in_offset.offset = view->offset;
-  document_text_cursor_position(splitter, &in_offset, &out, 0, 1);
+  document_text_cursor_position(view, file, &in_offset, &out, 0, 1);
 
   in_line_column.line = out.line;
   in_line_column.column = 0;
-  document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+  document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
   file_offset_t start = out.offset;
   in_line_column.column = POSITION_T_MAX;
-  document_text_cursor_position(splitter, &in_line_column, &out, 1, 1);
+  document_text_cursor_position(view, file, &in_line_column, &out, 1, 1);
   file_offset_t end = out.offset;
 
-  document_bookmark_toggle_range(splitter->file, start, end);
+  document_bookmark_toggle_range(file, start, end);
 }
 
 // Lower indentation for selected range (if possible)
-void document_text_lower_indentation(struct document* base, struct splitter* splitter, file_offset_t low, file_offset_t high) {
-  struct document_file* file = splitter->file;
-
+void document_text_lower_indentation(struct document* base, struct document_view* view, struct document_file* file, file_offset_t low, file_offset_t high) {
   struct document_text_position in_offset;
   in_offset.type = VISUAL_SEEK_OFFSET;
   in_offset.clip = 0;
@@ -2346,14 +2328,14 @@ void document_text_lower_indentation(struct document* base, struct splitter* spl
   struct document_text_position out_end;
 
   in_offset.offset = low;
-  document_text_cursor_position(splitter, &in_offset, &out_start, 0, 1);
+  document_text_cursor_position(view, file, &in_offset, &out_start, 0, 1);
   in_offset.offset = high;
-  document_text_cursor_position(splitter, &in_offset, &out_end, 0, 1);
+  document_text_cursor_position(view, file, &in_offset, &out_end, 0, 1);
 
   while (out_end.line>=out_start.line) {
     in_line_column.column = 0;
     in_line_column.line = out_end.line;
-    document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+    document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
 
     struct stream stream;
     stream_from_page(&stream, out.buffer, out.displacement);
@@ -2372,7 +2354,7 @@ void document_text_lower_indentation(struct document* base, struct splitter* spl
     stream_destroy(&stream);
 
     if (length>0) {
-      document_file_delete(splitter->file, out.offset, length);
+      document_file_delete(file, out.offset, length);
     }
 
     out_end.line--;
@@ -2380,9 +2362,7 @@ void document_text_lower_indentation(struct document* base, struct splitter* spl
 }
 
 // Raise indentation for selected range
-void document_text_raise_indentation(struct document* base, struct splitter* splitter, file_offset_t low, file_offset_t high, int empty_lines) {
-  struct document_file* file = splitter->file;
-
+void document_text_raise_indentation(struct document* base, struct document_view* view, struct document_file* file, file_offset_t low, file_offset_t high, int empty_lines) {
   struct document_text_position in_offset;
   in_offset.type = VISUAL_SEEK_OFFSET;
   in_offset.clip = 0;
@@ -2397,18 +2377,18 @@ void document_text_raise_indentation(struct document* base, struct splitter* spl
   struct document_text_position out_line_end;
 
   in_offset.offset = low;
-  document_text_cursor_position(splitter, &in_offset, &out_start, 0, 1);
+  document_text_cursor_position(view, file, &in_offset, &out_start, 0, 1);
   in_offset.offset = high;
-  document_text_cursor_position(splitter, &in_offset, &out_end, 0, 1);
+  document_text_cursor_position(view, file, &in_offset, &out_end, 0, 1);
 
   while (out_end.line>=out_start.line) {
     in_line_column.column = 0;
     in_line_column.line = out_end.line;
-    document_text_cursor_position(splitter, &in_line_column, &out_line_start, 0, 1);
+    document_text_cursor_position(view, file, &in_line_column, &out_line_start, 0, 1);
 
     in_line_column.column = POSITION_T_MAX;
     in_line_column.line = out_end.line;
-    document_text_cursor_position(splitter, &in_line_column, &out_line_end, 0, 1);
+    document_text_cursor_position(view, file, &in_line_column, &out_line_end, 0, 1);
 
     char utf8[TIPPSE_TAB_MAX];
     file_offset_t size;
@@ -2426,7 +2406,7 @@ void document_text_raise_indentation(struct document* base, struct splitter* spl
     }
 
     if (!empty_lines || out_line_start.offset!=out_line_end.offset) {
-      document_file_insert_utf8(splitter->file, out_line_start.offset, &utf8[0], size, 0);
+      document_file_insert_utf8(file, out_line_start.offset, &utf8[0], size, 0);
     }
 
     out_end.line--;
@@ -2434,9 +2414,7 @@ void document_text_raise_indentation(struct document* base, struct splitter* spl
 }
 
 // Move given block up or down (TODO: not multiselection aware / caller)
-void document_text_move_block(struct document* base, struct splitter* splitter, file_offset_t low, file_offset_t high, int up) {
-  struct document_file* file = splitter->file;
-
+void document_text_move_block(struct document* base, struct document_view* view, struct document_file* file, file_offset_t low, file_offset_t high, int up) {
   struct document_text_position in_offset;
   in_offset.type = VISUAL_SEEK_OFFSET;
   in_offset.clip = 0;
@@ -2449,9 +2427,9 @@ void document_text_move_block(struct document* base, struct splitter* splitter, 
   struct document_text_position out_end;
 
   in_offset.offset = low;
-  document_text_cursor_position(splitter, &in_offset, &out_start, 0, 1);
+  document_text_cursor_position(view, file, &in_offset, &out_start, 0, 1);
   in_offset.offset = high;
-  document_text_cursor_position(splitter, &in_offset, &out_end, 0, 1);
+  document_text_cursor_position(view, file, &in_offset, &out_end, 0, 1);
 
   struct document_text_position out_line_start;
   struct document_text_position out_line_end;
@@ -2461,11 +2439,11 @@ void document_text_move_block(struct document* base, struct splitter* splitter, 
 
   in_line_column.column = 0;
   in_line_column.line = out_start.line;
-  document_text_cursor_position(splitter, &in_line_column, &out_line_start, 0, 1);
+  document_text_cursor_position(view, file, &in_line_column, &out_line_start, 0, 1);
 
   in_line_column.column = POSITION_T_MAX;
   in_line_column.line = out_end.line;
-  document_text_cursor_position(splitter, &in_line_column, &out_line_end, 0, 1);
+  document_text_cursor_position(view, file, &in_line_column, &out_line_end, 0, 1);
 
   if (out_line_end.offset<out_line_start.offset) {
     return;
@@ -2473,17 +2451,17 @@ void document_text_move_block(struct document* base, struct splitter* splitter, 
 
   in_line_column.column = 0;
   in_line_column.line = up?out_line_start.line-1:out_line_end.line+2;
-  document_text_cursor_position(splitter, &in_line_column, &out_insert, 0, 1);
+  document_text_cursor_position(view, file, &in_line_column, &out_insert, 0, 1);
 
   if (out_line_end.offset!=range_tree_length(&file->buffer)) {
     in_line_column.column = 0;
     in_line_column.line = out_line_end.line+1;
-    document_text_cursor_position(splitter, &in_line_column, &out_line_return_end, 0, 1);
+    document_text_cursor_position(view, file, &in_line_column, &out_line_return_end, 0, 1);
     out_line_return_start.offset = out_line_end.offset;
   } else {
     in_line_column.column = POSITION_T_MAX;
     in_line_column.line = out_line_start.line-1;
-    document_text_cursor_position(splitter, &in_line_column, &out_line_return_start, 0, 1);
+    document_text_cursor_position(view, file, &in_line_column, &out_line_return_start, 0, 1);
     out_line_return_end.offset = out_line_start.offset;
   }
 
@@ -2515,9 +2493,7 @@ void document_text_move_block(struct document* base, struct splitter* splitter, 
 }
 
 // Extend selection to whole line
-void document_text_select_line(struct document* base, struct splitter* splitter) {
-  struct document_view* view = splitter->view;
-
+void document_text_select_line(struct document* base, struct document_view* view, struct document_file* file) {
   struct document_text_position in_offset;
   in_offset.type = VISUAL_SEEK_OFFSET;
   in_offset.clip = 0;
@@ -2543,19 +2519,19 @@ void document_text_select_line(struct document* base, struct splitter* splitter)
     struct document_text_position out_start;
     struct document_text_position out_end;
     in_offset.offset = low;
-    document_text_cursor_position(splitter, &in_offset, &out_start, 0, 1);
+    document_text_cursor_position(view, file, &in_offset, &out_start, 0, 1);
     in_offset.offset = high;
-    document_text_cursor_position(splitter, &in_offset, &out_end, 0, 1);
+    document_text_cursor_position(view, file, &in_offset, &out_end, 0, 1);
 
     struct document_text_position out_line_start;
     struct document_text_position out_line_end;
     in_line_column.column = 0;
     in_line_column.line = out_start.line;
-    document_text_cursor_position(splitter, &in_line_column, &out_line_start, 0, 1);
+    document_text_cursor_position(view, file, &in_line_column, &out_line_start, 0, 1);
 
     in_line_column.column = 0;
     in_line_column.line = out_end.line+1;
-    document_text_cursor_position(splitter, &in_line_column, &out_line_end, 0, 1);
+    document_text_cursor_position(view, file, &in_line_column, &out_line_end, 0, 1);
 
     document_view_select_range(view, out_line_start.offset, out_line_end.offset, TIPPSE_INSERTER_MARK);
     high = out_line_end.offset;
@@ -2568,12 +2544,12 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
     return -1;
   }
 
+  struct document_file* file = splitter->file;
+  struct document_view* view = splitter->view;
   struct document_text_position out;
-  document_text_search_brackets(base, splitter, cursor, &out, (cursor->bracket_match&VISUAL_BRACKET_OPEN)?1:0);
+  document_text_search_brackets(base, view, file, cursor, &out, (cursor->bracket_match&VISUAL_BRACKET_OPEN)?1:0);
 
   if (((cursor->bracket_match&VISUAL_BRACKET_OPEN) && out.offset>cursor->offset) || ((cursor->bracket_match&VISUAL_BRACKET_CLOSE) && out.offset<cursor->offset && out.type!=VISUAL_SEEK_NONE)) {
-    struct document_file* file = splitter->file;
-    struct document_view* view = splitter->view;
     splitter_hilight(splitter, screen, (int)(cursor->x-view->scroll_x+view->address_width), (int)(cursor->y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
     splitter_hilight(splitter, screen, (int)(out.x-view->scroll_x+view->address_width), (int)(out.y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
     return 1;
@@ -2583,7 +2559,7 @@ int document_text_mark_brackets(struct document* base, struct screen* screen, st
 }
 
 // Find bracket next/previous bracket
-void document_text_search_brackets(struct document* base, struct splitter* splitter, struct document_text_position* cursor, struct document_text_position* out, int next) {
+void document_text_search_brackets(struct document* base, struct document_view* view, struct document_file* file, struct document_text_position* cursor, struct document_text_position* out, int next) {
   struct document_text_position in;
   in.clip = 0;
   in.bracket = cursor->bracket_match&VISUAL_BRACKET_MASK;
@@ -2600,10 +2576,8 @@ void document_text_search_brackets(struct document* base, struct splitter* split
     in.bracket_search--;
   }
 
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
   struct document_text_render_info render_info;
-  document_text_render_clear(&render_info, document_text_line_width(splitter), &view->selection);
+  document_text_render_clear(&render_info, document_text_line_width(view, file), &view->selection);
   while (1) {
     document_text_render_seek(&render_info, view, &file->buffer, file->encoding, &in);
     int rendered = document_text_collect_span(&render_info, view, file, &in, out, ~0, 1);
@@ -2613,7 +2587,7 @@ void document_text_search_brackets(struct document* base, struct splitter* split
 
     if (rendered==-1) {
       document_text_render_destroy(&render_info);
-      document_text_render_clear(&render_info, document_text_line_width(splitter), &view->selection);
+      document_text_render_clear(&render_info, document_text_line_width(view, file), &view->selection);
       document_text_render_seek(&render_info, view, &file->buffer, file->encoding, &in);
       if (cursor->bracket_match&VISUAL_BRACKET_OPEN) {
         struct range_tree_node* node = visual_info_find_bracket_forward(view, render_info.buffer, in.bracket, in.bracket_search);
@@ -2645,9 +2619,7 @@ void document_text_search_brackets(struct document* base, struct splitter* split
 }
 
 // Jump to specified line
-void document_text_goto(struct document* base, struct splitter* splitter, position_t line, position_t column) {
-  struct document_view* view = splitter->view;
-
+void document_text_goto(struct document* base, struct document_view* view, struct document_file* file, position_t line, position_t column) {
   struct document_text_position in_line_column;
   in_line_column.type = VISUAL_SEEK_LINE_COLUMN;
   in_line_column.clip = 0;
@@ -2655,13 +2627,12 @@ void document_text_goto(struct document* base, struct splitter* splitter, positi
   in_line_column.line = line;
 
   struct document_text_position out;
-  view->offset = document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+  view->offset = document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
   view->show_scrollbar = 1;
 }
 
 // Return line start offset of current cursor position
-file_offset_t document_text_line_start_offset(struct document* base, struct splitter* splitter) {
-  struct document_view* view = splitter->view;
+file_offset_t document_text_line_start_offset(struct document* base, struct document_view* view, struct document_file* file) {
 
   struct document_text_position in_offset;
   in_offset.type = VISUAL_SEEK_OFFSET;
@@ -2669,7 +2640,7 @@ file_offset_t document_text_line_start_offset(struct document* base, struct spli
   in_offset.offset = view->offset;
 
   struct document_text_position out;
-  document_text_cursor_position(splitter, &in_offset, &out, 0, 1);
+  document_text_cursor_position(view, file, &in_offset, &out, 0, 1);
 
   struct document_text_position in_line_column;
   in_line_column.type = VISUAL_SEEK_LINE_COLUMN;
@@ -2677,14 +2648,11 @@ file_offset_t document_text_line_start_offset(struct document* base, struct spli
   in_line_column.column = 0;
   in_line_column.line = out.line;
 
-  return document_text_cursor_position(splitter, &in_line_column, &out, 0, 1);
+  return document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
 }
 
 // Move to next word
-file_offset_t document_text_word_transition_next(struct document* base, struct splitter* splitter, file_offset_t offset) {
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
+file_offset_t document_text_word_transition_next(struct document* base, struct document_view* view, struct document_file* file, file_offset_t offset) {
   if (offset<range_tree_length(&file->buffer)) {
     offset++;
   }
@@ -2697,7 +2665,7 @@ file_offset_t document_text_word_transition_next(struct document* base, struct s
     in.offset = offset;
 
     struct document_text_render_info render_info;
-    document_text_render_clear(&render_info, document_text_line_width(splitter), &view->selection);
+    document_text_render_clear(&render_info, document_text_line_width(view, file), &view->selection);
     document_text_render_seek(&render_info, view, &file->buffer, file->encoding, &in);
     int rendered = document_text_collect_span(&render_info, view, file, &in, &out, ~0, 1);
     offset = render_info.offset;
@@ -2711,10 +2679,7 @@ file_offset_t document_text_word_transition_next(struct document* base, struct s
 }
 
 // Move to previous word
-file_offset_t document_text_word_transition_prev(struct document* base, struct splitter* splitter, file_offset_t offset) {
-  struct document_file* file = splitter->file;
-  struct document_view* view = splitter->view;
-
+file_offset_t document_text_word_transition_prev(struct document* base, struct document_view* view, struct document_file* file, file_offset_t offset) {
   if (offset>0) {
     offset--;
   }
@@ -2727,7 +2692,7 @@ file_offset_t document_text_word_transition_prev(struct document* base, struct s
     in.offset = offset;
 
     struct document_text_render_info render_info;
-    document_text_render_clear(&render_info, document_text_line_width(splitter), &view->selection);
+    document_text_render_clear(&render_info, document_text_line_width(view, file), &view->selection);
     document_text_render_seek(&render_info, view, &file->buffer, file->encoding, &in);
     int rendered = document_text_collect_span(&render_info, view, file, &in, &out, ~0, 1);
 
