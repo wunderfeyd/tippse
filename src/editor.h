@@ -273,7 +273,7 @@ int editor_document_sticked(struct editor* base, struct splitter* node);
 struct splitter* editor_document_splitter(struct editor* base, struct splitter* node, struct document_file* file);
 
 int editor_open_selection(struct editor* base, struct splitter* node, struct splitter* destination);
-int editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination, int type, struct splitter** output);
+int editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination, int type, struct splitter** output, struct document_file** file);
 void editor_reload_document(struct editor* base, struct document_file* file);
 int editor_ask_document_action(struct editor* base, struct document_file* file, int force, int ask);
 void editor_save_document(struct editor* base, struct document_file* file, int force, int ask, int exist);

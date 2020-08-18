@@ -307,7 +307,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   }
 
   while (files->first) {
-    editor_open_document(base, *((const char**)list_object(files->first)), NULL, base->document, TIPPSE_BROWSERTYPE_OPEN, NULL);
+    editor_open_document(base, *((const char**)list_object(files->first)), NULL, base->document, TIPPSE_BROWSERTYPE_OPEN, NULL, NULL);
     list_remove(files, files->first);
   }
 
@@ -595,7 +595,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
       struct list_node* docs = base->documents->first;
       docs = docs->next;
       struct document_file* docs_document_doc = *(struct document_file**)list_object(docs);
-      editor_open_document(base, docs_document_doc->filename, NULL, base->document, TIPPSE_BROWSERTYPE_OPEN, NULL);
+      editor_open_document(base, docs_document_doc->filename, NULL, base->document, TIPPSE_BROWSERTYPE_OPEN, NULL, NULL);
     }
   } else if (command==TIPPSE_CMD_BROWSER || command==TIPPSE_CMD_SAVEAS) {
     struct document_file* browser_file = file?file:base->document->file;
@@ -1053,9 +1053,9 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
           }
         }
       } else if (base->panel->file==base->browser_doc) {
-        done = editor_open_document(base, name, node, destination, base->browser_type, NULL);
+        done = editor_open_document(base, name, node, destination, base->browser_type, NULL, NULL);
       } else {
-        done = editor_open_document(base, name, node, destination, TIPPSE_BROWSERTYPE_OPEN, NULL);
+        done = editor_open_document(base, name, node, destination, TIPPSE_BROWSERTYPE_OPEN, NULL, NULL);
       }
     }
 
@@ -1099,7 +1099,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
           editor_view_help(base, name);
         } else {
           struct splitter* output;
-          editor_open_document(base, name, NULL, destination, TIPPSE_BROWSERTYPE_OPEN, &output);
+          editor_open_document(base, name, NULL, destination, TIPPSE_BROWSERTYPE_OPEN, &output, NULL);
           if (line>0) {
             document_text_goto(output->document, output->view, output->file, line-1, (column>0)?column-1:0);
             document_select_nothing(output->file, output->view);
@@ -1120,7 +1120,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
 }
 
 // Open file into destination splitter
-int editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination, int type, struct splitter** output) {
+int editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination, int type, struct splitter** output, struct document_file** file) {
   int success = 1;
   char* path_only;
   if (node) {
@@ -1176,6 +1176,10 @@ int editor_open_document(struct editor* base, const char* name, struct splitter*
         document_file_name(base->browser_file, relative);
         editor_save_document(base, base->browser_file, 1, 0, 1);
       }
+    }
+
+    if (file) {
+      *file = new_document_doc;
     }
   }
 
@@ -1962,7 +1966,7 @@ struct splitter* editor_state_load_splitter(struct editor* base, struct config* 
       splitter_assign_document_file(splitter, empty);
       document_view_reset(splitter->view, empty, 1);
     } else {
-      editor_open_document(base, file, NULL, splitter, TIPPSE_BROWSERTYPE_OPEN, NULL);
+      editor_open_document(base, file, NULL, splitter, TIPPSE_BROWSERTYPE_OPEN, NULL, NULL);
     }
 
     editor_state_load_view(base, config, path, splitter->view);
@@ -1986,13 +1990,14 @@ struct splitter* editor_state_load_splitter(struct editor* base, struct config* 
 void editor_state_save(struct editor* base, const char* filename) {
   struct config* config = config_create();
   int count = 0;
-  struct list_node* it = base->documents->first;
+  struct list_node* it = base->documents->last;
   while (it) {
     struct document_file* file = *(struct document_file**)list_object(it);
     if (file->save && !file->draft) {
       char path[1024];
       sprintf(&path[0], "/documents/%d", (int)count);
       editor_state_save_keyword_string(base, config, &path[0], "/file", file->filename);
+      editor_state_save_keyword_int64(base, config, &path[0], "/inactive", file->view_inactive);
       // TODO: save document splitter stickiness
       if (file->view_inactive) {
         struct document_view* view = *(struct document_view**)list_object(file->views->first);
@@ -2001,7 +2006,7 @@ void editor_state_save(struct editor* base, const char* filename) {
 
       count++;
     }
-    it = it->next;
+    it = it->prev;
   }
 
   editor_state_save_splitter(base, config, "/splitter", base->splitters->side[1]);
@@ -2013,21 +2018,6 @@ void editor_state_save(struct editor* base, const char* filename) {
 void editor_state_load(struct editor* base, const char* filename) {
   struct config* config = config_create();
   config_load(config, filename);
-
-  int count = 0;
-  while (1) {
-    char path[1024];
-    sprintf(&path[0], "/documents/%d", (int)count);
-    char* filepath = editor_state_load_keyword_string(base, config, &path[0], "/file");
-    if (!*filepath) {
-      free(filepath);
-      break;
-    }
-
-    editor_open_document(base, filepath, NULL, NULL, TIPPSE_BROWSERTYPE_OPEN, NULL);
-    count++;
-    free(filepath);
-  }
 
   base->focus = NULL;
   splitter_destroy(base->splitters->side[1]);
@@ -2043,6 +2033,35 @@ void editor_state_load(struct editor* base, const char* filename) {
     } else {
       focus = base->filter;
     }
+  }
+
+  int count = 0;
+  while (1) {
+    char path[1024];
+    sprintf(&path[0], "/documents/%d", (int)count);
+    char* filepath = editor_state_load_keyword_string(base, config, &path[0], "/file");
+    if (!*filepath) {
+      free(filepath);
+      break;
+    }
+
+    struct document_file* file = NULL;
+    editor_open_document(base, filepath, NULL, NULL, TIPPSE_BROWSERTYPE_OPEN, NULL, &file);
+    int inactive = (int)editor_state_load_keyword_int64(base, config, &path[0], "/inactive");
+    if (inactive && file && (file->views->count<1 || file->view_inactive)) {
+      if (!file->view_inactive) {
+        struct document_view* view = document_view_create();
+        list_insert(file->views, NULL, &view);
+        file->view_inactive = 1;
+      }
+
+      struct document_view* view = *((struct document_view**)list_object(file->views->first));
+      document_view_reset(view, file, 1);
+      editor_state_load_view(base, config, path, view);
+    }
+
+    count++;
+    free(filepath);
   }
 
   base->document = focus;
