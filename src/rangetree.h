@@ -62,6 +62,8 @@ struct range_tree_node* range_tree_invoke(struct range_tree* base);
 void range_tree_revoke(struct range_tree* base, struct range_tree_node* node);
 
 void range_tree_fuse(struct range_tree* base, struct range_tree_node* first, struct range_tree_node* last);
+void range_tree_cache_invalidate(struct range_tree* base, struct file_cache* cache);
+
 void range_tree_insert(struct range_tree* base, file_offset_t offset, struct fragment* buffer, file_offset_t buffer_offset, file_offset_t buffer_length, int inserter, int64_t fuse_id, void* user_data);
 void range_tree_insert_split(struct range_tree* base, file_offset_t offset, const uint8_t* text, size_t length, int inserter);
 void range_tree_delete(struct range_tree* base, file_offset_t offset, file_offset_t length, int inserter);
@@ -98,6 +100,7 @@ void range_tree_node_update(struct range_tree_node* node, struct range_tree* tre
 file_offset_t range_tree_node_offset(const struct range_tree_node* node);
 struct range_tree_node* range_tree_node_find_offset(struct range_tree_node* node, file_offset_t offset, file_offset_t* diff);
 void range_tree_node_invalidate(struct range_tree_node* node, struct range_tree* tree);
+void range_tree_node_cache_invalidate(struct range_tree_node* node, struct range_tree* tree, struct file_cache* cache);
 void range_tree_node_copy_insert(struct range_tree_node* root_from, file_offset_t offset_from, struct range_tree* tree_to, file_offset_t offset_to, file_offset_t length);
 int range_tree_node_marked(const struct range_tree_node* node, file_offset_t offset, file_offset_t length, int inserter);
 struct range_tree_node* range_tree_node_invert_mark(struct range_tree_node* node, struct range_tree* tree, int inserter);

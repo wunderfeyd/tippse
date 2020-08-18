@@ -142,4 +142,5 @@ void document_file_combine_view_node(struct document_file* base, struct range_tr
 void document_file_reference_cache(struct document_file* base, struct file_cache* cache);
 void document_file_dereference_cache(struct document_file* base, struct file_cache* cache);
 int document_file_modified_cache(struct document_file* base);
+void document_file_invalidate_cache(struct document_file* base, struct file_cache* cache);
 #endif /* #ifndef TIPPSE_DOCUMENTFILE_H */

@@ -5,6 +5,7 @@
 #include "types.h"
 
 void clipboard_free(void);
+void clipboard_cache_invalidate(struct file_cache* cache);
 void clipboard_set(struct range_tree* data, int binary, struct encoding* encoding);
 void clipboard_command_set(struct range_tree* data, int binary, struct encoding* encoding, const char* command);
 void clipboard_windows_set(struct range_tree* data, int binary);

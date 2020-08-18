@@ -406,6 +406,10 @@ int document_file_save(struct document_file* base, const char* filename) {
   if (base->buffer.root && (base->buffer.root->inserter&TIPPSE_INSERTER_FILE)) {
     char* tmpname = combine_string(filename, ".save.tmp");
     if (document_file_save_plain(base, tmpname)) {
+      if (base->cache) {
+        document_undo_cache_invalidate(base, base->cache);
+      }
+
       if (rename(tmpname, filename)==0) {
         document_file_load(base, filename, 1, 0);
         editor_console_update(base->editor, "Saved!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
@@ -1003,6 +1007,7 @@ void document_file_dereference_cache(struct document_file* base, struct file_cac
     if (node->cache==cache) {
       node->count--;
       if (node->count==0) {
+        // TODO: need global invalidation call to all document_file, document_undo and clipboards otherwise there might remain garbage/shifted data after including one file part into another
         list_remove(base->caches, caches);
       }
 
@@ -1013,7 +1018,7 @@ void document_file_dereference_cache(struct document_file* base, struct file_cac
   }
 }
 
-// Check if one of the linked file caches was invalidated
+// Check if one of the linked file caches has detected an update file
 int document_file_modified_cache(struct document_file* base) {
   int modified = 0;
   struct list_node* caches = base->caches->first;
@@ -1024,4 +1029,9 @@ int document_file_modified_cache(struct document_file* base) {
   }
 
   return modified;
+}
+
+// A file cache is going to be removed
+void document_file_invalidate_cache(struct document_file* base, struct file_cache* cache) {
+  range_tree_cache_invalidate(&base->buffer, cache);
 }

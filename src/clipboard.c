@@ -22,6 +22,11 @@ void clipboard_free(void) {
   }
 }
 
+// File cache was invalidated, check files and copy
+void clipboard_cache_invalidate(struct file_cache* cache) {
+  range_tree_cache_invalidate(clipboard_data, cache);
+}
+
 // Write text to clipboard
 void clipboard_set(struct range_tree* data, int binary, struct encoding* encoding) {
 #ifndef _TESTSUITE

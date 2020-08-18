@@ -29,5 +29,6 @@ void document_undo_chain(struct document_file* file, struct list* list);
 void document_undo_empty(struct document_file* file, struct list* list);
 void document_undo_execute_chain(struct document_file* file, struct document_view* view, struct list* from, struct list* to, int reverse);
 int document_undo_execute(struct document_file* file, struct document_view* view, struct list* from, struct list* to, int override);
+void document_undo_cache_invalidate(struct document_file* file, struct file_cache* cache);
 
 #endif /* #ifndef TIPPSE_DOCUMENTUNDO_H */

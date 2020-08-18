@@ -124,7 +124,7 @@ struct visual_info* document_view_visual_create(struct document_view* base, stru
     return node->visuals;
   }
 
-  file_offset_t low = (file_offset_t)node;
+  file_offset_t low = (file_offset_t)((size_t)node);
   file_offset_t diff;
   struct range_tree_node* tree;
   if (range_tree_node_marked(base->visuals.root, low, 1, TIPPSE_INSERTER_MARK)) {
@@ -143,7 +143,7 @@ struct visual_info* document_view_visual_create(struct document_view* base, stru
 
 // Deallocate visual information
 void document_view_visual_destroy(struct document_view* base, struct range_tree_node* node) {
-  file_offset_t low = (file_offset_t)node;
+  file_offset_t low = (file_offset_t)((size_t)node);
   if (!range_tree_node_marked(base->visuals.root, low, 1, TIPPSE_INSERTER_MARK)) {
     return;
   }

@@ -73,6 +73,41 @@ void range_tree_node_invalidate(struct range_tree_node* node, struct range_tree*
   }
 }
 
+// Reallocate the fragment if file cache is going to be removed
+void range_tree_cache_invalidate(struct range_tree* base, struct file_cache* cache) {
+  if (!base || !base->root || !(base->root->inserter&TIPPSE_INSERTER_FILE)) {
+    return;
+  }
+
+  range_tree_node_cache_invalidate(base->root, base, cache);
+}
+
+// Reallocate the fragment if file cache is going to be removed recursively
+void range_tree_node_cache_invalidate(struct range_tree_node* node, struct range_tree* base, struct file_cache* cache) {
+  if (!node) {
+    return;
+  }
+
+  if (node->buffer && node->buffer->type==FRAGMENT_FILE) {
+    if (!cache || node->buffer->cache==cache) {
+      struct stream stream;
+      stream_from_page(&stream, node, 0);
+      size_t length = stream_cache_length(&stream);
+      uint8_t* buffer = malloc(length*sizeof(uint8_t));
+      memcpy(buffer, stream_buffer(&stream), length);
+      struct fragment* fragment = fragment_create_memory(buffer, length);
+      stream_destroy(&stream);
+
+      fragment_dereference(node->buffer, base->file);
+      node->buffer = fragment;
+      node->offset = 0;
+    }
+  }
+
+  range_tree_node_cache_invalidate(node->side[0], base, cache);
+  range_tree_node_cache_invalidate(node->side[1], base, cache);
+}
+
 // Try to merge range of nodes which are below the maximum page size
 void range_tree_fuse(struct range_tree* base, struct range_tree_node* first, struct range_tree_node* last) {
   if (!first) {
@@ -94,14 +129,25 @@ void range_tree_fuse(struct range_tree* base, struct range_tree_node* first, str
         range_tree_node_update(first, base);
       } else if (first->length+next->length<TREE_BLOCK_LENGTH_MIN) {
         if (first->buffer && next->buffer && (first->buffer->type==FRAGMENT_MEMORY && next->buffer->type==FRAGMENT_MEMORY)) {
-          // TODO: to join non memory regions you should use a stream for reading
-          // fragment_cache(first->buffer);
-          // fragment_cache(next->buffer);
-          uint8_t* copy = (uint8_t*)malloc(first->length+next->length);
-          memcpy(copy, first->buffer->buffer+first->offset, first->length);
-          memcpy(copy+first->length, next->buffer->buffer+next->offset, next->length);
-          struct fragment* buffer = fragment_create_memory(copy, first->length+next->length);
+
+          struct stream stream_first;
+          stream_from_page(&stream_first, first, 0);
+          size_t length_first = stream_cache_length(&stream_first);
+
+          struct stream stream_next;
+          stream_from_page(&stream_next, next, 0);
+          size_t length_next = stream_cache_length(&stream_next);
+
+          uint8_t* copy = (uint8_t*)malloc(length_first+length_next);
+          memcpy(copy, stream_buffer(&stream_first), length_first);
+          memcpy(copy+length_first, stream_buffer(&stream_next), length_next);
+
+          stream_destroy(&stream_next);
+          stream_destroy(&stream_first);
+
+          struct fragment* buffer = fragment_create_memory(copy, length_first+length_next);
           fragment_dereference(first->buffer, base->file);
+
           first->buffer = buffer;
           first->length = buffer->length;
           first->offset = 0;

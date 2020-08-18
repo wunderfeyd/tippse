@@ -131,3 +131,19 @@ int document_undo_execute(struct document_file* file, struct document_view* view
 
   return chain;
 }
+
+// Copy tree data from invalidated cache on specific list
+void document_undo_cache_invalidate_list(struct document_file* file, struct file_cache* cache, struct list* list) {
+  struct list_node* node = list->first;
+  while (node) {
+    struct document_undo* undo = (struct document_undo*)list_object(node);
+    range_tree_cache_invalidate(undo->buffer, cache);
+    node = node->next;
+  }
+}
+
+// File cache was invalidated copy over all trees if file was associated
+void document_undo_cache_invalidate(struct document_file* file, struct file_cache* cache) {
+  document_undo_cache_invalidate_list(file, cache, file->undos);
+  document_undo_cache_invalidate_list(file, cache, file->redos);
+}
