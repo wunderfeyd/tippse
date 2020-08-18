@@ -40,7 +40,8 @@ struct trie_node* trie_create_node(struct trie* base) {
   struct trie_node* node = (struct trie_node*)(((uint8_t*)list_object(base->buckets->first))+(sizeof(struct trie_node)+base->node_size)*base->fill);
   node->parent = NULL;
   node->end = 0;
-  for (int side = 0; side<16; side++) {
+  node->index = 0;
+  for (int side = 0; side<TRIE_SET_SIZE; side++) {
     node->side[side] = NULL;
   }
 
@@ -58,13 +59,14 @@ struct trie_node* trie_append_codepoint(struct trie* base, struct trie_node* par
     }
   }
 
-  for (int bit = TRIE_CODEPOINT_BIT-4; bit>=0; bit-=4) {
+  for (int bit = TRIE_CODEPOINT_BIT-TRIE_SET_BITS; bit>=0; bit-=TRIE_SET_BITS) {
     int set = (cp>>bit)&15;
     struct trie_node* node = parent->side[set];
     if (!node) {
       node = trie_create_node(base);
       parent->side[set] = node;
       node->parent = parent;
+      node->index = set;
     }
 
     parent = node;
@@ -86,7 +88,7 @@ struct trie_node* trie_find_codepoint(struct trie* base, struct trie_node* paren
     }
   }
 
-  for (int bit = TRIE_CODEPOINT_BIT-4; bit>=0 && parent; bit-=4) {
+  for (int bit = TRIE_CODEPOINT_BIT-TRIE_SET_BITS; bit>=0 && parent; bit-=TRIE_SET_BITS) {
     parent = parent->side[(cp>>bit)&15];
   }
 
@@ -102,14 +104,14 @@ struct trie_node* trie_find_codepoint_min(struct trie* base, struct trie_node* p
     }
   }
 
-  return trie_find_codepoint_recursive(base, parent, cp, out, 0, TRIE_CODEPOINT_BIT-4);
+  return trie_find_codepoint_recursive(base, parent, cp, out, 0, TRIE_CODEPOINT_BIT-TRIE_SET_BITS);
 }
 
 // Find next codepoint (higher than the one before)
 struct trie_node* trie_find_codepoint_recursive(struct trie* base, struct trie_node* parent, codepoint_t cp, codepoint_t* out, codepoint_t build, int bit) {
 
   struct trie_node* node = NULL;
-  for (int set = 0; set<16; set++) {
+  for (int set = 0; set<TRIE_SET_SIZE; set++) {
     if (parent->side[set]) {
       codepoint_t update = build|((codepoint_t)set<<bit);
       if (update+(codepoint_t)((1<<bit)-1)>cp) {
@@ -117,7 +119,7 @@ struct trie_node* trie_find_codepoint_recursive(struct trie* base, struct trie_n
           *out = update;
           return parent->side[set];
         } else {
-          node = trie_find_codepoint_recursive(base, parent->side[set], cp, out, update, bit-4);
+          node = trie_find_codepoint_recursive(base, parent->side[set], cp, out, update, bit-TRIE_SET_BITS);
           if (node) {
             break;
           }
@@ -139,18 +141,18 @@ codepoint_t trie_find_codepoint_single(struct trie* base, struct trie_node* pare
   }
 
   codepoint_t cp = 0;
-  for (int bit = TRIE_CODEPOINT_BIT-4; bit>=0; bit-=4) {
-    size_t found = 16;
-    for (size_t set = 0; set<16; set++) {
+  for (int bit = TRIE_CODEPOINT_BIT-TRIE_SET_BITS; bit>=0; bit-=TRIE_SET_BITS) {
+    int found = TRIE_SET_SIZE;
+    for (int set = 0; set<TRIE_SET_SIZE; set++) {
       if (parent->side[set]) {
-        if (found!=16) {
+        if (found!=TRIE_SET_SIZE) {
           return UNICODE_CODEPOINT_UNASSIGNED;
         }
         found = set;
       }
     }
 
-    if (found==16) {
+    if (found==TRIE_SET_SIZE) {
       return UNICODE_CODEPOINT_BAD;
     }
 
@@ -160,9 +162,81 @@ codepoint_t trie_find_codepoint_single(struct trie* base, struct trie_node* pare
     }
 
     parent = node;
-    cp <<= 4;
+    cp <<= TRIE_SET_BITS;
     cp |= (codepoint_t)found;
   }
 
   return cp;
+}
+
+// Find next node with end attribute set
+struct trie_node* trie_crawl_next(struct trie* base, struct trie_node* node) {
+  if (!node) {
+    node = base->root;
+    if (!node) {
+      return NULL;
+    }
+  }
+
+  int set = 0;
+  while (node) {
+    // Climb to next node
+    struct trie_node* next = NULL;
+    for (; set<TRIE_SET_SIZE; set++) {
+      if (node->side[set]) {
+        next = node->side[set];
+        break;
+      }
+    }
+
+    if (next) {
+      node = next;
+      if (node->end) {
+        break;
+      }
+
+      set = 0;
+      continue;
+    }
+
+    set = node->index+1;
+    node = node->parent;
+    if (!node) {
+      break;
+    }
+  }
+
+  return node;
+}
+
+// reconstruct keyword from final node
+codepoint_t* trie_reconstruct(struct trie* base, struct trie_node* node, size_t* length) {
+  size_t nodes = 0;
+  struct trie_node* scan = node;
+  while (scan) {
+    scan = scan->parent;
+    nodes++;
+  }
+
+  size_t nodes_codepoint = TRIE_CODEPOINT_BIT/TRIE_SET_BITS;
+  if ((nodes%nodes_codepoint)!=1) {
+    fprintf(stderr, "Trie reconstruction failed... Please file a bug report\r\n");
+    abort();
+  }
+
+  nodes /= nodes_codepoint;
+  codepoint_t* data = malloc(nodes*sizeof(codepoint_t));
+  *length = nodes;
+  nodes--;
+  while (node->parent) {
+    codepoint_t cp = 0;
+    for (int bit = 0; bit<TRIE_CODEPOINT_BIT; bit+=TRIE_SET_BITS) {
+      cp |= ((codepoint_t)node->index<<bit);
+      node = node->parent;
+    }
+
+    data[nodes--] = cp;
+  }
+
+  return data;
 }

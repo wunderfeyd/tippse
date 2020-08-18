@@ -11,12 +11,16 @@
 #define TRIE_NODES_PER_BUCKET 1024
 // Number of bits are used to represent a unicode codepoint
 #define TRIE_CODEPOINT_BIT 20
+// Set size
+#define TRIE_SET_BITS 4
+#define TRIE_SET_SIZE (1<<TRIE_SET_BITS)
 
 // Node inside the trie
 struct trie_node {
   int end;                    // Node defines an end point
+  int index;                  // Index of node in parent set
   struct trie_node* parent;   // Previous node
-  struct trie_node* side[16]; // Child nodes
+  struct trie_node* side[TRIE_SET_SIZE]; // Child nodes
 };
 
 // Trie base object
@@ -38,5 +42,7 @@ struct trie_node* trie_find_codepoint(struct trie* base, struct trie_node* paren
 struct trie_node* trie_find_codepoint_min(struct trie* base, struct trie_node* parent, codepoint_t cp, codepoint_t* out);
 struct trie_node* trie_find_codepoint_recursive(struct trie* base, struct trie_node* parent, codepoint_t cp, codepoint_t* out, codepoint_t build, int bit);
 codepoint_t trie_find_codepoint_single(struct trie* base, struct trie_node* parent);
+struct trie_node* trie_crawl_next(struct trie* base, struct trie_node* node);
+codepoint_t* trie_reconstruct(struct trie* base, struct trie_node* node, size_t* length);
 
 #endif  /* #ifndef TIPPSE_TRIE_H */

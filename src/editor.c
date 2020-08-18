@@ -193,6 +193,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   base->screen = screen;
   base->focus = NULL;
   base->grab = NULL;
+  base->state = NULL;
   base->tick = tick_count();
   base->tick_undo = -1;
   base->tick_incremental = -1;
@@ -286,9 +287,31 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
   list_insert(base->documents, NULL, &base->help_doc);
 
 #ifndef _TESTSUITE
-  for (int n = argc-1; n>=1; n--) {
-    editor_open_document(base, argv[n], NULL, base->document, TIPPSE_BROWSERTYPE_OPEN, NULL);
+  const char* state = NULL;
+  struct list* files = list_create(sizeof(const char*));
+  for (int n = 1; n<argc;) {
+    if (strcmp(argv[n], "--state")==0 || strcmp(argv[n], "-s")==0) {
+      if (n+1<argc) {
+        state = argv[n+1];
+      }
+      n += 2;
+    } else {
+      list_insert(files, NULL, &argv[n]);
+      n++;
+    }
   }
+
+  if (state) {
+    base->state = strdup(state);
+    editor_state_load(base, base->state);
+  }
+
+  while (files->first) {
+    editor_open_document(base, *((const char**)list_object(files->first)), NULL, base->document, TIPPSE_BROWSERTYPE_OPEN, NULL);
+    list_remove(files, files->first);
+  }
+
+  list_destroy(files);
 #else
   if (argc>3) {
     base->test_script_path = strdup(argv[1]);
@@ -319,6 +342,11 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
 
 // Destroy editor
 void editor_destroy(struct editor* base) {
+  if (base->state) {
+    editor_state_save(base, base->state);
+    free(base->state);
+  }
+
   splitter_destroy(base->splitters);
 
   while (base->documents->first) {
@@ -624,7 +652,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
       document_file_create_pipe(assign->file);
       if (assign->file->pid==0) {
         int binary = (int)config_convert_int64(config_find_ascii(assign->file->config, "/searchfilebinary"));
-        char* pattern_text = (char*)config_convert_encoding(config_find_ascii(assign->file->config, "/searchfilepattern"), encoding_utf8_static());
+        char* pattern_text = (char*)config_convert_encoding(config_find_ascii(assign->file->config, "/searchfilepattern"), encoding_utf8_static(), NULL);
         document_search_directory(base->base_path, &base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, base->search_ignore_case, base->search_regex, 0, pattern_text, encoding_utf8_static(), binary);
         free(pattern_text);
         exit(0);
@@ -762,7 +790,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
         }
 
         if (parent && parent->end) {
-          char* shell = (char*)config_convert_encoding(parent, encoding_utf8_static());
+          char* shell = (char*)config_convert_encoding(parent, encoding_utf8_static(), NULL);
           document_file_pipe(assign->file, shell);
           free(shell);
         }
@@ -1802,9 +1830,10 @@ void editor_open_error(struct editor* base, int reverse) {
 
   struct document_view* compiler_view = *(struct document_view**)list_object(base->compiler_doc->views->first);
 
-  char* pattern_text = (char*)config_convert_encoding(config_find_ascii(base->compiler_doc->config, "/errorpattern"), encoding_utf8_static());
+  size_t pattern_text_length;
+  char* pattern_text = (char*)config_convert_encoding(config_find_ascii(base->compiler_doc->config, "/errorpattern"), encoding_utf8_static(), &pattern_text_length);
   struct range_tree* root = range_tree_create(NULL, 0);
-  range_tree_insert_split(root, 0, (const uint8_t*)pattern_text, strlen(pattern_text), 0);
+  range_tree_insert_split(root, 0, (const uint8_t*)pattern_text, pattern_text_length, 0);
 
   int found = document_search(base->compiler_doc, compiler_view, root, base->compiler_doc->encoding, NULL, NULL, reverse, 1, 1, 0, 0);
 
@@ -1820,6 +1849,206 @@ void editor_open_error(struct editor* base, int reverse) {
       editor_task_append(base, 1, TIPPSE_CMD_OPEN, NULL, 0, 0, 0, 0, 0, 0, NULL);
     }
   }
+}
+
+// Append keyword and string value to state configuration
+void editor_state_save_keyword_string(struct editor* base, struct config* config, const char* path, const char* keyword, const char* value) {
+  size_t keyword_encoded_length;
+  char* combined = combine_string(path, keyword);
+  codepoint_t* keyword_encoded = (codepoint_t*)encoding_transform_plain((uint8_t*)combined, strlen(combined), encoding_utf8_static(), encoding_native_static(), &keyword_encoded_length);
+  free(combined);
+  size_t value_encoded_length;
+  codepoint_t* value_encoded = (codepoint_t*)encoding_transform_plain((uint8_t*)value, strlen(value), encoding_utf8_static(), encoding_native_static(), &value_encoded_length);
+  config_update(config, keyword_encoded, keyword_encoded_length/sizeof(codepoint_t), value_encoded, value_encoded_length/sizeof(codepoint_t));
+  free(value_encoded);
+  free(keyword_encoded);
+}
+
+// Load keyword value as string from state configuration
+char* editor_state_load_keyword_string(struct editor* base, struct config* config, const char* path, const char* keyword) {
+  char* combined = combine_string(path, keyword);
+  char* value = (char*)config_convert_encoding(config_find_ascii(config, combined), encoding_utf8_static(), NULL);
+  free(combined);
+  return value;
+}
+
+// Append keyword and int value to state configuration
+void editor_state_save_keyword_int64(struct editor* base, struct config* config, const char* path, const char* keyword, int64_t value) {
+  char converted[1024];
+  sprintf(&converted[0], "%ld", value);
+  editor_state_save_keyword_string(base, config, path, keyword, &converted[0]);
+}
+
+// Load keyword value as int from state configuration
+int64_t editor_state_load_keyword_int64(struct editor* base, struct config* config, const char* path, const char* keyword) {
+  char* combined = combine_string(path, keyword);
+  int64_t value = config_convert_int64(config_find_ascii(config, combined));
+  free(combined);
+  return value;
+}
+
+// Append view parameters to state configuration
+void editor_state_save_view(struct editor* base, struct config* config, const char* path, struct document_view* view) {
+  editor_state_save_keyword_int64(base, config, path, "/view/offset", (int64_t)view->offset);
+  editor_state_save_keyword_int64(base, config, path, "/view/cursor_x", (int64_t)view->cursor_x);
+  editor_state_save_keyword_int64(base, config, path, "/view/cursor_y", (int64_t)view->cursor_y);
+  editor_state_save_keyword_int64(base, config, path, "/view/scroll_x", (int64_t)view->scroll_x);
+  editor_state_save_keyword_int64(base, config, path, "/view/scroll_y", (int64_t)view->scroll_y);
+  editor_state_save_keyword_int64(base, config, path, "/view/invisibles", (int64_t)view->show_invisibles);
+  editor_state_save_keyword_int64(base, config, path, "/view/wrapping", (int64_t)view->wrapping);
+  editor_state_save_keyword_int64(base, config, path, "/view/line_select", (int64_t)view->line_select);
+}
+
+// Load view parameters from state configuration
+void editor_state_load_view(struct editor* base, struct config* config, const char* path, struct document_view* view) {
+  view->offset = (file_offset_t)editor_state_load_keyword_int64(base, config, path, "/view/offset");
+  view->cursor_x = (position_t)editor_state_load_keyword_int64(base, config, path, "/view/cursor_x");
+  view->cursor_y = (position_t)editor_state_load_keyword_int64(base, config, path, "/view/cursor_y");
+  view->scroll_x = (position_t)editor_state_load_keyword_int64(base, config, path, "/view/scroll_x");
+  view->scroll_y = (position_t)editor_state_load_keyword_int64(base, config, path, "/view/scroll_y");
+  view->show_invisibles = (int)editor_state_load_keyword_int64(base, config, path, "/view/invisibles");
+  view->wrapping = (int)editor_state_load_keyword_int64(base, config, path, "/view/wrapping");
+  view->line_select = (int)editor_state_load_keyword_int64(base, config, path, "/view/line_select");
+}
+
+// Append splitter parameters to state configuration
+void editor_state_save_splitter(struct editor* base, struct config* config, const char* path, struct splitter* splitter) {
+  if (splitter->side[0] && splitter->side[1]) {
+    char* combined0 = combine_string(path, "/0");
+    char* combined1 = combine_string(path, "/1");
+    editor_state_save_splitter(base, config, combined0, splitter->side[0]);
+    editor_state_save_splitter(base, config, combined1, splitter->side[1]);
+    free(combined1);
+    free(combined0);
+    editor_state_save_keyword_int64(base, config, path, "/type", (int64_t)splitter->type);
+    editor_state_save_keyword_int64(base, config, path, "/split", (int64_t)splitter->split);
+  } else {
+    editor_state_save_keyword_int64(base, config, path, "/focus", (splitter==base->document)?1:0);
+    editor_state_save_keyword_string(base, config, path, "/name", splitter->name);
+    if (splitter->file->save && !splitter->file->draft) {
+      editor_state_save_keyword_string(base, config, path, "/file", splitter->file->filename);
+    }
+
+    editor_state_save_keyword_string(base, config, path, "/style", (splitter->document==splitter->document_hex)?"hex":"text");
+    editor_state_save_view(base, config, path, splitter->view);
+  }
+}
+
+// Load splitter parameters to state configuration
+struct splitter* editor_state_load_splitter(struct editor* base, struct config* config, const char* path, struct splitter** focus) {
+  char* style = editor_state_load_keyword_string(base, config, path, "/style");
+  char* name = editor_state_load_keyword_string(base, config, path, "/name");
+  int type = editor_state_load_keyword_int64(base, config, path, "/type");
+  int split = editor_state_load_keyword_int64(base, config, path, "/split");
+
+  struct splitter* splitter;
+  if (type) {
+    char* combined0 = combine_string(path, "/0");
+    char* combined1 = combine_string(path, "/1");
+    struct splitter* split0 = editor_state_load_splitter(base, config, combined0, focus);
+    struct splitter* split1 = editor_state_load_splitter(base, config, combined1, focus);
+    splitter = splitter_create(type, split, split0, split1, name);
+    free(combined1);
+    free(combined0);
+  } else {
+    splitter = splitter_create(type, split, NULL, NULL, name);
+    if (editor_state_load_keyword_int64(base, config, path, "/focus")) {
+      *focus = splitter;
+    }
+
+    char* file = editor_state_load_keyword_string(base, config, path, "/file");
+    if (!*file) {
+      struct document_file* empty = editor_empty_document(base);
+      splitter_assign_document_file(splitter, empty);
+      document_view_reset(splitter->view, empty, 1);
+    } else {
+      editor_open_document(base, file, NULL, splitter, TIPPSE_BROWSERTYPE_OPEN, NULL);
+    }
+
+    editor_state_load_view(base, config, path, splitter->view);
+    if (strcmp(style, "hex")==0) {
+      splitter->document = splitter->document_hex;
+    } else {
+      splitter->document = splitter->document_text;
+      splitter->view->seek_x = splitter->view->cursor_x;
+      splitter->view->seek_y = splitter->view->cursor_y;
+    }
+
+    free(file);
+  }
+
+  free(name);
+  free(style);
+  return splitter;
+}
+
+// Store desktop to state file
+void editor_state_save(struct editor* base, const char* filename) {
+  struct config* config = config_create();
+  int count = 0;
+  struct list_node* it = base->documents->first;
+  while (it) {
+    struct document_file* file = *(struct document_file**)list_object(it);
+    if (file->save && !file->draft) {
+      char path[1024];
+      sprintf(&path[0], "/documents/%d", (int)count);
+      editor_state_save_keyword_string(base, config, &path[0], "/file", file->filename);
+      // TODO: save document splitter stickiness
+      if (file->view_inactive) {
+        struct document_view* view = *(struct document_view**)list_object(file->views->first);
+        editor_state_save_view(base, config, &path[0], view);
+      }
+
+      count++;
+    }
+    it = it->next;
+  }
+
+  editor_state_save_splitter(base, config, "/splitter", base->splitters->side[1]);
+  config_save(config, filename);
+  config_destroy(config);
+}
+
+// Restore desktop from state file
+void editor_state_load(struct editor* base, const char* filename) {
+  struct config* config = config_create();
+  config_load(config, filename);
+
+  int count = 0;
+  while (1) {
+    char path[1024];
+    sprintf(&path[0], "/documents/%d", (int)count);
+    char* filepath = editor_state_load_keyword_string(base, config, &path[0], "/file");
+    if (!*filepath) {
+      free(filepath);
+      break;
+    }
+
+    editor_open_document(base, filepath, NULL, NULL, TIPPSE_BROWSERTYPE_OPEN, NULL);
+    count++;
+    free(filepath);
+  }
+
+  base->focus = NULL;
+  splitter_destroy(base->splitters->side[1]);
+  base->splitters->side[1] = NULL;
+  struct splitter* focus = NULL;
+  struct splitter* root = editor_state_load_splitter(base, config, "/splitter", &focus);
+  base->splitters->side[1] = root;
+  root->parent = base->splitters;
+
+  if (!focus) {
+    if (root->file) {
+      focus = root;
+    } else {
+      focus = base->filter;
+    }
+  }
+
+  base->document = focus;
+  editor_focus(base, base->document, 1);
+
+  config_destroy(config);
 }
 
 #ifdef _TESTSUITE

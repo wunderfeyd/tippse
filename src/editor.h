@@ -186,6 +186,7 @@ struct editor {
   int close;                          // editor closing?
 
   const char* base_path;              // base file path of startup
+  char* state;                      // state to load and save
   struct screen* screen;              // display manager
   struct list* documents;             // open documents
 
@@ -314,6 +315,9 @@ void editor_menu_append(struct editor* base, const char* title, int command, str
 void editor_process_message(struct editor* base, const char* message, file_offset_t position, file_offset_t length);
 
 void editor_open_error(struct editor* base, int reverse);
+
+void editor_state_save(struct editor* base, const char* filename);
+void editor_state_load(struct editor* base, const char* filename);
 
 #ifdef _TESTSUITE
 void editor_test_read(struct editor* base);

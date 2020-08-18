@@ -11,6 +11,8 @@ struct document_view {
 
   position_t cursor_x;                  // cursor X position, without scroll offset
   position_t cursor_y;                  // cursor Y position, without scroll offset
+  position_t seek_x;                    // cursor X position, without scroll offset
+  position_t seek_y;                    // cursor Y position, without scroll offset
 
   file_offset_t selection_start;        // start position of selection
   file_offset_t selection_end;          // end position of selection

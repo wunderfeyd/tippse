@@ -73,11 +73,12 @@ void config_value_parse_command(struct config_value* base) {
   int escape = 0;
   size_t argument = 0;
   struct config_argument arguments[256];
-  codepoint_t* tmp = (codepoint_t*)malloc(sizeof(codepoint_t)*base->length);
+  codepoint_t* tmp = (codepoint_t*)malloc(sizeof(codepoint_t)*(base->length+1));
   codepoint_t* build = tmp;
-
+  size_t length = base->length;
   while (1) {
-    codepoint_t cp = *pos++;
+    codepoint_t cp = (length!=0)?*pos++:0;
+    length--;
     if (cp==0 || ((cp==' ' || cp=='\t' || cp==';') && !string && !escape)) {
       if (build!=tmp && argument<sizeof(arguments)/sizeof(struct config_argument)) {
         *build = 0;
@@ -163,6 +164,114 @@ void config_clear(struct config* base) {
     config_value_destroy_inplace((struct config_value*)list_object(base->values->first));
     list_remove(base->values, base->values->first);
   }
+}
+
+void config_save_depth(struct config* base, struct document_file* file, size_t depth) {
+  uint8_t data[1024];
+  if (depth>512) {
+    depth = 512;
+  }
+
+  for (size_t n = 0; n<depth; n++) {
+    data[n*2+0] = ' ';
+    data[n*2+1] = ' ';
+  }
+
+  document_file_insert(file, range_tree_length(&file->buffer), (uint8_t*)&data[0], depth*2, 0);
+}
+
+// Save configuration to disk
+void config_save(struct config* base, const char* filename) {
+  struct document_file* file = document_file_create(0, 0, NULL);
+  file->undo = 0;
+
+  size_t depth_before = 0;
+  struct trie_node* node = trie_crawl_next(base->keywords, NULL);
+  codepoint_t* path_before = NULL;
+  size_t length_before = 0;
+  while (1) {
+    size_t length = 0;
+    codepoint_t* path = node?trie_reconstruct(base->keywords, node, &length):NULL;
+    size_t length_max = length_before<length?length_before:length;
+    size_t depth = 0;
+    size_t last = 0;
+    for (size_t n = 0; n<length_max; n++) {
+      if (path_before[n]!=path[n]) {
+        break;
+      }
+
+      if (path[n]=='/') {
+        depth++;
+        last = n+1;
+      }
+    }
+
+    while (depth<depth_before) {
+      document_file_insert(file, range_tree_length(&file->buffer), (uint8_t*)"\n", 1, 0);
+      depth_before--;
+      config_save_depth(base, file, depth_before);
+      document_file_insert(file, range_tree_length(&file->buffer), (uint8_t*)"}", 1, 0);
+    }
+
+    if (depth_before!=0) {
+      document_file_insert(file, range_tree_length(&file->buffer), (uint8_t*)",\n", 2, 0);
+    }
+
+    if (!node) {
+      document_file_insert(file, range_tree_length(&file->buffer), (uint8_t*)"\n", 1, 0);
+      break;
+    }
+
+
+    for (size_t n = last; n<length; n++) {
+      if (path[n]=='/') {
+        config_save_depth(base, file, depth);
+        size_t keyword_length;
+        uint8_t* keyword = config_convert_encoding_escaped(path+last, n-last, encoding_utf8_static(), &keyword_length);
+        document_file_insert(file, range_tree_length(&file->buffer), keyword, keyword_length, 0);
+        if (keyword && *keyword) {
+          document_file_insert(file, range_tree_length(&file->buffer), (uint8_t*)":{\n", 3, 0);
+        } else {
+          document_file_insert(file, range_tree_length(&file->buffer), (uint8_t*)"{\n", 2, 0);
+        }
+        free(keyword);
+        depth++;
+        last = n+1;
+      }
+    }
+
+    config_save_depth(base, file, depth);
+    size_t keyword_length;
+    uint8_t* keyword = config_convert_encoding_escaped(path+last, length-last, encoding_utf8_static(), &keyword_length);
+    document_file_insert(file, range_tree_length(&file->buffer), keyword, keyword_length, 0);
+    free(keyword);
+    document_file_insert(file, range_tree_length(&file->buffer), (uint8_t*)":", 1, 0);
+
+    struct config_command* command = config_command(node);
+    if (command && command->length>0) {
+      for (size_t arg = 0; arg<command->length; arg++) {
+        size_t value_length;
+        uint8_t* value = config_convert_encoding_escaped(&command->arguments[arg].codepoints[0], command->arguments[arg].length, encoding_utf8_static(), &value_length);
+        if (arg>0) {
+          document_file_insert(file, range_tree_length(&file->buffer), (uint8_t*)" ", 1, 0);
+        }
+
+        document_file_insert(file, range_tree_length(&file->buffer), value, value_length, 0);
+        free(value);
+      }
+    }
+
+    free(path_before);
+    path_before = path;
+    length_before = length;
+    depth_before = depth;
+    node = trie_crawl_next(base->keywords, node);
+  }
+
+  free(path_before);
+
+  document_file_save_plain(file, filename);
+  document_file_destroy(file);
 }
 
 // Load configuration file from disk or memory
@@ -371,17 +480,23 @@ struct trie_node* config_find_ascii(struct config* base, const char* keyword) {
   return config_advance_ascii(base, NULL, keyword);
 }
 
-// Get value at found position
-struct config_argument* config_value(struct trie_node* parent) {
+// Get command at found position
+struct config_command* config_command(struct trie_node* parent) {
   if (parent && parent->end) {
     struct config_value* value = (struct config_value*)list_object(*(struct list_node**)trie_object(parent));
     if (!value->commands.first) {
       return NULL;
     }
-    struct config_command* command = (struct config_command*)list_object(value->commands.first);
-    if (command->length==0) {
-      return NULL;
-    }
+    return (struct config_command*)list_object(value->commands.first);
+  }
+
+  return NULL;
+}
+
+// Get value at found position
+struct config_argument* config_value(struct trie_node* parent) {
+  struct config_command* command = config_command(parent);
+  if (command && command->length>0) {
     return &command->arguments[0];
   }
 
@@ -389,17 +504,66 @@ struct config_argument* config_value(struct trie_node* parent) {
 }
 
 // Convert code points to encoding
-uint8_t* config_convert_encoding_plain(struct config_argument* argument, struct encoding* encoding) {
-  if (!argument) {
+uint8_t* config_convert_encoding_codepoints(codepoint_t* codepoints, size_t length, struct encoding* encoding, size_t* output_length) {
+  if (!codepoints || length==0) {
+    if (output_length) {
+      *output_length = 0;
+    }
     return (uint8_t*)strdup("");
   }
 
-  return encoding_transform_plain((uint8_t*)argument->codepoints, argument->length*sizeof(codepoint_t), encoding_native_static(), encoding);
+  return encoding_transform_plain((uint8_t*)codepoints, length*sizeof(codepoint_t), encoding_native_static(), encoding, output_length);
+}
+
+
+// Convert code points to escaped pattern for rereading
+uint8_t* config_convert_encoding_escaped(codepoint_t* codepoints, size_t length, struct encoding* encoding, size_t* output_length) {
+  size_t escaped = 0;
+
+  for (size_t n = 0; n<length; n++) {
+    codepoint_t cp = codepoints[n];
+    if (cp=='\\' || cp=='"' || cp==',' || cp=='{' || cp=='}' || cp==':' || cp==' ' || cp=='\t') {
+      escaped++;
+    }
+  }
+
+  if (escaped>0) {
+    size_t best = escaped+length+2;
+    codepoint_t* encoded = (codepoint_t*)malloc(best*sizeof(codepoint_t));
+    codepoint_t* encode = encoded;
+    *encode++ = '"';
+    for (size_t n = 0; n<length; n++) {
+      codepoint_t cp = codepoints[n];
+      if (cp=='\\' || cp=='"') {
+        *encode++ = '\\';
+      }
+      *encode++ = cp;
+    }
+    *encode++ = '"';
+
+    uint8_t* data = config_convert_encoding_codepoints(encoded, best, encoding, output_length);
+    free(encoded);
+    return data;
+  }
+
+  return config_convert_encoding_codepoints(codepoints, length, encoding, output_length);
+}
+
+// Convert code points to encoding
+uint8_t* config_convert_encoding_plain(struct config_argument* argument, struct encoding* encoding, size_t* output_length) {
+  if (!argument) {
+    if (output_length) {
+      *output_length = 0;
+    }
+    return (uint8_t*)strdup("");
+  }
+
+  return config_convert_encoding_codepoints(argument->codepoints, argument->length, encoding, output_length);
 }
 
 // Convert value to encoding
-uint8_t* config_convert_encoding(struct trie_node* parent, struct encoding* encoding) {
-  return config_convert_encoding_plain(config_value(parent), encoding);
+uint8_t* config_convert_encoding(struct trie_node* parent, struct encoding* encoding, size_t* output_length) {
+  return config_convert_encoding_plain(config_value(parent), encoding, output_length);
 }
 
 // Convert code points to integer

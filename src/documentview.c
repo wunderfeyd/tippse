@@ -37,6 +37,8 @@ void document_view_reset(struct document_view* base, struct document_file* file,
   base->line_cut = 0;
   base->cursor_x = 0;
   base->cursor_y = 0;
+  base->seek_x = -1;
+  base->seek_y = -1;
   base->scroll_x = 0;
   base->scroll_y = 0;
   base->scroll_x_old = 0;

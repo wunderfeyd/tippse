@@ -88,10 +88,13 @@ struct range_tree* encoding_transform_stream(struct stream* stream, struct encod
 }
 
 // sequence plain text to different encoding
-uint8_t* encoding_transform_plain(const uint8_t* buffer, size_t length, struct encoding* from, struct encoding* to) {
+uint8_t* encoding_transform_plain(const uint8_t* buffer, size_t length, struct encoding* from, struct encoding* to, size_t* output_length) {
   struct stream stream;
   stream_from_plain(&stream, buffer, length);
   struct range_tree* root = encoding_transform_stream(&stream, from, to, FILE_OFFSET_T_MAX);
+  if (output_length) {
+    *output_length = (size_t)range_tree_length(root);
+  }
   uint8_t* raw = range_tree_raw(root, 0, range_tree_length(root));
   range_tree_destroy(root);
   stream_destroy(&stream);

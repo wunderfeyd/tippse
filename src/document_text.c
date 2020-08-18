@@ -1383,6 +1383,20 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     view->offset_calculated = FILE_OFFSET_T_MAX;
   }
 
+  if (view->seek_x!=-1 || view->seek_y!=-1) {
+    struct document_text_position in_x_y;
+    in_x_y.type = VISUAL_SEEK_X_Y;
+    in_x_y.clip = 0;
+    in_x_y.x = view->seek_x;
+    in_x_y.y = view->seek_y;
+
+    struct document_text_position out;
+    view->offset = document_text_cursor_position(view, file, &in_x_y, &out, 0, 1);
+    view->show_scrollbar = 1;
+    view->seek_x = -1;
+    view->seek_y = -1;
+  }
+
   if (file->save && file->buffer.root && range_tree_length(&file->buffer)!=range_tree_length(&view->selection)) {
     printf("\r\nSelection area and file length differ %d<>%d\r\n", (int)range_tree_length(&file->buffer), (int)range_tree_length(&view->selection));
     exit(0);

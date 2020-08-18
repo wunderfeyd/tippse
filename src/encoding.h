@@ -25,7 +25,7 @@ void encoding_reverse_table_reference(int* refs, uint16_t** referenced, uint16_t
 void encoding_reverse_table_dereference(int* refs, uint16_t* referenced);
 
 struct range_tree* encoding_transform_stream(struct stream* stream, struct encoding* from, struct encoding* to, file_offset_t max);
-uint8_t* encoding_transform_plain(const uint8_t* buffer, size_t length, struct encoding* from, struct encoding* to);
+uint8_t* encoding_transform_plain(const uint8_t* buffer, size_t length, struct encoding* from, struct encoding* to, size_t* output_length);
 struct range_tree* encoding_transform_page(struct range_tree_node* root, file_offset_t start, file_offset_t length, struct encoding* from, struct encoding* to);
 
 size_t encoding_strnlen(struct encoding* base, struct stream* stream, size_t size);

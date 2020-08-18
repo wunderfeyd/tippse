@@ -67,7 +67,8 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   struct document_file* base = (struct document_file*)malloc(sizeof(struct document_file));
   base->editor = editor;
   base->splitter = NULL;
-  range_tree_create_inplace(&base->buffer, base, TIPPSE_RANGETREE_CAPS_VISUAL);
+  base->config = config?config_create():NULL;
+  range_tree_create_inplace(&base->buffer, base, base->config?TIPPSE_RANGETREE_CAPS_VISUAL:0);
   range_tree_create_inplace(&base->bookmarks, NULL, 0);
   base->cache = NULL;
   base->caches = list_create(sizeof(struct document_file_cache));
@@ -86,7 +87,6 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->tabstop = TIPPSE_TABSTOP_AUTO;
   base->tabstop_width = 4;
   base->newline = TIPPSE_NEWLINE_AUTO;
-  base->config = config?config_create():NULL;
   base->type = file_type_text_create(base->config, "");
 #ifdef _ANSI_POSIX
   base->pipefd[0] = -1;
@@ -196,7 +196,7 @@ void document_file_encoding(struct document_file* base, struct encoding* encodin
 // Create another process or thread and route the output into the file
 void document_file_create_pipe(struct document_file* base) {
   range_tree_destroy_inplace(&base->buffer);
-  range_tree_create_inplace(&base->buffer, base, TIPPSE_RANGETREE_CAPS_VISUAL);
+  range_tree_create_inplace(&base->buffer, base, base->config?TIPPSE_RANGETREE_CAPS_VISUAL:0);
   document_undo_empty(base, base->undos);
   document_undo_empty(base, base->redos);
   document_file_reset_views(base, 1);
@@ -931,7 +931,7 @@ void document_file_reload_config(struct document_file* base) {
   }
 
   if (node && node->end) {
-    char* file_type = (char*)config_convert_encoding(node, encoding_utf8_static());
+    char* file_type = (char*)config_convert_encoding(node, encoding_utf8_static(), NULL);
 
     node = config_find_ascii(base->config, "/filetypes/");
     if (node) {
@@ -944,7 +944,7 @@ void document_file_reload_config(struct document_file* base) {
       node = config_advance_ascii(base->config, node_file_type, "/parser");
 
       if (node && node->end) {
-        char* parser = (char*)config_convert_encoding(node, encoding_utf8_static());
+        char* parser = (char*)config_convert_encoding(node, encoding_utf8_static(), NULL);
 
         for (size_t n = 0; document_file_parsers[n].name; n++) {
           if (strcmp(document_file_parsers[n].name, parser)==0) {
