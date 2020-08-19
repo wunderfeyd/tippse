@@ -5,9 +5,9 @@ Tippse is a small text and hex editor. It's designed to have a simple interface 
 
 * Syntax
 
-  tippse <files>
+  tippse <--state|-s statefile> <files...>
 
-  The files given at the command line are opened at startup.
+  The files given at the command line are opened at startup. If `--state` or `-s` is mentioned then the editor will restore the documents and windows on load from the state file and save these things during exit to the same state file.
 
 * Usage
 
