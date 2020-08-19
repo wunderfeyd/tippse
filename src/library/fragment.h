@@ -6,7 +6,7 @@
 
 #include <stdlib.h>
 #include "types.h"
-#include "../documentfile.h"
+#include "rangetree.h"
 
 struct fragment {
   int count;                            // Reference counter
@@ -19,8 +19,8 @@ struct fragment {
 };
 
 struct fragment* fragment_create_memory(uint8_t* buffer, size_t length);
-struct fragment* fragment_create_file(struct file_cache* cache, file_offset_t offset, file_offset_t length, struct document_file* file);
-void fragment_reference(struct fragment* base, struct document_file* file);
-void fragment_dereference(struct fragment* base, struct document_file* file);
+struct fragment* fragment_create_file(struct file_cache* cache, file_offset_t offset, file_offset_t length, struct range_tree_callback* callback);
+void fragment_reference(struct fragment* base, struct range_tree_callback* callback);
+void fragment_dereference(struct fragment* base, struct range_tree_callback* callback);
 
 #endif /* #ifndef TIPPSE_FRAGMENT_H */

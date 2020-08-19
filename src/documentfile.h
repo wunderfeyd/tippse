@@ -16,6 +16,12 @@
 
 #include "visualinfo.h"
 #include "library/rangetree.h"
+#define TIPPSE_RANGETREE_CAPS_VISUAL (TIPPSE_RANGETREE_CAPS_USER<<0)
+
+struct range_tree_callback_hook {
+  struct range_tree_callback callback;
+  struct document_file* file;
+};
 
 #define TIPPSE_DOCUMENT_MEMORY_LOADMAX 1024*1024
 #define TIPPSE_DOCUMENT_AUTO_LOADMAX 1024*16
@@ -90,6 +96,7 @@ struct document_file {
   struct trie* autocomplete_build;      // auto complete build tree
   int autocomplete_rescan;              // file was changed rescan entire document
 
+  struct range_tree_callback_hook hook;      // range tree hooks
 #ifdef _ANSI_POSIX
   int pipefd[2];                        // Pipe to child process
   pid_t pid;                            // Child process id
@@ -143,4 +150,11 @@ void document_file_reference_cache(struct document_file* base, struct file_cache
 void document_file_dereference_cache(struct document_file* base, struct file_cache* cache);
 int document_file_modified_cache(struct document_file* base);
 void document_file_invalidate_cache(struct document_file* base, struct file_cache* cache);
+
+void document_file_fragment_reference(struct range_tree_callback* base, struct fragment* fragment);
+void document_file_fragment_dereference(struct range_tree_callback* base, struct fragment* fragment);
+void document_file_node_combine(struct range_tree_callback* base, struct range_tree_node* node, struct range_tree* tree);
+void document_file_node_invalidate(struct range_tree_callback* base, struct range_tree_node* node, struct range_tree* tree);
+void document_file_node_destroy(struct range_tree_callback* base, struct range_tree_node* node, struct range_tree* tree);
+
 #endif /* #ifndef TIPPSE_DOCUMENTFILE_H */

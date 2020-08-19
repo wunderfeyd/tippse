@@ -36,7 +36,7 @@ void document_undo_add(struct document_file* file, struct document_view* view, f
   undo->offset = offset;
   undo->length = length;
   undo->type = type;
-  undo->buffer = range_tree_copy(&file->buffer, offset, length, file);
+  undo->buffer = range_tree_copy(&file->buffer, offset, length, &file->hook.callback);
   undo->cursor_delete = offset;
   undo->cursor_insert = offset+length;
 }

@@ -65,10 +65,17 @@ struct document_file_parser document_file_parsers[] = {
 // Create file operations
 struct document_file* document_file_create(int save, int config, struct editor* editor) {
   struct document_file* base = (struct document_file*)malloc(sizeof(struct document_file));
+  base->hook.file = base;
+  base->hook.callback.fragment_reference = document_file_fragment_reference;
+  base->hook.callback.fragment_dereference = document_file_fragment_dereference;
+  base->hook.callback.node_combine = document_file_node_combine;
+  base->hook.callback.node_invalidate = document_file_node_invalidate;
+  base->hook.callback.node_destroy = document_file_node_destroy;
+
   base->editor = editor;
   base->splitter = NULL;
   base->config = config?config_create():NULL;
-  range_tree_create_inplace(&base->buffer, base, base->config?TIPPSE_RANGETREE_CAPS_VISUAL:0);
+  range_tree_create_inplace(&base->buffer, &base->hook.callback, base->config?TIPPSE_RANGETREE_CAPS_VISUAL:0);
   range_tree_create_inplace(&base->bookmarks, NULL, 0);
   base->cache = NULL;
   base->caches = list_create(sizeof(struct document_file_cache));
@@ -196,7 +203,7 @@ void document_file_encoding(struct document_file* base, struct encoding* encodin
 // Create another process or thread and route the output into the file
 void document_file_create_pipe(struct document_file* base) {
   range_tree_destroy_inplace(&base->buffer);
-  range_tree_create_inplace(&base->buffer, base, base->config?TIPPSE_RANGETREE_CAPS_VISUAL:0);
+  range_tree_create_inplace(&base->buffer, &base->hook.callback, base->config?TIPPSE_RANGETREE_CAPS_VISUAL:0);
   document_undo_empty(base, base->undos);
   document_undo_empty(base, base->redos);
   document_file_reset_views(base, 1);
@@ -253,7 +260,7 @@ void document_file_fill_pipe(struct document_file* base, uint8_t* buffer, size_t
     file_offset_t offset = range_tree_length(&base->buffer);
     struct fragment* fragment = fragment_create_memory(copy, length);
     range_tree_insert(&base->buffer, offset, fragment, 0, length, 0, 0, NULL);
-    fragment_dereference(fragment, base);
+    fragment_dereference(fragment, &base->hook.callback);
 
     document_file_expand_all(base, offset, length);
   }
@@ -311,16 +318,16 @@ void document_file_load(struct document_file* base, const char* filename, int re
             block = TREE_BLOCK_LENGTH_MAX;
           }
 
-          fragment = fragment_create_file(base->cache, offset, block, base);
+          fragment = fragment_create_file(base->cache, offset, block, &base->hook.callback);
         }
 
         if (block==0) {
-          fragment_dereference(fragment, base);
+          fragment_dereference(fragment, &base->hook.callback);
           break;
         }
 
         range_tree_insert(&base->buffer, offset, fragment, 0, fragment->length, 0, 0, NULL);
-        fragment_dereference(fragment, base);
+        fragment_dereference(fragment, &base->hook.callback);
         offset += block;
       }
 
@@ -359,7 +366,7 @@ void document_file_load_memory(struct document_file* base, const uint8_t* buffer
     memcpy(copy, buffer, max);
     struct fragment* fragment = fragment_create_memory(copy, max);
     range_tree_insert(&base->buffer, offset, fragment, 0, max, 0, 0, NULL);
-    fragment_dereference(fragment, base);
+    fragment_dereference(fragment, &base->hook.callback);
     offset += max;
     length -= max;
     buffer += max;
@@ -796,7 +803,7 @@ void document_file_move(struct document_file* base, file_offset_t from, file_off
     corrected -= length;
   }
 
-  struct range_tree* buffer_file = range_tree_copy(&base->buffer, from, length, base);
+  struct range_tree* buffer_file = range_tree_copy(&base->buffer, from, length, &base->hook.callback);
   document_undo_add(base, NULL, from, length, TIPPSE_UNDO_TYPE_DELETE);
   range_tree_delete(&base->buffer, from, length, 0);
   range_tree_paste(&base->buffer, buffer_file->root, corrected);
@@ -1034,4 +1041,44 @@ int document_file_modified_cache(struct document_file* base) {
 // A file cache is going to be removed
 void document_file_invalidate_cache(struct document_file* base, struct file_cache* cache) {
   range_tree_cache_invalidate(&base->buffer, cache);
+}
+
+// Range tree hook, referenced fragment
+void document_file_fragment_reference(struct range_tree_callback* base, struct fragment* fragment) {
+  struct range_tree_callback_hook* hook = (struct range_tree_callback_hook*)base;
+  if (fragment->type==FRAGMENT_FILE) {
+    document_file_reference_cache(hook->file, fragment->cache);
+  }
+}
+
+// Range tree hook, dereferenced fragment
+void document_file_fragment_dereference(struct range_tree_callback* base, struct fragment* fragment) {
+  struct range_tree_callback_hook* hook = (struct range_tree_callback_hook*)base;
+  if (fragment->type==FRAGMENT_FILE) {
+    document_file_dereference_cache(hook->file, fragment->cache);
+  }
+}
+
+// Range tree hook, node has to be combined
+void document_file_node_combine(struct range_tree_callback* base, struct range_tree_node* node, struct range_tree* tree) {
+  struct range_tree_callback_hook* hook = (struct range_tree_callback_hook*)base;
+  if ((tree->caps&TIPPSE_RANGETREE_CAPS_VISUAL)) {
+    document_file_combine_view_node(hook->file, node);
+   }
+}
+
+// Range tree hook, node has to be invalidated
+void document_file_node_invalidate(struct range_tree_callback* base, struct range_tree_node* node, struct range_tree* tree) {
+  struct range_tree_callback_hook* hook = (struct range_tree_callback_hook*)base;
+  if ((tree->caps&TIPPSE_RANGETREE_CAPS_VISUAL)) {
+    document_file_invalidate_view_node(hook->file, node, tree);
+  }
+}
+
+// Range tree hook, node has to be destroyed
+void document_file_node_destroy(struct range_tree_callback* base, struct range_tree_node* node, struct range_tree* tree) {
+  struct range_tree_callback_hook* hook = (struct range_tree_callback_hook*)base;
+  if ((tree->caps&TIPPSE_RANGETREE_CAPS_VISUAL)) {
+    document_file_destroy_view_node(hook->file, node);
+  }
 }

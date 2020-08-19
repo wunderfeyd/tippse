@@ -22,10 +22,22 @@
 
 #define TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT 16
 
-#define TIPPSE_RANGETREE_CAPS_VISUAL 1
-#define TIPPSE_RANGETREE_CAPS_DEALLOCATE_USER_DATA 2
+#define TIPPSE_RANGETREE_CAPS_DEALLOCATE_USER_DATA 1
+#define TIPPSE_RANGETREE_CAPS_USER 2
 
 #include "list.h"
+
+struct fragment;
+struct range_tree_node;
+
+struct range_tree_callback {
+  void (*fragment_reference)(struct range_tree_callback* base, struct fragment* fragment);
+  void (*fragment_dereference)(struct range_tree_callback* base, struct fragment* fragment);
+
+  void (*node_combine)(struct range_tree_callback* base, struct range_tree_node* node, struct range_tree* tree);
+  void (*node_invalidate)(struct range_tree_callback* base, struct range_tree_node* node, struct range_tree* tree);
+  void (*node_destroy)(struct range_tree_callback* base, struct range_tree_node* node, struct range_tree* tree);
+};
 
 struct range_tree_node {
   struct range_tree_node* parent;   // parent node
@@ -47,14 +59,12 @@ struct range_tree_node {
 
 struct range_tree {
   struct range_tree_node* root;
-  struct document_file* file;
+  struct range_tree_callback* callback;
   int caps;
 };
 
-struct fragment;
-
-struct range_tree* range_tree_create(struct document_file* file, int caps);
-void range_tree_create_inplace(struct range_tree* base, struct document_file* file, int caps);
+struct range_tree* range_tree_create(struct range_tree_callback* callback, int caps);
+void range_tree_create_inplace(struct range_tree* base, struct range_tree_callback* callback, int caps);
 void range_tree_destroy(struct range_tree* base);
 void range_tree_destroy_inplace(struct range_tree* base);
 
@@ -67,7 +77,7 @@ void range_tree_cache_invalidate(struct range_tree* base, struct file_cache* cac
 void range_tree_insert(struct range_tree* base, file_offset_t offset, struct fragment* buffer, file_offset_t buffer_offset, file_offset_t buffer_length, int inserter, int64_t fuse_id, void* user_data);
 void range_tree_insert_split(struct range_tree* base, file_offset_t offset, const uint8_t* text, size_t length, int inserter);
 void range_tree_delete(struct range_tree* base, file_offset_t offset, file_offset_t length, int inserter);
-struct range_tree* range_tree_copy(struct range_tree* base, file_offset_t offset, file_offset_t length, struct document_file* file);
+struct range_tree* range_tree_copy(struct range_tree* base, file_offset_t offset, file_offset_t length, struct range_tree_callback* callback);
 void range_tree_paste(struct range_tree* base, struct range_tree_node* copy, file_offset_t offset);
 uint8_t* range_tree_raw(struct range_tree* base, file_offset_t start, file_offset_t end);
 

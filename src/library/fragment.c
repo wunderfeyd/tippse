@@ -2,7 +2,6 @@
 
 #include "fragment.h"
 
-#include "../documentfile.h"
 #include "filecache.h"
 
 // Return referenced fragment to a memory location
@@ -18,7 +17,7 @@ struct fragment* fragment_create_memory(uint8_t* buffer, size_t length) {
 }
 
 // Return referenced fragment to an on disk file location
-struct fragment* fragment_create_file(struct file_cache* cache, file_offset_t offset, file_offset_t length, struct document_file* file) {
+struct fragment* fragment_create_file(struct file_cache* cache, file_offset_t offset, file_offset_t length, struct range_tree_callback* callback) {
   struct fragment* base = (struct fragment*)malloc(sizeof(struct fragment));
   base->type = FRAGMENT_FILE;
   base->count = 0;
@@ -26,25 +25,25 @@ struct fragment* fragment_create_file(struct file_cache* cache, file_offset_t of
   base->offset = offset;
   base->length = length;
 
-  fragment_reference(base, file);
+  fragment_reference(base, callback);
   file_cache_reference(base->cache);
 
   return base;
 }
 
 // Increment reference counter
-void fragment_reference(struct fragment* base, struct document_file* file) {
-  if (base->type==FRAGMENT_FILE && file) {
-    document_file_reference_cache(file, base->cache);
+void fragment_reference(struct fragment* base, struct range_tree_callback* callback) {
+  if (callback) {
+    (*callback->fragment_reference)(callback, base);
   }
 
   base->count++;
 }
 
 // Decrement reference counter and remove object if it hits zero instances
-void fragment_dereference(struct fragment* base, struct document_file* file) {
-  if (base->type==FRAGMENT_FILE && file) {
-    document_file_dereference_cache(file, base->cache);
+void fragment_dereference(struct fragment* base, struct range_tree_callback* callback) {
+  if (callback) {
+    (*callback->fragment_dereference)(callback, base);
   }
 
   base->count--;

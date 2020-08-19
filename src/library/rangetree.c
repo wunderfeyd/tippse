@@ -4,19 +4,18 @@
 
 #include "fragment.h"
 #include "stream.h"
-#include "../documentfile.h"
 
 int64_t range_tree_node_fuse_id = 1;
 
-struct range_tree* range_tree_create(struct document_file* file, int caps) {
+struct range_tree* range_tree_create(struct range_tree_callback* callback, int caps) {
   struct range_tree* base = (struct range_tree*)malloc(sizeof(struct range_tree));
-  range_tree_create_inplace(base, file, caps);
+  range_tree_create_inplace(base, callback, caps);
   return base;
 }
 
-void range_tree_create_inplace(struct range_tree* base, struct document_file* file, int caps) {
+void range_tree_create_inplace(struct range_tree* base, struct range_tree_callback* callback, int caps) {
   base->root = NULL;
-  base->file = file;
+  base->callback = callback;
   base->caps = caps;
 }
 
@@ -29,7 +28,7 @@ void range_tree_destroy_inplace(struct range_tree* base) {
   if (base->root) {
     range_tree_node_destroy(base->root, base);
     base->root = NULL;
-    base->file = NULL;
+    base->callback = NULL;
   }
 }
 
@@ -41,8 +40,8 @@ struct range_tree_node* range_tree_invoke(struct range_tree* base) {
 
 // Deallocate range tree node
 void range_tree_revoke(struct range_tree* base, struct range_tree_node* node) {
-  if ((base->caps&TIPPSE_RANGETREE_CAPS_VISUAL)) {
-    document_file_destroy_view_node(base->file, node);
+  if (base->callback) {
+    (*base->callback->node_destroy)(base->callback, node, base);
   }
 
   if ((base->caps&TIPPSE_RANGETREE_CAPS_DEALLOCATE_USER_DATA)) {
@@ -56,8 +55,8 @@ void range_tree_revoke(struct range_tree* base, struct range_tree_node* node) {
 // Reallocate the fragment if it is referenced only once and had become smaller due to the edit process (save memory)
 void range_tree_node_invalidate(struct range_tree_node* node, struct range_tree* base) {
   if (node->buffer) {
-    if ((base->caps&TIPPSE_RANGETREE_CAPS_VISUAL)) {
-      document_file_invalidate_view_node(base->file, node, base);
+    if (base->callback) {
+      (*base->callback->node_invalidate)(base->callback, node, base);
     }
 
     if (node->buffer->count==1 && (node->offset!=0 || node->length!=node->buffer->length) && node->length>0) {
@@ -98,7 +97,7 @@ void range_tree_node_cache_invalidate(struct range_tree_node* node, struct range
       struct fragment* fragment = fragment_create_memory(buffer, length);
       stream_destroy(&stream);
 
-      fragment_dereference(node->buffer, base->file);
+      fragment_dereference(node->buffer, base->callback);
       node->buffer = fragment;
       node->offset = 0;
     }
@@ -146,7 +145,7 @@ void range_tree_fuse(struct range_tree* base, struct range_tree_node* first, str
           stream_destroy(&stream_first);
 
           struct fragment* buffer = fragment_create_memory(copy, length_first+length_next);
-          fragment_dereference(first->buffer, base->file);
+          fragment_dereference(first->buffer, base->callback);
 
           first->buffer = buffer;
           first->length = buffer->length;
@@ -158,7 +157,7 @@ void range_tree_fuse(struct range_tree* base, struct range_tree_node* first, str
           if (next==last) {
             last = first;
           }
-          fragment_dereference(next->buffer, base->file);
+          fragment_dereference(next->buffer, base->callback);
           next->buffer = NULL;
           next->inserter &= ~TIPPSE_INSERTER_LEAF;
           range_tree_node_update(next, base);
@@ -267,7 +266,7 @@ void range_tree_delete(struct range_tree* base, file_offset_t offset, file_offse
     length -= node->length;
 
     if (node->buffer) {
-      fragment_dereference(node->buffer, base->file);
+      fragment_dereference(node->buffer, base->callback);
       node->buffer = NULL;
     }
     node->inserter &= ~TIPPSE_INSERTER_LEAF;
@@ -290,8 +289,8 @@ void range_tree_delete(struct range_tree* base, file_offset_t offset, file_offse
 }
 
 // Create copy of a specific range
-struct range_tree* range_tree_copy(struct range_tree* base, file_offset_t offset, file_offset_t length, struct document_file* file) {
-  struct range_tree* copy = range_tree_create(file, 0);
+struct range_tree* range_tree_copy(struct range_tree* base, file_offset_t offset, file_offset_t length, struct range_tree_callback* callback) {
+  struct range_tree* copy = range_tree_create(callback, 0);
   range_tree_node_copy_insert(base->root, offset, copy, 0, length);
   return copy;
 }
@@ -584,9 +583,8 @@ void range_tree_node_update_calc(struct range_tree_node* node, struct range_tree
     node->length = node->side[0]->length+node->side[1]->length;
     node->depth = ((node->side[0]->depth>node->side[1]->depth)?node->side[0]->depth:node->side[1]->depth)+1;
     node->inserter = ((node->side[0]?node->side[0]->inserter:0)|(node->side[1]?node->side[1]->inserter:0))&~TIPPSE_INSERTER_LEAF;
-    if ((tree->caps&TIPPSE_RANGETREE_CAPS_VISUAL)) {
-      //visual_info_combine(NULL, node->visuals, node->side[0]->visuals, node->side[1]->visuals);
-      document_file_combine_view_node(tree->file, node);
+    if (tree->callback) {
+      (*tree->callback->node_combine)(tree->callback, node, tree);
     }
   }
 }
@@ -609,7 +607,7 @@ void range_tree_node_destroy(struct range_tree_node* node, struct range_tree* tr
   range_tree_node_destroy(node->side[1], tree);
 
   if (node->buffer) {
-    fragment_dereference(node->buffer, tree->file);
+    fragment_dereference(node->buffer, tree->callback);
   }
 
   range_tree_revoke(tree, node);
@@ -625,7 +623,7 @@ struct range_tree_node* range_tree_node_create(struct range_tree_node* parent, s
   node->next = NULL;
   node->prev = NULL;
   if (node->buffer) {
-    fragment_reference(node->buffer, tree->file);
+    fragment_reference(node->buffer, tree->callback);
     if (node->buffer->type==FRAGMENT_FILE) {
       inserter |= TIPPSE_INSERTER_FILE;
     }
