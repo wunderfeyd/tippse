@@ -3,7 +3,7 @@
 #include "patch.h"
 
 #include "../document_text.h"
-#include "../trie.h"
+#include "../library/trie.h"
 #include "../visualinfo.h"
 
 struct file_type* file_type_patch_create(struct config* config, const char* file_type) {

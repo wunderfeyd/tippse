@@ -3,10 +3,10 @@
 #include "clipboard.h"
 
 #include "document_hex.h"
-#include "fragment.h"
-#include "rangetree.h"
-#include "stream.h"
-#include "encoding.h"
+#include "library/fragment.h"
+#include "library/rangetree.h"
+#include "library/stream.h"
+#include "library/encoding.h"
 
 static struct range_tree* clipboard_data = NULL;
 static struct encoding* clipboard_encoding = NULL;

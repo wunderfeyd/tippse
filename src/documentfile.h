@@ -15,7 +15,7 @@
 #endif
 
 #include "visualinfo.h"
-#include "rangetree.h"
+#include "library/rangetree.h"
 
 #define TIPPSE_DOCUMENT_MEMORY_LOADMAX 1024*1024
 #define TIPPSE_DOCUMENT_AUTO_LOADMAX 1024*16

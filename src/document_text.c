@@ -9,16 +9,16 @@
 #include "documentundo.h"
 #include "documentview.h"
 #include "editor.h"
-#include "encoding.h"
-#include "encoding/utf8.h"
+#include "library/encoding.h"
+#include "library/encoding/utf8.h"
 #include "filetype.h"
-#include "fragment.h"
-#include "misc.h"
-#include "rangetree.h"
+#include "library/fragment.h"
+#include "library/misc.h"
+#include "library/rangetree.h"
 #include "screen.h"
-#include "trie.h"
+#include "library/trie.h"
 #include "splitter.h"
-#include "unicode.h"
+#include "library/unicode.h"
 
 // Temporary debug visualisation
 #define DEBUG_NONE 0

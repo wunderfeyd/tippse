@@ -3,7 +3,7 @@
 #include "visualinfo.h"
 
 #include "config.h"
-#include "rangetree.h"
+#include "library/rangetree.h"
 #include "documentview.h"
 
 // color entry names

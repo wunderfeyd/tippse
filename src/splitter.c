@@ -7,8 +7,8 @@
 #include "document_hex.h"
 #include "documentfile.h"
 #include "documentview.h"
-#include "list.h"
-#include "misc.h"
+#include "library/list.h"
+#include "library/misc.h"
 #include "screen.h"
 
 // Create splitter

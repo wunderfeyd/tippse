@@ -3,7 +3,7 @@
 #include "lua.h"
 
 #include "../document_text.h"
-#include "../trie.h"
+#include "../library/trie.h"
 #include "../visualinfo.h"
 
 struct file_type* file_type_lua_create(struct config* config, const char* file_type) {

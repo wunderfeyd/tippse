@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 #include "types.h"
+#include "../documentfile.h"
 
 struct fragment {
   int count;                            // Reference counter

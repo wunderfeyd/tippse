@@ -19,7 +19,7 @@
 #include <signal.h>
 #endif
 #include "types.h"
-#include "unicode.h"
+#include "library/unicode.h"
 
 // Single display character (usally fits into a terminal character cell)
 struct screen_char {

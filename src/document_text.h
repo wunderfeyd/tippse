@@ -5,8 +5,8 @@
 #include "types.h"
 
 #include "document.h"
-#include "encoding.h"
-#include "stream.h"
+#include "library/encoding.h"
+#include "library/stream.h"
 #include "visualinfo.h"
 
 // Scan at max the first 2MiB of the file for autocomplete information

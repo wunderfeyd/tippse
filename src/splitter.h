@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 #include "types.h"
-#include "unicode.h"
+#include "library/unicode.h"
 
 // Splitter flags
 #define TIPPSE_SPLITTER_HORZ 1

@@ -19,7 +19,7 @@ endif
 
 CFLAGSEXTRA=-s
 OBJDIR=tmp
-SRCS=$(wildcard src/lib/*.c) $(wildcard src/*.c) $(wildcard src/filetype/*.c) $(wildcard src/encoding/*.c)
+SRCS=$(wildcard src/*.c) $(wildcard src/filetype/*.c) $(wildcard src/library/encoding/*.c) $(wildcard src/library/unicode/*.c) $(wildcard src/library/*.c)
 OBJS=$(addprefix $(OBJDIR)/,$(addsuffix .o,$(basename $(SRCS))))
 DOCS=$(wildcard doc/*.md) LICENSE.md
 COMPILED_DOCS=$(addprefix $(OBJDIR)/,$(addsuffix .h,$(basename $(DOCS))))

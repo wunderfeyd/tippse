@@ -3,11 +3,11 @@
 #include "screen.h"
 
 #include "config.h"
-#include "encoding/utf8.h"
-#include "encoding/cp850.h"
-#include "encoding/ascii.h"
-#include "encoding/utf16le.h"
-#include "unicode.h"
+#include "library/encoding/utf8.h"
+#include "library/encoding/cp850.h"
+#include "library/encoding/ascii.h"
+#include "library/encoding/utf16le.h"
+#include "library/unicode.h"
 
 #ifdef _TESTSUITE
 #define _TESTSUITE_SCREEN

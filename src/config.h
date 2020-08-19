@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "types.h"
 
-#include "list.h"
+#include "library/list.h"
 
 struct config_argument {
   codepoint_t* codepoints;  // argument codepoints

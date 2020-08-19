@@ -3,11 +3,11 @@
 #include "config.h"
 
 #include "documentfile.h"
-#include "encoding.h"
-#include "encoding/native.h"
-#include "misc.h"
-#include "rangetree.h"
-#include "trie.h"
+#include "library/encoding.h"
+#include "library/encoding/native.h"
+#include "library/misc.h"
+#include "library/rangetree.h"
+#include "library/trie.h"
 
 static const char* config_filename = ".tippse";
 

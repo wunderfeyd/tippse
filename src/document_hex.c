@@ -7,14 +7,14 @@
 #include "documentundo.h"
 #include "documentview.h"
 #include "editor.h"
-#include "encoding.h"
+#include "library/encoding.h"
 #include "filetype.h"
-#include "misc.h"
-#include "rangetree.h"
+#include "library/misc.h"
+#include "library/rangetree.h"
 #include "screen.h"
 #include "splitter.h"
-#include "trie.h"
-#include "unicode.h"
+#include "library/trie.h"
+#include "library/unicode.h"
 
 // Create document
 struct document* document_hex_create(void) {

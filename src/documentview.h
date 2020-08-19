@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 #include "types.h"
-#include "rangetree.h"
+#include "library/rangetree.h"
 
 struct document_view {
   file_offset_t offset;                 // file offset

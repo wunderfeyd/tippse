@@ -3,7 +3,7 @@
 #include "c.h"
 
 #include "../document_text.h"
-#include "../trie.h"
+#include "../library/trie.h"
 #include "../visualinfo.h"
 
 struct file_type* file_type_c_create(struct config* config, const char* file_type) {

@@ -3,7 +3,7 @@
 #include "documentview.h"
 
 #include "documentfile.h"
-#include "rangetree.h"
+#include "library/rangetree.h"
 
 static int document_view_uid = 1; // Unique view identifier for visual caching
 

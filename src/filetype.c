@@ -4,9 +4,9 @@
 
 #include "config.h"
 #include "document_text.h"
-#include "encoding.h"
-#include "rangetree.h"
-#include "trie.h"
+#include "library/encoding.h"
+#include "library/rangetree.h"
+#include "library/trie.h"
 #include "visualinfo.h"
 
 extern struct config_cache visual_color_codes[VISUAL_FLAG_COLOR_MAX+1];

@@ -4,7 +4,7 @@
 
 #include "fragment.h"
 #include "stream.h"
-#include "documentfile.h"
+#include "../documentfile.h"
 
 int64_t range_tree_node_fuse_id = 1;
 

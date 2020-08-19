@@ -2,7 +2,7 @@
 
 #include "fragment.h"
 
-#include "documentfile.h"
+#include "../documentfile.h"
 #include "filecache.h"
 
 // Return referenced fragment to a memory location

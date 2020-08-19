@@ -15,12 +15,12 @@
 #include "clipboard.h"
 #include "documentfile.h"
 #include "editor.h"
-#include "encoding/utf8.h"
-#include "file.h"
-#include "misc.h"
+#include "library/encoding/utf8.h"
+#include "library/file.h"
+#include "library/misc.h"
 #include "screen.h"
-#include "search.h"
-#include "unicode.h"
+#include "library/search.h"
+#include "library/unicode.h"
 
 #ifdef _PERFORMANCE
 #include "splitter.h"
