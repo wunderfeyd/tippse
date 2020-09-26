@@ -110,7 +110,7 @@ void search_append_next_codepoint(struct search_node* last, codepoint_t* buffer,
 void search_append_next_byte(struct search_node* last, uint8_t* buffer, size_t size);
 void search_debug_tree(struct search* base, struct search_node* node, size_t depth, int length, int stop);
 
-int search_find(struct search* base, struct stream* text, file_offset_t* left);
+int search_find(struct search* base, struct stream* text, file_offset_t* left, int* abort);
 int search_find_check(struct search* base, struct stream* text);
 int search_find_loop(struct search* base, struct search_node* node, struct stream* text);
 

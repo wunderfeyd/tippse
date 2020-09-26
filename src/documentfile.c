@@ -12,6 +12,7 @@
 #include "library/encoding/cp850.h"
 #include "library/encoding/ascii.h"
 #include "editor.h"
+#include "document.h"
 #include "library/file.h"
 #include "library/filecache.h"
 #include "filetype.h"
@@ -62,6 +63,15 @@ struct document_file_parser document_file_parsers[] = {
   {NULL,  NULL}
 };
 
+struct document_file_pipe_operation* document_file_pipe_operation_create() {
+  struct document_file_pipe_operation* base = (struct document_file_pipe_operation*)malloc(sizeof(struct document_file_pipe_operation));
+  return base;
+}
+
+void document_file_pipe_operation_destroy(struct document_file_pipe_operation* base) {
+  free(base);
+}
+
 // Create file operations
 struct document_file* document_file_create(int save, int config, struct editor* editor) {
   struct document_file* base = (struct document_file*)malloc(sizeof(struct document_file));
@@ -95,10 +105,10 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->tabstop_width = 4;
   base->newline = TIPPSE_NEWLINE_AUTO;
   base->type = file_type_text_create(base->config, "");
-#ifdef _ANSI_POSIX
-  base->pipefd[0] = -1;
-  base->pipefd[1] = -1;
-#endif
+  base->piped = TIPPSE_PIPE_FREE;
+  base->pipe_queue = list_create(sizeof(struct document_file_pipe_block));
+  base->pipe_operation = NULL;
+  mutex_create_inplace(&base->pipe_mutex);
   base->autocomplete_offset = 0;
   base->autocomplete_last = NULL;
   base->autocomplete_build = NULL;
@@ -141,9 +151,7 @@ void document_file_destroy(struct document_file* base) {
   document_file_clear(base, 1);
   range_tree_destroy_inplace(&base->buffer);
   range_tree_destroy_inplace(&base->bookmarks);
-#ifdef _ANSI_POSIX
   document_file_close_pipe(base);
-#endif
   document_undo_empty(base, base->undos);
   document_undo_empty(base, base->redos);
   list_destroy(base->undos);
@@ -156,6 +164,8 @@ void document_file_destroy(struct document_file* base) {
 
   list_destroy(base->views);
   list_destroy(base->caches);
+  list_destroy(base->pipe_queue);
+  mutex_destroy_inplace(&base->pipe_mutex);
   free(base->filename);
   (*base->type->destroy)(base->type);
   (*base->encoding->destroy)(base->encoding);
@@ -199,97 +209,240 @@ void document_file_encoding(struct document_file* base, struct encoding* encodin
   base->encoding = encoding;
 }
 
+void document_file_pipe_entry(struct thread* thread) {
+  struct document_file* base = (struct document_file*)thread->data;
+
+  if (base->pipe_operation->operation==TIPPSE_PIPEOP_SEARCH) {
+    document_search_directory(thread, base, base->pipe_operation->search.path, base->pipe_operation->search.buffer, base->pipe_operation->search.encoding, NULL, NULL, base->pipe_operation->search.ignore_case, base->pipe_operation->search.regex, 0, base->pipe_operation->search.pattern_text, encoding_utf8_static(), base->pipe_operation->search.binary);
+
+    free(base->pipe_operation->search.path);
+    free(base->pipe_operation->search.pattern_text);
+    base->pipe_operation->search.encoding->destroy(base->pipe_operation->search.encoding);
+    range_tree_destroy(base->pipe_operation->search.buffer);
+  } else if (base->pipe_operation->operation==TIPPSE_PIPEOP_EXECUTE) {
 #ifdef _ANSI_POSIX
+    int pipefd[2];
+    UNUSED(pipe(pipefd));
+    signal(SIGCHLD, SIG_IGN);
+    pid_t pid = fork();
+    if (pid==0) {
+      dup2(pipefd[0], 0);
+      dup2(pipefd[1], 1);
+      dup2(pipefd[1], 2);
+      close(pipefd[0]);
+      close(pipefd[1]);
+
+      const char* argv[4];
+      argv[0] = "/bin/sh";
+      argv[1] = "-c";
+      argv[2] = base->pipe_operation->execute.shell;
+      argv[3] = NULL;
+      setpgid(0, 0);
+      execv(argv[0], (char**)&argv[0]);
+      exit(0);
+    } else {
+      close(pipefd[1]);
+
+      int flags = fcntl(pipefd[0], F_GETFL, 0);
+      fcntl(pipefd[0], F_SETFL, flags|O_NONBLOCK);
+
+      int shutdown = 0;
+      int cancel = 0;
+      while (!shutdown) {
+        if (thread->shutdown && !cancel) {
+          cancel = 1;
+          document_file_fill_pipe(base, (uint8_t*)"** Aborting **\r\n", 16);
+          killpg(pid, SIGTERM);
+        }
+
+        fd_set set_read;
+        struct timeval tv;
+        tv.tv_sec = 0;
+        tv.tv_usec = 100000;
+        FD_ZERO(&set_read);
+        FD_SET(pipefd[0], &set_read);
+        int nfds = pipefd[0];
+
+        int ret = select(nfds+1, &set_read, NULL, NULL, &tv);
+        if (ret>0 && FD_ISSET(pipefd[0], &set_read)) {
+          while (1) {
+            uint8_t data[4096];
+            int in = read(pipefd[0], data, sizeof(data));
+            if (in<=0) {
+              if (in==0) {
+                shutdown = 1;
+              }
+
+              break;
+            }
+
+            document_file_fill_pipe(base, data, (size_t)in);
+          }
+        }
+      }
+
+      close(pipefd[0]);
+    }
+#else
+    STARTUPINFO si = {0};
+    PROCESS_INFORMATION pi = {0};
+    si.cb = sizeof(STARTUPINFO);
+    GetStartupInfo(&si);
+    SECURITY_ATTRIBUTES security;
+    security.nLength = sizeof(SECURITY_ATTRIBUTES);
+    security.bInheritHandle = TRUE;
+    security.lpSecurityDescriptor = NULL;
+
+    HANDLE pipe_in;
+    HANDLE pipe_out;
+    CreatePipe(&pipe_in, &pipe_out, &security, 0);
+    si.hStdError = pipe_out;
+    si.hStdOutput = pipe_out;
+    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    si.dwFlags |= STARTF_USESTDHANDLES;
+
+    if (CreateProcess(NULL, base->pipe_operation->execute.shell, NULL, NULL, TRUE, 0, GetEnvironmentStrings(), NULL, &si, &pi)) {
+      int shutdown = 0;
+      int cancel = 0;
+      while (!shutdown) {
+        if (thread->shutdown && !cancel) {
+          cancel = 1;
+          document_file_fill_pipe(base, (uint8_t*)"** Aborting **\r\n", 16);
+          TerminateProcess(pi.hProcess, 0);
+        }
+
+        DWORD error = WaitForSingleObject(pi.hProcess, 10);
+
+        DWORD peek = 0;
+        DWORD read = 0;
+        uint8_t data[4096];
+        if (PeekNamedPipe(pipe_in, &data[0], sizeof(data), &peek, NULL, NULL)) {
+          if (peek>0) {
+            ReadFile(pipe_in, &data[0], sizeof(data), &read, NULL);
+            document_file_fill_pipe(base, data, (size_t)read);
+          }
+        }
+
+        if (error!=WAIT_TIMEOUT && read==0) {
+          break;
+        }
+      }
+
+      CloseHandle(pi.hProcess);
+      CloseHandle(pi.hThread);
+    }
+
+    CloseHandle(pipe_in);
+    CloseHandle(pipe_out);
+#endif
+
+    if (thread->shutdown) {
+      document_file_fill_pipe(base, (uint8_t*)"** ABORTED **\r\n", 15);
+    }
+
+    free(base->pipe_operation->execute.shell);
+  }
+
+  document_file_pipe_operation_destroy(base->pipe_operation);
+  base->pipe_operation = NULL;
+
+  base->piped = TIPPSE_PIPE_DONE;
+  base->editor->update_signal(base);
+}
+
 // Create another process or thread and route the output into the file
-void document_file_create_pipe(struct document_file* base) {
+void document_file_create_pipe(struct document_file* base, struct document_file_pipe_operation* pipe_operation) {
+  document_file_close_pipe(base);
+
   range_tree_destroy_inplace(&base->buffer);
   range_tree_create_inplace(&base->buffer, &base->hook.callback, base->config?TIPPSE_RANGETREE_CAPS_VISUAL:0);
   document_undo_empty(base, base->undos);
   document_undo_empty(base, base->redos);
   document_file_reset_views(base, 1);
 
-  document_file_close_pipe(base);
+  document_undo_mark_save_point(base);
+  document_file_detect_properties(base);
+  range_tree_static(&base->bookmarks, range_tree_length(&base->buffer), 0);
+  document_file_reset_views(base, 1);
 
-  UNUSED(pipe(base->pipefd));
+  (*base->type->destroy)(base->type);
+  base->type = file_type_c_create(base->config, "compiler_output");
 
-  signal(SIGCHLD, SIG_IGN);
-  base->pid = fork();
-  if (base->pid==0) {
-    dup2(base->pipefd[0], 0);
-    dup2(base->pipefd[1], 1);
-    dup2(base->pipefd[1], 2);
-    close(base->pipefd[0]);
-    close(base->pipefd[1]);
-  } else {
-    close(base->pipefd[1]);
-
-    int flags = fcntl(base->pipefd[0], F_GETFL, 0);
-    fcntl(base->pipefd[0], F_SETFL, flags|O_NONBLOCK);
-
-    document_undo_mark_save_point(base);
-    document_file_detect_properties(base);
-    range_tree_static(&base->bookmarks, range_tree_length(&base->buffer), 0);
-    document_file_reset_views(base, 1);
-
-    (*base->type->destroy)(base->type);
-    base->type = file_type_c_create(base->config, "compiler_output");
-  }
+  base->piped = TIPPSE_PIPE_ACTIVE;
+  base->pipe_operation = pipe_operation;
+  thread_create_inplace(&base->thread_pipe, document_file_pipe_entry, base);
 }
 
 // Execute system command and push output into file contents
 void document_file_pipe(struct document_file* base, const char* command) {
   document_file_name(base, command);
-  document_file_create_pipe(base);
-  if (base->pid==0) {
-    const char* argv[4];
-    argv[0] = "/bin/sh";
-    argv[1] = "-c";
-    argv[2] = (char*)command;
-    argv[3] = NULL;
-    setpgid(0, 0);
-    execv(argv[0], (char**)&argv[0]);
-    exit(0);
-  }
+  document_file_create_pipe(base, NULL);
 }
 
 // Append incoming data from pipe
 void document_file_fill_pipe(struct document_file* base, uint8_t* buffer, size_t length) {
-  if (length>0) {
-    uint8_t* copy = (uint8_t*)malloc(length);
-    memcpy(copy, buffer, length);
-    file_offset_t offset = range_tree_length(&base->buffer);
-    struct fragment* fragment = fragment_create_memory(copy, length);
-    range_tree_insert(&base->buffer, offset, fragment, 0, length, 0, 0, NULL);
-    fragment_dereference(fragment, &base->hook.callback);
+  if (length==0) {
+    return;
+  }
 
-    document_file_expand_all(base, offset, length);
+  struct document_file_pipe_block block;
+  block.data = malloc(length);
+  block.length = length;
+  memcpy(block.data, buffer, block.length);
+  mutex_lock(&base->pipe_mutex);
+  list_insert(base->pipe_queue, base->pipe_queue->last, &block);
+  mutex_unlock(&base->pipe_mutex);
+  base->editor->update_signal(base);
+}
+
+// Append incoming data from pipe queue
+void document_file_flush_pipe(struct document_file* base) {
+  mutex_lock(&base->pipe_mutex);
+  while (base->pipe_queue->first) {
+    struct document_file_pipe_block* block = (struct document_file_pipe_block*)list_object(base->pipe_queue->first);
+    mutex_unlock(&base->pipe_mutex);
+    if (block->length>0) {
+      file_offset_t offset = range_tree_length(&base->buffer);
+      struct fragment* fragment = fragment_create_memory(block->data, block->length);
+      range_tree_insert(&base->buffer, offset, fragment, 0, block->length, 0, 0, NULL);
+      fragment_dereference(fragment, &base->hook.callback);
+
+      document_file_expand_all(base, offset, block->length);
+    }
+
+    mutex_lock(&base->pipe_mutex);
+    list_remove(base->pipe_queue, base->pipe_queue->first);
+  }
+
+  mutex_unlock(&base->pipe_mutex);
+}
+
+// Close incoming pipe
+void document_file_shutdown_pipe(struct document_file* base) {
+  if (base->piped==TIPPSE_PIPE_ACTIVE) {
+    thread_shutdown(&base->thread_pipe);
   }
 }
 
 // Close incoming pipe
 void document_file_close_pipe(struct document_file* base) {
-  if (base->pipefd[0]==-1) {
-    return;
+  if (base->piped!=TIPPSE_PIPE_FREE) {
+    base->piped = TIPPSE_PIPE_FREE;
+    thread_shutdown(&base->thread_pipe);
+    thread_destroy_inplace(&base->thread_pipe);
   }
 
-  close(base->pipefd[0]);
-
-  base->pipefd[0] = -1;
-  base->pipefd[1] = -1;
+  while (base->pipe_queue->first) {
+    free(((struct document_file_pipe_block*)list_object(base->pipe_queue->first))->data);
+    list_remove(base->pipe_queue, base->pipe_queue->first);
+  }
 }
 
 // Close incoming pipe
 void document_file_kill_pipe(struct document_file* base) {
-  if (base->pipefd[0]==-1) {
-    return;
-  }
-
-  killpg(base->pid, SIGKILL);
-
-  base->pipefd[0] = -1;
-  base->pipefd[1] = -1;
+  // TODO: maybe nice
+  // killpg(base->pid, SIGKILL);
 }
-#endif
 
 // Load file from file system, up to a certain threshold
 void document_file_load(struct document_file* base, const char* filename, int reload, int reset) {

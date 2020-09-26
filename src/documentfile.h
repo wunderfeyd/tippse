@@ -16,6 +16,8 @@
 
 #include "visualinfo.h"
 #include "library/rangetree.h"
+#include "library/thread.h"
+#include "library/mutex.h"
 #define TIPPSE_RANGETREE_CAPS_VISUAL (TIPPSE_RANGETREE_CAPS_USER<<0)
 
 struct range_tree_callback_hook {
@@ -36,6 +38,34 @@ struct range_tree_callback_hook {
 #define TIPPSE_NEWLINE_CR 2
 #define TIPPSE_NEWLINE_CRLF 3
 #define TIPPSE_NEWLINE_MAX 4
+
+#define TIPPSE_PIPE_DONE -1
+#define TIPPSE_PIPE_FREE 0
+#define TIPPSE_PIPE_ACTIVE 1
+
+#define TIPPSE_PIPEOP_SEARCH 0
+#define TIPPSE_PIPEOP_EXECUTE 1
+
+struct document_file_pipe_operation {
+  int operation;
+  struct document_file_pipe_operation_search {
+    int binary;
+    int ignore_case;
+    int regex;
+    char* pattern_text;
+    char* path;
+    struct range_tree* buffer;
+    struct encoding* encoding;
+  } search;
+  struct document_file_pipe_operation_execute {
+    char* shell;
+  } execute;
+};
+
+struct document_file_pipe_block {
+  void* data;
+  size_t length;
+};
 
 struct document_file_defaults {
   int colors[VISUAL_FLAG_COLOR_MAX];    // color values
@@ -96,12 +126,16 @@ struct document_file {
   struct trie* autocomplete_build;      // auto complete build tree
   int autocomplete_rescan;              // file was changed rescan entire document
 
-  struct range_tree_callback_hook hook;      // range tree hooks
-#ifdef _ANSI_POSIX
-  int pipefd[2];                        // Pipe to child process
-  pid_t pid;                            // Child process id
-#endif
+  struct range_tree_callback_hook hook; // range tree hooks
+  struct thread thread_pipe;            // thread executing asynchronous output tasks
+  int piped;                            // async output task is active
+  struct list* pipe_queue;              // incoming pipe data
+  struct mutex pipe_mutex;              // pipe lock
+  struct document_file_pipe_operation* pipe_operation; // operation to be made on pipe
 };
+
+struct document_file_pipe_operation* document_file_pipe_operation_create();
+void document_file_pipe_operation_destroy(struct document_file_pipe_operation* base);
 
 struct document_file* document_file_create(int save, int config, struct editor* editor);
 void document_file_clear(struct document_file* base, int all);
@@ -110,10 +144,12 @@ void document_file_name(struct document_file* base, const char* filename);
 void document_file_draft(struct document_file* base);
 int document_file_drafted(struct document_file* base);
 void document_file_encoding(struct document_file* base, struct encoding* encoding);
-void document_file_create_pipe(struct document_file* base);
+void document_file_create_pipe(struct document_file* base, struct document_file_pipe_operation* pipe_operation);
 void document_file_pipe(struct document_file* base, const char* command);
 void document_file_fill_pipe(struct document_file* base, uint8_t* buffer, size_t length);
+void document_file_flush_pipe(struct document_file* base);
 void document_file_close_pipe(struct document_file* base);
+void document_file_shutdown_pipe(struct document_file* base);
 void document_file_kill_pipe(struct document_file* base);
 void document_file_load(struct document_file* base, const char* filename, int reload, int reset);
 void document_file_load_memory(struct document_file* base, const uint8_t* buffer, size_t length, const char* name);

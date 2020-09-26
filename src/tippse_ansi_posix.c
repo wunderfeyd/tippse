@@ -138,49 +138,15 @@ struct tippse_ansi_key ansi_keys[] = {
   {NULL, 0, 0}
 };
 
-// Local document crawler
-void tippse_append_inputs(struct editor* editor, fd_set* set_read, fd_set* set_write, int* nfds);
-int tippse_check_inputs(struct editor* editor, fd_set* set_read, fd_set* set_write, int* nfds);
+int tippse_pipefd[2];
 
-// Helper for crawling document pipes
-void tippse_append_inputs(struct editor* editor, fd_set* set_read, fd_set* set_write, int* nfds) {
-  struct list_node* docs = editor->documents->first;
-  while (docs) {
-    struct document_file* file = *(struct document_file**)list_object(docs);
-    if (file->pipefd[0]!=-1) {
-      FD_SET(file->pipefd[0], set_read);
-      if (file->pipefd[0]>*nfds) {
-        *nfds = file->pipefd[0];
-      }
-    }
-
-    docs = docs->next;
-  }
+void tippse_unblock_pipe(int fd) {
+  int flags = fcntl(fd, F_GETFL, 0);
+  fcntl(fd, F_SETFL, flags|O_NONBLOCK);
 }
 
-int tippse_check_inputs(struct editor* editor, fd_set* set_read, fd_set* set_write, int* nfds) {
-  int input = 0;
-  struct list_node* docs = editor->documents->first;
-  while (docs) {
-    struct document_file* file = *(struct document_file**)list_object(docs);
-    if (file->pipefd[0]!=-1) {
-      if (FD_ISSET(file->pipefd[0], set_read)) {
-        input = 1;
-
-        uint8_t buffer[1024];
-        ssize_t length = read(file->pipefd[0], &buffer[0], 1024);
-        if (length>0) {
-          document_file_fill_pipe(file, &buffer[0], (size_t)length);
-        } else if (length==0) {
-          document_file_close_pipe(file);
-        }
-      }
-    }
-
-    docs = docs->next;
-  }
-
-  return input;
+void tippse_update_signal(struct document_file* file) {
+  write(tippse_pipefd[1], &file, sizeof(struct document_file*));
 }
 
 int main(int argc, const char** argv) {
@@ -196,8 +162,12 @@ int main(int argc, const char** argv) {
     exit(0);
   }
 
+  UNUSED(pipe(tippse_pipefd));
+  tippse_unblock_pipe(tippse_pipefd[0]);
+  tippse_unblock_pipe(tippse_pipefd[1]);
+
   struct screen* screen = screen_create();
-  struct editor* editor = editor_create(base_path, screen, argc, argv);
+  struct editor* editor = editor_create(base_path, screen, argc, argv, tippse_update_signal);
 
   // screen_character_width_detect(screen);
 
@@ -242,16 +212,14 @@ int main(int argc, const char** argv) {
       }
 
       fd_set set_read;
-      fd_set set_write;
       struct timeval tv;
       tv.tv_sec = 0;
       tv.tv_usec = left;
       FD_ZERO(&set_read);
-      FD_ZERO(&set_write);
-      int nfds = STDIN_FILENO;
       FD_SET(STDIN_FILENO, &set_read);
+      FD_SET(tippse_pipefd[0], &set_read);
+      int nfds = tippse_pipefd[0];
 
-      tippse_append_inputs(editor, &set_read, &set_write, &nfds);
       int ret = select(nfds+1, &set_read, NULL, NULL, &tv);
       if (ret>0) {
         if (FD_ISSET(STDIN_FILENO, &set_read)) {
@@ -262,8 +230,17 @@ int main(int argc, const char** argv) {
           }
         }
 
-        if (tippse_check_inputs(editor, &set_read, &set_write, &nfds)) {
-          stop = 1;
+        if (FD_ISSET(tippse_pipefd[0], &set_read)) {
+          while (1) {
+            struct document_file* file;
+            int r = read(tippse_pipefd[0], &file, sizeof(struct document_file*));
+            if (r!=sizeof(struct document_file*)) {
+              break;
+            }
+
+            stop = 1;
+            document_file_flush_pipe(file);
+          }
         }
       }
 
@@ -468,6 +445,9 @@ int main(int argc, const char** argv) {
   unicode_free();
   free(base_path);
   encoding_free();
+
+  close(tippse_pipefd[0]);
+  close(tippse_pipefd[1]);
 
   return 0;
 }

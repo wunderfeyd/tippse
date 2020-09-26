@@ -9,7 +9,7 @@
 #include "rangetree.h"
 
 struct fragment {
-  int count;                            // Reference counter
+  file_offset_t count;                  // Reference counter
   int type;                             // Type of fragment
   uint8_t* buffer;                      // Pointer to buffer content
   file_offset_t offset;                 // Absolute offset to on disk file content

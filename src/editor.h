@@ -165,6 +165,8 @@
 #define TIPPSE_BROWSERTYPE_OPEN 0
 #define TIPPSE_BROWSERTYPE_SAVE 1
 
+typedef void (*editor_update_signal)(struct document_file* file);
+
 struct editor_task {
   int command;                        // command to execute
   struct config_command* arguments;   // arguments to the command
@@ -242,6 +244,8 @@ struct editor {
 
   struct list* menu;                  // menu selections
 
+  editor_update_signal update_signal; // callback if asynchronous part needs refresh
+
 #ifdef _TESTSUITE
   char* test_script_path;
   struct file* test_script;
@@ -250,7 +254,7 @@ struct editor {
 #endif
 };
 
-struct editor* editor_create(const char* base_path, struct screen* screen, int argc, const char** argv);
+struct editor* editor_create(const char* base_path, struct screen* screen, int argc, const char** argv, editor_update_signal update_signal);
 void editor_destroy(struct editor* base);
 void editor_closed(struct editor* base);
 void editor_draw(struct editor* base);

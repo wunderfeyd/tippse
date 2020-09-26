@@ -27,6 +27,9 @@ struct screen* screen;
 struct editor* editor;
 char* base_path;
 
+void tippse_update_signal(struct document_file* file) {
+}
+
 int EMSCRIPTEN_KEEPALIVE main(int argc, const char** argv) {
   EM_ASM(tippse_load());
 }
@@ -38,7 +41,7 @@ void EMSCRIPTEN_KEEPALIVE tippse_init() {
   unicode_init();
 
   screen = screen_create();
-  editor = editor_create(base_path, screen, 0, NULL);
+  editor = editor_create(base_path, screen, 0, NULL, tippse_update_signal);
 }
 
 void EMSCRIPTEN_KEEPALIVE tippse_tick() {

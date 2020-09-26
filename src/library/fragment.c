@@ -3,6 +3,7 @@
 #include "fragment.h"
 
 #include "filecache.h"
+#include "atomic.h"
 
 // Return referenced fragment to a memory location
 struct fragment* fragment_create_memory(uint8_t* buffer, size_t length) {
@@ -37,7 +38,7 @@ void fragment_reference(struct fragment* base, struct range_tree_callback* callb
     (*callback->fragment_reference)(callback, base);
   }
 
-  base->count++;
+  atomic_increment_fileoffset_t(&base->count);
 }
 
 // Decrement reference counter and remove object if it hits zero instances
@@ -46,9 +47,7 @@ void fragment_dereference(struct fragment* base, struct range_tree_callback* cal
     (*callback->fragment_dereference)(callback, base);
   }
 
-  base->count--;
-
-  if (base->count==0) {
+  if (atomic_decrement_fileoffset_t(&base->count)==0) {
     if (base->type==FRAGMENT_MEMORY) {
       free(base->buffer);
     } else {

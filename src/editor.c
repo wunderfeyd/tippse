@@ -182,9 +182,10 @@ static struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
 };
 
 // Create editor
-struct editor* editor_create(const char* base_path, struct screen* screen, int argc, const char** argv) {
+struct editor* editor_create(const char* base_path, struct screen* screen, int argc, const char** argv, editor_update_signal update_signal) {
   struct editor* base = (struct editor*)malloc(sizeof(struct editor));
   base->close = 0;
+  base->update_signal = update_signal;
   base->tasks = list_create(sizeof(struct editor_task));
   base->task_focus = NULL;
   base->task_stop = NULL;
@@ -451,13 +452,11 @@ void editor_draw(struct editor* base) {
   }
 
   int running = 0;
-#ifdef _ANSI_POSIX
   struct list_node* docs = base->documents->first;
   while (docs && !running) {
-    running |= ((*(struct document_file**)list_object(docs))->pipefd[0]!=-1)?1:0;
+    running |= ((*(struct document_file**)list_object(docs))->piped==TIPPSE_PIPE_ACTIVE)?1:0;
     docs = docs->next;
   }
-#endif
 
   int x = 0;
   if (running) {
@@ -647,20 +646,25 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     document_search(base->document->file, base->document->view, &base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, 0, base->search_ignore_case, base->search_regex, 1, 0);
   } else if (command==TIPPSE_CMD_SEARCH_DIRECTORY) {
     struct splitter* assign = editor_document_splitter(base, base->document, base->search_results_doc);
-#ifdef _ANSI_POSIX
-    if (assign->file->pipefd[1]==-1 && assign->file==base->search_results_doc) {
-      document_file_create_pipe(assign->file);
-      if (assign->file->pid==0) {
-        int binary = (int)config_convert_int64(config_find_ascii(assign->file->config, "/searchfilebinary"));
-        char* pattern_text = (char*)config_convert_encoding(config_find_ascii(assign->file->config, "/searchfilepattern"), encoding_utf8_static(), NULL);
-        document_search_directory(base->base_path, &base->search_doc->buffer, base->search_doc->encoding, NULL, NULL, base->search_ignore_case, base->search_regex, 0, pattern_text, encoding_utf8_static(), binary);
-        free(pattern_text);
-        exit(0);
+    if (assign->file==base->search_results_doc) {
+      if (assign->file->piped!=TIPPSE_PIPE_ACTIVE) {
+        struct document_file_pipe_operation* op = document_file_pipe_operation_create();
+        op->operation = TIPPSE_PIPEOP_SEARCH;
+        op->search.binary = (int)config_convert_int64(config_find_ascii(assign->file->config, "/searchfilebinary"));
+        op->search.ignore_case = base->search_ignore_case;
+        op->search.regex = base->search_regex;
+        op->search.pattern_text = (char*)config_convert_encoding(config_find_ascii(assign->file->config, "/searchfilepattern"), encoding_utf8_static(), NULL);
+        op->search.path = strdup(base->base_path);
+        op->search.encoding = base->search_doc->encoding->create();
+        op->search.buffer = range_tree_copy(&base->search_doc->buffer, 0, range_tree_length(&base->search_doc->buffer), NULL);
+
+        document_file_create_pipe(assign->file, op);
+      } else {
+        document_file_shutdown_pipe(assign->file);
       }
     } else {
       splitter_assign_document_file(assign, base->search_results_doc);
     }
-#endif
   } else if (command==TIPPSE_CMD_REPLACE) {
     editor_panel_assign(base, base->replace_doc);
     document_select_all(base->panel->file, base->panel->view, 1);
@@ -781,30 +785,30 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     editor_open_error(base, 1);
   } else if (command==TIPPSE_CMD_SHELL) {
     struct splitter* assign = editor_document_splitter(base, base->document, base->compiler_doc);
-#ifdef _ANSI_POSIX
-    if (assign->file->pipefd[1]==-1 && assign->file==base->compiler_doc) {
-      if (arguments && arguments->length>1) {
-        struct trie_node* parent = config_find_ascii(base->focus->file->config, "/shell/");
-        if (parent) {
-          parent = config_advance_codepoints(base->focus->file->config, parent, arguments->arguments[1].codepoints, arguments->arguments[1].length);
-        }
 
-        if (parent && parent->end) {
-          char* shell = (char*)config_convert_encoding(parent, encoding_utf8_static(), NULL);
-          document_file_pipe(assign->file, shell);
-          free(shell);
+    if (assign->file==base->search_results_doc) {
+      if (assign->file->piped!=TIPPSE_PIPE_ACTIVE) {
+        if (arguments && arguments->length>1) {
+          struct trie_node* parent = config_find_ascii(base->focus->file->config, "/shell/");
+          if (parent) {
+            parent = config_advance_codepoints(base->focus->file->config, parent, arguments->arguments[1].codepoints, arguments->arguments[1].length);
+          }
+
+          if (parent && parent->end) {
+            struct document_file_pipe_operation* op = document_file_pipe_operation_create();
+            op->operation = TIPPSE_PIPEOP_EXECUTE;
+            op->execute.shell = (char*)config_convert_encoding(parent, encoding_utf8_static(), NULL);
+            document_file_create_pipe(assign->file, op);
+          }
         }
+      } else {
+        document_file_shutdown_pipe(assign->file);
       }
     } else {
-      splitter_assign_document_file(assign, base->compiler_doc);
+      splitter_assign_document_file(assign, base->search_results_doc);
     }
-#endif
   } else if (command==TIPPSE_CMD_SHELL_KILL) {
-#ifdef _ANSI_POSIX
-    if (base->document->file->pipefd[1]!=-1) {
-      document_file_kill_pipe(base->document->file);
-    }
-#endif
+    document_file_shutdown_pipe(base->document->file);
   } else if (command==TIPPSE_CMD_HELP) {
     editor_view_help(base, "index.md");
   } else if (command==TIPPSE_CMD_SEARCH_MODE_TEXT) {
@@ -1436,7 +1440,7 @@ void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct 
     size_t length = strlen(file->filename);
     struct stream text_stream;
     stream_from_plain(&text_stream, (uint8_t*)file->filename, length);
-    if (file->save && (!search || search_find(search, &text_stream, NULL))) {
+    if (file->save && (!search || search_find(search, &text_stream, NULL, NULL))) {
       document_insert_search(base->tabs_doc, search, file->filename, length, document_undo_modified(file)?TIPPSE_INSERTER_HIGHLIGHT|(VISUAL_FLAG_COLOR_MODIFIED<<TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT):0);
     }
     stream_destroy(&text_stream);
@@ -1475,7 +1479,7 @@ void editor_view_commands(struct editor* base, struct stream* filter_stream, str
     size_t length = strlen(&output[0]);
     struct stream text_stream;
     stream_from_plain(&text_stream, (uint8_t*)&output[0], length);
-    if (!search || search_find(search, &text_stream, NULL)) {
+    if (!search || search_find(search, &text_stream, NULL, NULL)) {
       document_insert_search(base->commands_doc, search, &output[0], length, 0);
     }
     stream_destroy(&text_stream);
@@ -1511,7 +1515,7 @@ void editor_view_menu(struct editor* base, struct stream* filter_stream, struct 
     size_t length = strlen(entry->title);
     struct stream text_stream;
     stream_from_plain(&text_stream, (uint8_t*)entry->title, length);
-    if (!search || search_find(search, &text_stream, NULL)) {
+    if (!search || search_find(search, &text_stream, NULL, NULL)) {
       document_insert_search(base->menu_doc, search, entry->title, length, 0);
     }
     stream_destroy(&text_stream);

@@ -1332,7 +1332,7 @@ void search_prepare_skip(struct search* base, struct search_node* node) {
 }
 
 // Find next occurence of the compiled pattern until the stream ends or "left" has been count down
-int search_find(struct search* base, struct stream* text, file_offset_t* left) {
+int search_find(struct search* base, struct stream* text, file_offset_t* left, int* abort) {
   if (!base->root) {
     if (left) {
       *left = 0;
@@ -1349,6 +1349,11 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
 
   file_offset_t count = left?*left:FILE_OFFSET_T_MAX;
 
+  int noabort = 0;
+  if (!abort) {
+    abort = &noabort;
+  }
+
   if (base->skip_length>0) {
     stream_forward(text, base->skip_length);
     size_t hit = 0;
@@ -1356,7 +1361,7 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
       count += base->skip_length;
     }
 
-    while (text->displacement<=text->cache_length || !stream_end(text)) {
+    while ((text->displacement<=text->cache_length || !stream_end(text)) && !*abort) {
       size_t size = 0;
       while (1) {
         uint8_t index = stream_read_reverse(text);
@@ -1404,7 +1409,7 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
     count -= base->skip_length;
   } else {
     if (!base->reverse) {
-      while (!stream_end(text) && count>0) {
+      while (!stream_end(text) && count>0 && !*abort) {
         count--;
         if (search_find_loop(base, base->root, text)) {
           base->hit_start = *text;
@@ -1415,7 +1420,7 @@ int search_find(struct search* base, struct stream* text, file_offset_t* left) {
         stream_forward(text, 1);
       }
     } else {
-      while (count>0) {
+      while (count>0 && !*abort) {
         count--;
         if (search_find_loop(base, base->root, text)) {
           base->hit_start = *text;
@@ -1736,7 +1741,7 @@ void search_test(void) {
   struct stream text;
   const char* text_text = "Dies ist ein l TesstTeßt, HaLLo schschschSchlappiSchlappi ppi! 999 make_debug.sh abc #include bla"; //"void et_container::remove_ticket_number(";
   stream_from_plain(&text, (uint8_t*)text_text, strlen(text_text));
-  int found = search_find(search, &text, NULL);
+  int found = search_find(search, &text, NULL, NULL);
   fprintf(stderr, "%d\r\n", found);
   if (found) {
     fprintf(stderr, "\"");
@@ -1773,7 +1778,7 @@ void search_test(void) {
     int64_t tick = tick_count();
     for (size_t n = 0; n<5; n++) {
       stream_from_plain(&buffered, buffer, length);
-      int found = search_find(search, &buffered, NULL);
+      int found = search_find(search, &buffered, NULL, NULL);
       fprintf(stderr, "%d %d us %d\r\n", (int)n, (int)((tick_count()-tick)/(int64_t)(n+1)), found);
       if (found) {
         fprintf(stderr, "%d \"", (int)stream_offset_plain(&search->hit_start));
@@ -1797,7 +1802,7 @@ void search_test(void) {
     int64_t tick = tick_count();
     for (size_t n = 0; n<5; n++) {
       stream_from_file(&buffered, file, 0);
-      int found = search_find(search, &buffered, NULL);
+      int found = search_find(search, &buffered, NULL, NULL);
       fprintf(stderr, "%d %d us %d\r\n", (int)n, (int)((tick_count()-tick)/(int64_t)(n+1)), found);
       if (found) {
         fprintf(stderr, "%d \"", (int)stream_offset_file(&search->hit_start));
@@ -1843,7 +1848,7 @@ void search_test(void) {
       fprintf(stderr, "\r\n");
       search_debug_tree(search, search->root, 0, 0, 0);
     }
-    int found = search_find(search, &output_stream, NULL);
+    int found = search_find(search, &output_stream, NULL, NULL);
     fprintf(stderr, "<< %d\r\n", found);
 
     search_destroy(search);

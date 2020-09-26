@@ -21,7 +21,7 @@
 #define FILE_CACHE_SIZE (1024*1024)
 
 struct file_cache_node {
-  int count;                                // number of references
+  file_offset_t count;                      // number of references
   uint8_t* buffer;                          // buffer
   file_offset_t offset;                     // offset in file
   size_t length;                            // length of buffer
@@ -29,11 +29,12 @@ struct file_cache_node {
 };
 
 #include "rangetree.h"
+#include "mutex.h"
 
 struct file_cache {
   char* filename;                           // name of file
   struct file* fd;                          // file descriptor
-  int count;                                // reference counter
+  file_offset_t count;                      // reference counter
 #ifdef _WINDOWS
   FILETIME modification_time;               // modification time of file during load
 #else
@@ -45,6 +46,7 @@ struct file_cache {
   struct range_tree index;                  // index
   struct list active;                       // list of active nodes
   struct list inactive;                     // lru list of inactive nodes
+  struct mutex lock;                        // whole cache lock
 };
 
 struct file_cache* file_cache_create(const char* filename);

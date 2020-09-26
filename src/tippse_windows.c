@@ -6,13 +6,14 @@
 #include <windows.h>
 #include "types.h"
 
-#include "misc.h"
+#include "library/misc.h"
 #include "editor.h"
-#include "encoding/utf8.h"
+#include "library/encoding/utf8.h"
 #include "screen.h"
 #include "search.h"
-#include "unicode.h"
+#include "library/unicode.h"
 #include "clipboard.h"
+#include "documentfile.h"
 
 struct tippse_window {
   struct screen* screen;    // screen handler for painting
@@ -206,9 +207,17 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
   } else if (message==WM_DESTROY) {
     PostQuitMessage(0);
     return 0;
+  } else if (message==WM_USER+1) {
+    document_file_flush_pipe((struct document_file*)param2);
+    editor_draw(base->editor);
   }
 
   return DefWindowProc(window, message, param1, param2);
+}
+
+HWND window;
+void tippse_update_signal(struct document_file* file) {
+  PostMessage(window, WM_USER+1, 0, (LPARAM)file);
 }
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, char* command_line, int show) {
@@ -266,8 +275,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, char* command_li
   wndclass.cbClsExtra = 0;
   wndclass.cbWndExtra = 0;
   wndclass.hInstance = GetModuleHandle(NULL);
-  wndclass.hIcon = NULL;
-  wndclass.hCursor = NULL;
+  wndclass.hIcon = LoadIcon(NULL, IDI_ASTERISK);
+  wndclass.hCursor = LoadCursor(NULL, IDC_ARROW);
   wndclass.hbrBackground = NULL;
   wndclass.lpszMenuName = NULL;
   wndclass.lpszClassName = "Tippse";
@@ -275,7 +284,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, char* command_li
 
   struct tippse_window base;
   base.screen = screen_create();
-  base.editor = editor_create(base_path, base.screen, argc, (const char**)argv);
+  base.editor = editor_create(base_path, base.screen, argc, (const char**)argv, tippse_update_signal);
   base.cursor_blink = 0;
   base.cursor_blink_old = 2;
   base.refresh = 1;
@@ -285,7 +294,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, char* command_li
   }
   free(argv);
 
-  HWND window = CreateWindowEx(0, wndclass.lpszClassName, "Tippse", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, wndclass.hInstance, &base);
+  window = CreateWindowEx(0, wndclass.lpszClassName, "Tippse", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, wndclass.hInstance, &base);
   SetWindowLongPtr(window, GWLP_USERDATA, (LONG_PTR)&base);
   ShowWindow(window, show);
 

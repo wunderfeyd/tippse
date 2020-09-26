@@ -10,6 +10,7 @@
 #include "documentundo.h"
 #include "documentview.h"
 #include "editor.h"
+#include "library/thread.h"
 #include "library/encoding.h"
 #include "library/encoding/utf8.h"
 #include "filetype.h"
@@ -158,7 +159,7 @@ int document_search(struct document_file* file, struct document_view* view, stru
     found = 0;
     if (left>0) {
       while (1) {
-        int hit = search_find(search, &text_stream, &left);
+        int hit = search_find(search, &text_stream, &left, NULL);
         if (!hit) {
           break;
         }
@@ -242,16 +243,22 @@ int document_search(struct document_file* file, struct document_view* view, stru
 }
 
 // Search in directory
-void document_search_directory(const char* path, struct range_tree* search_text, struct encoding* search_encoding, struct range_tree* replace_text, struct encoding* replace_encoding, int ignore_case, int regex, int replace, const char* pattern_text, struct encoding* pattern_encoding, int binary) {
-  printf("Scanning %s...\n", path);
-  fflush(stdout);
+void document_search_directory(struct thread* thread, struct document_file* pipe, const char* path, struct range_tree* search_text, struct encoding* search_encoding, struct range_tree* replace_text, struct encoding* replace_encoding, int ignore_case, int regex, int replace, const char* pattern_text, struct encoding* pattern_encoding, int binary) {
+  size_t length = strlen(path)+1024;
+  char* output = malloc(sizeof(char)*length);
+
+  {
+    size_t out = (size_t)sprintf(output, "Scanning %s...\n", path);
+    document_file_fill_pipe(pipe, (uint8_t*)output, out);
+  }
+
   struct list* entries = list_create(sizeof(char*));
   char* copy = strdup(path);
   list_insert(entries, entries->last, &copy);
 
   int hits = 0;
   int hits_lines = 0;
-  while (entries->first) {
+  while (entries->first && !thread->shutdown) {
     struct list_node* insert = entries->last;
     char* scan = *(char**)list_object(insert);
     if (is_directory(scan)) {
@@ -274,7 +281,7 @@ void document_search_directory(const char* path, struct range_tree* search_text,
       struct stream filename_stream;
       stream_from_plain(&filename_stream, (uint8_t*)scan, strlen(scan));
       struct search* pattern = search_create_regex(0, 0, &pattern_stream, pattern_encoding, encoding_utf8_static());
-      if (search_find(pattern, &filename_stream, NULL)) {
+      if (search_find(pattern, &filename_stream, NULL, &thread->shutdown)) {
         struct document_file* file = document_file_create(0, 0, NULL);
         struct file_cache* cache = file_cache_create(scan);
         struct stream stream;
@@ -298,8 +305,8 @@ void document_search_directory(const char* path, struct range_tree* search_text,
           file_offset_t line_hit = line;
           struct stream line_start;
           stream_clone(&line_start, &newlines);
-          while (!stream_end(&stream)) {
-            int found = search_find(search, &stream, NULL);
+          while (!stream_end(&stream) && !thread->shutdown) {
+            int found = search_find(search, &stream, NULL, &thread->shutdown);
             if (!found) {
               break;
             }
@@ -316,7 +323,7 @@ void document_search_directory(const char* path, struct range_tree* search_text,
 
             if (line_hit!=line_previous) {
               hits_lines++;
-              printf("%s:%d: ", scan, (int)line_hit);
+              size_t out = (size_t)sprintf(output, "%s:%d: ", scan, (int)line_hit);
               int columns = 80;
               struct stream line_copy;
               stream_clone(&line_copy, &line_start);
@@ -327,11 +334,11 @@ void document_search_directory(const char* path, struct range_tree* search_text,
                   break;
                 }
                 if (index>=0x20 || index=='\t') {
-                  printf("%c", index);
+                  out += (size_t)sprintf(output+out, "%c", index);
                 }
               }
-              printf("\n");
-              fflush(stdout);
+              out += (size_t)sprintf(output+out, "\n");
+              document_file_fill_pipe(pipe, (uint8_t*)output, out);
               stream_destroy(&line_copy);
               line_previous = line_hit;
             }
@@ -354,8 +361,21 @@ void document_search_directory(const char* path, struct range_tree* search_text,
     free(scan);
     list_remove(entries, insert);
   }
+
+  while (entries->first) {
+    char* scan = *(char**)list_object(entries->first);
+    free(scan);
+    list_remove(entries, entries->first);
+  }
+
   list_destroy(entries);
-  printf("... done (%d hit(s) in %d line(s) found)\n", hits, hits_lines);
+
+  {
+    size_t out = (size_t)sprintf(output, "... %s (%d hit(s) in %d line(s) found)\n", thread->shutdown?"aborted":"done", hits, hits_lines);
+    document_file_fill_pipe(pipe, (uint8_t*)output, out);
+  }
+
+  free(output);
 }
 
 // Check file properties and return highlight information
@@ -393,7 +413,7 @@ void document_directory(struct document_file* file, struct stream* filter_stream
 
     struct stream text_stream;
     stream_from_plain(&text_stream, (uint8_t*)filename, strlen(filename));
-    if (!search || search_find(search, &text_stream, NULL)) {
+    if (!search || search_find(search, &text_stream, NULL, NULL)) {
       char* name = strdup(filename);
       list_insert(files, NULL, &name);
     }
@@ -426,7 +446,7 @@ void document_directory(struct document_file* file, struct stream* filter_stream
 
     struct stream text_stream;
     stream_from_plain(&text_stream, (uint8_t*)sort[n], length);
-    if (!search || search_find(search, &text_stream, NULL)) {
+    if (!search || search_find(search, &text_stream, NULL, NULL)) {
       document_insert_search(file, search, sort[n], length, document_directory_highlight(combined));
     }
     stream_destroy(&text_stream);
