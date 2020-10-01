@@ -519,7 +519,7 @@ void document_clipboard_copy(struct document_file* file, struct document_view* v
   file_offset_t high = 0;
   struct range_tree* copy = range_tree_create(NULL, 0);
   while (document_view_select_next(view, high, &low, &high)) {
-    range_tree_node_copy_insert(file->buffer.root, low, copy, range_tree_node_length(copy->root), high-low);
+    range_tree_node_copy_insert(file->buffer.root, low, copy, range_tree_length(copy), high-low);
   }
   clipboard_set(copy, file->binary, file->encoding);
 }
@@ -527,12 +527,45 @@ void document_clipboard_copy(struct document_file* file, struct document_view* v
 // Paste selection
 void document_clipboard_paste(struct document_file* file, struct document_view* view) {
   struct encoding* encoding = NULL;
-  struct range_tree* buffer = clipboard_get(&encoding);
+  int binary = 0;
+  struct range_tree* buffer = clipboard_get(&encoding, &binary);
   if (buffer && buffer->root) {
-    struct range_tree* transform = encoding_transform_page(buffer->root, 0, FILE_OFFSET_T_MAX, encoding, file->encoding);
+    struct range_tree* transform = binary?buffer:encoding_transform_page(buffer->root, 0, FILE_OFFSET_T_MAX, encoding, file->encoding);
     document_file_insert_buffer(file, view->offset, transform->root);
-    range_tree_destroy(transform);
+    if (!binary) {
+      range_tree_destroy(transform);
+    }
   }
+
+  if (buffer) {
+    range_tree_destroy(buffer);
+  }
+
+  encoding->destroy(encoding);
+}
+
+// Append data to clipboard
+void document_clipboard_extend(struct document_file* file, struct document_view* view, file_offset_t from, file_offset_t to, int extend) {
+  struct encoding* encoding = extend?NULL:file->encoding->create();
+  int binary = 0;
+  struct range_tree* buffer = extend?clipboard_get(&encoding, &binary):range_tree_create(NULL, 0);
+  if (buffer) {
+    struct range_tree* transform;
+    if (binary || !buffer->root) {
+      transform = buffer;
+      buffer = NULL;
+    } else {
+      transform = encoding_transform_page(buffer->root, 0, FILE_OFFSET_T_MAX, encoding, file->encoding);
+    }
+    range_tree_node_copy_insert(file->buffer.root, from, transform, range_tree_length(transform), to-from);
+    clipboard_set(transform, file->binary, file->encoding);
+  }
+
+  if (buffer) {
+    range_tree_destroy(buffer);
+  }
+
+  encoding->destroy(encoding);
 }
 
 // Toggle bookmark

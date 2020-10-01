@@ -370,13 +370,11 @@ void document_file_create_pipe(struct document_file* base, struct document_file_
 
   base->piped = TIPPSE_PIPE_ACTIVE;
   base->pipe_operation = pipe_operation;
-  thread_create_inplace(&base->thread_pipe, document_file_pipe_entry, base);
-}
+  if (base->pipe_operation->operation==TIPPSE_PIPEOP_EXECUTE) {
+    document_file_name(base, base->pipe_operation->execute.shell);
+  }
 
-// Execute system command and push output into file contents
-void document_file_pipe(struct document_file* base, const char* command) {
-  document_file_name(base, command);
-  document_file_create_pipe(base, NULL);
+  thread_create_inplace(&base->thread_pipe, document_file_pipe_entry, base);
 }
 
 // Append incoming data from pipe
@@ -390,9 +388,12 @@ void document_file_fill_pipe(struct document_file* base, uint8_t* buffer, size_t
   block.length = length;
   memcpy(block.data, buffer, block.length);
   mutex_lock(&base->pipe_mutex);
+  int signal = (base->pipe_queue->count==0)?1:0;
   list_insert(base->pipe_queue, base->pipe_queue->last, &block);
   mutex_unlock(&base->pipe_mutex);
-  base->editor->update_signal(base);
+  if (signal) {
+    base->editor->update_signal(base);
+  }
 }
 
 // Append incoming data from pipe queue

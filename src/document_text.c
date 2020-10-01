@@ -1797,6 +1797,7 @@ void document_text_keypress(struct document* base, struct document_view* view, s
       in_last.clip = 0;
       in_last.offset = range_tree_node_offset(first);
       in_last.line = out.line;
+      in_last.column = 0;
 
       struct document_text_position out_first;
       document_text_cursor_position(view, file, &in_last, &out_first, 0, 1);
@@ -2015,14 +2016,8 @@ void document_text_keypress(struct document* base, struct document_view* view, s
     in_line_column.column = POSITION_T_MAX;
     file_offset_t to = document_text_cursor_position(view, file, &in_line_column, &out, 1, 1);
 
-    struct range_tree* clipboard = view->line_cut?clipboard_get(NULL):NULL;
+    document_clipboard_extend(file, view, from, to, view->line_cut);
     view->line_cut = 1;
-    struct range_tree* rootold = clipboard?range_tree_copy(clipboard, 0, range_tree_length(clipboard), NULL):range_tree_create(NULL, 0);
-    struct range_tree* rootnew = range_tree_copy(&file->buffer, from, to-from, NULL);
-    range_tree_paste(rootold, rootnew->root, range_tree_length(rootold));
-    range_tree_destroy(rootnew);
-
-    clipboard_set(rootold, file->binary, file->encoding);
     document_file_delete(file, from, to-from);
 
     selection_keep = 1;
@@ -2060,7 +2055,7 @@ void document_text_keypress(struct document* base, struct document_view* view, s
     in_offset.offset = view->offset;
     document_text_cursor_position(view, file, &in_offset, &out_begin, 1, 1);
 
-    if (out_begin.lines==0 && range_tree_first(&file->buffer)!=out_begin.buffer) {
+    if (file->buffer.root && out_begin.lines==0 && range_tree_first(&file->buffer)!=out_begin.buffer) {
       visual_info_find_bracket_lowest(view, out_begin.buffer, out_begin.min_line, out_begin.buffer?out_begin.buffer:range_tree_last(&file->buffer));
     }
 
@@ -2076,6 +2071,7 @@ void document_text_keypress(struct document* base, struct document_view* view, s
       in_last.clip = 0;
       in_last.offset = out_indentation_copy.offset;
       in_last.line = out_begin.line;
+      in_last.column = 0;
 
       document_text_cursor_position(view, file, &in_last, &out_indentation_last, 0, 1);
       if (out_indentation_last.offset>view->offset) {

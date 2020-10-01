@@ -341,18 +341,29 @@ void screen_cursor(struct screen* base, int x, int y) {
 #ifdef _WINDOWS
 // Set character color
 void setup_color(HDC context, int reversed, int index_foreground, int index_background, DWORD foreground_system, DWORD background_system) {
+  DWORD scan_color = 0;
+  if (index_background<0) {
+    scan_color = reversed?foreground_system:background_system;
+  }
+
+  int shift = 0;
+  int tone = ((scan_color>>0)&0xff)+((scan_color>>8)&0xff)+((scan_color>>16)&0xff);
+  if (tone>300) {
+    shift = 1;
+  }
+
   if (index_foreground<0) {
     SetTextColor(context, reversed?background_system:foreground_system);
   } else {
     struct screen_rgb* foreground = &rgb_index[index_foreground];
-    SetTextColor(context, RGB(foreground->r, foreground->g, foreground->b));
+    SetTextColor(context, RGB(foreground->r>>shift, foreground->g>>shift, foreground->b>>shift));
   }
 
   if (index_background<0) {
     SetBkColor(context, reversed?foreground_system:background_system);
   } else {
     struct screen_rgb* background = &rgb_index[index_background];
-    SetBkColor(context, RGB(background->r, background->g, background->b));
+    SetBkColor(context, RGB(background->r>>shift, background->g>>shift, background->b>>shift));
   }
 }
 
@@ -410,23 +421,25 @@ void screen_draw(struct screen* base, HDC context, int redraw, int cursor) {
       }
 
       if (modified || v->foreground!=index_foreground || v->background!=index_background || redraw) {
-        v->foreground = index_foreground;
-        v->background = index_background;
+        if (v->sequence.cp[0]!=UNICODE_CODEPOINT_BAD) {
+          v->foreground = index_foreground;
+          v->background = index_background;
 
-        setup_color(context, reversed, index_foreground, index_background, foreground_system, background_system);
-        TextOutW(context, x*base->font_width, y*base->font_height, &v->codes[0], (v->pos-(uint8_t*)&v->codes[0])/(int)sizeof(wchar_t));
+          setup_color(context, reversed, index_foreground, index_background, foreground_system, background_system);
+          TextOutW(context, x*base->font_width, y*base->font_height, &v->codes[0], (v->pos-(uint8_t*)&v->codes[0])/(int)sizeof(wchar_t));
 
-        if (x==base->width-1) {
-          setup_color(context, 0, index_foreground, index_background, foreground_system, background_system);
-          TextOutA(context, (x+1)*base->font_width, y*base->font_height, " ", 1);
-        }
-        if (y==base->height-1) {
-          setup_color(context, 0, index_foreground, index_background, foreground_system, background_system);
-          TextOutA(context, x*base->font_width, (y+1)*base->font_height, " ", 1);
-        }
-        if (x==base->width-1 && y==base->height-1) {
-          setup_color(context, 0, index_foreground, index_background, foreground_system, background_system);
-          TextOutA(context, (x+1)*base->font_width, (y+1)*base->font_height, " ", 1);
+          if (x==base->width-1) {
+            setup_color(context, 0, index_foreground, index_background, foreground_system, background_system);
+            TextOutA(context, (x+1)*base->font_width, y*base->font_height, " ", 1);
+          }
+          if (y==base->height-1) {
+            setup_color(context, 0, index_foreground, index_background, foreground_system, background_system);
+            TextOutA(context, x*base->font_width, (y+1)*base->font_height, " ", 1);
+          }
+          if (x==base->width-1 && y==base->height-1) {
+            setup_color(context, 0, index_foreground, index_background, foreground_system, background_system);
+            TextOutA(context, (x+1)*base->font_width, (y+1)*base->font_height, " ", 1);
+          }
         }
       }
     }

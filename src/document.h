@@ -22,6 +22,7 @@ void document_select_nothing(struct document_file* file, struct document_view* v
 int document_select_delete(struct document_file* file, struct document_view* view);
 void document_clipboard_copy(struct document_file* file, struct document_view* view);
 void document_clipboard_paste(struct document_file* file, struct document_view* view);
+void document_clipboard_extend(struct document_file* file, struct document_view* view, file_offset_t from, file_offset_t to, int extend);
 
 void document_bookmark_toggle_range(struct document_file* file, file_offset_t low, file_offset_t high);
 void document_bookmark_range(struct document_file* file, file_offset_t low, file_offset_t high, int marked);

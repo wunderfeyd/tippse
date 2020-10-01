@@ -145,7 +145,6 @@ void document_file_draft(struct document_file* base);
 int document_file_drafted(struct document_file* base);
 void document_file_encoding(struct document_file* base, struct encoding* encoding);
 void document_file_create_pipe(struct document_file* base, struct document_file_pipe_operation* pipe_operation);
-void document_file_pipe(struct document_file* base, const char* command);
 void document_file_fill_pipe(struct document_file* base, uint8_t* buffer, size_t length);
 void document_file_flush_pipe(struct document_file* base);
 void document_file_close_pipe(struct document_file* base);

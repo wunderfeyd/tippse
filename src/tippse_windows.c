@@ -113,9 +113,11 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
       key |= TIPPSE_KEY_MOD_SHIFT;
     }
 
+    if (mouse_buttons!=0) {
+      editor_keypress(base->editor, key, 0, mouse_buttons, base->mouse_buttons, (int)((int16_t)(param2&0xffff))/base->screen->font_width, (int)((int16_t)(param2>>16))/base->screen->font_height);
+      editor_draw(base->editor);
+    }
 
-    editor_keypress(base->editor, key, 0, mouse_buttons, base->mouse_buttons, (int)((int16_t)(param2&0xffff))/base->screen->font_width, (int)((int16_t)(param2>>16))/base->screen->font_height);
-    editor_draw(base->editor);
     base->mouse_buttons = mouse_buttons;
   } else if (message==WM_KEYDOWN || message==WM_SYSKEYDOWN) {
     wchar_t output[256];
