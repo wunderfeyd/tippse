@@ -148,7 +148,6 @@ TIPPSE_INLINE void unicode_sequencer_decode(struct unicode_sequencer* base, stru
 
 // Return sequence from cache or lookup next sequence
 TIPPSE_INLINE struct unicode_sequence* unicode_sequencer_find(struct unicode_sequencer* base, size_t offset) {
-
   size_t pos = (offset+base->start)&(UNICODE_SEQUENCER_MAX-1);
   if (offset+base->start>=base->end) {
     unicode_sequencer_decode(base, &base->nodes[pos]);

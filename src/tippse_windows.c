@@ -40,6 +40,11 @@ int tippse_cursor_blink(struct tippse_window* base) {
   return cursor;
 }
 
+void tippse_clear_input_state(struct tippse_window* base) {
+  memset(&base->keystate[0], 0, sizeof(base->keystate));
+  base->mouse_buttons = 0;
+}
+
 LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM param2) {
   struct tippse_window* base = (struct tippse_window*)GetWindowLongPtr(window, GWLP_USERDATA);
   if (message==WM_CREATE) {
@@ -58,7 +63,7 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
     base->screen->font_height = (int)size.cy;
 
     tippse_detect_keyboard_layout(base);
-    memset(&base->keystate[0], 0, sizeof(base->keystate));
+    tippse_clear_input_state(base);
     SetTimer(window, 100, 100, NULL);
     return 0;
   } else if (message==WM_INPUTLANGCHANGE) {
@@ -119,6 +124,8 @@ LRESULT CALLBACK tippse_wndproc(HWND window, UINT message, WPARAM param1, LPARAM
     }
 
     base->mouse_buttons = mouse_buttons;
+  } else if (message==WM_ACTIVATE) {
+    tippse_clear_input_state(base);
   } else if (message==WM_KEYDOWN || message==WM_SYSKEYDOWN) {
     wchar_t output[256];
     int ret = ToUnicodeEx(param1, (param2>>16)&0xff, &base->keystate[0], &output[0], sizeof(output)/sizeof(wchar_t), 0, base->keyboard_layout);
@@ -305,9 +312,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, char* command_li
     BOOL ret = GetMessage(&msg, window, 0, 0);
     if (ret==-1 || ret==0) {
       break;
-    } else {
-      DispatchMessage(&msg);
     }
+    DispatchMessage(&msg);
   }
 
   DestroyWindow(window);

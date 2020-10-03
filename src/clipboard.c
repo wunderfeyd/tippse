@@ -103,6 +103,8 @@ void clipboard_set(struct range_tree* data, int binary, struct encoding* encodin
 void clipboard_command_set(struct range_tree* data, struct encoding* encoding) {
   struct encoding* utf16 = encoding_utf16le_create();
   struct range_tree* transform = encoding_transform_page(data->root, 0, FILE_OFFSET_T_MAX, encoding, utf16);
+  utf16->destroy(utf16);
+
   if (transform) {
     if (OpenClipboard(NULL)) {
       wchar_t zero = 0;
@@ -121,10 +123,8 @@ void clipboard_command_set(struct range_tree* data, struct encoding* encoding) {
     }
 
     CloseClipboard();
+    range_tree_destroy(transform);
   }
-
-  range_tree_destroy(transform);
-  utf16->destroy(utf16);
 }
 #else
 // Write text to system clipboard
@@ -201,6 +201,7 @@ struct range_tree* clipboard_get(struct encoding** encoding, int* binary) {
 
         size_t offset = 0;
         uint64_t byte = decode_based_unsigned_offset(&sequencer, 16, &offset, 2);
+        unicode_sequencer_find(&sequencer, offset);
         unicode_sequencer_advance(&sequencer, offset+1);
 
         if (pos==0) {
@@ -243,16 +244,11 @@ struct range_tree* clipboard_command_get(struct encoding** encoding) {
           size = (size-1)&~(size_t)1;
         }
 
-        struct encoding* utf16 = encoding_utf16le_create();
-        struct stream stream;
-        stream_from_plain(&stream, (uint8_t*)data, size);
-        converted = encoding_transform_stream(&stream, utf16, utf16, FILE_OFFSET_T_MAX);
-        stream_destroy(&stream);
+        converted = range_tree_create(NULL, 0);
+        range_tree_insert_split(converted, 0, (const uint8_t*)data, size, 0);
 
         if (encoding && !*encoding) {
-          *encoding = utf16;
-        } else {
-          utf16->destroy(utf16);
+          *encoding = encoding_utf16le_create();
         }
       }
 
@@ -267,9 +263,10 @@ struct range_tree* clipboard_command_get(struct encoding** encoding) {
 #else
 // Get text from system clipboard
 struct range_tree* clipboard_command_get(struct encoding** encoding, const char* command) {
-  struct range_tree* data = range_tree_create(NULL, 0);
+  struct range_tree* data = NULL;
   FILE* pipe = popen(command, "r");
   if (pipe) {
+    data = range_tree_create(NULL, 0);
     while (!feof(pipe)) {
       uint8_t* buffer = (uint8_t*)malloc(TREE_BLOCK_LENGTH_MIN);
       file_offset_t length = fread(buffer, 1, TREE_BLOCK_LENGTH_MIN, pipe);
@@ -283,7 +280,7 @@ struct range_tree* clipboard_command_get(struct encoding** encoding, const char*
       }
     }
 
-    if (data->root && encoding && !*encoding) {
+    if (encoding && !*encoding) {
       *encoding = encoding_utf8_create();
     }
     pclose(pipe);

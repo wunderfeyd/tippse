@@ -342,8 +342,8 @@ void screen_cursor(struct screen* base, int x, int y) {
 // Set character color
 void setup_color(HDC context, int reversed, int index_foreground, int index_background, DWORD foreground_system, DWORD background_system) {
   DWORD scan_color = 0;
-  if (index_background<0) {
-    scan_color = reversed?foreground_system:background_system;
+  if (index_background<0 || index_foreground<0) {
+    scan_color = background_system;
   }
 
   int shift = 0;
