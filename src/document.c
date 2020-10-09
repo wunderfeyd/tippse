@@ -531,9 +531,11 @@ void document_clipboard_paste(struct document_file* file, struct document_view* 
   struct range_tree* buffer = clipboard_get(&encoding, &binary);
   if (buffer) {
     struct range_tree* transform = binary?buffer:encoding_transform_page(buffer->root, 0, FILE_OFFSET_T_MAX, encoding, file->encoding);
-    document_file_insert_buffer(file, view->offset, transform->root);
-    if (!binary) {
-      range_tree_destroy(transform);
+    if (transform) {
+      document_file_insert_buffer(file, view->offset, transform->root);
+      if (!binary) {
+        range_tree_destroy(transform);
+      }
     }
     range_tree_destroy(buffer);
   }
