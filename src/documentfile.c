@@ -1095,6 +1095,7 @@ void document_file_reload_config(struct document_file* base) {
     node = config_advance_ascii(base->config, node, last);
   }
 
+  int retype = 0;
   if (node && node->end) {
     char* file_type = (char*)config_convert_encoding(node, encoding_utf8_static(), NULL);
 
@@ -1115,6 +1116,7 @@ void document_file_reload_config(struct document_file* base) {
           if (strcmp(document_file_parsers[n].name, parser)==0) {
             (*base->type->destroy)(base->type);
             base->type = (*document_file_parsers[n].constructor)(base->config, file_type);
+            retype = 1;
             break;
           }
         }
@@ -1139,6 +1141,12 @@ void document_file_reload_config(struct document_file* base) {
     }
 
     free(file_type);
+  }
+
+  if (!retype && base->type) {
+    struct file_type* update_type = (*base->type->create)(base->config, base->type->file_type);
+    (*base->type->destroy)(base->type);
+    base->type = update_type;
   }
 }
 
