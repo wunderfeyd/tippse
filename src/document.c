@@ -310,8 +310,9 @@ void document_search_directory(struct thread* thread, struct document_file* pipe
             if (!found) {
               break;
             }
-            file_offset_t hit = stream_offset_file(&search->hit_start);
-            while (stream_offset(&newlines)<=hit) {
+            file_offset_t hit_start = stream_offset_file(&search->hit_start);
+            file_offset_t hit_end = stream_offset_file(&search->hit_end);
+            while (stream_offset(&newlines)<=hit_start) {
               line_hit = line;
               stream_destroy(&line_start);
               stream_clone(&line_start, &newlines);
@@ -325,19 +326,37 @@ void document_search_directory(struct thread* thread, struct document_file* pipe
               hits_lines++;
               size_t out = (size_t)sprintf(output, "%s:%d: ", scan, (int)line_hit);
               int columns = 80;
+              int max = 512;
               struct stream line_copy;
               stream_clone(&line_copy, &line_start);
-              while (!stream_end(&line_copy) && columns>0) {
-                columns--;
+              while (!stream_end(&line_copy) && columns>0 && max>0) {
+                file_offset_t pos = stream_offset_file(&line_copy);
+                if (pos==hit_start) {
+                  output[out++] = '\b';
+                }
+
+                if (pos==hit_end) {
+                  output[out++] = '\b';
+                  if (columns<10) {
+                    columns = 10;
+                  }
+                }
+
+                if (pos>hit_end) {
+                  columns--;
+                }
+
+                max--;
+
                 uint8_t index = stream_read_forward(&line_copy);
                 if (index=='\n') {
                   break;
                 }
                 if (index>=0x20 || index=='\t') {
-                  out += (size_t)sprintf(output+out, "%c", index);
+                  output[out++] = (char)index;
                 }
               }
-              out += (size_t)sprintf(output+out, "\n");
+              output[out++] = '\n';
               document_file_fill_pipe(pipe, (uint8_t*)output, out);
               stream_destroy(&line_copy);
               line_previous = line_hit;

@@ -17,10 +17,12 @@
 #include "library/filecache.h"
 #include "filetype.h"
 #include "filetype/c.h"
+#include "filetype/compile.h"
 #include "filetype/lua.h"
 #include "filetype/markdown.h"
 #include "filetype/patch.h"
 #include "filetype/php.h"
+#include "filetype/search.h"
 #include "filetype/sql.h"
 #include "filetype/text.h"
 #include "filetype/xml.h"
@@ -54,11 +56,14 @@ struct config_cache document_file_newline[TIPPSE_NEWLINE_MAX+1] = {
 // TODO: this has to be covered by the settings subsystem in future
 struct document_file_parser document_file_parsers[] = {
   {"c", file_type_c_create},
+  {"compile", file_type_compile_create},
   {"lua", file_type_lua_create},
   {"markdown", file_type_markdown_create},
   {"patch", file_type_patch_create},
   {"php", file_type_php_create},
+  {"search", file_type_search_create},
   {"sql", file_type_sql_create},
+  {"text", file_type_text_create},
   {"xml", file_type_xml_create},
   {NULL,  NULL}
 };
@@ -365,13 +370,19 @@ void document_file_create_pipe(struct document_file* base, struct document_file_
   range_tree_static(&base->bookmarks, range_tree_length(&base->buffer), 0);
   document_file_reset_views(base, 1);
 
-  (*base->type->destroy)(base->type);
-  base->type = file_type_c_create(base->config, "compiler_output");
-
   base->piped = TIPPSE_PIPE_ACTIVE;
   base->pipe_operation = pipe_operation;
+  (*base->type->destroy)(base->type);
+  if (base->pipe_operation->operation==TIPPSE_PIPEOP_EXECUTE) {
+    base->type = file_type_compile_create(base->config, "compiler_output");
+  } else {
+    base->type = file_type_search_create(base->config, "search_output");
+  }
+
   if (base->pipe_operation->operation==TIPPSE_PIPEOP_EXECUTE) {
     document_file_name(base, base->pipe_operation->execute.shell);
+  } else {
+    document_file_name(base, "Search results");
   }
 
   thread_create_inplace(&base->thread_pipe, document_file_pipe_entry, base);
