@@ -524,6 +524,7 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
   codepoint_t newline_cp1 = (file->newline==TIPPSE_NEWLINE_CR)?'\r':'\n';
   codepoint_t newline_cp2 = (file->newline==TIPPSE_NEWLINE_CRLF)?'\r':UNICODE_CODEPOINT_UNASSIGNED;
   codepoint_t newline_cp3 = (newline_cp2==UNICODE_CODEPOINT_UNASSIGNED)?UNICODE_CODEPOINT_UNASSIGNED:newline_cp1;
+  codepoint_t newline_cp4 = (file->newline==TIPPSE_NEWLINE_CR)?'\n':'\r';
   debug_pages_collect++;
 
   void (*mark)(struct document_text_render_info* render_info) = file->type->mark;
@@ -801,6 +802,8 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
     if (cp==newline_cp1) {
       render_info->visual_detail &= ~VISUAL_DETAIL_CONTROLCHARACTER;
     } else if (cp==newline_cp2) {
+      render_info->visual_detail |= VISUAL_DETAIL_CONTROLCHARACTER;
+    } else if (cp==newline_cp4) {
       render_info->visual_detail |= VISUAL_DETAIL_CONTROLCHARACTER;
     }
 

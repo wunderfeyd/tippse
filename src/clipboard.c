@@ -77,8 +77,8 @@ void clipboard_set(struct range_tree* data, int binary, struct encoding* encodin
 #ifdef __APPLE__
   clipboard_command_set(external_data, external_encoding, "pbcopy");
 #elif __linux__
-  clipboard_command_set(external_data, external_encoding, "xsel -i -p 2>/dev/null");
-  clipboard_command_set(external_data, external_encoding, "xsel -i -b 2>/dev/null");
+  clipboard_command_set(external_data, external_encoding, "((xclip -i --selection primary) || (xsel -i -p)) 2>/dev/null");
+  clipboard_command_set(external_data, external_encoding, "((xclip -i --selection clipboard) || (xsel -i -b)) 2>/dev/null");
 #elif _WINDOWS
   clipboard_command_set(external_data, external_encoding);
 #endif
@@ -155,7 +155,10 @@ struct range_tree* clipboard_get(struct encoding** encoding, int* binary) {
 #ifdef __APPLE__
   data = clipboard_command_get(encoding, "pbpaste");
 #elif __linux__
-  data = clipboard_command_get(encoding, "xsel -o 2>/dev/null");
+  data = clipboard_command_get(encoding, "((xclip -o --selection clipboard) || (xsel -o -b)) 2>/dev/null");
+  /*if (!data) {
+    data = clipboard_command_get(encoding, "((xclip -o --selection primary) || (xsel -o -p)) 2>/dev/null");
+  }*/
 #elif _WINDOWS
   data = clipboard_command_get(encoding);
 #endif
