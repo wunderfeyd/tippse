@@ -4,6 +4,7 @@
 
 #include "config.h"
 #include "document.h"
+#include "document_hex.h"
 #include "document_text.h"
 #include "documentfile.h"
 #include "documentundo.h"
@@ -685,8 +686,10 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
   } else if (command==TIPPSE_CMD_VIEW_SWITCH) {
     if (base->focus->document==base->focus->document_hex) {
       base->focus->document = base->focus->document_text;
+      document_text_reset(base->focus->document, base->focus->view, base->focus->file);
     } else {
       base->focus->document = base->focus->document_hex;
+      document_hex_reset(base->focus->document, base->focus->view, base->focus->file);
     }
   } else if (command==TIPPSE_CMD_ESCAPE) {
     editor_focus(base, base->document, 1);

@@ -1849,10 +1849,10 @@ void document_text_keypress(struct document* base, struct document_view* view, s
   } else if (command==TIPPSE_CMD_BOOKMARK) {
     if (document_view_select_active(view)) {
       document_bookmark_toggle_selection(file, view);
-      document_view_select_nothing(view, file);
     } else {
       document_text_toggle_bookmark(base, view, file, view->offset);
     }
+    selection_keep = 1;
   } else if (command==TIPPSE_CMD_BOOKMARK_NEXT) {
     document_bookmark_next(file, view);
     seek = 1;

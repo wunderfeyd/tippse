@@ -313,12 +313,12 @@ void document_hex_keypress(struct document* base, struct document_view* view, st
   } else if (command==TIPPSE_CMD_BOOKMARK) {
     if (document_view_select_active(view)) {
       document_bookmark_toggle_selection(file, view);
-      document_view_select_nothing(view, file);
     } else {
       if (view->offset<range_tree_length(&file->buffer)) {
         document_bookmark_toggle_range(file, view->offset, view->offset+1);
       }
     }
+    selection_keep = 1;
   } else if (command==TIPPSE_CMD_BOOKMARK_NEXT) {
     document_bookmark_next(file, view);
   } else if (command==TIPPSE_CMD_BOOKMARK_PREV) {
