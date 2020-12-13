@@ -314,7 +314,7 @@ void config_load(struct config* base, const char* filename) {
               keyword_codepoints[keyword_length++] = '/';
             }
 
-            if (brackets<sizeof(bracket_positions)/sizeof(int)) {
+            if (brackets<sizeof(bracket_positions)/sizeof(size_t)) {
               bracket_positions[brackets++] = keyword_length;
             }
           } else if (cp=='}' && brackets>0) {

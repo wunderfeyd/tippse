@@ -8,9 +8,9 @@ void mutex_create_inplace(struct mutex* mutex) {
 #else
   pthread_mutexattr_init(&mutex->attribute);
 #ifdef __APPLE__
-  pthread_mutexattr_settype(&mutex->attribute, PTHREAD_MUTEX_ADAPTIVE_NP);
-#else
   pthread_mutexattr_settype(&mutex->attribute, PTHREAD_MUTEX_NORMAL);
+#else
+  pthread_mutexattr_settype(&mutex->attribute, PTHREAD_MUTEX_ADAPTIVE_NP);
 #endif
   pthread_mutex_init(&mutex->handle, &mutex->attribute);
 #endif

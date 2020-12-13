@@ -45,7 +45,7 @@ void write_file_bytes(const char* to, const char* name, uint8_t* output, size_t 
 }
 
 // Strip unwanted characters
-uint8_t* reduce_file(uint8_t* buffer, size_t* size) {
+void reduce_file(uint8_t* buffer, size_t* size) {
   size_t size_org = *size;
   int newline = 1;
   int escape = 0;
