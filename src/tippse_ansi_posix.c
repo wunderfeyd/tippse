@@ -146,7 +146,7 @@ void tippse_unblock_pipe(int fd) {
 }
 
 void tippse_update_signal(struct document_file* file) {
-  write(tippse_pipefd[1], &file, sizeof(struct document_file*));
+  UNUSED(write(tippse_pipefd[1], &file, sizeof(struct document_file*)));
 }
 
 int main(int argc, const char** argv) {
