@@ -58,7 +58,7 @@ void file_type_markdown_mark(struct document_text_render_info* render_info) {
         break;
       }
     }
-  } else if ((cp1>='a' && cp1<='z') || (cp1>='A' && cp1<='Z') || (cp1>='0' && cp1<='9') || cp1=='_') {
+  } else if (unicode_word(cp1)) {
     after |= VISUAL_DETAIL_WORD;
   } else if ((cp1=='*' || cp1=='-' || cp1=='+') && (cp2==' ' || cp2=='\t') && !(before&VISUAL_DETAIL_STOPPED_INDENTATION)) {
     flags = VISUAL_FLAG_COLOR_STRING;

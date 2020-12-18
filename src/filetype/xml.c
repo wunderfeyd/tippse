@@ -82,7 +82,7 @@ void file_type_xml_mark(struct document_text_render_info* render_info) {
     after |= VISUAL_DETAIL_INDENTATION;
   }
 
-  if ((cp1>='a' && cp1<='z') || (cp1>='A' && cp1<='Z') || (cp1>='0' && cp1<='9') || cp1=='_') {
+  if (unicode_word(cp1)) {
     after |= VISUAL_DETAIL_WORD;
   }
 

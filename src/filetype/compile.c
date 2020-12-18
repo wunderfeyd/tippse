@@ -40,7 +40,7 @@ void file_type_compile_mark(struct document_text_render_info* render_info) {
 
   if (cp1=='\t' || cp1==' ') {
     after |= VISUAL_DETAIL_INDENTATION;
-  } else if ((cp1>='a' && cp1<='z') || (cp1>='A' && cp1<='Z') || (cp1>='0' && cp1<='9') || cp1=='_') {
+  } else if (unicode_word(cp1)) {
     after |= VISUAL_DETAIL_WORD;
   }
 

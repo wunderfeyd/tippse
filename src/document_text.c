@@ -1612,22 +1612,9 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     if (!unicode_word(cp)) {
       stream_destroy(&stream);
 
+      file_offset_t offset = document_text_word_transition_prev(base, view, file, view->offset);
+      struct range_tree_node* buffer = range_tree_node_find_offset(file->buffer.root, offset, &displacement);
       stream_from_page(&stream, buffer, displacement);
-      while (!stream_start(&stream)) {
-        stream_reverse(&stream, 1); // TODO: this might not work with UTF16 for example ... introduce a smallest element per encoding (we go with 1 here)
-        struct stream copy;
-        stream_clone(&copy, &stream);
-        unicode_sequencer_clear(&sequencer, file->encoding, &copy);
-        // TODO: codepoint!=sequence
-        codepoint_t cp = unicode_sequencer_find(&sequencer, 0)->cp[0];
-        stream_destroy(&copy);
-        if (cp<UNICODE_CODEPOINT_MAX && !unicode_word(cp)) {
-          stream_forward(&stream, 1);
-          break;
-        }
-      }
-
-      file_offset_t offset = stream_offset(&stream);
       unicode_sequencer_clear(&sequencer, file->encoding, &stream);
       int prefix = 0;
       struct trie_node* parent = NULL;
