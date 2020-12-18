@@ -37,9 +37,13 @@ void clipboard_cache_invalidate(struct file_cache* cache) {
 // Write text to clipboard
 void clipboard_set(struct range_tree* data, int binary, struct encoding* encoding) {
   struct range_tree* external_data = data;
+#ifndef _TESTSUITE
   struct encoding* external_encoding = encoding;
+#endif
   if (binary) {
+#ifndef _TESTSUITE
     external_encoding = encoding_utf8_static();
+#endif
     external_data = range_tree_create(NULL, 0);
     range_tree_insert_split(external_data, 0, (const uint8_t*)binary_marker, strlen(binary_marker), 0);
 

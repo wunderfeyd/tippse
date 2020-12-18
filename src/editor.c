@@ -1886,7 +1886,7 @@ char* editor_state_load_keyword_string(struct editor* base, struct config* confi
 // Append keyword and int value to state configuration
 void editor_state_save_keyword_int64(struct editor* base, struct config* config, const char* path, const char* keyword, int64_t value) {
   char converted[1024];
-  sprintf(&converted[0], "%lld", value);
+  sprintf(&converted[0], "%lld", (long long int)value);
   editor_state_save_keyword_string(base, config, path, keyword, &converted[0]);
 }
 
