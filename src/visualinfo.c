@@ -334,6 +334,15 @@ struct range_tree_node* visual_info_find_bracket_backward(struct document_view* 
   return node;
 }
 
+// Calculate lowest bracket
+TIPPSE_INLINE void visual_info_find_bracket_lowest_calculate(struct visual_info* visuals, int* mins) {
+  for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
+    int min1 = mins[n]-visuals->brackets_line[n].diff;
+    int min2 = visuals->brackets_line[n].min;
+    mins[n] = (min2>min1)?min2:min1;
+  }
+}
+
 // Check for lowest bracket depth
 void visual_info_find_bracket_lowest(struct document_view* view, struct range_tree_node* node, int* mins, struct range_tree_node* last) {
   if (!node) {
@@ -344,12 +353,7 @@ void visual_info_find_bracket_lowest(struct document_view* view, struct range_tr
     node = last;
 
     struct visual_info* visuals = document_view_visual_create(view, node);
-    for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
-      int min1 = mins[n]-visuals->brackets_line[n].diff;
-      int min2 = visuals->brackets_line[n].min;
-      mins[n] = (min2>min1)?min2:min1;
-    }
-
+    visual_info_find_bracket_lowest_calculate(visuals, mins);
     if (visuals->lines!=0) {
       return;
     }
@@ -363,11 +367,7 @@ void visual_info_find_bracket_lowest(struct document_view* view, struct range_tr
         break;
       }
 
-      for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
-        int min1 = mins[n]-visuals0->brackets_line[n].diff;
-        int min2 = visuals0->brackets_line[n].min;
-        mins[n] = (min2>min1)?min2:min1;
-      }
+      visual_info_find_bracket_lowest_calculate(visuals0, mins);
     }
 
     node = node->parent;
@@ -379,12 +379,7 @@ void visual_info_find_bracket_lowest(struct document_view* view, struct range_tr
     while (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
       struct visual_info* visuals1 = document_view_visual_create(view, node->side[1]);
       if (visuals1->lines==0) {
-        for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
-          int min1 = mins[n]-visuals1->brackets_line[n].diff;
-          int min2 = visuals1->brackets_line[n].min;
-          mins[n] = (min2>min1)?min2:min1;
-        }
-
+        visual_info_find_bracket_lowest_calculate(visuals1, mins);
         node = node->side[0];
       } else {
         node = node->side[1];
@@ -392,12 +387,8 @@ void visual_info_find_bracket_lowest(struct document_view* view, struct range_tr
     }
   }
 
-  for (size_t n = 0; n<VISUAL_BRACKET_MAX; n++) {
-    struct visual_info* visuals = document_view_visual_create(view, node);
-    int min1 = mins[n]-visuals->brackets_line[n].diff;
-    int min2 = visuals->brackets_line[n].min;
-    mins[n] = (min2>min1)?min2:min1;
-  }
+  struct visual_info* visuals = document_view_visual_create(view, node);
+  visual_info_find_bracket_lowest_calculate(visuals, mins);
 }
 
 // Find last indentation on line

@@ -426,6 +426,22 @@ int editor_update_panel_height(struct editor* base, struct splitter* panel, int 
   return height;
 }
 
+// Erase statusbar
+void editor_draw_statusbar(struct editor* base, int foreground, int background) {
+  for (int x = 0; x<base->screen->width; x++) {
+    codepoint_t cp = 0x20;
+    screen_setchar(base->screen, x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, foreground, background);
+  }
+}
+
+// Draw notification
+void editor_draw_notify(struct editor* base, codepoint_t cp, int* x, int background, int flag) {
+  if (flag) {
+    screen_setchar(base->screen, *x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], background);
+    (*x)++;
+  }
+}
+
 // Refresh editor components
 void editor_draw(struct editor* base) {
   screen_check(base->screen);
@@ -447,10 +463,7 @@ void editor_draw(struct editor* base) {
 
   int foreground = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_STATUS];
   int background = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
-  for (int x = 0; x<base->screen->width; x++) {
-    codepoint_t cp = 0x20;
-    screen_setchar(base->screen, x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, foreground, background);
-  }
+  editor_draw_statusbar(base, foreground, background);
 
   int running = 0;
   struct list_node* docs = base->documents->first;
@@ -460,29 +473,10 @@ void editor_draw(struct editor* base) {
   }
 
   int x = 0;
-  if (running) {
-    codepoint_t cp = 'R';
-    screen_setchar(base->screen, x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], background);
-    x++;
-  }
-
-  if (document_file_modified_cache(base->document->file)) {
-    codepoint_t cp = 'M';
-    screen_setchar(base->screen, x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], background);
-    x++;
-  }
-
-  if (base->document->file->save_skip) {
-    codepoint_t cp = 'N';
-    screen_setchar(base->screen, x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], background);
-    x++;
-  }
-
-  if (base->document->file->splitter) {
-    codepoint_t cp = 'S';
-    screen_setchar(base->screen, x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], background);
-    x++;
-  }
+  editor_draw_notify(base, 'R', &x, background, running);
+  editor_draw_notify(base, 'M', &x, background, document_file_modified_cache(base->document->file));
+  editor_draw_notify(base, 'N', &x, background, base->document->file->save_skip);
+  editor_draw_notify(base, 'S', &x, background, base->document->file->splitter?1:0);
 
   screen_drawtext(base->screen, (x>0)?x+1:x, 0, 0, 0, base->screen->width, base->screen->height, base->focus->name, (size_t)base->screen->width, foreground, background);
 
@@ -1394,6 +1388,15 @@ void editor_panel_assign(struct editor* base, struct document_file* file) {
   }
 }
 
+// Update panel
+void editor_view_update(struct editor* base, struct document_file* file) {
+  document_file_change_views(file, 1);
+  document_view_reset(base->panel->view, file, 1);
+  base->panel->view->line_select = 1;
+
+  (*base->panel->document->keypress)(base->panel->document, base->panel->view, base->panel->file, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
+}
+
 // Update and change to browser view
 void editor_view_browser(struct editor* base, const char* filename, struct stream* filter_stream, struct encoding* filter_encoding, int type, const char* preset, char* predefined, struct document_file* file) {
   if (preset) {
@@ -1416,14 +1419,10 @@ void editor_view_browser(struct editor* base, const char* filename, struct strea
     }
   }
 
-  document_directory(base->browser_doc, filter_stream, filter_encoding, (predefined && *predefined)?predefined:base->browser_preset);
-  document_file_change_views(base->browser_doc, 1);
-  document_view_reset(base->panel->view, base->browser_doc, 1);
-  base->panel->view->line_select = 1;
   base->browser_type = type;
   base->browser_file = file;
-
-  (*base->panel->document->keypress)(base->panel->document, base->panel->view, base->panel->file, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
+  document_directory(base->browser_doc, filter_stream, filter_encoding, (predefined && *predefined)?predefined:base->browser_preset);
+  editor_view_update(base, base->browser_doc);
 }
 
 // Update and change to document view
@@ -1455,11 +1454,7 @@ void editor_view_tabs(struct editor* base, struct stream* filter_stream, struct 
     search_destroy(search);
   }
 
-  document_file_change_views(base->tabs_doc, 1);
-  document_view_reset(base->panel->view, base->tabs_doc, 1);
-  base->panel->view->line_select = 1;
-
-  (*base->panel->document->keypress)(base->panel->document, base->panel->view, base->panel->file, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
+  editor_view_update(base, base->tabs_doc);
 }
 
 // Update and change to commands view
@@ -1492,11 +1487,7 @@ void editor_view_commands(struct editor* base, struct stream* filter_stream, str
     search_destroy(search);
   }
 
-  document_file_change_views(base->commands_doc, 1);
-  document_view_reset(base->panel->view, base->commands_doc, 1);
-  base->panel->view->line_select = 1;
-
-  (*base->panel->document->keypress)(base->panel->document, base->panel->view, base->panel->file, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
+  editor_view_update(base, base->commands_doc);
 }
 
 // Update and change to commands view
@@ -1530,11 +1521,7 @@ void editor_view_menu(struct editor* base, struct stream* filter_stream, struct 
     search_destroy(search);
   }
 
-  document_file_change_views(base->menu_doc, 1);
-  document_view_reset(base->panel->view, base->menu_doc, 1);
-  base->panel->view->line_select = 1;
-
-  (*base->panel->document->keypress)(base->panel->document, base->panel->view, base->panel->file, TIPPSE_CMD_RETURN, NULL, 0, 0, 0, 0, 0, 0);
+  editor_view_update(base, base->menu_doc);
 }
 
 // Setup command map array
@@ -1787,12 +1774,9 @@ void editor_process_message(struct editor* base, const char* message, file_offse
   if (tick>base->tick_message+1000000 && base->focus && base->screen) {
     base->tick_message = tick;
 
-    int foreground = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
-    int background = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
-    for (int x = 0; x<base->screen->width; x++) {
-      codepoint_t cp = 0x20;
-      screen_setchar(base->screen, x, 0, 0, 0, base->screen->width, base->screen->height, &cp, 1, foreground, background);
-    }
+  int foreground = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
+  int background = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
+    editor_draw_statusbar(base, foreground, background);
 
     char indicator = 0;
     base->indicator++;

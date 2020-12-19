@@ -22,13 +22,8 @@
 #include "library/trie.h"
 #include "library/unicode.h"
 
-// Search in document
-int document_search(struct document_file* file, struct document_view* view, struct range_tree* search_text, struct encoding* search_encoding, struct range_tree* replace_text, struct encoding* replace_encoding, int reverse, int ignore_case, int regex, int all, int replace) {
-  if (!search_text || !file->buffer.root) {
-    editor_console_update(file->editor, "No text to search for!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
-    return 0;
-  }
-
+// Build search dependent on the type and parameters
+struct search* document_search_build(struct document_file* file, struct range_tree* search_text, struct encoding* search_encoding, int reverse, int ignore_case, int regex) {
   struct stream needle_stream;
   stream_from_page(&needle_stream, range_tree_node_first(search_text->root), 0);
   struct search* search;
@@ -38,6 +33,17 @@ int document_search(struct document_file* file, struct document_view* view, stru
     search = search_create_plain(ignore_case, reverse, &needle_stream, search_encoding, file->encoding);
   }
   stream_destroy(&needle_stream);
+  return search;
+}
+
+// Search in document
+int document_search(struct document_file* file, struct document_view* view, struct range_tree* search_text, struct encoding* search_encoding, struct range_tree* replace_text, struct encoding* replace_encoding, int reverse, int ignore_case, int regex, int all, int replace) {
+  if (!search_text || !file->buffer.root) {
+    editor_console_update(file->editor, "No text to search for!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
+    return 0;
+  }
+
+  struct search* search = document_search_build(file, search_text, search_encoding, reverse, ignore_case, regex);
 
   if (!replace && all) {
     document_view_select_nothing(view, file);
@@ -288,16 +294,7 @@ void document_search_directory(struct thread* thread, struct document_file* pipe
         stream_from_file(&stream, cache, 0);
         document_file_detect_properties_stream(file, &stream);
         if (!file->binary || binary) {
-          struct stream needle_stream;
-          stream_from_page(&needle_stream, range_tree_node_first(search_text->root), 0);
-          struct search* search;
-          if (regex) {
-            search = search_create_regex(ignore_case, 0, &needle_stream, search_encoding, file->encoding);
-          } else {
-            search = search_create_plain(ignore_case, 0, &needle_stream, search_encoding, file->encoding);
-          }
-          stream_destroy(&needle_stream);
-
+          struct search* search = document_search_build(file, search_text, search_encoding, 0, ignore_case, regex);
           file_offset_t line_previous = 0;
           file_offset_t line = 1;
           struct stream newlines;
@@ -611,14 +608,18 @@ void document_bookmark_toggle_selection(struct document_file* file, struct docum
   }
 }
 
-// Goto next bookmark
-void document_bookmark_next(struct document_file* file, struct document_view* view) {
+// Goto next/previous bookmark
+void document_bookmark_find(struct document_file* file, struct document_view* view, int reverse) {
   file_offset_t offset = view->offset;
   int wrap = 1;
   while (1) {
     file_offset_t low;
     file_offset_t high;
-    if (range_tree_marked_next(&file->bookmarks, offset, &low, &high, wrap)) {
+    if (!reverse && range_tree_marked_next(&file->bookmarks, offset, &low, &high, wrap)) {
+      view->offset = low;
+      break;
+    }
+    if (reverse && range_tree_marked_prev(&file->bookmarks, offset, &low, &high, wrap)) {
       view->offset = low;
       break;
     }
@@ -627,27 +628,7 @@ void document_bookmark_next(struct document_file* file, struct document_view* vi
       break;
     }
     wrap = 0;
-    offset = 0;
-  }
-}
-
-// Goto previous bookmark
-void document_bookmark_prev(struct document_file* file, struct document_view* view) {
-  file_offset_t offset = view->offset;
-  int wrap = 1;
-  while (1) {
-    file_offset_t low;
-    file_offset_t high;
-    if (range_tree_marked_prev(&file->bookmarks, offset, &low, &high, wrap)) {
-      view->offset = low;
-      break;
-    }
-    if (!wrap) {
-      editor_console_update(file->editor, "No bookmark found!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
-      break;
-    }
-    wrap = 0;
-    offset = range_tree_length(&file->buffer);
+    offset = reverse?range_tree_length(&file->buffer):0;
   }
 }
 
@@ -657,10 +638,10 @@ int document_keypress(struct document* base, struct document_view* view, struct 
   } else if (command==TIPPSE_CMD_REDO) {
     document_undo_execute_chain(file, view, file->redos, file->undos, 1);
   } else if (command==TIPPSE_CMD_BOOKMARK_NEXT) {
-    document_bookmark_next(file, view);
+    document_bookmark_find(file, view, 0);
     *seek = 1;
   } else if (command==TIPPSE_CMD_BOOKMARK_PREV) {
-    document_bookmark_prev(file, view);
+    document_bookmark_find(file, view, 1);
     *seek = 1;
   } else if (command==TIPPSE_CMD_COPY || command==TIPPSE_CMD_CUT) {
     document_undo_chain(file, file->undos);

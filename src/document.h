@@ -28,8 +28,7 @@ void document_bookmark_toggle_range(struct document_file* file, file_offset_t lo
 void document_bookmark_range(struct document_file* file, file_offset_t low, file_offset_t high, int marked);
 void document_bookmark_selection(struct document_file* file, struct document_view* view, int marked);
 void document_bookmark_toggle_selection(struct document_file* file, struct document_view* view);
-void document_bookmark_next(struct document_file* file, struct document_view* view);
-void document_bookmark_prev(struct document_file* file, struct document_view* view);
+void document_bookmark_find(struct document_file* file, struct document_view* view, int reverse);
 
 int document_keypress(struct document* base, struct document_view* view, struct document_file* file, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y, file_offset_t selection_low, file_offset_t selection_high, int* selection_keep, int* seek, file_offset_t file_size, file_offset_t* offset_old);
 #endif /* #ifndef TIPPSE_DOCUMENT_H */
