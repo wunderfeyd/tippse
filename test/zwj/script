@@ -1,0 +1,12 @@
+# write a two zwj emoji and do a delete operation
+
+cmd,switch
+str,0,"f09f98b6e2808df09f8cabefb88f"
+str,0,"f09f98b6e2808df09f8cabefb88f"
+cmd,switch
+cmd,home
+cmd,delete
+cmd,saveas
+str,0,tmp/test/zwj.output
+cmd,return
+cmd,quitforce

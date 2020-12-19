@@ -1506,8 +1506,8 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     // Line wrap indicator
     if ((out.visual_detail&VISUAL_DETAIL_WRAPPED) && view->show_invisibles && out.y==in.y) {
       position_t x = out.x-file->tabstop_width-view->scroll_x+view->address_width;
-      // TODO: cp should be 0x21aa
-      splitter_drawtext(splitter, screen, x, (int)y, "*", 1, file->defaults.colors[VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
+      codepoint_t cp = 0x21aa;
+      splitter_drawchar(splitter, screen, x, (int)y, &cp, 1, file->defaults.colors[VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
     }
 
     int64_t t2 = tick_count();
@@ -1827,12 +1827,6 @@ void document_text_keypress(struct document* base, struct document_view* view, s
     view->cursor_x = out.x;
     view->cursor_y = out.y;
     view->show_scrollbar = 1;
-  } else if (command==TIPPSE_CMD_UNDO) {
-    document_undo_execute_chain(file, view, file->undos, file->redos, 0);
-    return;
-  } else if (command==TIPPSE_CMD_REDO) {
-    document_undo_execute_chain(file, view, file->redos, file->undos, 1);
-    return;
   } else if (command==TIPPSE_CMD_BOOKMARK) {
     if (document_view_select_active(view)) {
       document_bookmark_toggle_selection(file, view);
@@ -1840,12 +1834,6 @@ void document_text_keypress(struct document* base, struct document_view* view, s
       document_text_toggle_bookmark(base, view, file, view->offset);
     }
     selection_keep = 1;
-  } else if (command==TIPPSE_CMD_BOOKMARK_NEXT) {
-    document_bookmark_next(file, view);
-    seek = 1;
-  } else if (command==TIPPSE_CMD_BOOKMARK_PREV) {
-    document_bookmark_prev(file, view);
-    seek = 1;
   } else if (command==TIPPSE_CMD_MOUSE) {
     if (button&TIPPSE_MOUSE_LBUTTON) {
       in_x_y.x = x+view->scroll_x-view->address_width;
@@ -1990,9 +1978,6 @@ void document_text_keypress(struct document* base, struct document_view* view, s
         selection_keep = 1;
       }
     }
-  } else if (command==TIPPSE_CMD_SELECT_ALL) {
-    offset_old = view->selection_start = 0;
-    view->offset = view->selection_end = file_size;
   } else if (command==TIPPSE_CMD_SELECT_LINE) {
     document_text_select_line(base, view, file);
     selection_keep = 1;
@@ -2014,30 +1999,6 @@ void document_text_keypress(struct document* base, struct document_view* view, s
     document_undo_chain(file, file->undos);
 
     seek = 1;
-  } else if (command==TIPPSE_CMD_COPY || command==TIPPSE_CMD_CUT) {
-    document_undo_chain(file, file->undos);
-    if (selection_low!=FILE_OFFSET_T_MAX) {
-      document_clipboard_copy(file, view);
-      if (command==TIPPSE_CMD_CUT) {
-        document_select_delete(file, view);
-      } else {
-        selection_keep = 1;
-      }
-    }
-    document_undo_chain(file, file->undos);
-    seek = 1;
-  } else if (command==TIPPSE_CMD_PASTE) {
-    document_undo_chain(file, file->undos);
-    document_select_delete(file, view);
-    document_clipboard_paste(file, view);
-    document_undo_chain(file, file->undos);
-    seek = 1;
-  } else if (command==TIPPSE_CMD_SHOW_INVISIBLES) {
-    view->show_invisibles ^= 1;
-    (*base->reset)(base, view, file);
-  } else if (command==TIPPSE_CMD_WORDWRAP) {
-    view->wrapping ^= 1;
-    (*base->reset)(base, view, file);
   } else if (command==TIPPSE_CMD_RETURN) {
     document_select_delete(file, view);
 
@@ -2125,6 +2086,7 @@ void document_text_keypress(struct document* base, struct document_view* view, s
     view->bracket_indentation = 0;
 
     seek = 1;
+  } else if (document_keypress(base, view, file, command, arguments, key, cp, button, button_old, x, y, selection_low, selection_high, &selection_keep, &seek, file_size, &offset_old)) {
   }
 
   if (seek) {
@@ -2267,22 +2229,20 @@ void document_text_keypress_line_select(struct document* base, struct document_v
   view->cursor_x = 0;
   view->cursor_y = out.y;
 
-  if (view->line_select) {
-    in_offset.offset = view->offset;
-    in_offset.clip = 0;
+  in_offset.offset = view->offset;
+  in_offset.clip = 0;
 
-    in_offset.offset = view->offset;
-    document_text_cursor_position(view, file, &in_offset, &out, 0, 1);
+  in_offset.offset = view->offset;
+  document_text_cursor_position(view, file, &in_offset, &out, 0, 1);
 
-    in_line_column.line = out.line;
-    in_line_column.column = 0;
-    document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
-    view->selection_start = out.offset;
-    view->offset = out.offset;
-    in_line_column.column = POSITION_T_MAX;
-    document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
-    view->selection_end = out.offset;
-  }
+  in_line_column.line = out.line;
+  in_line_column.column = 0;
+  document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
+  view->selection_start = out.offset;
+  view->offset = out.offset;
+  in_line_column.column = POSITION_T_MAX;
+  document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
+  view->selection_end = out.offset;
 
   document_view_select_nothing(view, file);
   document_view_select_range(view, view->selection_start, view->selection_end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);

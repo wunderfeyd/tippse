@@ -242,6 +242,7 @@ void document_hex_keypress(struct document* base, struct document_view* view, st
   file_offset_t file_size = range_tree_length(&file->buffer);
   position_t data_size = document_hex_width(view, file);
   file_offset_t offset_old = view->offset;
+  int seek = 0;
   int selection_keep = 0;
   file_offset_t selection_low;
   file_offset_t selection_high;
@@ -287,29 +288,6 @@ void document_hex_keypress(struct document* base, struct document_view* view, st
       view->scroll_y += view->client_height/3;
       view->show_scrollbar = 1;
     }
-  } else if (command==TIPPSE_CMD_SELECT_ALL) {
-    offset_old = view->selection_start = 0;
-    view->offset = view->selection_end = file_size;
-  } else if (command==TIPPSE_CMD_COPY || command==TIPPSE_CMD_CUT) {
-    document_undo_chain(file, file->undos);
-    if (selection_low!=FILE_OFFSET_T_MAX) {
-      document_clipboard_copy(file, view);
-      if (command==TIPPSE_CMD_CUT) {
-        document_select_delete(file, view);
-      } else {
-        selection_keep = 1;
-      }
-    }
-    document_undo_chain(file, file->undos);
-  } else if (command==TIPPSE_CMD_PASTE) {
-    document_undo_chain(file, file->undos);
-    document_select_delete(file, view);
-    document_clipboard_paste(file, view);
-    document_undo_chain(file, file->undos);
-  } else if (command==TIPPSE_CMD_UNDO) {
-    document_undo_execute_chain(file, view, file->undos, file->redos, 0);
-  } else if (command==TIPPSE_CMD_REDO) {
-    document_undo_execute_chain(file, view, file->redos, file->undos, 1);
   } else if (command==TIPPSE_CMD_BOOKMARK) {
     if (document_view_select_active(view)) {
       document_bookmark_toggle_selection(file, view);
@@ -319,10 +297,6 @@ void document_hex_keypress(struct document* base, struct document_view* view, st
       }
     }
     selection_keep = 1;
-  } else if (command==TIPPSE_CMD_BOOKMARK_NEXT) {
-    document_bookmark_next(file, view);
-  } else if (command==TIPPSE_CMD_BOOKMARK_PREV) {
-    document_bookmark_prev(file, view);
   } else if (command==TIPPSE_CMD_BACKSPACE) {
     if (selection_low!=FILE_OFFSET_T_MAX || document->cp_first!=0) {
       document_select_delete(file, view);
@@ -344,6 +318,7 @@ void document_hex_keypress(struct document* base, struct document_view* view, st
     document_select_delete(file, view);
     document_file_insert(file, view->offset, &text, 1, 0);
     view->offset--;
+  } else if (document_keypress(base, view, file, command, arguments, key, cp, button, button_old, x, y, selection_low, selection_high, &selection_keep, &seek, file_size, &offset_old)) {
   }
 
   if (command==TIPPSE_CMD_CHARACTER) {
@@ -448,24 +423,6 @@ uint8_t document_hex_value(codepoint_t cp) {
     value = (uint8_t)cp-'a'+10;
   } else if (cp>='A' && cp<='F') {
     value = (uint8_t)cp-'A'+10;
-  }
-  return value;
-}
-
-// Return value from hex string
-uint8_t document_hex_value_from_string(const char* text, size_t length) {
-  uint8_t value = 0;
-  for (size_t pos=0; pos<length; pos++) {
-    char cp = *(text+pos);
-    if (cp>='0' && cp<='9') {
-      value = value*16+(uint8_t)cp-'0';
-    } else if (cp>='a' && cp<='f') {
-      value = value*16+(uint8_t)cp-'a'+10;
-    } else if (cp>='A' && cp<='F') {
-      value = value*16+(uint8_t)cp-'A'+10;
-    } else {
-      break;
-    }
   }
   return value;
 }

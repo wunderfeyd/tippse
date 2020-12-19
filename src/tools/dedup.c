@@ -389,7 +389,7 @@ int main(int argc, const char** argv) {
   unicode_init();
 
   struct dedup_transform* transform = transform_create();
-  transform->valid = search_build("[\\w\\_\\d]+");
+  transform->valid = search_build("[\\w\\_\\d\\$]+");
   transform->invalid = search_build("\\\"(\\\\.|[^\\\\])*\\\"|//[^\\n]+|[\\w\\_\\d]+\\(|(size_t|const|char|short|int|long|uint\\d+_t|int\\d+_t|file_offset_t|ssize_t|struct [\\w\\_\\d]+|while|if|for|else|switch|case|return|inline|void)[^\\w]|\\-\\>[\\w\\_\\d]+|\\.[\\w\\_\\d]+");
   transform->skip = search_build("\\\"(\\\\.|[^\\\\])*\\\"|[\\w\\_\\d]\\s");
   transform_create_remover(transform, "\\s|\\r|\\n", "");

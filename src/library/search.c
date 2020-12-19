@@ -682,7 +682,7 @@ size_t search_append_set(struct search_node* last, int ignore_case, struct unico
   return advance;
 }
 
-// Try to append unicode character to the current set of the node, if a sequenceation into multiple characters has been made add a branch
+// Try to append unicode character to the current set of the node, if a sequencing into multiple characters has been made add a branch
 size_t search_append_unicode(struct search_node* last, int ignore_case, struct unicode_sequencer* sequencer, size_t offset, struct search_node* shorten, size_t min) {
   size_t advance = 1;
   if (ignore_case) {
