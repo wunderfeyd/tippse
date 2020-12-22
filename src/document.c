@@ -38,7 +38,7 @@ struct search* document_search_build(struct document_file* file, struct range_tr
 
 // Search in document
 int document_search(struct document_file* file, struct document_view* view, struct range_tree* search_text, struct encoding* search_encoding, struct range_tree* replace_text, struct encoding* replace_encoding, int reverse, int ignore_case, int regex, int all, int replace) {
-  if (!search_text || !file->buffer.root) {
+  if (!search_text || !search_text->root || !file->buffer.root) {
     editor_console_update(file->editor, "No text to search for!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
     return 0;
   }

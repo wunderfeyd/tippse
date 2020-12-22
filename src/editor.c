@@ -1774,8 +1774,8 @@ void editor_process_message(struct editor* base, const char* message, file_offse
   if (tick>base->tick_message+1000000 && base->focus && base->screen) {
     base->tick_message = tick;
 
-  int foreground = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
-  int background = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
+    int foreground = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
+    int background = base->focus->file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
     editor_draw_statusbar(base, foreground, background);
 
     char indicator = 0;
@@ -1791,12 +1791,19 @@ void editor_process_message(struct editor* base, const char* message, file_offse
       indicator = '\\';
     }
 
+    if (length>(1<<24)) {
+      length >>= 12;
+      position >>= 12;
+    }
+
     if (length==0) {
       length = 1;
     }
 
+    int permille = (position*(file_offset_t)1000)/length;
+
     char text[1024];
-    size_t size = (size_t)snprintf(&text[0], 1023, "%s %3.1f%% %c", message, ((double)position/(double)length)*100.0, indicator);
+    size_t size = (size_t)snprintf(&text[0], 1023, "%s %d.%01d%% %c", message, permille/10, permille%10, indicator);
 
     screen_drawtext(base->screen, 0, 0, 0, 0, base->screen->width, base->screen->height, &text[0], size, foreground, background);
     screen_update(base->screen);

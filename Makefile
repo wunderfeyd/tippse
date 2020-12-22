@@ -88,7 +88,7 @@ sanitize: CFLAGSEXTRA=-g -O0 -fno-omit-frame-pointer -fsanitize=address
 sanitize: $(TARGET) $(TEST_TARGET)
 	@echo OK
 
-minify: CFLAGSEXTRA=-flto -Os -D__SMALLEST__
+minify: CFLAGSEXTRA=-fno-unwind-tables -fno-asynchronous-unwind-tables -flto -Os -D__SMALLEST__
 minify: $(TARGET) $(TEST_TARGET)
 	@echo OK
 
@@ -96,6 +96,7 @@ perf: CFLAGSEXTRA=-D_PERFORMANCE
 perf: $(TARGET) $(TEST_TARGET)
 	@echo OK
 
+freestanding: LDFLAGS+=-static
 freestanding: CFLAGSEXTRA=-ffreestanding
 freestanding: $(TARGET) $(TEST_TARGET)
 	@echo OK
