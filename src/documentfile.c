@@ -941,8 +941,8 @@ void document_file_empty(struct document_file* base) {
 }
 
 // Move offsets from one range into another
-void document_file_relocate(file_offset_t* pos, file_offset_t from, file_offset_t to, file_offset_t length) {
-  if (*pos>=from && *pos<from+length) {
+void document_file_relocate(file_offset_t* pos, file_offset_t from, file_offset_t to, file_offset_t length, int inclusive) {
+  if (*pos>=from && (*pos<from+length || (inclusive && *pos<=from+length))) {
     *pos = (*pos-from)+to;
     if (to>from) {
       *pos -= length;
@@ -989,9 +989,9 @@ void document_file_move(struct document_file* base, file_offset_t from, file_off
     range_tree_paste(&view->selection, buffer_selection->root, corrected);
     range_tree_destroy(buffer_selection);
 
-    document_file_relocate(&view->selection_end, from, to, length);
-    document_file_relocate(&view->selection_start, from, to, length);
-    document_file_relocate(&view->offset, from, to, length);
+    document_file_relocate(&view->selection_end, from, to, length, 1);
+    document_file_relocate(&view->selection_start, from, to, length, 1);
+    document_file_relocate(&view->offset, from, to, length, 1);
 
     views = views->next;
   }

@@ -40,6 +40,7 @@ struct search* document_search_build(struct document_file* file, struct range_tr
 int document_search(struct document_file* file, struct document_view* view, struct range_tree* search_text, struct encoding* search_encoding, struct range_tree* replace_text, struct encoding* replace_encoding, int reverse, int ignore_case, int regex, int all, int replace) {
   if (!search_text || !search_text->root || !file->buffer.root) {
     editor_console_update(file->editor, "No text to search for!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
+    document_select_nothing(file, view);
     return 0;
   }
 
@@ -245,6 +246,7 @@ int document_search(struct document_file* file, struct document_view* view, stru
   }
 
   editor_console_update(file->editor, "Not found!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
+  document_select_nothing(file, view);
   return 0;
 }
 

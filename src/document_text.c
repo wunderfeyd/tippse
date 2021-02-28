@@ -2396,6 +2396,7 @@ void document_text_move_block(struct document* base, struct document_view* view,
   struct document_text_position out_line_return_start;
   struct document_text_position out_line_return_end;
   struct document_text_position out_insert;
+  struct document_text_position out_insert_next;
 
   in_line_column.column = 0;
   in_line_column.line = out_start.line;
@@ -2408,6 +2409,10 @@ void document_text_move_block(struct document* base, struct document_view* view,
   if (out_line_end.offset<out_line_start.offset) {
     return;
   }
+
+  in_line_column.column = POSITION_T_MAX;
+  in_line_column.line = up?out_line_start.line-1:out_line_end.line+1;
+  document_text_cursor_position(view, file, &in_line_column, &out_insert_next, 0, 1);
 
   in_line_column.column = 0;
   in_line_column.line = up?out_line_start.line-1:out_line_end.line+2;
@@ -2425,7 +2430,7 @@ void document_text_move_block(struct document* base, struct document_view* view,
     out_line_return_end.offset = out_line_start.offset;
   }
 
-  bool_t exchange = (out_insert.offset==range_tree_length(&file->buffer))?1:0;
+  bool_t exchange = (out_insert_next.offset==range_tree_length(&file->buffer))?1:0;
 
   if (out_insert.offset<out_line_start.offset || out_insert.offset>out_line_end.offset) {
     file_offset_t length_text = out_line_end.offset-out_line_start.offset;
@@ -2435,19 +2440,33 @@ void document_text_move_block(struct document* base, struct document_view* view,
     file_offset_t offset_insert = out_insert.offset;
     file_offset_t offset_insert_base = out_insert.offset;
     if (!exchange) {
+      if (view->offset==range_tree_length(&file->buffer)) {
+        if (view->offset<length_return) {
+          view->offset = 0;
+        } else {
+          view->offset -= length_return;
+        }
+      }
+
       document_file_move(file, offset_return, offset_insert, length_return);
       if (offset_insert>offset_return) {
         offset_insert -= length_return;
       }
-      document_file_relocate(&offset_text, offset_return, offset_insert_base, length_return);
+
+      document_file_relocate(&offset_text, offset_return, offset_insert_base, length_return, 0);
       document_file_move(file, offset_text, offset_insert, length_text);
     } else {
+      document_view_select_range(view, offset_return, offset_return+length_return, 0);
       document_file_move(file, offset_text, offset_insert, length_text);
       if (offset_insert>offset_text) {
         offset_insert -= length_text;
       }
-      document_file_relocate(&offset_return, offset_text, offset_insert_base, length_text);
+
+      document_file_relocate(&offset_return, offset_text, offset_insert_base, length_text, 0);
       document_file_move(file, offset_return, offset_insert, length_return);
+      if (view->offset+length_return==range_tree_length(&file->buffer)) {
+        view->offset += length_return;
+      }
     }
   }
 }
