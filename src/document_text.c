@@ -1558,17 +1558,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     return;
   }
 
-  size_t name_length = strlen(file->filename);
-  int modified = document_undo_modified(file);
-  char* title = (char*)malloc((name_length+(size_t)modified*2+1)*sizeof(char));
-  memcpy(title, file->filename, name_length);
-  if (modified) {
-    memcpy(title+name_length, " *\0", 3);
-  } else {
-    title[name_length] = '\0';
-  }
-  splitter_name(splitter, title);
-  free(title);
+  splitter_name(splitter, file->filename);
 
   if (document_view_select_active(view)) {
     splitter_cursor(splitter, screen, -1, -1);

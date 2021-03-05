@@ -231,6 +231,8 @@ struct editor {
   char* console_text;                 // Last console line text
   int console_color;                  // Last console line color
 
+  int64_t status_timeout;             // Display end time of document position and properties
+
   int browser_type;                   // Type of current file browser
   char* browser_preset;               // Text for filter preset
   struct document_file* browser_file; // Current file assigned to browser

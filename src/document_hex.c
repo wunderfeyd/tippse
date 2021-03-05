@@ -118,17 +118,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   file_offset_t bookmark_displacement;
   struct range_tree_node* bookmark = range_tree_node_find_offset(file->bookmarks.root, offset, &bookmark_displacement);
 
-  size_t name_length = strlen(file->filename);
-  int modified = document_undo_modified(file);
-  char* title = (char*)malloc((name_length+(size_t)modified*2+1)*sizeof(char));
-  memcpy(title, file->filename, name_length);
-  if (modified) {
-    memcpy(title+name_length, " *\0", 3);
-  } else {
-    title[name_length] = '\0';
-  }
-  splitter_name(splitter, title);
-  free(title);
+  splitter_name(splitter, file->filename);
 
   char status[1024];
   sprintf(&status[0], "%llu/%llu bytes - %llx - Hex %s", (long long unsigned int)view->offset, (long long unsigned int)file_size, (long long unsigned int)view->offset, (*file->encoding->name)());

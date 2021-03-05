@@ -477,6 +477,7 @@ void editor_draw(struct editor* base) {
   editor_draw_notify(base, 'M', &x, background, document_file_modified_cache(base->document->file));
   editor_draw_notify(base, 'N', &x, background, base->document->file->save_skip);
   editor_draw_notify(base, 'S', &x, background, base->document->file->splitter?1:0);
+  editor_draw_notify(base, '*', &x, background, base->document->file?document_undo_modified(base->document->file):0);
 
   screen_drawtext(base->screen, (x>0)?x+1:x, 0, 0, 0, base->screen->width, base->screen->height, base->focus->name, (size_t)base->screen->width, foreground, background);
 
@@ -486,7 +487,8 @@ void editor_draw(struct editor* base) {
     base->console_status = base->console_index;
   }
 
-  bool_t status_visible = (base->focus->file!=base->browser_doc && base->focus->file!=base->menu_doc)?1:0;
+  bool_t status_visible = (base->focus->file!=base->browser_doc && base->focus->file!=base->menu_doc && tick<base->status_timeout)?1:0;
+
   const char* status = base->focus->status;
   if (tick<base->console_timeout && base->console_text) {
     status_visible = 1;
@@ -523,7 +525,7 @@ void editor_tick(struct editor* base) {
     }
   }
 
-  if ((base->splitters->timeout && base->splitters->timeout<tick) || screen_resized(base->screen)) {
+  if ((base->splitters->timeout && base->splitters->timeout<tick) || (base->status_timeout && base->status_timeout<tick) || (base->console_timeout && base->console_timeout<tick) || screen_resized(base->screen)) {
     editor_draw(base);
   }
 
@@ -536,8 +538,10 @@ void editor_tick(struct editor* base) {
 
 // An input event was signalled ... translate it to a command if possible
 void editor_keypress(struct editor* base, int key, codepoint_t cp, int button, int button_old, int x, int y) {
-  base->tick_message = tick_count();
-  base->tick_undo = tick_count()+500000;
+  int64_t tick = tick_count();
+  base->tick_message = tick;
+  base->tick_undo = tick+500000;
+  base->status_timeout = tick+1000000;
 
   char key_lookup[1024];
   const char* key_name = editor_key_names[key&TIPPSE_KEY_MASK];
@@ -593,7 +597,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     }
   } else if (command==TIPPSE_CMD_BROWSER || command==TIPPSE_CMD_SAVEAS) {
     struct document_file* browser_file = file?file:base->document->file;
-    int unknown_location = (browser_file==base->compiler_doc || browser_file==base->search_doc || browser_file==base->help_doc);
+    int unknown_location = (browser_file==base->compiler_doc || browser_file==base->search_results_doc || browser_file==base->help_doc);
     const char* path = unknown_location?".":browser_file->filename;
     char* filename = extract_file_name(path);
     char* directory = strip_file_name(path);
@@ -783,7 +787,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
   } else if (command==TIPPSE_CMD_SHELL) {
     struct splitter* assign = editor_document_splitter(base, base->document, base->compiler_doc);
 
-    if (assign->file==base->search_results_doc) {
+    if (assign->file==base->compiler_doc) {
       if (assign->file->piped!=TIPPSE_PIPE_ACTIVE) {
         if (arguments && arguments->length>1) {
           struct trie_node* parent = config_find_ascii(base->focus->file->config, "/shell/");
@@ -802,7 +806,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
         document_file_shutdown_pipe(assign->file);
       }
     } else {
-      splitter_assign_document_file(assign, base->search_results_doc);
+      splitter_assign_document_file(assign, base->compiler_doc);
     }
   } else if (command==TIPPSE_CMD_SHELL_KILL) {
     document_file_shutdown_pipe(base->document->file);

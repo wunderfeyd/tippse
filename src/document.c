@@ -408,17 +408,7 @@ TIPPSE_INLINE int document_directory_highlight(const char* path) {
 
 // Read directory into document, sort by file name
 void document_directory(struct document_file* file, struct stream* filter_stream, struct encoding* filter_encoding, const char* predefined) {
-
   char* dir_name = file->filename;
-/*  if (filter_stream) {
-    struct encoding* utf8 = encoding_utf8_create();
-    struct range_tree_node* root = encoding_transform_stream(*filter_stream, filter_encoding, utf8);
-    encoding_utf8_destroy(utf8);
-    char* subpath = (char*)range_tree_node_raw(root, 0, range_tree_node_length(root));
-    range_tree_node_destroy(root, NULL);
-    fprintf(stderr, "%s\r\n", subpath);
-  }*/
-
   struct directory* directory = directory_create(dir_name);
   struct search* search = filter_stream?search_create_plain(1, 0, filter_stream, filter_encoding, file->encoding):NULL;
 
