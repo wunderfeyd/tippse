@@ -14,9 +14,6 @@ struct document_undo {
   file_offset_t offset;             // offset of change
   file_offset_t length;             // length of change
 
-  file_offset_t cursor_insert;      // cursor offset after insert
-  file_offset_t cursor_delete;      // cursor offset after delete
-
   int type;                         // type of change, delete or insert
   struct range_tree* buffer;        // refence to document buffer, corresponding page in tree
 };

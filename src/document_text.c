@@ -801,9 +801,7 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
 
     if (cp==newline_cp1) {
       render_info->visual_detail &= ~VISUAL_DETAIL_CONTROLCHARACTER;
-    } else if (cp==newline_cp2) {
-      render_info->visual_detail |= VISUAL_DETAIL_CONTROLCHARACTER;
-    } else if (cp==newline_cp4) {
+    } else if (cp==newline_cp2 || cp==newline_cp4) {
       render_info->visual_detail |= VISUAL_DETAIL_CONTROLCHARACTER;
     }
 

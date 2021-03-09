@@ -627,8 +627,10 @@ void document_bookmark_find(struct document_file* file, struct document_view* vi
 int document_keypress(struct document* base, struct document_view* view, struct document_file* file, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y, file_offset_t selection_low, file_offset_t selection_high, int* selection_keep, int* seek, file_offset_t file_size, file_offset_t* offset_old) {
   if (command==TIPPSE_CMD_UNDO) {
     document_undo_execute_chain(file, view, file->undos, file->redos, 0);
+    *seek = 1;
   } else if (command==TIPPSE_CMD_REDO) {
     document_undo_execute_chain(file, view, file->redos, file->undos, 1);
+    *seek = 1;
   } else if (command==TIPPSE_CMD_BOOKMARK_NEXT) {
     document_bookmark_find(file, view, 0);
     *seek = 1;

@@ -797,11 +797,10 @@ struct range_tree_node* range_tree_node_find_offset(struct range_tree_node* node
 // Create copy of a specific range and insert into another or same tree
 void range_tree_node_copy_insert(struct range_tree_node* root_from, file_offset_t offset_from, struct range_tree* tree_to, file_offset_t offset_to, file_offset_t length) {
   file_offset_t split = 0;
-  file_offset_t split2 = 0;
   int same = (root_from==tree_to->root)?1:0;
   struct range_tree_node* node = range_tree_node_find_offset(root_from, offset_from, &split);
   while (node && length>0) {
-    split2 = node->length-split;
+    file_offset_t split2 = node->length-split;
     if (split2>length) {
       split2 = length;
     }
