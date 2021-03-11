@@ -14,7 +14,7 @@ struct file_type_c {
   struct trie_node* keywords_preprocessor;
 };
 
-struct file_type* file_type_c_create(struct config* config, const char* file_type);
+struct file_type* file_type_c_create(struct config* config, const char* type_name);
 void file_type_c_destroy(struct file_type* base);
 void file_type_c_mark(struct document_text_render_info* render_info);
 const char* file_type_c_name(void);

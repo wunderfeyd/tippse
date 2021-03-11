@@ -58,7 +58,7 @@ void** merge_sort(void** sort1, void** sort2, size_t count, merge_sort_callback 
 
 // Sort comperator for asciiz string
 int merge_sort_asciiz(void* left, void* right) {
-  return strcasecmp(left, right);
+  return strcasecmp((const char*)left, (const char*)right);
 }
 
 // Return file name without directory path
@@ -408,7 +408,7 @@ char* realpath(const char* path, char* resolved_path) {
 
 // Duplicate a string with given length and terminate with NUL
 char* strndup(const char* src, size_t length) {
-  char* dst = malloc(sizeof(char)*(length+1));
+  char* dst = (char*)malloc(sizeof(char)*(length+1));
   memcpy(dst, src, length);
   dst[length] = '\0';
   return dst;

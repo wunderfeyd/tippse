@@ -238,7 +238,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, char* command_li
 
   char* cmdline = string_internal(GetCommandLineW());
   char* buffer = strdup(cmdline);
-  char** argv = malloc(sizeof(char*)*strlen(buffer));
+  char** argv = (char**)malloc(sizeof(char*)*strlen(buffer));
   int argc = 0;
   char* index = buffer;
   char* current = cmdline;

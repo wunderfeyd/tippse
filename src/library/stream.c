@@ -233,7 +233,7 @@ void stream_reverse_oob(struct stream* base, size_t length) {
       }
     }
   } else if (base->type==STREAM_TYPE_FILE) {
-    while (base->file.offset>0 && (ssize_t)base->displacement<0) {
+    while (base->file.offset>0 && (base->displacement&SIZE_T_HALF)) {
       file_cache_revoke(base->file.cache, base->cache_node);
       base->displacement += FILE_CACHE_PAGE_SIZE;
       base->file.offset -= FILE_CACHE_PAGE_SIZE;

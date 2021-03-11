@@ -6,9 +6,9 @@
 #include "../library/trie.h"
 #include "../visualinfo.h"
 
-struct file_type* file_type_text_create(struct config* config, const char* file_type) {
+struct file_type* file_type_text_create(struct config* config, const char* type_name) {
   struct file_type_text* self = (struct file_type_text*)malloc(sizeof(struct file_type_text));
-  self->vtbl.file_type = strdup(file_type);
+  self->vtbl.type_name = strdup(type_name);
   self->vtbl.create = file_type_text_create;
   self->vtbl.destroy = file_type_text_destroy;
   self->vtbl.name = file_type_text_name;
@@ -21,7 +21,7 @@ struct file_type* file_type_text_create(struct config* config, const char* file_
 
 void file_type_text_destroy(struct file_type* base) {
   struct file_type_text* self = (struct file_type_text*)base;
-  free(base->file_type);
+  free(base->type_name);
   free(self);
 }
 

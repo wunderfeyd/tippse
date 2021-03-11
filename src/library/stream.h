@@ -47,7 +47,7 @@ file_offset_t stream_offset(const struct stream* base);
 TIPPSE_INLINE size_t stream_cache_length(const struct stream* base) {return base->cache_length;}
 TIPPSE_INLINE size_t stream_displacement(const struct stream* base) {return base->displacement;}
 TIPPSE_INLINE const uint8_t* stream_buffer(const struct stream* base) {return base->plain+base->displacement;}
-TIPPSE_INLINE ssize_t stream_left(const struct stream* base) {return (ssize_t)base->cache_length-(ssize_t)base->displacement;}
+TIPPSE_INLINE int stream_left(const struct stream* base) {return (int)(base->cache_length-base->displacement);}
 
 uint8_t stream_read_forward_oob(struct stream* base);
 TIPPSE_INLINE uint8_t stream_read_forward(struct stream* base) {
@@ -102,7 +102,7 @@ TIPPSE_INLINE bool_t stream_end(struct stream* base) {
 }
 
 TIPPSE_INLINE bool_t stream_start(struct stream* base) {
-  return ((ssize_t)base->displacement<=0 && (base->type==STREAM_TYPE_PLAIN || stream_start_oob(base)))?1:0;
+  return (((base->displacement-1)&SIZE_T_HALF) && (base->type==STREAM_TYPE_PLAIN || stream_start_oob(base)))?1:0;
 }
 
 TIPPSE_INLINE void stream_next(struct stream* base) {
@@ -114,6 +114,6 @@ TIPPSE_INLINE void stream_previous(struct stream* base) {
 }
 
 TIPPSE_INLINE file_offset_t stream_combined_offset(file_offset_t offset, size_t displacement) {
-  return ((ssize_t)displacement>=0)?offset+displacement:offset-(file_offset_t)((ssize_t)0-(ssize_t)displacement);
+  return (!(displacement&SIZE_T_HALF))?offset+displacement:offset-(file_offset_t)((size_t)0-displacement);
 }
 #endif  /* #ifndef TIPPSE_STREAM_H */

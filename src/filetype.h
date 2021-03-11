@@ -5,7 +5,7 @@
 #include "types.h"
 
 struct file_type {
-  struct file_type* (*create)(struct config* config, const char* file_type);
+  struct file_type* (*create)(struct config* config, const char* type_name);
   void (*destroy)(struct file_type* base);
 
   const char* (*name)(void);
@@ -14,7 +14,7 @@ struct file_type {
   int (*bracket_match)(const struct document_text_render_info* render_info);
 
   struct config* config;
-  char* file_type;
+  char* type_name;
 };
 
 struct trie_node* file_type_config_base(const struct file_type* base, const char* suffix);

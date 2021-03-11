@@ -4,6 +4,19 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#ifdef _MSC_VER
+#include <stdio.h>
+#ifndef snprintf
+#define snprintf _snprintf
+#endif
+#ifndef strncasecmp
+#define strncasecmp _strnicmp
+#endif
+#ifndef strcasecmp
+#define strcasecmp _stricmp
+#endif
+#endif
+
 // This one limits the maximum file offset
 typedef uint64_t file_offset_t;
 
@@ -24,6 +37,7 @@ typedef long bool_t;
 #define POSITION_T_MAX ((position_t)((~(uint64_t)0)>>1))
 #define POSITION_T_MIN ((position_t)(~(uint64_t)POSITION_T_MAX))
 #define SIZE_T_MAX (~(size_t)0)
+#define SIZE_T_HALF (((~(size_t)0)>>1)+1)
 
 #ifdef __GNUC__
 #define LIKELY(x) __builtin_expect(x, 1)
@@ -39,16 +53,24 @@ typedef long bool_t;
 #define PREFETCH(x, rw, locality)
 #endif
 
-// Unused results
-static inline void unused_result(int result) {}
-#define UNUSED(a) unused_result(a?1:0)
-
 #ifndef __SMALLEST__
 //#define TIPPSE_INLINE inline __attribute__((always_inline))
+#ifndef _MSC_VER
 #define TIPPSE_INLINE static inline
 #else
-#define TIPPSE_INLINE static inline
+#define TIPPSE_INLINE static __inline
 #endif
+#else
+#ifndef _MSC_VER
+#define TIPPSE_INLINE static inline
+#else
+#define TIPPSE_INLINE static __inline
+#endif
+#endif
+
+// Unused results
+TIPPSE_INLINE void unused_result(int result) {}
+#define UNUSED(a) unused_result(a?1:0)
 
 // Forward declarations
 struct directory;

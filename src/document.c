@@ -253,7 +253,7 @@ int document_search(struct document_file* file, struct document_view* view, stru
 // Search in directory
 void document_search_directory(struct thread* thread, struct document_file* pipe, const char* path, struct range_tree* search_text, struct encoding* search_encoding, struct range_tree* replace_text, struct encoding* replace_encoding, int ignore_case, int regex, int replace, const char* pattern_text, struct encoding* pattern_encoding, int binary) {
   size_t length = strlen(path)+1024;
-  char* output = malloc(sizeof(char)*length);
+  char* output = (char*)malloc(sizeof(char)*length);
 
   {
     size_t out = (size_t)sprintf(output, "Scanning %s...\n", path);

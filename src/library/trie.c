@@ -225,7 +225,7 @@ codepoint_t* trie_reconstruct(struct trie* base, struct trie_node* node, size_t*
   }
 
   nodes /= nodes_codepoint;
-  codepoint_t* data = malloc(nodes*sizeof(codepoint_t));
+  codepoint_t* data = (codepoint_t*)malloc(nodes*sizeof(codepoint_t));
   *length = nodes;
   nodes--;
   while (node->parent) {

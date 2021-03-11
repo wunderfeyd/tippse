@@ -92,7 +92,7 @@ void range_tree_node_cache_invalidate(struct range_tree_node* node, struct range
       struct stream stream;
       stream_from_page(&stream, node, 0);
       size_t length = stream_cache_length(&stream);
-      uint8_t* buffer = malloc(length*sizeof(uint8_t));
+      uint8_t* buffer = (uint8_t*)malloc(length*sizeof(uint8_t));
       memcpy(buffer, stream_buffer(&stream), length);
       struct fragment* fragment = fragment_create_memory(buffer, length);
       stream_destroy(&stream);

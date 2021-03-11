@@ -6,9 +6,9 @@
 #include "../library/trie.h"
 #include "../visualinfo.h"
 
-struct file_type* file_type_xml_create(struct config* config, const char* file_type) {
+struct file_type* file_type_xml_create(struct config* config, const char* type_name) {
   struct file_type_xml* self = (struct file_type_xml*)malloc(sizeof(struct file_type_xml));
-  self->vtbl.file_type = strdup(file_type);
+  self->vtbl.type_name = strdup(type_name);
   self->vtbl.create = file_type_xml_create;
   self->vtbl.destroy = file_type_xml_destroy;
   self->vtbl.name = file_type_xml_name;
@@ -20,7 +20,7 @@ struct file_type* file_type_xml_create(struct config* config, const char* file_t
 
 void file_type_xml_destroy(struct file_type* base) {
   struct file_type_xml* self = (struct file_type_xml*)base;
-  free(base->file_type);
+  free(base->type_name);
   free(self);
 }
 

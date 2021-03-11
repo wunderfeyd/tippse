@@ -68,7 +68,7 @@ void clipboard_set(struct range_tree* data, int binary, struct encoding* encodin
       }
 
       if (pos==0) {
-        buffer = malloc(sizeof(char)*TIPPSE_BINARY_LINE_LENGTH*3);
+        buffer = (char*)malloc(sizeof(char)*TIPPSE_BINARY_LINE_LENGTH*3);
       }
 
       sprintf(&buffer[pos], "%02x ", stream_read_forward(&stream));
@@ -212,7 +212,7 @@ struct range_tree* clipboard_get(struct encoding** encoding, int* binary) {
         unicode_sequencer_advance(&sequencer, offset+1);
 
         if (pos==0) {
-          buffer = malloc(sizeof(uint8_t)*TREE_BLOCK_LENGTH_MIN);
+          buffer = (uint8_t*)malloc(sizeof(uint8_t)*TREE_BLOCK_LENGTH_MIN);
         }
 
         buffer[pos] = (uint8_t)byte;

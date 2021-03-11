@@ -6,9 +6,9 @@
 #include "../library/trie.h"
 #include "../visualinfo.h"
 
-struct file_type* file_type_markdown_create(struct config* config, const char* file_type) {
+struct file_type* file_type_markdown_create(struct config* config, const char* type_name) {
   struct file_type_markdown* self = (struct file_type_markdown*)malloc(sizeof(struct file_type_markdown));
-  self->vtbl.file_type = strdup(file_type);
+  self->vtbl.type_name = strdup(type_name);
   self->vtbl.create = file_type_markdown_create;
   self->vtbl.destroy = file_type_markdown_destroy;
   self->vtbl.name = file_type_markdown_name;
@@ -21,7 +21,7 @@ struct file_type* file_type_markdown_create(struct config* config, const char* f
 
 void file_type_markdown_destroy(struct file_type* base) {
   struct file_type_markdown* self = (struct file_type_markdown*)base;
-  free(base->file_type);
+  free(base->type_name);
   free(self);
 }
 

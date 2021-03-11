@@ -415,7 +415,7 @@ void document_file_flush_pipe(struct document_file* base) {
     mutex_unlock(&base->pipe_mutex);
     if (block->length>0) {
       file_offset_t offset = range_tree_length(&base->buffer);
-      struct fragment* fragment = fragment_create_memory(block->data, block->length);
+      struct fragment* fragment = fragment_create_memory((uint8_t*)block->data, block->length);
       range_tree_insert(&base->buffer, offset, fragment, 0, block->length, 0, 0, NULL);
       fragment_dereference(fragment, &base->hook.callback);
 
@@ -1155,7 +1155,7 @@ void document_file_reload_config(struct document_file* base) {
   }
 
   if (!retype && base->type) {
-    struct file_type* update_type = (*base->type->create)(base->config, base->type->file_type);
+    struct file_type* update_type = (*base->type->create)(base->config, base->type->type_name);
     (*base->type->destroy)(base->type);
     base->type = update_type;
   }
