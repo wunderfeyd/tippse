@@ -36,4 +36,4 @@ jobs:
     - uses: actions/checkout@v2
     - uses: ilammy/msvc-dev-cmd@v1.6.0
     - name: make
-      run: make_windows.cmd
+      run: .\make_windows.cmd
