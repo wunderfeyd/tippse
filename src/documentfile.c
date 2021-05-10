@@ -514,7 +514,7 @@ void document_file_load(struct document_file* base, const char* filename, int re
 
   document_undo_mark_save_point(base);
 
-  if (!reset) {
+  if (reset) {
     document_file_reset_views(base, !reload);
   } else {
     document_file_change_views(base, !reload);
