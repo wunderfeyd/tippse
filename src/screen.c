@@ -260,6 +260,7 @@ void screen_draw_char(struct screen* base, char** pos, int n, int* w, int* foreg
     if (*background_old==-1 || *foreground_old==-1 || *foreground_old==-2 || *foreground_old==-3) {
       *pos += sprintf(*pos, "\x1b[m");
       *foreground_old = -4;
+      *background_old = -4;
     }
   }
 
