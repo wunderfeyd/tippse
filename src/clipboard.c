@@ -227,7 +227,7 @@ struct range_tree* clipboard_get(struct encoding** encoding, int* binary) {
     free(marker);
   }
 
-  if (!data) {
+  if (!data && clipboard_data) {
     data = range_tree_copy(clipboard_data, 0, range_tree_length(clipboard_data), NULL);
   }
 
@@ -287,11 +287,17 @@ struct range_tree* clipboard_command_get(struct encoding** encoding, const char*
       }
     }
 
-    if (encoding && !*encoding) {
-      *encoding = encoding_utf8_create();
+    int result = pclose(pipe);
+    if (result!=0) {
+      range_tree_destroy(data);
+      data = NULL;
+    } else{
+      if (encoding && !*encoding) {
+        *encoding = encoding_utf8_create();
+      }
     }
-    pclose(pipe);
   }
+
   return data;
 }
 #endif
