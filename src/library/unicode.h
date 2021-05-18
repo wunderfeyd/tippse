@@ -53,7 +53,7 @@ void unicode_free(void);
 void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie** reverse);
 void unicode_decode_transform_stream(size_t count, struct stream* ref, codepoint_t* sum, codepoint_t* last);
 void unicode_decode_transform_append(struct trie* forward, size_t froms, codepoint_t* from, size_t tos, codepoint_t* to);
-void unicode_decode_rle(uint16_t* rle, codepoint_table_t mask);
+void unicode_decode_rle(uint8_t* rle, codepoint_table_t mask);
 void unicode_update_combining_mark(codepoint_t codepoint);
 int unicode_combining_mark(codepoint_t codepoint);
 //size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offset, codepoint_t* codepoints, size_t max, size_t* advance, size_t* length);

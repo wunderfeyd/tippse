@@ -59,90 +59,87 @@ void unicode_free(void) {
   trie_destroy(unicode_transform_nfc_nfd);
 }
 
+// Decode variable length integer for rle and lz codes
+codepoint_t unicode_decode_var(uint8_t** data) {
+  codepoint_t cp = 0;
+  int cpm = 0;
+  while (1) {
+    uint8_t c = *((*data)++);
+    cp |= ((codepoint_t)c&0x7f)<<cpm;
+    cpm += 7;
+    if ((c&0x80)==0) {
+      break;
+    }
+  }
+
+  return cp;
+}
+
 // Initialize static table from utf8 encoded transform commands
-// Encoding scheme...
-// Head byte
-//  (1rrrcccc exact match r = runs c = copy position)
-//  (00fffttt delta f = number of input code points t = number of output code points)
-//  An exact match repeats one of the previous differences (16 slots)
-// Delta stream
-//  input code points x utf8 encoded code point
-//  output code points x utf8 encoded code point
-//  if code point is below 0x20 then its delta to the previous code point at this location is encoded with offset 0x10
-// The result is good but not perfect (there seem to be some repetitions in the whole base data set)
+// Simple LZ variant based on variable length encoding and with delta to previous string
 void unicode_decode_transform(uint8_t* data, struct trie** forward, struct trie** reverse) {
   *forward = trie_create(sizeof(struct unicode_sequence));
   *reverse = trie_create(sizeof(struct unicode_sequence));
-  struct stream stream;
-  stream_from_plain(&stream, data, SIZE_T_MAX);
 
-  codepoint_t from_before[8];
-  codepoint_t to_before[8];
-  for (size_t n = 0; n<8; n++) {
-    from_before[n] = 0;
-    to_before[n] = 0;
-  }
+  codepoint_t* history = (codepoint_t*)malloc(128000*sizeof(codepoint_t));
+  size_t history_pos = 0;
 
-  size_t froms;
-  codepoint_t from[8];
-  size_t tos;
-  codepoint_t to[8];
-  struct stream copy[16];
-  size_t copies = 0;
-  struct stream duplicate;
-
+  uint8_t* read = data;
   while (1) {
-    uint8_t head = stream_read_forward(&stream);
-    if (head==0) {
+    codepoint_t cp = unicode_decode_var(&read);
+    if (cp==0) {
       break;
     }
 
-    bool_t exact = (head>>7)&0x1;
-    int runs = 0;
-    if (exact) {
-      duplicate = copy[head&0xf];
-      runs = (head>>4)&0x7;
-    } else {
-      stream_reverse(&stream, 1);
-      copy[copies] = stream;
-      copies++;
-      copies &= 15;
-      duplicate = stream;
+    if (cp&1) {
+      size_t load = (cp>>1);
+      size_t distance = unicode_decode_var(&read);
+      for (size_t copy = 0; copy<load; copy++) {
+         history[history_pos] = history[history_pos-distance];
+         history_pos++;
+      }
+    } else{
+      history[history_pos++] = cp>>1;
     }
+  }
 
-    while (runs>=0) {
-      struct stream ref = duplicate;
-      head = stream_read_forward(&ref);
-      froms = (size_t)((head>>3)&0x7);
-      tos = (size_t)((head>>0)&0x7);
+  size_t froms = 0;
+  size_t tos = 0;
+  size_t state = 0;
+  codepoint_t before[16];
+  for (size_t n = 0; n<16; n++) {
+    before[n] = 0;
+  }
 
-      unicode_decode_transform_stream(froms, &ref, &from[0], &from_before[0]);
-      unicode_decode_transform_stream(tos, &ref, &to[0], &to_before[0]);
-
-      unicode_decode_transform_append(*forward, froms, &from[0], tos, &to[0]);
-      unicode_decode_transform_append(*reverse, tos, &to[0], froms, &from[0]);
-
-      if (!exact && !runs) {
-        stream = ref;
+  int codes = 0;
+  for (size_t n = 0; n<history_pos; n++) {
+    codepoint_t cp = history[n];
+    if (cp!=1) {
+      int pos = cp&1;
+      cp >>= 1;
+      if (pos) {
+        before[state] += cp-1;
+      } else {
+        before[state] -= cp;
       }
 
-      runs--;
+      state++;
+    } else {
+      if (state<8) {
+        froms = state;
+        state = 8;
+      } else {
+        tos = state-8;
+
+        unicode_decode_transform_append(*forward, froms, &before[0], tos, &before[8]);
+        unicode_decode_transform_append(*reverse, tos, &before[8], froms, &before[0]);
+        codes++;
+        state = 0;
+      }
     }
   }
 
-  stream_destroy(&stream);
-}
-
-// Stream literals
-void unicode_decode_transform_stream(size_t count, struct stream* ref, codepoint_t* sum, codepoint_t* last) {
-  for (size_t n = 0; n<count; n++) {
-    size_t used = 0;
-    sum[n] = encoding_utf8_decode(NULL, ref, &used);
-    if (sum[n]<0x20) {
-      sum[n] += last[n]-0x10;
-    }
-    last[n] = sum[n];
-  }
+  free(history);
 }
 
 // Append transform to trie and assign result
@@ -163,10 +160,11 @@ void unicode_decode_transform_append(struct trie* forward, size_t froms, codepoi
 }
 
 // Initialise static table from rle stream
-void unicode_decode_rle(uint16_t* rle, codepoint_table_t mask) {
+void unicode_decode_rle(uint8_t* rle, codepoint_table_t mask) {
+  uint8_t* read = rle;
   codepoint_t codepoint = 0;
   while (1) {
-    int codes = (int)*rle++;
+    int codes = unicode_decode_var(&read);
     if (codes==0) {
       break;
     }
@@ -201,26 +199,41 @@ struct unicode_sequence* unicode_lower(struct unicode_sequencer* sequencer, size
 struct unicode_sequence* unicode_transform(struct trie* transformation, struct unicode_sequencer* sequencer, size_t offset, size_t* advance, size_t* length) {
   size_t read = 0;
   struct trie_node* parent = NULL;
+  size_t best_read = 0;
+  struct trie_node* best_parent = NULL;
+  size_t size = 0;
+  size_t best_size = 0;
   while (1) {
     struct unicode_sequence* sequence = unicode_sequencer_find(sequencer, offset+read);
     for (size_t n = 0; n<sequence->length; n++) {
       parent = trie_find_codepoint(transformation, parent, sequence->cp[n]);
 
       if (!parent) {
-        return NULL;
+        break;
       }
     }
 
-    *length += sequence->size;
+    if (!parent) {
+      break;
+    }
+
+    size += sequence->size;
     read++;
 
     if (parent->end) {
-      break;
+      best_parent = parent;
+      best_read = read;
+      best_size = size;
     }
   }
 
-  *advance = read;
-  return (struct unicode_sequence*)trie_object(parent);
+  if (!best_parent) {
+    return NULL;
+  }
+
+  *length += best_size;
+  *advance = best_read;
+  return (struct unicode_sequence*)trie_object(best_parent);
 }
 
 // Reset bitfield

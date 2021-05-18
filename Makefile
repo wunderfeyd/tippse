@@ -85,6 +85,7 @@ debug: $(TARGET) $(TEST_TARGET)
 	@echo OK
 
 sanitize: CFLAGSEXTRA=-g -O0 -fno-omit-frame-pointer -fsanitize=address
+sanitize: LDFLAGS=
 sanitize: $(TARGET) $(TEST_TARGET)
 	@echo OK
 
@@ -112,7 +113,7 @@ test: $(TESTS)
 download-unicode:
 	@mkdir -p tmp/tools/unicode/download
 	@mkdir -p tmp/tools/unicode/output
-	@wget "https://www.unicode.org/Public/10.0.0/ucd/UCD.zip" -O tmp/tools/unicode/download/UCD.zip
+	@wget "https://www.unicode.org/Public/13.0.0/ucd/UCD.zip" -O tmp/tools/unicode/download/UCD.zip
 	@unzip tmp/tools/unicode/download/UCD.zip -d tmp/tools/unicode/download
 
 generate-unicode: tmp/tools/convert
