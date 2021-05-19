@@ -14,9 +14,9 @@
 
 extern struct trie* unicode_transform_lower;
 extern struct trie* unicode_transform_upper;
-extern uint16_t unicode_letters_rle[];
-extern uint16_t unicode_whitespace_rle[];
-extern uint16_t unicode_digits_rle[];
+extern uint8_t unicode_letters_rle[];
+extern uint8_t unicode_whitespace_rle[];
+extern uint8_t unicode_digits_rle[];
 
 #define SEARCH_DEBUG 0
 

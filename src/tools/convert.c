@@ -161,7 +161,7 @@ void code_range(char* param, int* from, int* to) {
 
 // Write RLE stream
 void write_rle(const char* to, const char* name, uint8_t* output, size_t output_size) {
-  uint8_t* reduced = malloc(sizeof(uint8_t*)*(output_size*2)+256);
+  uint8_t* reduced = (uint8_t*)malloc(sizeof(uint8_t*)*(output_size*2)+256);
   uint8_t* write = reduced;
   int run = 0;
   size_t runs = 0;
