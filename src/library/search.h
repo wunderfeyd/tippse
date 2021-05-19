@@ -95,7 +95,7 @@ void search_node_destroy_recursive(struct search_node* node);
 int search_node_count(struct search_node* node);
 void search_node_set_build(struct search_node* node);
 void search_node_set(struct search_node* node, size_t index);
-void search_node_set_decode_rle(struct search_node* node, int invert, uint16_t* rle);
+void search_node_set_decode_rle(struct search_node* node, int invert, uint8_t* rle);
 
 struct search* search_create(int reverse, struct encoding* output_encoding);
 struct search* search_create_plain(int ignore_case, int reverse, struct stream* needle, struct encoding* needle_encoding, struct encoding* output_encoding);

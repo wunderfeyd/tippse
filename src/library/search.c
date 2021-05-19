@@ -126,7 +126,7 @@ void search_node_set(struct search_node* node, size_t index) {
 }
 
 // Decode a huge set from choosen rle stream (usally to create character classes) and invert if needed
-void search_node_set_decode_rle(struct search_node* node, int invert, uint16_t* rle) {
+void search_node_set_decode_rle(struct search_node* node, int invert, uint8_t* rle) {
   file_offset_t codepoint = 0;
   while (1) {
     file_offset_t codes = (file_offset_t)*rle++;
