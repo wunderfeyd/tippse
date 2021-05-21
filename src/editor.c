@@ -339,6 +339,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
 
   editor_focus(base, base->document, 0);
 
+  editor_keypress(base, TIPPSE_CMD_NULL, 0, 0, 0, 0, 0);
   return base;
 }
 
@@ -525,7 +526,18 @@ void editor_tick(struct editor* base) {
     }
   }
 
-  if ((base->splitters->timeout && base->splitters->timeout<tick) || (base->status_timeout && base->status_timeout<tick) || (base->console_timeout && base->console_timeout<tick) || screen_resized(base->screen)) {
+  int redraw = (base->splitters->timeout && base->splitters->timeout<tick)?1:0;
+  if (base->status_timeout && base->status_timeout<tick) {
+    base->status_timeout = 0;
+    redraw = 1;
+  }
+
+  if (base->console_timeout && base->console_timeout<tick) {
+    base->console_timeout = 0;
+    redraw = 1;
+  }
+
+  if (redraw || screen_resized(base->screen)) {
     editor_draw(base);
   }
 
