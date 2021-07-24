@@ -117,7 +117,7 @@ void document_text_render_seek(struct document_text_render_info* render_info, st
 int document_text_split_buffer(struct range_tree_node* buffer, struct document_file* file);
 int document_text_collect_span(struct document_text_render_info* render_info, struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel);
 int document_text_prerender_span(struct document_text_render_info* render_info, struct screen* screen, const struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel);
-int document_text_render_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel);
+int document_text_render_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel, position_t scroll_x, position_t scroll_y);
 
 file_offset_t document_text_cursor_position_partial(struct document_text_render_info* render_info, struct document_view* view, struct document_file* file, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel);
 file_offset_t document_text_cursor_position(struct document_view* view, struct document_file* file, struct document_text_position* in, struct document_text_position* out, int wrap, int cancel);

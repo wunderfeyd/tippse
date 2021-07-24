@@ -80,19 +80,27 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   file_offset_t file_size = range_tree_length(&file->buffer);
   view->cursor_x = (position_t)(view->offset%(file_offset_t)data_size);
   view->cursor_y = (position_t)(view->offset/(file_offset_t)data_size);
-  if (view->cursor_y>=view->scroll_y+view->client_height) {
-    view->scroll_y = view->cursor_y-view->client_height+1;
+
+  position_t scroll_x = view->scroll_x;
+  position_t scroll_y = view->scroll_y;
+  if (view->cursor_y>=scroll_y+view->client_height) {
+    scroll_y = view->cursor_y-view->client_height+1;
   }
   view->scroll_y_max = (position_t)(file_size/(file_offset_t)data_size);
-  if (view->cursor_y<view->scroll_y) {
-    view->scroll_y = view->cursor_y;
+  if (view->cursor_y<scroll_y) {
+    scroll_y = view->cursor_y;
   }
   position_t max_height = (view->scroll_y_max+1)-view->client_height;
-  if (view->scroll_y>max_height) {
-    view->scroll_y = max_height;
+  if (scroll_y>max_height) {
+    scroll_y = max_height;
   }
-  if (view->scroll_y<0) {
-    view->scroll_y = 0;
+  if (scroll_y<0) {
+    scroll_y = 0;
+  }
+
+  if (splitter->active) {
+    view->scroll_x = scroll_x;
+    view->scroll_y = scroll_y;
   }
 
   if (view->scroll_x_old!=view->scroll_x || view->scroll_y_old!=view->scroll_y) {
@@ -101,7 +109,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
     view->show_scrollbar = 1;
   }
 
-  file_offset_t offset = (file_offset_t)(view->scroll_y*data_size);
+  file_offset_t offset = (file_offset_t)(scroll_y*data_size);
   file_offset_t displacement;
   struct range_tree_node* buffer = range_tree_node_find_offset(file->buffer.root, offset, &displacement);
   struct stream byte_stream;

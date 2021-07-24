@@ -1079,7 +1079,7 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
   return rendered;
 }
 
-int document_text_render_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
+int document_text_render_span(struct document_text_render_info* render_info, struct screen* screen, struct splitter* splitter, struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel, position_t scroll_x, position_t scroll_y) {
   // TODO: Following initializations shouldn't be needed since the caller should check the type / verify
   int rendered = 1;
   int stop = render_info->buffer?0:1;
@@ -1139,7 +1139,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     }
 
     if (fill>0) {
-      position_t x = render_info->x-view->scroll_x+view->address_width;
+      position_t x = render_info->x-scroll_x+view->address_width;
       if (x>=view->address_width) {
         int color = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
         int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
@@ -1171,7 +1171,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
           color = file->defaults.colors[render_info->keyword_color];
         }
 
-        position_t y = render_info->y-view->scroll_y;
+        position_t y = render_info->y-scroll_y;
 
         if (cp==' ' || cp=='\t' || cp==newline_cp2) {
           if (whitespace_x==-1) {
@@ -1257,7 +1257,7 @@ int document_text_render_span(struct document_text_render_info* render_info, str
       stop = 1;
     }
 
-    if (render_info->x-view->scroll_x>render_info->width) {
+    if (render_info->x-scroll_x>render_info->width) {
       stop = 1;
     }
   }
@@ -1414,33 +1414,36 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   // TODO: cursor position is already known by seek flag in keypress function? Test me.
   document_text_cursor_position(view, file, &in, &cursor, 0, 1);
 
+  position_t scroll_x = view->scroll_x;
+  position_t scroll_y = view->scroll_y;
+
   struct visual_info* visuals = file->buffer.root?document_view_visual_create(view, file->buffer.root):NULL;
   while (1) {
-    position_t scroll_x = view->scroll_x;
-    position_t scroll_y = view->scroll_y;
-    if (cursor.x<view->scroll_x) {
-      view->scroll_x = cursor.x;
+    position_t scroll_x_before = scroll_x;
+    position_t scroll_y_before = scroll_y;
+    if (cursor.x<scroll_x) {
+      scroll_x = cursor.x;
     }
-    if (cursor.x>=view->scroll_x+max_width-1) {
-      view->scroll_x = cursor.x-max_width+1;
+    if (cursor.x>=scroll_x+max_width-1) {
+      scroll_x = cursor.x-max_width+1;
     }
-    if (cursor.y<view->scroll_y) {
-      view->scroll_y = cursor.y;
+    if (cursor.y<scroll_y) {
+      scroll_y = cursor.y;
     }
-    if (cursor.y>=view->scroll_y+view->client_height-1) {
-      view->scroll_y = cursor.y-(view->client_height-1);
+    if (cursor.y>=scroll_y+view->client_height-1) {
+      scroll_y = cursor.y-(view->client_height-1);
     }
-    if (view->scroll_y+view->client_height>(visuals?visuals->ys+1:0) && (visuals?visuals->dirty:0)==0) {
-      view->scroll_y = (visuals?visuals->ys+1:0)-(view->client_height);
+    if (scroll_y+view->client_height>(visuals?visuals->ys+1:0) && (visuals?visuals->dirty:0)==0) {
+      scroll_y = (visuals?visuals->ys+1:0)-(view->client_height);
     }
-    if (view->scroll_y<0) {
-      view->scroll_y = 0;
+    if (scroll_y<0) {
+      scroll_y = 0;
     }
-    if (view->scroll_x<0) {
-      view->scroll_x = 0;
+    if (scroll_x<0) {
+      scroll_x = 0;
     }
 
-    if (scroll_x==view->scroll_x && scroll_y==view->scroll_y && prerender>0) {
+    if (scroll_x==scroll_x_before && scroll_y==scroll_y_before && prerender>0) {
       break;
     }
 
@@ -1450,8 +1453,8 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     document_text_render_clear(&render_info, max_width, &view->selection);
     in.type = VISUAL_SEEK_X_Y;
     in.clip = 0;
-    in.x = view->scroll_x+view->client_width;
-    in.y = view->scroll_y+view->client_height;
+    in.x = scroll_x+view->client_width;
+    in.y = scroll_y+view->client_height;
 
     while (1) {
       document_text_render_seek(&render_info, view, &file->buffer, file->encoding, &in);
@@ -1460,6 +1463,11 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
       }
     }
     document_text_render_destroy(&render_info);
+  }
+
+  if (splitter->active) {
+    view->scroll_x = scroll_x;
+    view->scroll_y = scroll_y;
   }
 
   if (view->scroll_x_old!=view->scroll_x || view->scroll_y_old!=view->scroll_y) {
@@ -1472,7 +1480,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   document_text_render_clear(&render_info, max_width, &view->selection);
   in.type = VISUAL_SEEK_X_Y;
   in.clip = 1;
-  in.x = view->scroll_x;
+  in.x = scroll_x;
   position_t last_line = -1;
   for (position_t y = 0; y<view->client_height+1; y++) {
     if (file->defaults.line_width!=0) {
@@ -1487,7 +1495,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     debug_pages_prerender = 0;
     debug_pages_render = 0;
     debug_chars = 0;
-    in.y = y+view->scroll_y;
+    in.y = y+scroll_y;
     int64_t t1 = tick_count();
 
     // Get render start offset (for bookmark detection)
@@ -1503,7 +1511,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 
     // Line wrap indicator
     if ((out.visual_detail&VISUAL_DETAIL_WRAPPED) && view->show_invisibles && out.y==in.y) {
-      position_t x = out.x-file->tabstop_width-view->scroll_x+view->address_width;
+      position_t x = out.x-file->tabstop_width-scroll_x+view->address_width;
       codepoint_t cp = 0x21aa;
       splitter_drawchar(splitter, screen, x, (int)y, &cp, 1, file->defaults.colors[VISUAL_FLAG_COLOR_LINENUMBER], file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND]);
     }
@@ -1511,7 +1519,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     int64_t t2 = tick_count();
 
     // Actual rendering
-    document_text_render_span(&render_info, screen, splitter, view, file, &in, NULL, ~0, 1);
+    document_text_render_span(&render_info, screen, splitter, view, file, &in, NULL, ~0, 1, scroll_x, scroll_y);
 
     int64_t t3 = tick_count();
 
@@ -1561,7 +1569,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
   if (document_view_select_active(view)) {
     splitter_cursor(splitter, screen, -1, -1);
   } else {
-    splitter_cursor(splitter, screen, (int)(cursor.x-view->scroll_x+view->address_width), (int)(cursor.y-view->scroll_y));
+    splitter_cursor(splitter, screen, (int)(cursor.x-scroll_x+view->address_width), (int)(cursor.y-scroll_y));
   }
 
   int mark1 = document_text_mark_brackets(base, screen, splitter, &cursor);
@@ -1579,9 +1587,9 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     }
 
     if (mark1==0) {
-      splitter_hilight(splitter, screen, (int)(cursor.x-view->scroll_x+view->address_width), (int)(cursor.y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKETERROR]);
+      splitter_hilight(splitter, screen, (int)(cursor.x-scroll_x+view->address_width), (int)(cursor.y-scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKETERROR]);
     } else if (mark2==0) {
-      splitter_hilight(splitter, screen, (int)(left.x-view->scroll_x+view->address_width), (int)(left.y-view->scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKETERROR]);
+      splitter_hilight(splitter, screen, (int)(left.x-scroll_x+view->address_width), (int)(left.y-scroll_y), file->defaults.colors[VISUAL_FLAG_COLOR_BRACKETERROR]);
     }
   }
 
@@ -1623,11 +1631,11 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 
       if (parent && trie_find_codepoint_single(file->autocomplete_last, parent)!=UNICODE_CODEPOINT_BAD) {
         int offset_y = -1;
-        if (cursor.y-view->scroll_y<=0) {
+        if (cursor.y-scroll_y<=0) {
           offset_y = 1;
         }
 
-        splitter_drawtext(splitter, screen, (int)(cursor.x-view->scroll_x+view->address_width)-prefix, (int)(cursor.y-view->scroll_y)+offset_y, &text[0], length, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[VISUAL_FLAG_COLOR_BRACKETERROR]);
+        splitter_drawtext(splitter, screen, (int)(cursor.x-scroll_x+view->address_width)-prefix, (int)(cursor.y-scroll_y)+offset_y, &text[0], length, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[VISUAL_FLAG_COLOR_BRACKETERROR]);
 
         length = 0;
         while (parent) {
@@ -1651,7 +1659,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
             break;
           }
         }
-        splitter_drawtext(splitter, screen, (int)(cursor.x-view->scroll_x+view->address_width), (int)(cursor.y-view->scroll_y)+offset_y, &text[0], length, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
+        splitter_drawtext(splitter, screen, (int)(cursor.x-scroll_x+view->address_width), (int)(cursor.y-scroll_y)+offset_y, &text[0], length, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
       }
     }
     stream_destroy(&stream);
