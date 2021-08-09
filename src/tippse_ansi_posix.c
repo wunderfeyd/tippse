@@ -10,6 +10,11 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
+#ifdef __APPLE__
+#include <sys/param.h>
+#include <stdlib.h>
+#endif
+
 #include "types.h"
 
 #include "clipboard.h"
