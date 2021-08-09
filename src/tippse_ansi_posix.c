@@ -151,7 +151,11 @@ void tippse_update_signal(struct document_file* file) {
 
 int main(int argc, const char** argv) {
   encoding_init();
-  char* base_path = realpath(".", NULL);
+  static char base_path[PATH_MAX];
+  if (!realpath(".", &base_path[0])) {
+    base_path[0] = '.';
+    base_path[1] = '\0';
+  }
 
   unicode_init();
 
@@ -443,7 +447,6 @@ int main(int argc, const char** argv) {
   screen_destroy(screen);
   clipboard_free();
   unicode_free();
-  free(base_path);
   encoding_free();
 
   close(tippse_pipefd[0]);

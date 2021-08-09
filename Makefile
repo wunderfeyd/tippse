@@ -12,12 +12,23 @@ else ifeq ($(OS),windows)
 	LIBS=-lshell32 -lgdi32 -Wl,--subsystem,windows
 	TARGET=tippse.exe
 else
-	CFLAGS=-std=gnu11 -O2 -pthread -Wall -Wextra -Wno-padded -Wno-shadow -Wno-unused-parameter -Wsign-conversion -fstrict-aliasing -D_ANSI_POSIX -D_FILE_OFFSET_BITS=64
-	LIBS=
-	TARGET=tippse
+    ifeq ($(CC),tcc)
+		CFLAGS=-std=gnu11 -O2 -pthread -Wall -Wextra -Wno-padded -Wno-shadow -Wno-unused-parameter -Wsign-conversion -fstrict-aliasing -D_ANSI_POSIX -D_FILE_OFFSET_BITS=64 -D_TINYC_
+		LIBS=
+		TARGET=tippse
+	else
+		CFLAGS=-std=gnu11 -O2 -pthread -Wall -Wextra -Wno-padded -Wno-shadow -Wno-unused-parameter -Wsign-conversion -fstrict-aliasing -D_ANSI_POSIX -D_FILE_OFFSET_BITS=64
+		LIBS=
+		TARGET=tippse
+	endif
 endif
 
-LDFLAGS=-Wl,-s
+ifeq ($(CC),tcc)
+	LDFLAGS=
+else
+	LDFLAGS=-Wl,-s
+endif
+
 CFLAGSEXTRA=
 OBJDIR=tmp
 SRCS_LIB=$(wildcard src/library/encoding/*.c) $(wildcard src/library/unicode/*.c) $(wildcard src/library/*.c)
