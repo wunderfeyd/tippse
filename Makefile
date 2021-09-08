@@ -18,7 +18,7 @@ else
 		TARGET=tippse
 	else
 		CFLAGS=-std=gnu11 -O2 -pthread -Wall -Wextra -Wno-padded -Wno-shadow -Wno-unused-parameter -Wsign-conversion -fstrict-aliasing -D_ANSI_POSIX -D_FILE_OFFSET_BITS=64
-		LIBS=
+		LIBS=-latomic
 		TARGET=tippse
 	endif
 endif

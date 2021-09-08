@@ -339,7 +339,7 @@ struct editor* editor_create(const char* base_path, struct screen* screen, int a
 
   editor_focus(base, base->document, 0);
 
-  editor_keypress(base, TIPPSE_CMD_NULL, 0, 0, 0, 0, 0);
+  editor_keypress(base, 0, 0, 0, 0, 0, 0);
   return base;
 }
 
