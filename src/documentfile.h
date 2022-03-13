@@ -192,4 +192,6 @@ void document_file_node_combine(struct range_tree_callback* base, struct range_t
 void document_file_node_invalidate(struct range_tree_callback* base, struct range_tree_node* node, struct range_tree* tree);
 void document_file_node_destroy(struct range_tree_callback* base, struct range_tree_node* node, struct range_tree* tree);
 
+void document_file_autocomplete_destroy(struct document_file* base);
+
 #endif /* #ifndef TIPPSE_DOCUMENTFILE_H */

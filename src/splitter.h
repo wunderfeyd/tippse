@@ -30,6 +30,7 @@ struct splitter {
   int64_t timeout;            // Next timeout callback
 
   int active;                 // Focused splitter?
+  int save_position;          // Save cursor position on redraw?
   int grab;                   // Grabbed splitter? (splitter modification focus)
   char* name;                 // Name
   char* status;               // Status text

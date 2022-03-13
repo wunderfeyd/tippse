@@ -913,16 +913,28 @@ void editor_focus(struct editor* base, struct splitter* node, int disable) {
     return;
   }
 
-  if (base->focus && disable) {
-    base->focus->active = 0;
+  if (disable) {
+    if (base->panel) {
+      base->panel->save_position = 0;
+    }
+
+    if (base->focus) {
+      base->focus->active = 0;
+      base->focus->save_position = 0;
+    }
   }
 
   base->focus = node;
   if (base->focus) {
     base->focus->active = 1;
+    base->focus->save_position = 1;
     if (node!=base->panel && node!=base->filter) {
       base->document = node;
     }
+  }
+
+  if (base->panel) {
+    base->panel->save_position = 1;
   }
 
   if (!editor_document_sticked(base, base->document)) {

@@ -34,6 +34,7 @@ struct splitter* splitter_create(int type, int split, struct splitter* side0, st
   base->timeout = 0;
   base->parent = NULL;
   base->active = 0;
+  base->save_position = 0;
   base->grab = 0;
 
   if (!side0 || !side1) {

@@ -98,7 +98,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
     scroll_y = 0;
   }
 
-  if (splitter->active) {
+  if (splitter->save_position) {
     view->scroll_x = scroll_x;
     view->scroll_y = scroll_y;
   }

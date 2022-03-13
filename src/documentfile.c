@@ -174,12 +174,7 @@ void document_file_destroy(struct document_file* base) {
   free(base->filename);
   (*base->type->destroy)(base->type);
   (*base->encoding->destroy)(base->encoding);
-  if (base->autocomplete_build) {
-    trie_destroy(base->autocomplete_build);
-  }
-  if (base->autocomplete_last) {
-    trie_destroy(base->autocomplete_last);
-  }
+  document_file_autocomplete_destroy(base);
   if (base->config) {
     config_destroy(base->config);
   }
@@ -510,6 +505,8 @@ void document_file_load(struct document_file* base, const char* filename, int re
   if (!reload) {
     document_undo_empty(base, base->undos);
     document_undo_empty(base, base->redos);
+  } else {
+    document_file_autocomplete_destroy(base);
   }
 
   document_undo_mark_save_point(base);
@@ -1254,4 +1251,20 @@ void document_file_node_destroy(struct range_tree_callback* base, struct range_t
   if ((tree->caps&TIPPSE_RANGETREE_CAPS_VISUAL)) {
     document_file_destroy_view_node(hook->file, node);
   }
+}
+
+// Reset autocomplete status
+void document_file_autocomplete_destroy(struct document_file* base) {
+  if (base->autocomplete_build) {
+    trie_destroy(base->autocomplete_build);
+    base->autocomplete_build = NULL;
+  }
+
+  if (base->autocomplete_last) {
+    trie_destroy(base->autocomplete_last);
+    base->autocomplete_last = NULL;
+  }
+
+  base->autocomplete_offset = 0;
+  base->autocomplete_rescan = 0;
 }

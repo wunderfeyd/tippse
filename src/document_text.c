@@ -1465,7 +1465,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
     document_text_render_destroy(&render_info);
   }
 
-  if (splitter->active) {
+  if (splitter->save_position) {
     view->scroll_x = scroll_x;
     view->scroll_y = scroll_y;
   }
