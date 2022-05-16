@@ -72,6 +72,7 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   }
 
   int foreground = file->defaults.colors[VISUAL_FLAG_COLOR_TEXT];
+  int changing = file->defaults.colors[VISUAL_FLAG_COLOR_STRING];
   int background = file->defaults.colors[VISUAL_FLAG_COLOR_BACKGROUND];
   int selectionx = file->defaults.colors[VISUAL_FLAG_COLOR_SELECTION];
   int bookmarkx = file->defaults.colors[VISUAL_FLAG_COLOR_BOOKMARK];
@@ -133,9 +134,10 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
   splitter_status(splitter, &status[0]);
 
   size_t char_size = 1;
+  int change_drawn = 0;
   for (int y = 0; y<view->client_height; y++) {
     char line[1024];
-    int size = sprintf(line, "%llx", (long long unsigned int)offset);
+    int size = sprintf(line, "%llx", (long long unsigned int)offset+(long long unsigned int)change_drawn);
 
     if (view->address_width>0) {
       int x = 0;
@@ -161,9 +163,13 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
       int x_bytes = view->address_width+(int)(delta*3);
       int x_characters = view->address_width+(data_size*3)+(int)delta;
 
+      int advance = (view->offset==offset && !change_drawn && document->cp_first && !view->overwrite)?0:1;
       if (offset<file_size) {
         struct unicode_sequence* sequence;
-        char_size--;
+        if (advance) {
+          char_size--;
+        }
+
         if (char_size==0) {
           sequence = unicode_sequencer_find(&text_sequence, 0);
           char_size = sequence->size;
@@ -172,26 +178,35 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
           sequence = &default_sequence;
         }
 
-        uint8_t byte = stream_read_forward(&byte_stream);
-        selection_displacement++;
-        while (selection && selection_displacement>selection->length) {
-          selection_displacement -= selection->length;
-          selection = selection->next;
+        uint8_t byte = 0;
+        if (advance) {
+          byte = stream_read_forward(&byte_stream);
+          selection_displacement++;
+          while (selection && selection_displacement>selection->length) {
+            selection_displacement -= selection->length;
+            selection = selection->next;
+          }
         }
+
         int selected = (selection && (selection->inserter&TIPPSE_INSERTER_MARK))?1:0;
 
-        bookmark_displacement++;
-        while (bookmark && bookmark_displacement>bookmark->length) {
-          bookmark_displacement -= bookmark->length;
-          bookmark = bookmark->next;
+        if (advance) {
+          bookmark_displacement++;
+          while (bookmark && bookmark_displacement>bookmark->length) {
+            bookmark_displacement -= bookmark->length;
+            bookmark = bookmark->next;
+          }
         }
+
         int marked = (bookmark && (bookmark->inserter&TIPPSE_INSERTER_MARK))?1:0;
 
-        int size = sprintf(line, (delta!=(size_t)data_size)?"%02x ":"%02x", byte);
-        if (!selected) {
-          splitter_drawtext(splitter, screen, x_bytes, y, line, (size_t)size, marked?bookmarkx:foreground, background);
-        } else {
-          splitter_drawtext(splitter, screen, x_bytes, y, line, (size_t)size, foreground, selectionx);
+        if (advance) {
+          int size = sprintf(line, (delta!=(size_t)data_size)?"%02x ":"%02x", byte);
+          if (!selected) {
+            splitter_drawtext(splitter, screen, x_bytes, y, line, (size_t)size, marked?bookmarkx:foreground, background);
+          } else {
+            splitter_drawtext(splitter, screen, x_bytes, y, line, (size_t)size, foreground, selectionx);
+          }
         }
 
         struct unicode_sequence visuals;
@@ -205,10 +220,11 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
         }
       }
 
-      if (view->offset==offset) {
+      if (view->offset==offset && !change_drawn) {
         if (document->cp_first) {
           int size = sprintf(line, "%01x", document_hex_value(document->cp_first));
-          splitter_drawtext(splitter, screen, x_bytes, y, line, (size_t)size, foreground, background);
+          splitter_drawtext(splitter, screen, x_bytes, y, line, (size_t)size, changing, background);
+          change_drawn = 1;
         }
 
         if (document_view_select_active(view)) {
@@ -222,7 +238,9 @@ void document_hex_draw(struct document* base, struct screen* screen, struct spli
         }
       }
 
-      offset++;
+      if (advance) {
+        offset++;
+      }
     }
 
     if (offset>file_size) break;
@@ -325,7 +343,10 @@ void document_hex_keypress(struct document* base, struct document_view* view, st
         if (document->cp_first!=0) {
           uint8_t text = (uint8_t)((document_hex_value(document->cp_first)<<4)+document_hex_value(cp));
           document_file_insert(file, view->offset, &text, 1, 0);
-          document_file_delete(file, view->offset, 1);
+          if (view->overwrite) {
+            document_file_delete(file, view->offset, 1);
+          }
+
           document->cp_first = 0;
         } else {
           if (selection_low!=FILE_OFFSET_T_MAX) {
@@ -339,8 +360,11 @@ void document_hex_keypress(struct document* base, struct document_view* view, st
       }
     } else if (document->mode==DOCUMENT_HEX_MODE_CHARACTER) {
       uint8_t coded[8];
-      size_t size = file->encoding->encode(file->encoding, cp, &coded[0], 8);
-      document_file_delete(file, view->offset, size);
+      file_offset_t size = file->encoding->encode(file->encoding, cp, &coded[0], 8);
+      if (view->overwrite) {
+        document_file_delete(file, view->offset, size);
+      }
+
       document_file_insert(file, view->offset, &coded[0], size, 0);
       document->cp_first = 0;
     }

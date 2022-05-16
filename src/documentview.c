@@ -67,6 +67,7 @@ struct document_view* document_view_clone(struct document_view* base, struct doc
 void document_view_filechange(struct document_view* base, struct document_file* file, int defaults) {
   if (defaults) {
     base->wrapping = file->defaults.wrapping;
+    base->overwrite = file->defaults.overwrite;
     base->show_invisibles = file->defaults.invisibles;
     base->address_width = file->defaults.address_width;
   }

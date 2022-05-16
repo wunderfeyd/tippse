@@ -37,6 +37,7 @@ struct document_view {
   int show_invisibles;                  // show invisibles?
   int wrapping;                         // show word wrapping?
   int line_select;                      // show whole line selected?
+  int overwrite;                        // overwrite enabled?
 
   int uid;                              // associated view uid for visual caching
   struct range_tree visuals;            // visualization index

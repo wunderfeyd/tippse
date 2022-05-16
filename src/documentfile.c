@@ -123,6 +123,7 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->defaults.tabstop_width = 0;
   base->defaults.invisibles = 0;
   base->defaults.wrapping = 0;
+  base->defaults.overwrite = 0;
   base->defaults.address_width = 6;
   base->defaults.line_width = 80;
   base->defaults.hex_width = 16;
@@ -1079,6 +1080,7 @@ void document_file_reload_config(struct document_file* base) {
   base->defaults.tabstop = (int)config_convert_int64_cache(config_find_ascii(base->config, "/tabstop"), &document_file_tabstop[0]);
   base->defaults.tabstop_width = (int)config_convert_int64(config_find_ascii(base->config, "/tabstop_width"));
   base->defaults.wrapping = (int)config_convert_int64(config_find_ascii(base->config, "/wrapping"));
+  base->defaults.overwrite = (int)config_convert_int64(config_find_ascii(base->config, "/overwrite"));
   base->defaults.invisibles = (int)config_convert_int64(config_find_ascii(base->config, "/invisibles"));
   base->defaults.address_width = (int)config_convert_int64(config_find_ascii(base->config, "/addresswidth"));
   base->defaults.line_width = (int)config_convert_int64(config_find_ascii(base->config, "/linewidth"));

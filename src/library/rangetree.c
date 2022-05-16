@@ -285,6 +285,10 @@ void range_tree_delete(struct range_tree* base, file_offset_t offset, file_offse
     if (base->root) {
       range_tree_fuse(base, before, after);
     }
+
+    if (!after) {
+      break;
+    }
   }
 }
 

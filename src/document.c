@@ -661,6 +661,9 @@ int document_keypress(struct document* base, struct document_view* view, struct 
   } else if (command==TIPPSE_CMD_WORDWRAP) {
     view->wrapping ^= 1;
     (*base->reset)(base, view, file);
+  } else if (command==TIPPSE_CMD_INSERT) {
+    view->overwrite ^= 1;
+    (*base->reset)(base, view, file);
   } else if (command==TIPPSE_CMD_SELECT_ALL) {
     *offset_old = view->selection_start = 0;
     view->offset = view->selection_end = file_size;

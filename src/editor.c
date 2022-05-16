@@ -79,13 +79,13 @@ static struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"left", TIPPSE_CMD_LEFT, "Move cursor left"},
   {"pageup", TIPPSE_CMD_PAGEUP, "Move cursor one page up"},
   {"pagedown", TIPPSE_CMD_PAGEDOWN, "Move cursor one page down"},
-  {"first", TIPPSE_CMD_FIRST, "Move cursor to first position of line (toggle on identation)"},
+  {"first", TIPPSE_CMD_FIRST, "Move cursor to first position of line (toggle on indentation)"},
   {"last", TIPPSE_CMD_LAST, "Move cursor to last position of line"},
   {"home", TIPPSE_CMD_HOME, "Move cursor to first position of file"},
   {"end", TIPPSE_CMD_END, "Move cursor to last position of file"},
   {"backspace", TIPPSE_CMD_BACKSPACE, "Remove character in front of the cursor"},
   {"delete", TIPPSE_CMD_DELETE, "Remove character at cursor position"},
-  {"insert", TIPPSE_CMD_INSERT, "Unused"},
+  {"insert", TIPPSE_CMD_INSERT, "Toggle between insert and override mode"},
   {"search", TIPPSE_CMD_SEARCH, "Open search panel"},
   {"searchnext", TIPPSE_CMD_SEARCH_NEXT, "Find next occurrence of text to search"},
   {"undo", TIPPSE_CMD_UNDO, "Undo last operation"},
@@ -478,6 +478,7 @@ void editor_draw(struct editor* base) {
   editor_draw_notify(base, 'M', &x, background, document_file_modified_cache(base->document->file));
   editor_draw_notify(base, 'N', &x, background, base->document->file->save_skip);
   editor_draw_notify(base, 'S', &x, background, base->document->file->splitter?1:0);
+  editor_draw_notify(base, 'O', &x, background, (base->document->view && base->document->view->overwrite)?1:0);
   editor_draw_notify(base, '*', &x, background, base->document->file?document_undo_modified(base->document->file):0);
 
   screen_drawtext(base->screen, (x>0)?x+1:x, 0, 0, 0, base->screen->width, base->screen->height, base->focus->name, (size_t)base->screen->width, foreground, background);

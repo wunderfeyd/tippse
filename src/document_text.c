@@ -2066,6 +2066,16 @@ void document_text_keypress(struct document* base, struct document_view* view, s
     seek = 1;
   } else if (command==TIPPSE_CMD_CHARACTER) {
     document_select_delete(file, view);
+    if (view->overwrite) {
+      struct document_text_position out_next;
+      in_line_column.line = out.line;
+      in_line_column.column = out.column+1;
+      document_text_cursor_position(view, file, &in_line_column, &out_next, 0, 1);
+      if (out_next.offset!=view->offset) {
+        document_file_delete(file, view->offset, out_next.offset-view->offset);
+      }
+    }
+
     uint8_t coded[8];
     size_t size = file->encoding->encode(file->encoding, cp, &coded[0], 8);
     document_file_insert(file, view->offset, &coded[0], size, 0);
