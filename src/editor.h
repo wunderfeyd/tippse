@@ -282,7 +282,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
 int editor_open_document(struct editor* base, const char* name, struct splitter* node, struct splitter* destination, int type, struct splitter** output, struct document_file** file);
 void editor_reload_document(struct editor* base, struct document_file* file);
 int editor_ask_document_action(struct editor* base, struct document_file* file, int force, int ask);
-void editor_save_document(struct editor* base, struct document_file* file, int force, int ask, int exist);
+int editor_save_document(struct editor* base, struct document_file* file, int force, int ask, int exist);
 void editor_save_documents(struct editor* base, int command);
 int editor_modified_documents(struct editor* base);
 void editor_close_document(struct editor* base, struct document_file* file);

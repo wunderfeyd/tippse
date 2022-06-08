@@ -1170,6 +1170,7 @@ int editor_open_document(struct editor* base, const char* name, struct splitter*
   if (is_directory(relative)) {
     if (destination) {
       editor_view_browser(base, relative, NULL, NULL, type, NULL, NULL, base->browser_file);
+      success = 0;
     }
   } else {
     struct document_file* new_document_doc = NULL;
@@ -1204,7 +1205,7 @@ int editor_open_document(struct editor* base, const char* name, struct splitter*
         success = 0;
       } else {
         document_file_name(base->browser_file, relative);
-        editor_save_document(base, base->browser_file, 1, 0, 1);
+        success = editor_save_document(base, base->browser_file, 1, 0, 1);
       }
     }
 
@@ -1298,12 +1299,13 @@ int editor_ask_document_action(struct editor* base, struct document_file* file, 
 }
 
 // Save single modified document
-void editor_save_document(struct editor* base, struct document_file* file, int force, int ask, int exist) {
+int editor_save_document(struct editor* base, struct document_file* file, int force, int ask, int exist) {
   if (!editor_ask_document_action(base, file, force, ask)) {
-    return;
+    return 0;
   }
 
   if (exist && is_path(file->filename)) {
+    editor_task_stop(base);
     editor_menu_clear(base);
     char* title = combine_string("File already exist... - ", file->filename);
     editor_menu_title(base, title);
@@ -1315,7 +1317,7 @@ void editor_save_document(struct editor* base, struct document_file* file, int f
     editor_focus(base, base->document, 1);
     editor_view_menu(base, NULL, NULL);
     base->task_focus = base->menu_doc;
-    return;
+    return 0;
   }
 
   int saved = document_file_save(file, file->filename);
@@ -1334,7 +1336,10 @@ void editor_save_document(struct editor* base, struct document_file* file, int f
     editor_focus(base, base->document, 1);
     editor_view_menu(base, NULL, NULL);
     base->task_focus = base->menu_doc;
+    return 0;
   }
+
+  return 1;
 }
 
 // Save all modified documents
@@ -1734,6 +1739,10 @@ void editor_task_clear(struct editor* base) {
 
 // Place "stop" at current task
 void editor_task_stop(struct editor* base) {
+  if (base->task_stop!=base->tasks->first) {
+    editor_task_remove_stop(base);
+  }
+
   base->task_stop = base->tasks->first;
 }
 
