@@ -54,7 +54,7 @@ void file_type_compile_mark(struct document_text_render_info* render_info) {
     after &= ~VISUAL_DETAIL_STRING0;
   }
 
-  if ((after|before)&VISUAL_DETAIL_STRING0) {
+  if (after&VISUAL_DETAIL_STRING0) {
     render_info->keyword_color = VISUAL_FLAG_COLOR_STRING;
     render_info->keyword_length = 1;
   } else if (after&VISUAL_DETAIL_COMMENT0) {
