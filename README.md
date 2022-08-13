@@ -9,4 +9,5 @@ Tippse is a text and hex editor.
 
 Additional information...
 * [Tippse documentation](doc/index.md)
+* [Tippse regular expressions](doc/regex.md)
 * [License](LICENSE.md)
