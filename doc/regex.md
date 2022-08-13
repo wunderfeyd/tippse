@@ -3,7 +3,7 @@ Tippse regular expressions
 
 ## Escaping
 
-Regular expressions command literals have to be different to usual literals. To allow both in the same text, the escape character `\` switches to the other form (literal or command). For example `\|` results in a `|` in the output instead of the alternative command `|`. To enter an arbitrary character/codepoint it's possible to use \xXX, \uXXXX and \UXXXXXXXX where X is the hexadecimal representation of the codepoint.
+Regular expressions command literals have to be different to usual literals. To allow both in the same text, the escape character `\` switches to the other form (literal or command). For example `\|` results in a `|` in the output instead of the alternative command `|`. To enter an arbitrary character/codepoint it's possible to use `\xXX`, `\uXXXX` and `\UXXXXXXXX` where X is the hexadecimal representation of the codepoint.
 
 ## Alternatives
 
@@ -27,6 +27,7 @@ Predefined sets are:
 4. `\W` everything else than letters
 5. `\s` whitespace (all languages)
 6. `\S` everything else than whitespace
+7. `.` any character (including newline)
 
 ## Quantization
 
