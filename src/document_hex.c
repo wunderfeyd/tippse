@@ -407,8 +407,8 @@ void document_hex_keypress(struct document* base, struct document_view* view, st
       view->selection_end = FILE_OFFSET_T_MAX;
     }
 
-    document_view_select_nothing(view, file);
-    document_view_select_range(view, view->selection_start, view->selection_end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
+    document_view_select_nothing(view, file, 1);
+    document_view_select_range(view, view->selection_start, view->selection_end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE, 1);
   }
 }
 

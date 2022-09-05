@@ -17,8 +17,8 @@ void document_search_directory(struct thread* thread, struct document_file* file
 void document_directory(struct document_file* file, struct stream* filter_stream, struct encoding* filter_encoding, const char* predefined);
 void document_insert_search(struct document_file* file, struct search* search, const char* output, size_t length, int inserter);
 
-void document_select_all(struct document_file* file, struct document_view* view, int update_offset);
-void document_select_nothing(struct document_file* file, struct document_view* view);
+void document_select_all(struct document_file* file, struct document_view* view, int update_offset, int update_search);
+void document_select_nothing(struct document_file* file, struct document_view* view, int update_search);
 int document_select_delete(struct document_file* file, struct document_view* view);
 void document_clipboard_copy(struct document_file* file, struct document_view* view);
 void document_clipboard_paste(struct document_file* file, struct document_view* view);

@@ -679,7 +679,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     }
   } else if (command==TIPPSE_CMD_REPLACE) {
     editor_panel_assign(base, base->replace_doc);
-    document_select_all(base->panel->file, base->panel->view, 1);
+    document_select_all(base->panel->file, base->panel->view, 1, 0);
   } else if (command==TIPPSE_CMD_REPLACE_NEXT) {
     editor_focus(base, base->document, 1);
     document_search(base->document->file, base->document->view, &base->search_doc->buffer, base->search_doc->encoding, &base->replace_doc->buffer, base->replace_doc->encoding, 0, base->search_ignore_case, base->search_regex, 0, 1);
@@ -691,7 +691,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     document_search(base->document->file, base->document->view, &base->search_doc->buffer, base->search_doc->encoding, &base->replace_doc->buffer, base->replace_doc->encoding, 0, base->search_ignore_case, base->search_regex, 1, 1);
   } else if (command==TIPPSE_CMD_GOTO) {
     editor_panel_assign(base, base->goto_doc);
-    document_select_all(base->panel->file, base->panel->view, 1);
+    document_select_all(base->panel->file, base->panel->view, 1, 0);
   } else if (command==TIPPSE_CMD_CONSOLE) {
     editor_panel_assign(base, base->console_doc);
   } else if (command==TIPPSE_CMD_VIEW_SWITCH) {
@@ -729,7 +729,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
 
       base->document->view->offset = offset;
       base->document->view->show_scrollbar = 1;
-      document_select_nothing(base->document->file, base->document->view);
+      document_select_nothing(base->document->file, base->document->view, 0);
     } else {
       size_t advanced = 0;
       position_t line = (position_t)decode_based_unsigned_offset(&sequencer, 10, &advanced, SIZE_T_MAX);
@@ -737,7 +737,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
       position_t column = (position_t)decode_based_unsigned_offset(&sequencer, 10, &advanced, SIZE_T_MAX);
       if (line>0) {
         document_text_goto(base->document->document, base->document->view, base->document->file, line-1, (column>0)?column-1:0);
-        document_select_nothing(base->document->file, base->document->view);
+        document_select_nothing(base->document->file, base->document->view, 0);
       }
     }
 
@@ -838,7 +838,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     base->search_ignore_case = 1;
     editor_update_search_title(base);
   } else if (command==TIPPSE_CMD_SELECT_INVERT) {
-    document_view_select_invert(base->document->view);
+    document_view_select_invert(base->document->view, 1);
   } else {
     if (base->focus->file==base->tabs_doc || base->focus->file==base->browser_doc || base->focus->file==base->commands_doc || base->focus->file==base->menu_doc || base->focus->file==base->filter_doc) {
       int send_panel = 0;
@@ -1132,7 +1132,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
           editor_open_document(base, name, NULL, destination, TIPPSE_BROWSERTYPE_OPEN, &output, NULL);
           if (line>0) {
             document_text_goto(output->document, output->view, output->file, line-1, (column>0)?column-1:0);
-            document_select_nothing(output->file, output->view);
+            document_select_nothing(output->file, output->view, 0);
           }
         }
 
@@ -1448,7 +1448,7 @@ void editor_view_browser(struct editor* base, const char* filename, struct strea
     editor_filter_clear(base, base->browser_doc->filename);
     if (base->browser_preset && *base->browser_preset) {
       document_file_insert(base->filter_doc, 0, (uint8_t*)base->browser_preset, strlen(base->browser_preset), 0);
-      document_view_select_all(base->filter->view, base->filter->file);
+      document_view_select_all(base->filter->view, base->filter->file, 0);
       editor_focus(base, base->filter, 1);
     }
   }
@@ -1648,7 +1648,7 @@ void editor_console_update(struct editor* base, const char* text, size_t length,
 // Update search dialog
 void editor_search(struct editor* base) {
   editor_panel_assign(base, base->search_doc);
-  if (base->document->view->selection_reset && document_view_select_active(base->document->view)) {
+  if (base->document->view->selection_reset && document_view_select_active(base->document->view) && base->document->view->update_search) {
     file_offset_t selection_low;
     file_offset_t selection_high;
     document_view_select_next(base->document->view, 0, &selection_low, &selection_high);
@@ -1659,7 +1659,7 @@ void editor_search(struct editor* base) {
     document_file_insert_buffer(base->search_doc, 0, buffer->root);
     range_tree_destroy(buffer);
   }
-  document_select_all(base->panel->file, base->panel->view, 1);
+  document_select_all(base->panel->file, base->panel->view, 1, 0);
   base->document->view->selection_reset = 0;
 }
 

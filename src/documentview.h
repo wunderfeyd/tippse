@@ -38,6 +38,7 @@ struct document_view {
   int wrapping;                         // show word wrapping?
   int line_select;                      // show whole line selected?
   int overwrite;                        // overwrite enabled?
+  int update_search;                    // reload search text from selection if invoked?
 
   int uid;                              // associated view uid for visual caching
   struct range_tree visuals;            // visualization index
@@ -50,12 +51,12 @@ void document_view_reset(struct document_view* base, struct document_file* file,
 struct document_view* document_view_clone(struct document_view* base, struct document_file* file);
 void document_view_filechange(struct document_view* base, struct document_file* file, int defaults);
 
-void document_view_select_all(struct document_view* base, struct document_file* file);
-void document_view_select_nothing(struct document_view* base, struct document_file* file);
+void document_view_select_all(struct document_view* base, struct document_file* file, int update_search);
+void document_view_select_nothing(struct document_view* base, struct document_file* file, int update_search);
 int document_view_select_active(struct document_view* base);
 int document_view_select_next(struct document_view* base, file_offset_t offset, file_offset_t* low, file_offset_t* high);
-void document_view_select_range(struct document_view* base, file_offset_t start, file_offset_t end, int inserter);
-void document_view_select_invert(struct document_view* base);
+void document_view_select_range(struct document_view* base, file_offset_t start, file_offset_t end, int inserter, int update_search);
+void document_view_select_invert(struct document_view* base, int update_search);
 
 struct visual_info* document_view_visual_create(struct document_view* base, struct range_tree_node* node);
 void document_view_visual_destroy(struct document_view* base, struct range_tree_node* node);

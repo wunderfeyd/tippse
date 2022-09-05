@@ -2134,8 +2134,8 @@ void document_text_keypress(struct document* base, struct document_view* view, s
       view->selection_end = FILE_OFFSET_T_MAX;
     }
 
-    document_view_select_nothing(view, file);
-    document_view_select_range(view, view->selection_start, view->selection_end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
+    document_view_select_nothing(view, file, 1);
+    document_view_select_range(view, view->selection_start, view->selection_end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE, 1);
   }
   view->offset_calculated = view->offset;
 }
@@ -2250,8 +2250,8 @@ void document_text_keypress_line_select(struct document* base, struct document_v
   document_text_cursor_position(view, file, &in_line_column, &out, 0, 1);
   view->selection_end = out.offset;
 
-  document_view_select_nothing(view, file);
-  document_view_select_range(view, view->selection_start, view->selection_end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
+  document_view_select_nothing(view, file, 1);
+  document_view_select_range(view, view->selection_start, view->selection_end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE, 1);
 }
 
 // Set or clear bookmark range
@@ -2462,7 +2462,7 @@ void document_text_move_block(struct document* base, struct document_view* view,
       document_file_relocate(&offset_text, offset_return, offset_insert_base, length_return, 0);
       document_file_move(file, offset_text, offset_insert, length_text);
     } else {
-      document_view_select_range(view, offset_return, offset_return+length_return, 0);
+      document_view_select_range(view, offset_return, offset_return+length_return, 0, 1);
       document_file_move(file, offset_text, offset_insert, length_text);
       if (offset_insert>offset_text) {
         offset_insert -= length_text;
@@ -2518,7 +2518,7 @@ void document_text_select_line(struct document* base, struct document_view* view
     in_line_column.line = out_end.line+1;
     document_text_cursor_position(view, file, &in_line_column, &out_line_end, 0, 1);
 
-    document_view_select_range(view, out_line_start.offset, out_line_end.offset, TIPPSE_INSERTER_MARK);
+    document_view_select_range(view, out_line_start.offset, out_line_end.offset, TIPPSE_INSERTER_MARK, 1);
     high = out_line_end.offset;
   }
 }

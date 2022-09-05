@@ -40,14 +40,14 @@ struct search* document_search_build(struct document_file* file, struct range_tr
 int document_search(struct document_file* file, struct document_view* view, struct range_tree* search_text, struct encoding* search_encoding, struct range_tree* replace_text, struct encoding* replace_encoding, int reverse, int ignore_case, int regex, int all, int replace) {
   if (!search_text || !search_text->root || !file->buffer.root) {
     editor_console_update(file->editor, "No text to search for!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
-    document_select_nothing(file, view);
+    document_select_nothing(file, view, 0);
     return 0;
   }
 
   struct search* search = document_search_build(file, search_text, search_encoding, reverse, ignore_case, regex);
 
   if (!replace && all) {
-    document_view_select_nothing(view, file);
+    document_view_select_nothing(view, file, 0);
   }
 
   struct range_tree* replacement_transform = NULL;
@@ -104,7 +104,7 @@ int document_search(struct document_file* file, struct document_view* view, stru
         }
       }
 
-      document_view_select_range(view, start, end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
+      document_view_select_range(view, start, end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE, 0);
       selection_low = start;
       selection_high = end;
     }
@@ -177,9 +177,9 @@ int document_search(struct document_file* file, struct document_view* view, stru
           offset = view->offset;
 
           if (replace || !all) {
-            document_view_select_nothing(view, file);
+            document_view_select_nothing(view, file, 0);
           }
-          document_view_select_range(view, start, end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
+          document_view_select_range(view, start, end, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE, 0);
           selection_low = start;
           selection_high = end;
           found = 1;
@@ -246,7 +246,7 @@ int document_search(struct document_file* file, struct document_view* view, stru
   }
 
   editor_console_update(file->editor, "Not found!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
-  document_select_nothing(file, view);
+  document_select_nothing(file, view, 0);
   return 0;
 }
 
@@ -495,17 +495,17 @@ void document_insert_search(struct document_file* file, struct search* search, c
 }
 
 // Select whole document
-void document_select_all(struct document_file* file, struct document_view* view, int update_offset) {
+void document_select_all(struct document_file* file, struct document_view* view, int update_offset, int update_search) {
   file_offset_t end = range_tree_length(&file->buffer);
   if (update_offset) {
     view->offset = end;
   }
-  document_view_select_all(view, file);
+  document_view_select_all(view, file, update_search);
 }
 
 // Throw away all selections
-void document_select_nothing(struct document_file* file, struct document_view* view) {
-  document_view_select_nothing(view, file);
+void document_select_nothing(struct document_file* file, struct document_view* view, int update_search) {
+  document_view_select_nothing(view, file, update_search);
 }
 
 // Delete selection

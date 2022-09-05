@@ -51,6 +51,7 @@ void document_view_reset(struct document_view* base, struct document_file* file,
   base->scrollbar_timeout = 0;
   base->selection_start = FILE_OFFSET_T_MAX;
   base->selection_end = FILE_OFFSET_T_MAX;
+  base->update_search = 1;
   document_view_filechange(base, file, defaults);
 }
 
@@ -78,15 +79,17 @@ void document_view_filechange(struct document_view* base, struct document_file* 
 }
 
 // Select all
-void document_view_select_all(struct document_view* base, struct document_file* file) {
+void document_view_select_all(struct document_view* base, struct document_file* file, int update_search) {
   range_tree_static(&base->selection, range_tree_length(&file->buffer), TIPPSE_INSERTER_MARK);
   base->selection_reset = 1;
+  base->update_search = update_search;
 }
 
 // Select nothing
-void document_view_select_nothing(struct document_view* base, struct document_file* file) {
+void document_view_select_nothing(struct document_view* base, struct document_file* file, int update_search) {
   range_tree_static(&base->selection, range_tree_length(&file->buffer), 0);
   base->selection_reset = 1;
+  base->update_search = update_search;
 }
 
 // Active selection?
@@ -100,7 +103,8 @@ int document_view_select_next(struct document_view* base, file_offset_t offset, 
 }
 
 // Activate or deactivate selection for specified range
-void document_view_select_range(struct document_view* base, file_offset_t start, file_offset_t end, int inserter) {
+void document_view_select_range(struct document_view* base, file_offset_t start, file_offset_t end, int inserter, int update_search) {
+  base->update_search = update_search;
   if (start==end) {
     return;
   }
@@ -113,7 +117,8 @@ void document_view_select_range(struct document_view* base, file_offset_t start,
 }
 
 // Invert selection
-void document_view_select_invert(struct document_view* base) {
+void document_view_select_invert(struct document_view* base, int update_search) {
+  base->update_search = update_search;
   if (base->selection.root) {
     base->selection.root = range_tree_node_invert_mark(base->selection.root, &base->selection, TIPPSE_INSERTER_MARK);
   }
