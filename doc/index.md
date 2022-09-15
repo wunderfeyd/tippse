@@ -91,7 +91,9 @@ TODO: Explain config structure, example from `config.c`.
 
 ## License
 
-The code is licensed under [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/legalcode). With some stripped unicode data files by Unicode, Inc <http://unicode.org/copyright.html>. For details consult the [license file](../LICENSE.md).
+The code is licensed under [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/legalcode). With some stripped unicode data files by Unicode, Inc <http://unicode.org/copyright.html>.
+
+For details consult the [license file](../LICENSE.md).
 
 ## Contact
 

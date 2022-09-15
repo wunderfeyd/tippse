@@ -1057,7 +1057,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
     if (*name) {
       editor_focus(base, destination, 1);
       done = 1;
-      if (base->panel->file==base->menu_doc) {
+      if (node->file==base->menu_doc) {
         struct list_node* it = base->menu->first;
         while (it) {
           struct editor_menu* entry = (struct editor_menu*)list_object(it);
@@ -1068,7 +1068,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
           }
           it = it->next;
         }
-      } else if (base->panel->file==base->commands_doc) {
+      } else if (node->file==base->commands_doc) {
         for (size_t n = 0; editor_commands[n].text; n++) {
           const char* compare1 = name;
           const char* compare2 = editor_commands[n].text;
@@ -1082,7 +1082,7 @@ int editor_open_selection(struct editor* base, struct splitter* node, struct spl
             break;
           }
         }
-      } else if (base->panel->file==base->browser_doc) {
+      } else if (node->file==base->browser_doc) {
         done = editor_open_document(base, name, node, destination, base->browser_type, NULL, NULL);
       } else {
         done = editor_open_document(base, name, node, destination, TIPPSE_BROWSERTYPE_OPEN, NULL, NULL);
