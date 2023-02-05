@@ -12,6 +12,7 @@
 // Scan at max the first 2MiB of the file for autocomplete information
 #define TIPPSE_AUTOCOMPLETE_MAX (1024*1024*2)
 #define TIPPSE_TAB_MAX (64)
+#define TIPPSE_AUTOCOMPLETE_HINT_MAX (1024)
 
 struct document_text {
   struct document vtbl;             // virtual table of document
@@ -105,6 +106,7 @@ void document_text_reset(struct document* base, struct document_view* view, stru
 
 position_t document_text_line_width(struct document_view* view, struct document_file* file);
 int document_text_incremental_update(struct document* base, struct document_view* view, struct document_file* file);
+void document_text_autocomplete(struct document* base, struct document_view* view, struct document_file* file);
 void document_text_draw(struct document* base, struct screen* screen, struct splitter* splitter);
 void document_text_keypress(struct document* base, struct document_view* view, struct document_file* file, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y);
 void document_text_keypress_line_select(struct document* base, struct document_view* view, struct document_file* file, int command, struct config_command* arguments, int key, codepoint_t cp, int button, int button_old, int x, int y);

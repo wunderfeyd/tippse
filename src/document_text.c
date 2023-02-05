@@ -1368,6 +1368,71 @@ int document_text_incremental_update(struct document* base, struct document_view
 }
 
 // Draw entire visible screen space
+void document_text_autocomplete(struct document* base, struct document_view* view, struct document_file* file) {
+  if (file->autocomplete_last && range_tree_length(&file->buffer)>0) {
+    file_offset_t displacement;
+    struct range_tree_node* buffer = range_tree_node_find_offset(file->buffer.root, view->offset, &displacement);
+    struct stream stream;
+    stream_from_page(&stream, buffer, displacement);
+    struct unicode_sequencer sequencer;
+    unicode_sequencer_clear(&sequencer, file->encoding, &stream);
+    codepoint_t cp = unicode_sequencer_find(&sequencer, 0)->cp[0];
+    if (!unicode_word(cp)) {
+      stream_destroy(&stream);
+
+      file_offset_t offset = document_text_word_transition_prev(base, view, file, view->offset);
+      struct range_tree_node* buffer = range_tree_node_find_offset(file->buffer.root, offset, &displacement);
+      stream_from_page(&stream, buffer, displacement);
+      unicode_sequencer_clear(&sequencer, file->encoding, &stream);
+      struct trie_node* parent = NULL;
+      while (offset<view->offset) {
+        struct unicode_sequence* sequence = unicode_sequencer_find(&sequencer, 0);
+        for (size_t n = 0; n<sequence->length; n++) {
+          codepoint_t cp = sequence->cp[n];
+          parent = trie_find_codepoint(file->autocomplete_last, parent, cp);
+          if (!parent) {
+            break;
+          }
+        }
+
+        if (!parent) {
+          break;
+        }
+
+        offset += sequence->size;
+        unicode_sequencer_advance(&sequencer, 1);
+      }
+
+      if (parent && trie_find_codepoint_single(file->autocomplete_last, parent)!=UNICODE_CODEPOINT_BAD) {
+        struct range_tree* root = range_tree_create(NULL, 0);
+
+        uint8_t recoded[TIPPSE_AUTOCOMPLETE_HINT_MAX];
+        size_t length = 0;
+        while (parent) {
+          codepoint_t cp = trie_find_codepoint_single(file->autocomplete_last, parent);
+          if (cp==UNICODE_CODEPOINT_UNASSIGNED && (length==0 || !parent->end)) {
+            break;
+          }
+
+          size_t recode = file->encoding->encode(file->encoding, cp, (uint8_t*)&recoded[0], sizeof(recoded));
+          length += recode;
+          range_tree_insert_split(root, range_tree_length(root), &recoded[0], recode, 0);
+          parent = trie_find_codepoint(file->autocomplete_last, parent, cp);
+          if (!parent || parent->end) {
+            break;
+          }
+        }
+
+        document_file_insert_buffer(file, view->offset, root->root);
+        range_tree_destroy(root);
+      }
+    }
+
+    stream_destroy(&stream);
+  }
+}
+
+// Draw entire visible screen space
 void document_text_draw(struct document* base, struct screen* screen, struct splitter* splitter) {
   debug_screen = screen;
   debug_splitter = splitter;
@@ -1595,7 +1660,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
 
   // Auto complete hint
   if (file->autocomplete_last && range_tree_length(&file->buffer)>0 && !document_view_select_active(view)) {
-    char text[1024];
+    uint8_t text[TIPPSE_AUTOCOMPLETE_HINT_MAX];
     size_t length = 0;
 
     file_offset_t displacement;
@@ -1615,11 +1680,16 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
       int prefix = 0;
       struct trie_node* parent = NULL;
       while (offset<view->offset) {
-        // TODO: codepoint!=sequence
         struct unicode_sequence* sequence = unicode_sequencer_find(&sequencer, 0);
-        codepoint_t cp = sequence->cp[0];
-        length += encoding_utf8_encode(NULL, cp, (uint8_t*)&text[length], sizeof(text)-length);
-        parent = trie_find_codepoint(file->autocomplete_last, parent, cp);
+        for (size_t n = 0; n<sequence->length; n++) {
+          codepoint_t cp = sequence->cp[n];
+          length += encoding_utf8_encode(NULL, cp, (uint8_t*)&text[length], sizeof(text)-length);
+          parent = trie_find_codepoint(file->autocomplete_last, parent, cp);
+          if (!parent) {
+            break;
+          }
+        }
+
         if (!parent) {
           break;
         }
@@ -1635,7 +1705,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
           offset_y = 1;
         }
 
-        splitter_drawtext(splitter, screen, (int)(cursor.x-scroll_x+view->address_width)-prefix, (int)(cursor.y-scroll_y)+offset_y, &text[0], length, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[VISUAL_FLAG_COLOR_BRACKETERROR]);
+        splitter_drawtext(splitter, screen, (int)(cursor.x-scroll_x+view->address_width)-prefix, (int)(cursor.y-scroll_y)+offset_y, (char*)&text[0], length, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[VISUAL_FLAG_COLOR_BRACKETERROR]);
 
         length = 0;
         while (parent) {
@@ -1659,7 +1729,7 @@ void document_text_draw(struct document* base, struct screen* screen, struct spl
             break;
           }
         }
-        splitter_drawtext(splitter, screen, (int)(cursor.x-scroll_x+view->address_width), (int)(cursor.y-scroll_y)+offset_y, &text[0], length, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
+        splitter_drawtext(splitter, screen, (int)(cursor.x-scroll_x+view->address_width), (int)(cursor.y-scroll_y)+offset_y, (char*)&text[0], length, file->defaults.colors[VISUAL_FLAG_COLOR_TEXT], file->defaults.colors[VISUAL_FLAG_COLOR_BRACKET]);
       }
     }
     stream_destroy(&stream);
@@ -2064,7 +2134,11 @@ void document_text_keypress(struct document* base, struct document_view* view, s
     view->bracket_indentation = 1;
 
     seek = 1;
-  } else if (command==TIPPSE_CMD_CHARACTER) {
+  } else if (command==TIPPSE_CMD_CHARACTER || command==TIPPSE_CMD_SPACE) {
+    if (command==TIPPSE_CMD_SPACE) {
+      cp = 0x20;
+    }
+
     document_select_delete(file, view);
     if (view->overwrite) {
       struct document_text_position out_next;

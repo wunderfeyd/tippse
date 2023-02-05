@@ -125,6 +125,8 @@
     alt+pagedown:errornext,
     alt+left:bracketprev,
     alt+right:bracketnext,
+    ctrl+space:autocomplete,
+    space:space,
   },
   fileextensions:{
     c:C,

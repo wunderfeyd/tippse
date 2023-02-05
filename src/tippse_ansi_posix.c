@@ -41,7 +41,7 @@ struct tippse_ansi_key {
 // ? = single byte
 // m = modifier param
 struct tippse_ansi_key ansi_keys[] = {
-  {"\x00", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '^'},
+  {"\x00", TIPPSE_KEY_SPACE|TIPPSE_KEY_MOD_CTRL, 0},
   {"\x01", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'a'},
   {"\x02", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'b'},
   {"\x03", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'c'},
@@ -139,6 +139,7 @@ struct tippse_ansi_key ansi_keys[] = {
   {"\x1d", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '~'},
   {"\x1e", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '^'},
   {"\x1f", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '\\'},
+  {"\x20", TIPPSE_KEY_SPACE, 0},
   {"\x7f", TIPPSE_KEY_BACKSPACE, 0},
   {NULL, 0, 0}
 };

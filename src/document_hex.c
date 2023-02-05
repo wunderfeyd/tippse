@@ -337,7 +337,11 @@ void document_hex_keypress(struct document* base, struct document_view* view, st
   } else if (document_keypress(base, view, file, command, arguments, key, cp, button, button_old, x, y, selection_low, selection_high, &selection_keep, &seek, file_size, &offset_old)) {
   }
 
-  if (command==TIPPSE_CMD_CHARACTER) {
+  if (command==TIPPSE_CMD_CHARACTER || command==TIPPSE_CMD_SPACE) {
+    if (command==TIPPSE_CMD_SPACE) {
+      cp = 0x20;
+    }
+
     if (document->mode==DOCUMENT_HEX_MODE_BYTE) {
       if ((cp>='0' && cp<='9') || (cp>='a' && cp<='f') || (cp>='A' && cp<='F')) {
         if (document->cp_first!=0) {

@@ -67,7 +67,8 @@ static const char* editor_key_names[TIPPSE_KEY_MAX] = {
   "f9",
   "f10",
   "f11",
-  "f12"
+  "f12",
+  "space"
 };
 
 static struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
@@ -179,6 +180,8 @@ static struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"errorprev", TIPPSE_CMD_ERROR_PREV, "Search prev error in shell command output"},
   {"bracketnext", TIPPSE_CMD_BRACKET_NEXT, "Search next bracket of current depth"},
   {"bracketprev", TIPPSE_CMD_BRACKET_PREV, "Search prev bracket of current depth"},
+  {"autocomplete", TIPPSE_CMD_AUTOCOMPLETE, "Autocomplete as hinted"},
+  {"space", TIPPSE_CMD_SPACE, "Insert word separation"},
   {NULL, 0, ""}
 };
 
@@ -689,6 +692,10 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
   } else if (command==TIPPSE_CMD_REPLACE_ALL || (command==TIPPSE_CMD_RETURN && !base->search_regex && base->focus->file==base->replace_doc)) {
     editor_focus(base, base->document, 1);
     document_search(base->document->file, base->document->view, &base->search_doc->buffer, base->search_doc->encoding, &base->replace_doc->buffer, base->replace_doc->encoding, 0, base->search_ignore_case, base->search_regex, 1, 1);
+  } else if (command==TIPPSE_CMD_AUTOCOMPLETE) {
+    if (base->focus->document==base->focus->document_text) {
+      document_text_autocomplete(base->focus->document, base->focus->view, base->focus->file);
+    }
   } else if (command==TIPPSE_CMD_GOTO) {
     editor_panel_assign(base, base->goto_doc);
     document_select_all(base->panel->file, base->panel->view, 1, 0);
