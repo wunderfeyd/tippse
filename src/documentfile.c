@@ -552,6 +552,7 @@ int document_file_save_plain(struct document_file* base, const char* filename) {
 
   int success = 1;
   if (base->buffer.root) {
+    file_offset_t max = range_tree_length(&base->buffer);
     struct stream stream;
     stream_from_page(&stream, range_tree_first(&base->buffer), 0);
     while (!stream_end(&stream)) {
@@ -561,6 +562,7 @@ int document_file_save_plain(struct document_file* base, const char* filename) {
         break;
       }
       stream_next(&stream);
+      editor_process_message(base->editor, "Saving...", stream_offset(&stream), max);
     }
     stream_destroy(&stream);
   }
