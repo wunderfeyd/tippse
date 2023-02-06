@@ -127,9 +127,9 @@ int spell_check(struct spell* base, const char* utf8) {
   return result;
 }
 
-#ifdef _ANSI_POSIX
 // Connect spell checking provider
 void spell_connect(struct spell* base) {
+#ifdef _ANSI_POSIX
   UNUSED(pipe(base->pipein));
   UNUSED(pipe(base->pipeout));
   signal(SIGCHLD, SIG_IGN);
@@ -162,22 +162,26 @@ void spell_connect(struct spell* base) {
   int flags = fcntl(base->pipein[0], F_GETFL, 0);
   fcntl(base->pipein[0], F_SETFL, flags|O_NONBLOCK);
   base->connected = 1;
+#endif
 }
 
 // Disconnect provider
 void spell_disconnect(struct spell* base) {
+#ifdef _ANSI_POSIX
   if (base->connected) {
     close(base->pipeout[0]);
     close(base->pipein[1]);
   }
 
   base->connected = 0;
+#endif
 }
 
 // Reconnect in case a disconnect happend
 void spell_reconnect(struct spell* base) {
+#ifdef _ANSI_POSIX
   if (!base->connected) {
     spell_connect(base);
   }
-}
 #endif
+}

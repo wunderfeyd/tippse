@@ -21,10 +21,7 @@ int spell_check(struct spell* base, const char* utf8);
 int spell_check_cache(struct spell* base, const uint8_t* utf8);
 void spell_update_cache(struct spell* base, const uint8_t* utf8, int result);
 
-#ifdef _ANSI_POSIX
 void spell_connect(struct spell* base);
 void spell_disconnect(struct spell* base);
 void spell_reconnect(struct spell* base);
-#endif
-
 #endif /* #ifndef TIPPSE_SPELL_H */
