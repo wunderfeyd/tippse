@@ -91,6 +91,7 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->splitter = NULL;
   base->config = config?config_create():NULL;
   range_tree_create_inplace(&base->buffer, &base->hook.callback, base->config?TIPPSE_RANGETREE_CAPS_VISUAL:0);
+  base->spellcheck = spell_create(base);
   range_tree_create_inplace(&base->bookmarks, NULL, 0);
   base->cache = NULL;
   base->caches = list_create(sizeof(struct document_file_cache));
@@ -122,6 +123,7 @@ struct document_file* document_file_create(int save, int config, struct editor* 
   base->defaults.tabstop = TIPPSE_TABSTOP_AUTO;
   base->defaults.tabstop_width = 0;
   base->defaults.invisibles = 0;
+  base->defaults.spellcheck = 0;
   base->defaults.wrapping = 0;
   base->defaults.overwrite = 0;
   base->defaults.address_width = 6;
@@ -176,6 +178,7 @@ void document_file_destroy(struct document_file* base) {
   (*base->type->destroy)(base->type);
   (*base->encoding->destroy)(base->encoding);
   document_file_autocomplete_destroy(base);
+  spell_destroy(base->spellcheck);
   if (base->config) {
     config_destroy(base->config);
   }
@@ -1084,6 +1087,7 @@ void document_file_reload_config(struct document_file* base) {
   base->defaults.wrapping = (int)config_convert_int64(config_find_ascii(base->config, "/wrapping"));
   base->defaults.overwrite = (int)config_convert_int64(config_find_ascii(base->config, "/overwrite"));
   base->defaults.invisibles = (int)config_convert_int64(config_find_ascii(base->config, "/invisibles"));
+  base->defaults.spellcheck = (int)config_convert_int64(config_find_ascii(base->config, "/spellcheck"));
   base->defaults.address_width = (int)config_convert_int64(config_find_ascii(base->config, "/addresswidth"));
   base->defaults.line_width = (int)config_convert_int64(config_find_ascii(base->config, "/linewidth"));
   base->defaults.hex_width = (int)config_convert_int64(config_find_ascii(base->config, "/hexwidth"));

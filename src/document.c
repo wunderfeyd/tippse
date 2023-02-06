@@ -658,6 +658,9 @@ int document_keypress(struct document* base, struct document_view* view, struct 
   } else if (command==TIPPSE_CMD_SHOW_INVISIBLES) {
     view->show_invisibles ^= 1;
     (*base->reset)(base, view, file);
+  } else if (command==TIPPSE_CMD_SPELLCHECK) {
+    view->spellcheck ^= 1;
+    (*base->reset)(base, view, file);
   } else if (command==TIPPSE_CMD_WORDWRAP) {
     view->wrapping ^= 1;
     (*base->reset)(base, view, file);

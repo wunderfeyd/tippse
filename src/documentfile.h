@@ -15,6 +15,7 @@
 #endif
 
 #include "visualinfo.h"
+#include "spell.h"
 #include "library/rangetree.h"
 #include "library/thread.h"
 #include "library/mutex.h"
@@ -73,6 +74,7 @@ struct document_file_defaults {
   int invisibles;                       // show invisibles?
   int wrapping;                         // show line wrapping?
   int overwrite;                        // overwrite enabled?
+  int spellcheck;                       // spell checking enabled?
   int address_width;                    // width of the position column in characters
   int line_width;                       // width of the file data in characters per line
   int hex_width;                        // width of hex data in bytes
@@ -103,6 +105,7 @@ struct document_file {
   struct config* config;                // configuration
   struct editor* editor;                // The editor instance the file belongs to
   struct splitter* splitter;            // Preferred splitter to use
+  struct spell* spellcheck;             // Spell checking
   int tabstop;                          // type of tabstop
   int tabstop_width;                    // number of spaces per tab
   int newline;                          // type of newline, e.g. Unix or DOS

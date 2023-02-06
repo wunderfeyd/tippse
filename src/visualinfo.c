@@ -31,6 +31,7 @@ struct config_cache visual_color_codes[VISUAL_FLAG_COLOR_MAX+1] = {
   {"directory", VISUAL_FLAG_COLOR_DIRECTORY, NULL},
   {"modified", VISUAL_FLAG_COLOR_MODIFIED, NULL},
   {"removed", VISUAL_FLAG_COLOR_REMOVED, NULL},
+  {"spellcheck", VISUAL_FLAG_COLOR_SPELLCHECK, NULL},
   {NULL, 0, NULL}
 };
 

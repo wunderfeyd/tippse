@@ -182,6 +182,7 @@ static struct config_cache editor_commands[TIPPSE_CMD_MAX+1] = {
   {"bracketprev", TIPPSE_CMD_BRACKET_PREV, "Search prev bracket of current depth"},
   {"autocomplete", TIPPSE_CMD_AUTOCOMPLETE, "Autocomplete as hinted"},
   {"space", TIPPSE_CMD_SPACE, "Insert word separation"},
+  {"spellcheck", TIPPSE_CMD_SPELLCHECK, "Toggle spellchecker"},
   {NULL, 0, ""}
 };
 
@@ -480,8 +481,9 @@ void editor_draw(struct editor* base) {
   editor_draw_notify(base, 'R', &x, background, running);
   editor_draw_notify(base, 'M', &x, background, document_file_modified_cache(base->document->file));
   editor_draw_notify(base, 'N', &x, background, base->document->file->save_skip);
-  editor_draw_notify(base, 'S', &x, background, base->document->file->splitter?1:0);
+  editor_draw_notify(base, 'H', &x, background, base->document->file->splitter?1:0);
   editor_draw_notify(base, 'O', &x, background, (base->document->view && base->document->view->overwrite)?1:0);
+  editor_draw_notify(base, 'S', &x, background, (base->document->view && base->document->view->spellcheck)?1:0);
   editor_draw_notify(base, '*', &x, background, base->document->file?document_undo_modified(base->document->file):0);
 
   screen_drawtext(base->screen, (x>0)?x+1:x, 0, 0, 0, base->screen->width, base->screen->height, base->focus->name, (size_t)base->screen->width, foreground, background);

@@ -35,6 +35,7 @@ struct document_view {
   int show_scrollbar;                   // show scrollbar?
   int64_t scrollbar_timeout;            // time of scrollbar removal
   int show_invisibles;                  // show invisibles?
+  int spellcheck;                       // spell checking active?
   int wrapping;                         // show word wrapping?
   int line_select;                      // show whole line selected?
   int overwrite;                        // overwrite enabled?

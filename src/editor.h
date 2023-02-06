@@ -157,7 +157,8 @@
 #define TIPPSE_CMD_BRACKET_PREV 107
 #define TIPPSE_CMD_AUTOCOMPLETE 108
 #define TIPPSE_CMD_SPACE 109
-#define TIPPSE_CMD_MAX 110
+#define TIPPSE_CMD_SPELLCHECK 110
+#define TIPPSE_CMD_MAX 111
 
 #define TIPPSE_MOUSE_LBUTTON 1
 #define TIPPSE_MOUSE_RBUTTON 2
@@ -227,7 +228,6 @@ struct editor {
   int indicator;                      // Process indicator
 
   char* command_map[TIPPSE_CMD_MAX];
-  int pipefd[2];                      // Process stdin/stdout pipes
   int console_index;                  // Index of console updates
   int console_status;                 // Last index displayed as status line
   int64_t console_timeout;            // Display end time of last index

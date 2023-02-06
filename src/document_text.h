@@ -46,6 +46,7 @@ struct document_text_render_info {
   position_t width;                 // screen width for rendering
   int keyword_color;                // keyword color
   long keyword_length;              // keyword length remaining
+  long spell_length;                // spellcheck length remaining
   int fill_next;                    // next decoded character width on screen
   codepoint_t show_next;            // next codepoint to show
   codepoint_t fill_code_next;       // next fill codepoint to use
@@ -58,9 +59,9 @@ struct document_text_render_info {
   bool_t bracketed_line;            // bracket found on current line
   struct visual_bracket brackets_line[VISUAL_BRACKET_MAX]; // block structure for bracket matching at line
   bool_t append;                    // continue status?
-  struct stream stream;    // access to byte stream
+  struct stream stream;             // access to byte stream
   struct unicode_sequencer sequencer; // access to Unicode sequencer cache
-  struct file_type* file_type;
+  struct file_type* file_type;      // File type information
   struct range_tree* selection_tree; // root of selection buffer
   const struct range_tree_node* selection; // access to selection buffer, current page in tree
 };

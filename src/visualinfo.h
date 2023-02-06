@@ -27,6 +27,7 @@
 #define VISUAL_DETAIL_SHOW_INVISIBLES 0x2000000
 #define VISUAL_DETAIL_WRAPPED 0x8000000
 #define VISUAL_DETAIL_STOPPED_INDENTATION 0x10000000
+#define VISUAL_DETAIL_SPELLCHECK 0x20000000
 
 // Flags for page dirtiness
 #define VISUAL_DIRTY_UPDATE 0x1
@@ -58,7 +59,8 @@
 #define VISUAL_FLAG_COLOR_DIRECTORY 20
 #define VISUAL_FLAG_COLOR_MODIFIED 21
 #define VISUAL_FLAG_COLOR_REMOVED 22
-#define VISUAL_FLAG_COLOR_MAX 23
+#define VISUAL_FLAG_COLOR_SPELLCHECK 23
+#define VISUAL_FLAG_COLOR_MAX 24
 
 // Flags for page finding processes
 #define VISUAL_SEEK_NONE 0
@@ -96,7 +98,8 @@ struct visual_info {
   int detail_before;        // Visual details after last page
   int detail_after;         // Visual details after current page
   int keyword_color;        // Color for current active keyword
-  long keyword_length;       // Length of current active keyword
+  long keyword_length;      // Length of current active keyword
+  long spell_length;        // Length of current active spell check
   file_offset_t displacement; // Offset to begin of first character
   file_offset_t rewind;     // Relative offset (backwards) to begin of the last keyword/character
   int dirty;                // Mark page as dirty (not completely rendered yet)

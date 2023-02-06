@@ -23,6 +23,7 @@
     directory:aqua,
     modified:red,
     removed:red,
+    spellcheck:red,
   },
   wrapping:1,
   invisibles:0,
@@ -35,6 +36,7 @@
   shell:{
     compile:"([ -f Makefile ] && make all -j) || ./make.sh",
     recompile:"([ -f Makefile ] && make clean && make all -j) || ./make.sh --rebuild",
+    spell:"aspell -a",
   },
   keys:{
     up:up,

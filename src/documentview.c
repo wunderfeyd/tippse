@@ -70,6 +70,7 @@ void document_view_filechange(struct document_view* base, struct document_file* 
     base->wrapping = file->defaults.wrapping;
     base->overwrite = file->defaults.overwrite;
     base->show_invisibles = file->defaults.invisibles;
+    base->spellcheck = file->defaults.spellcheck;
     base->address_width = file->defaults.address_width;
   }
 
