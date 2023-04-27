@@ -33,7 +33,7 @@ const char* file_type_c_name(void) {
   return "C";
 }
 
-void file_type_c_mark(struct document_text_render_info* render_info ) {
+void file_type_c_mark(struct document_text_render_info* render_info, int bracket_match) {
   int flags = 0;
   struct file_type_c* self = (struct file_type_c*)render_info->file_type;
 
@@ -77,14 +77,6 @@ void file_type_c_mark(struct document_text_render_info* render_info ) {
       } else {
         after &= ~VISUAL_DETAIL_STRING0;
       }
-    } else if (cp1=='[') {
-      if (before_masked==0) {
-        after |= VISUAL_DETAIL_INDEX;
-      }
-    } else if (cp1==']') {
-      if (before_masked!=0) {
-        after &= ~VISUAL_DETAIL_INDEX;
-      }
     } else if (cp1=='\'') {
       if (before_masked==0) {
         after |= VISUAL_DETAIL_STRING1;
@@ -108,8 +100,6 @@ void file_type_c_mark(struct document_text_render_info* render_info ) {
 
   if ((before|after)&(VISUAL_DETAIL_STRING0|VISUAL_DETAIL_STRING1)) {
     flags = VISUAL_FLAG_COLOR_STRING;
-  } else if ((before|after)&(VISUAL_DETAIL_INDEX)) {
-    flags = VISUAL_FLAG_COLOR_INDEX;
   } else if ((before|after)&(VISUAL_DETAIL_COMMENT0)) {
     flags = VISUAL_FLAG_COLOR_BLOCKCOMMENT;
   } else if ((before|after)&(VISUAL_DETAIL_COMMENT1)) {
@@ -143,6 +133,11 @@ void file_type_c_mark(struct document_text_render_info* render_info ) {
         render_info->keyword_length = 0;
       }
     }
+  }
+
+  if (render_info->keyword_length==0 && (render_info->depth_new[1]>0 || (render_info->depth_new[1]==0 && bracket_match==(1|VISUAL_BRACKET_OPEN)))) {
+    flags = VISUAL_FLAG_COLOR_INDEX;
+    render_info->keyword_length = 1;
   }
 
   render_info->visual_detail = after;

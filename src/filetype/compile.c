@@ -32,7 +32,7 @@ const char* file_type_compile_name(void) {
   return "Compile";
 }
 
-void file_type_compile_mark(struct document_text_render_info* render_info) {
+void file_type_compile_mark(struct document_text_render_info* render_info, int bracket_match) {
   codepoint_t cp1 = render_info->sequence->cp[0];
 
   int before = render_info->visual_detail;

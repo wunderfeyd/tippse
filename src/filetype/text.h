@@ -12,7 +12,7 @@ struct file_type_text {
 
 struct file_type* file_type_text_create(struct config* config, const char* type_name);
 void file_type_text_destroy(struct file_type* base);
-void file_type_text_mark(struct document_text_render_info* render_info);
+void file_type_text_mark(struct document_text_render_info* render_info, int bracket_match);
 const char* file_type_text_name(void);
 
 #endif  /* #ifndef TIPPSE_FILETYPE_TEXT_H */

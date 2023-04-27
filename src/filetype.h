@@ -10,7 +10,7 @@ struct file_type {
 
   const char* (*name)(void);
   const char* (*type)(struct file_type* base);
-  void (*mark)(struct document_text_render_info* render_info);
+  void (*mark)(struct document_text_render_info* render_info, int bracket_match);
   int (*bracket_match)(const struct document_text_render_info* render_info);
 
   struct config* config;

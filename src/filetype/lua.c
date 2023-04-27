@@ -32,7 +32,7 @@ const char* file_type_lua_name(void) {
   return "Lua";
 }
 
-void file_type_lua_mark(struct document_text_render_info* render_info) {
+void file_type_lua_mark(struct document_text_render_info* render_info, int bracket_match) {
   int flags = 0;
   struct file_type_lua* self = (struct file_type_lua*)render_info->file_type;
 

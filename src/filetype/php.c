@@ -32,7 +32,7 @@ const char* file_type_php_name(void) {
   return "PHP";
 }
 
-void file_type_php_mark(struct document_text_render_info* render_info) {
+void file_type_php_mark(struct document_text_render_info* render_info, int bracket_match) {
   int flags = 0;
   struct file_type_php* self = (struct file_type_php*)render_info->file_type;
 

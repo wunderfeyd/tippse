@@ -29,7 +29,7 @@ const char* file_type_markdown_name(void) {
   return "markdown";
 }
 
-void file_type_markdown_mark(struct document_text_render_info* render_info) {
+void file_type_markdown_mark(struct document_text_render_info* render_info, int bracket_match) {
   codepoint_t cp1 = render_info->sequence->cp[0];
   codepoint_t cp2 = unicode_sequencer_find(&render_info->sequencer, 1)->cp[0];
   codepoint_t cp3 = unicode_sequencer_find(&render_info->sequencer, 2)->cp[0];

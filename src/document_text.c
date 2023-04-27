@@ -489,6 +489,7 @@ TIPPSE_INLINE int document_text_fill_width_fillonly(position_t x, bool_t show_in
   return fill;
 }
 
+// Update spell checking in current sequence
 int document_text_spell_check(struct document_text_render_info* render_info, struct document_file* file) {
   char text[1024];
   size_t length = 0;
@@ -508,13 +509,49 @@ int document_text_spell_check(struct document_text_render_info* render_info, str
 
   if (advance>0) {
     length += encoding_utf8_encode(NULL, 0, (uint8_t*)&text[length], sizeof(text)-length-4);
-    //fprintf(stderr, "y %d\r\n", (int)advance);
     if (spell_check(file->spellcheck, &text[0])) {
       advance = 0;
     }
   }
 
   return advance;
+}
+
+// Update bracketing information
+void document_text_update_brackets(struct document_text_render_info* render_info, int bracket_match) {
+  if (bracket_match&VISUAL_BRACKET_CLOSE) {
+    size_t bracket = bracket_match&VISUAL_BRACKET_MASK;
+    render_info->depth_new[bracket]--;
+    int min = render_info->depth_old[bracket]-render_info->depth_new[bracket];
+    if (min>render_info->brackets[bracket].min) {
+      render_info->brackets[bracket].min = min;
+    }
+
+    render_info->brackets[bracket].diff--;
+
+    int min_line = render_info->depth_line[bracket]-render_info->depth_new[bracket];
+    if (min_line>render_info->brackets_line[bracket].min) {
+      render_info->brackets_line[bracket].min = min_line;
+    }
+
+    render_info->brackets_line[bracket].diff--;
+  } else {
+    size_t bracket = bracket_match&VISUAL_BRACKET_MASK;
+    render_info->depth_new[bracket]++;
+    int max = render_info->depth_new[bracket]-render_info->depth_old[bracket];
+    if (max>render_info->brackets[bracket].max) {
+      render_info->brackets[bracket].max = max;
+    }
+
+    render_info->brackets[bracket].diff++;
+
+    int max_line = render_info->depth_new[bracket]-render_info->depth_line[bracket];
+    if (max_line>render_info->brackets_line[bracket].max) {
+      render_info->brackets_line[bracket].max = max_line;
+    }
+
+    render_info->brackets_line[bracket].diff++;
+  }
 }
 
 // Render some pages until the position is found or pages are no longer dirty
@@ -557,8 +594,8 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
   codepoint_t newline_cp4 = (file->newline==TIPPSE_NEWLINE_CR)?'\n':'\r';
   debug_pages_collect++;
 
-  void (*mark)(struct document_text_render_info* render_info) = file->type->mark;
-  //int (*match)(const struct document_text_render_info* render_info) = file->type->bracket_match;
+  void (*mark)(struct document_text_render_info* render_info, int bracket_match) = file->type->mark;
+  int (*match)(const struct document_text_render_info* render_info) = file->type->bracket_match;
   render_info->file_type = file->type;
 
   if (document_text_split_buffer(render_info->buffer, file)) {
@@ -706,31 +743,15 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
 
     int visual_detail_before = render_info->visual_detail;
 
+    int bracket_match = (*match)(render_info);
     if (render_info->keyword_length<=0) {
       // 100ms
-      (*mark)(render_info);
+      (*mark)(render_info, bracket_match);
     }
 
     if (render_info->spell_length<=0 && spellcheck) {
       if ((render_info->visual_detail&VISUAL_DETAIL_WORD) && !(visual_detail_before&VISUAL_DETAIL_WORD)) {
         render_info->spell_length = document_text_spell_check(render_info, file);
-      }
-    }
-
-    int bracket_match = 0; //(*match)(render_info); inlined for the moment since all file types use the same matching
-    if (UNLIKELY((render_info->visual_detail&(VISUAL_DETAIL_STRING0|VISUAL_DETAIL_STRING1|VISUAL_DETAIL_COMMENT0|VISUAL_DETAIL_COMMENT1))==0)) {
-      if (cp=='{') {
-        bracket_match = 0|VISUAL_BRACKET_OPEN;
-      } else if (cp=='[') {
-        bracket_match = 1|VISUAL_BRACKET_OPEN;
-      } else if (cp=='(') {
-        bracket_match = 2|VISUAL_BRACKET_OPEN;
-      } else if (cp=='}') {
-        bracket_match = 0|VISUAL_BRACKET_CLOSE;
-      } else if (cp==']') {
-        bracket_match = 1|VISUAL_BRACKET_CLOSE;
-      } else if (cp==')') {
-        bracket_match = 2|VISUAL_BRACKET_CLOSE;
       }
     }
 
@@ -952,40 +973,8 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
     }
 
     if (bracket_match) {
-      bracketed_line = bracket_match;
-      if (bracket_match&VISUAL_BRACKET_CLOSE) {
-        size_t bracket = bracket_match&VISUAL_BRACKET_MASK;
-        render_info->depth_new[bracket]--;
-        int min = render_info->depth_old[bracket]-render_info->depth_new[bracket];
-        if (min>render_info->brackets[bracket].min) {
-          render_info->brackets[bracket].min = min;
-        }
-
-        render_info->brackets[bracket].diff--;
-
-        int min_line = render_info->depth_line[bracket]-render_info->depth_new[bracket];
-        if (min_line>render_info->brackets_line[bracket].min) {
-          render_info->brackets_line[bracket].min = min_line;
-        }
-
-        render_info->brackets_line[bracket].diff--;
-      } else {
-        size_t bracket = bracket_match&VISUAL_BRACKET_MASK;
-        render_info->depth_new[bracket]++;
-        int max = render_info->depth_new[bracket]-render_info->depth_old[bracket];
-        if (max>render_info->brackets[bracket].max) {
-          render_info->brackets[bracket].max = max;
-        }
-
-        render_info->brackets[bracket].diff++;
-
-        int max_line = render_info->depth_new[bracket]-render_info->depth_line[bracket];
-        if (max_line>render_info->brackets_line[bracket].max) {
-          render_info->brackets_line[bracket].max = max_line;
-        }
-
-        render_info->brackets_line[bracket].diff++;
-      }
+      bracketed_line = 1;
+      document_text_update_brackets(render_info, bracket_match);
     }
   }
 
@@ -1022,7 +1011,8 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
   debug_pages_prerender++;
   bool_t spellcheck = view->spellcheck;
 
-  void (*mark)(struct document_text_render_info* render_info) = file->type->mark;
+  void (*mark)(struct document_text_render_info* render_info, int bracket_match) = file->type->mark;
+  int (*match)(const struct document_text_render_info* render_info) = file->type->bracket_match;
   render_info->file_type = file->type;
 
   render_info->sequence_next = NULL;
@@ -1064,8 +1054,9 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
     codepoint_t cp = render_info->sequence->cp[0];
     int visual_detail_before = render_info->visual_detail;
 
+    int bracket_match = (*match)(render_info);
     if (render_info->keyword_length<=0) {
-      (*mark)(render_info);
+      (*mark)(render_info, bracket_match);
     }
 
     if (render_info->spell_length<=0 && spellcheck) {
@@ -1130,6 +1121,10 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
       render_info->x = render_info->indentation+render_info->indentation_extra;
       render_info->sequence_next = NULL;
     }
+
+    if (bracket_match) {
+      document_text_update_brackets(render_info, bracket_match);
+    }
   }
 
   return rendered;
@@ -1144,7 +1139,8 @@ int document_text_render_span(struct document_text_render_info* render_info, str
   codepoint_t newline_cp2 = (file->newline==TIPPSE_NEWLINE_CRLF)?'\r':UNICODE_CODEPOINT_UNASSIGNED;
   debug_pages_render++;
 
-  void (*mark)(struct document_text_render_info* render_info) = file->type->mark;
+  void (*mark)(struct document_text_render_info* render_info, int bracket_match) = file->type->mark;
+  int (*match)(const struct document_text_render_info* render_info) = file->type->bracket_match;
   render_info->file_type = file->type;
 
   position_t whitespace_x = -1;
@@ -1187,8 +1183,9 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     codepoint_t cp = render_info->sequence->cp[0];
     int visual_detail_before = render_info->visual_detail;
 
+    int bracket_match = (*match)(render_info);
     if (render_info->keyword_length<=0) {
-      (*mark)(render_info);
+      (*mark)(render_info, bracket_match);
     }
 
     if (render_info->spell_length<=0 && spellcheck) {
@@ -1332,6 +1329,10 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 
     if (render_info->x-scroll_x>render_info->width) {
       stop = 1;
+    }
+
+    if (bracket_match) {
+      document_text_update_brackets(render_info, bracket_match);
     }
   }
 
