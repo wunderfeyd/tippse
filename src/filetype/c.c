@@ -77,6 +77,14 @@ void file_type_c_mark(struct document_text_render_info* render_info ) {
       } else {
         after &= ~VISUAL_DETAIL_STRING0;
       }
+    } else if (cp1=='[') {
+      if (before_masked==0) {
+        after |= VISUAL_DETAIL_INDEX;
+      }
+    } else if (cp1==']') {
+      if (before_masked!=0) {
+        after &= ~VISUAL_DETAIL_INDEX;
+      }
     } else if (cp1=='\'') {
       if (before_masked==0) {
         after |= VISUAL_DETAIL_STRING1;
@@ -100,6 +108,8 @@ void file_type_c_mark(struct document_text_render_info* render_info ) {
 
   if ((before|after)&(VISUAL_DETAIL_STRING0|VISUAL_DETAIL_STRING1)) {
     flags = VISUAL_FLAG_COLOR_STRING;
+  } else if ((before|after)&(VISUAL_DETAIL_INDEX)) {
+    flags = VISUAL_FLAG_COLOR_INDEX;
   } else if ((before|after)&(VISUAL_DETAIL_COMMENT0)) {
     flags = VISUAL_FLAG_COLOR_BLOCKCOMMENT;
   } else if ((before|after)&(VISUAL_DETAIL_COMMENT1)) {

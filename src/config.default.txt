@@ -24,6 +24,7 @@
     modified:red,
     removed:red,
     spellcheck:red,
+    index:teal,
   },
   wrapping:1,
   invisibles:0,
