@@ -581,15 +581,28 @@ void range_tree_node_print_root(const struct range_tree_node* node, int depth, i
   range_tree_node_print(node, depth, side);
 }
 
+// Combine statistics of child nodes (on demand)
+void range_tree_node_update_lazy(struct range_tree_node* node, struct range_tree* tree) {
+  if ((node->inserter&TIPPSE_INSERTER_LAZY_COMBINE)!=0) {
+    node->inserter &= ~TIPPSE_INSERTER_LAZY_COMBINE;
+    range_tree_node_update_lazy(node->side[0], tree);
+    range_tree_node_update_lazy(node->side[1], tree);
+    if (tree->callback) {
+      (*tree->callback->node_combine)(tree->callback, node, tree);
+    }
+  }
+}
+
 // Combine statistics of child nodes
 void range_tree_node_update_calc(struct range_tree_node* node, struct range_tree* tree) {
   if (!(node->inserter&TIPPSE_INSERTER_LEAF)) {
     node->length = node->side[0]->length+node->side[1]->length;
     node->depth = ((node->side[0]->depth>node->side[1]->depth)?node->side[0]->depth:node->side[1]->depth)+1;
-    node->inserter = ((node->side[0]?node->side[0]->inserter:0)|(node->side[1]?node->side[1]->inserter:0))&~TIPPSE_INSERTER_LEAF;
-    if (tree->callback) {
-      (*tree->callback->node_combine)(tree->callback, node, tree);
-    }
+    node->inserter = (((node->side[0]?node->side[0]->inserter:0)|(node->side[1]?node->side[1]->inserter:0))&~TIPPSE_INSERTER_LEAF)|TIPPSE_INSERTER_LAZY_COMBINE;
+    //node->inserter = ((node->side[0]?node->side[0]->inserter:0)|(node->side[1]?node->side[1]->inserter:0))&~TIPPSE_INSERTER_LEAF;
+    //if (tree->callback) {
+    //  (*tree->callback->node_combine)(tree->callback, node, tree);
+    //}
   }
 }
 

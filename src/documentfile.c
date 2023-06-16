@@ -1047,13 +1047,13 @@ void document_file_destroy_view_node(struct document_file* base, struct range_tr
   }
 }
 
-void document_file_combine_view_node(struct document_file* base, struct range_tree_node* node) {
+void document_file_combine_view_node(struct document_file* base, struct range_tree_node* node, struct range_tree* tree) {
   struct list_node* views = base->views->first;
   while (views) {
     struct document_view* view = *(struct document_view**)list_object(views);
-    struct visual_info* visuals = document_view_visual_create(view, node);
-    struct visual_info* visuals0 = document_view_visual_create(view, node->side[0]);
-    struct visual_info* visuals1 = document_view_visual_create(view, node->side[1]);
+    struct visual_info* visuals = document_view_visual_create(view, node, tree);
+    struct visual_info* visuals0 = document_view_visual_create(view, node->side[0], tree);
+    struct visual_info* visuals1 = document_view_visual_create(view, node->side[1], tree);
     visual_info_combine(view, visuals, visuals0, visuals1);
 
     views = views->next;
@@ -1241,8 +1241,8 @@ void document_file_fragment_dereference(struct range_tree_callback* base, struct
 void document_file_node_combine(struct range_tree_callback* base, struct range_tree_node* node, struct range_tree* tree) {
   struct range_tree_callback_hook* hook = (struct range_tree_callback_hook*)base;
   if ((tree->caps&TIPPSE_RANGETREE_CAPS_VISUAL)) {
-    document_file_combine_view_node(hook->file, node);
-   }
+    document_file_combine_view_node(hook->file, node, tree);
+  }
 }
 
 // Range tree hook, node has to be invalidated

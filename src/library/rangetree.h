@@ -19,6 +19,7 @@
 #define TIPPSE_INSERTER_MARK 4
 #define TIPPSE_INSERTER_HIGHLIGHT 8
 #define TIPPSE_INSERTER_NOFUSE 16
+#define TIPPSE_INSERTER_LAZY_COMBINE 32
 
 #define TIPPSE_INSERTER_HIGHLIGHT_COLOR_SHIFT 16
 
@@ -94,6 +95,7 @@ struct range_tree_node* range_tree_marked_prev(struct range_tree* base, file_off
 void range_tree_node_print(const struct range_tree_node* node, int depth, int side);
 void range_tree_node_check(const struct range_tree_node* node);
 void range_tree_node_print_root(const struct range_tree_node* node, int depth, int side);
+void range_tree_node_update_lazy(struct range_tree_node* node, struct range_tree* tree);
 void range_tree_node_update_calc(struct range_tree_node* node, struct range_tree* tree);
 void range_tree_node_update_calc_all(struct range_tree_node* node, struct range_tree* tree);
 void range_tree_node_destroy(struct range_tree_node* node, struct range_tree* tree);

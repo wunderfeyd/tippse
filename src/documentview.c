@@ -126,24 +126,25 @@ void document_view_select_invert(struct document_view* base, int update_search) 
 }
 
 // Allocate visual information
-struct visual_info* document_view_visual_create(struct document_view* base, struct range_tree_node* node) {
+struct visual_info* document_view_visual_create(struct document_view* base, struct range_tree_node* node, struct range_tree* tree) {
+  range_tree_node_update_lazy(node, tree);
   if (node->view_uid==base->uid) {
     return node->visuals;
   }
 
   file_offset_t low = (file_offset_t)((size_t)node);
   file_offset_t diff;
-  struct range_tree_node* tree;
+  struct range_tree_node* location;
   if (range_tree_node_marked(base->visuals.root, low, 1, TIPPSE_INSERTER_MARK)) {
-    tree = range_tree_node_find_offset(base->visuals.root, low, &diff);
+    location = range_tree_node_find_offset(base->visuals.root, low, &diff);
   } else {
     range_tree_mark(&base->visuals, low, 1, TIPPSE_INSERTER_MARK|TIPPSE_INSERTER_NOFUSE);
-    tree = range_tree_node_find_offset(base->visuals.root, low, &diff);
-    tree->user_data = malloc(sizeof(struct visual_info));
-    visual_info_clear(base, (struct visual_info*)tree->user_data);
+    location = range_tree_node_find_offset(base->visuals.root, low, &diff);
+    location->user_data = malloc(sizeof(struct visual_info));
+    visual_info_clear(base, (struct visual_info*)location->user_data);
   }
 
-  node->visuals = (struct visual_info*)tree->user_data;
+  node->visuals = (struct visual_info*)location->user_data;
   node->view_uid = base->uid;
   return node->visuals;
 }
