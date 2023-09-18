@@ -123,6 +123,8 @@ struct tippse_ansi_key ansi_keys[] = {
   {"\x1b[5~", TIPPSE_KEY_PAGEUP, 0},
   {"\x1b[6~", TIPPSE_KEY_PAGEDOWN, 0},
   {"\x1b[M???", TIPPSE_KEY_MOUSE, 0},
+  {"\x1b[<+;+;+M", TIPPSE_KEY_MOUSE, 0},
+  {"\x1b[<+;+;+m", TIPPSE_KEY_MOUSE, 0},
   {"\x1b[Z", TIPPSE_KEY_TAB|TIPPSE_KEY_MOD_SHIFT, 0},
   {"\x1bOA", TIPPSE_KEY_UP, 0},
   {"\x1bOB", TIPPSE_KEY_DOWN, 0},
@@ -274,17 +276,25 @@ int main(int argc, const char** argv) {
 
       // TODO: use binary search for key finding process
       for (size_t pos = 0; ansi_keys[pos].text; pos++) {
-        size_t c;
+        size_t c = 0;
+        size_t p = 0;
         int modifier = 0;
-        for (c = 0; c<input_pos-check; c++) {
+        for (; p<input_pos-check;) {
           if (ansi_keys[pos].text[c]=='m') {
-            modifier = input_buffer[c+check]-'1';
-            continue;
+            modifier = input_buffer[p+check]-'1';
           } else if (ansi_keys[pos].text[c]=='?') {
-            continue;
-          } else if ((ansi_keys[pos].text[c]==0 && c>0) || input_buffer[c+check]!=ansi_keys[pos].text[c]) {
+          } else if (ansi_keys[pos].text[c]=='+') {
+            c++;
+            while (input_buffer[p+check]>='0' && input_buffer[p+check]<='9') {
+              p++;
+            }
+
+          } else if ((ansi_keys[pos].text[c]==0 && c>0) || input_buffer[p+check]!=ansi_keys[pos].text[c]) {
             break;
           }
+
+          c++;
+          p++;
         }
 
         if (c==input_pos-check || (ansi_keys[pos].text[c]==0 && c>0)) {
@@ -307,28 +317,54 @@ int main(int argc, const char** argv) {
 
             if (!bracket_paste) {
               if (key==TIPPSE_KEY_MOUSE) {
-                if (input_buffer[3]&4) key |= TIPPSE_KEY_MOD_SHIFT;
-                if (input_buffer[3]&8) key |= TIPPSE_KEY_MOD_ALT;
-                if (input_buffer[3]&16) key |= TIPPSE_KEY_MOD_CTRL;
-                int buttons = input_buffer[3] & ~(4+8+16);
-                mouse_x = input_buffer[4]-33;
-                mouse_y = input_buffer[5]-33;
+                int buttons = 3;
+                if (input_buffer[2]=='<') {
+                  unsigned char* in = &input_buffer[2];
+                  for (int count = 0; count<3; count++) {
+                    in++;
+                    int val = 0;
+                    while (*in>='0' && *in<='9') {
+                      val *= 10;
+                      val += (*in)-'0';
+                      in++;
+                    }
+
+
+                    if (count==0) buttons = val;
+                    if (count==1) mouse_x = val-1;
+                    if (count==2) mouse_y = val-1;
+                  }
+
+                  if (*in=='m') {
+                    buttons = 3;
+                  }
+                } else {
+                  buttons = input_buffer[3];
+                  buttons -= 32;
+                  mouse_x = input_buffer[4]-33;
+                  mouse_y = input_buffer[5]-33;
+                }
+
+                if (buttons&4) key |= TIPPSE_KEY_MOD_SHIFT;
+                if (buttons&8) key |= TIPPSE_KEY_MOD_ALT;
+                if (buttons&16) key |= TIPPSE_KEY_MOD_CTRL;
+                buttons &= ~(4+8+16);
 
                 mouse_buttons_old = mouse_buttons;
-                if (buttons==35) {
+                if (buttons==3) {
                   mouse_buttons &= ~TIPPSE_MOUSE_LBUTTON & ~TIPPSE_MOUSE_RBUTTON & ~TIPPSE_MOUSE_MBUTTON;
-                } else if (buttons==32) {
+                } else if (buttons==0) {
                   mouse_buttons |= TIPPSE_MOUSE_LBUTTON;
-                } else if (buttons==33) {
+                } else if (buttons==1) {
                   mouse_buttons |= TIPPSE_MOUSE_RBUTTON;
-                } else if (buttons==34) {
+                } else if (buttons==2) {
                   mouse_buttons |= TIPPSE_MOUSE_MBUTTON;
                 }
 
                 mouse_buttons &= ~TIPPSE_MOUSE_WHEEL_UP & ~TIPPSE_MOUSE_WHEEL_DOWN;
-                if (buttons==96) {
+                if (buttons==64) {
                   mouse_buttons |= TIPPSE_MOUSE_WHEEL_UP;
-                } else if (buttons==97) {
+                } else if (buttons==65) {
                   mouse_buttons |= TIPPSE_MOUSE_WHEEL_DOWN;
                 }
               }
@@ -342,7 +378,7 @@ int main(int argc, const char** argv) {
               bracket_paste = 0;
             }
 
-            used = c;
+            used = p;
             break;
           }
         }
