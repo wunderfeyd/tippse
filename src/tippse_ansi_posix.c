@@ -38,111 +38,114 @@ struct tippse_ansi_key {
 };
 
 // Ansi command table
-// ? = single byte
-// m = modifier param
+// ? = single byte, + = digits, # = modifier param
 struct tippse_ansi_key ansi_keys[] = {
-  {"\x00", TIPPSE_KEY_SPACE|TIPPSE_KEY_MOD_CTRL, 0},
-  {"\x01", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'a'},
-  {"\x02", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'b'},
-  {"\x03", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'c'},
-  {"\x04", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'd'},
-  {"\x05", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'e'},
-  {"\x06", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'f'},
-  {"\x07", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'g'},
-  {"\x08", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'h'},
-  {"\t", TIPPSE_KEY_TAB, 0},
-  {"\n", TIPPSE_KEY_RETURN, 0},
-  {"\x0b", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'k'},
-  {"\x0c", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'l'},
-  {"\r", TIPPSE_KEY_RETURN, 0},
-  {"\x0e", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'n'},
-  {"\x0f", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'o'},
-  {"\x10", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'p'},
-  {"\x11", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'q'},
-  {"\x12", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'r'},
-  {"\x13", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 's'},
-  {"\x14", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 't'},
-  {"\x15", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'u'},
-  {"\x16", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'v'},
-  {"\x17", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'w'},
-  {"\x18", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'x'},
-  {"\x19", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'y'},
-  {"\x1a", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'z'},
-  {"\x1b[A", TIPPSE_KEY_UP, 0},
-  {"\x1b[B", TIPPSE_KEY_DOWN, 0},
-  {"\x1b[C", TIPPSE_KEY_RIGHT, 0},
-  {"\x1b[D", TIPPSE_KEY_LEFT, 0},
-  {"\x1b[F", TIPPSE_KEY_LAST, 0},
-  {"\x1b[H", TIPPSE_KEY_FIRST, 0},
-  {"\x1b[1;mA", TIPPSE_KEY_UP, 0},
-  {"\x1b[1;mB", TIPPSE_KEY_DOWN, 0},
-  {"\x1b[1;mC", TIPPSE_KEY_RIGHT, 0},
-  {"\x1b[1;mD", TIPPSE_KEY_LEFT, 0},
-  {"\x1b[1;mF", TIPPSE_KEY_LAST, 0},
-  {"\x1b[1;mH", TIPPSE_KEY_FIRST, 0},
-  {"\x1b[1;mP", TIPPSE_KEY_F1, 0},
-  {"\x1b[1;mQ", TIPPSE_KEY_F2, 0},
-  {"\x1b[1;mR", TIPPSE_KEY_F3, 0},
-  {"\x1b[1;mS", TIPPSE_KEY_F4, 0},
-  {"\x1b[200~", TIPPSE_KEY_BRACKET_PASTE_START, 0},
-  {"\x1b[201~", TIPPSE_KEY_BRACKET_PASTE_STOP, 0},
-  {"\x1b[1;m~", TIPPSE_KEY_FIRST, 0},
-  {"\x1b[15;m~", TIPPSE_KEY_F5, 0},
-  {"\x1b[17;m~", TIPPSE_KEY_F6, 0},
-  {"\x1b[18;m~", TIPPSE_KEY_F7, 0},
-  {"\x1b[19;m~", TIPPSE_KEY_F8, 0},
-  {"\x1b[2;m~", TIPPSE_KEY_INSERT, 0},
-  {"\x1b[3;m~", TIPPSE_KEY_DELETE, 0},
-  {"\x1b[4;m~", TIPPSE_KEY_LAST, 0},
-  {"\x1b[5;m~", TIPPSE_KEY_PAGEUP, 0},
-  {"\x1b[6;m~", TIPPSE_KEY_PAGEDOWN, 0},
-  {"\x1b[1~", TIPPSE_KEY_FIRST, 0},
-  {"\x1b[11~", TIPPSE_KEY_F1, 0},
-  {"\x1b[12~", TIPPSE_KEY_F2, 0},
-  {"\x1b[13~", TIPPSE_KEY_F3, 0},
-  {"\x1b[14~", TIPPSE_KEY_F4, 0},
-  {"\x1b[15~", TIPPSE_KEY_F5, 0},
-  {"\x1b[17~", TIPPSE_KEY_F6, 0},
-  {"\x1b[18~", TIPPSE_KEY_F7, 0},
-  {"\x1b[19~", TIPPSE_KEY_F8, 0},
-  {"\x1b[2~", TIPPSE_KEY_INSERT, 0},
-  {"\x1b[20~", TIPPSE_KEY_F9, 0},
-  {"\x1b[21~", TIPPSE_KEY_F10, 0},
-  {"\x1b[23~", TIPPSE_KEY_F1|TIPPSE_KEY_MOD_SHIFT, 0},
-  {"\x1b[24~", TIPPSE_KEY_F2|TIPPSE_KEY_MOD_SHIFT, 0},
-  {"\x1b[25~", TIPPSE_KEY_F3|TIPPSE_KEY_MOD_SHIFT, 0},
-  {"\x1b[26~", TIPPSE_KEY_F4|TIPPSE_KEY_MOD_SHIFT, 0},
-  {"\x1b[28~", TIPPSE_KEY_F5|TIPPSE_KEY_MOD_SHIFT, 0},
-  {"\x1b[29~", TIPPSE_KEY_F6|TIPPSE_KEY_MOD_SHIFT, 0},
-  {"\x1b[3~", TIPPSE_KEY_DELETE, 0},
-  {"\x1b[31~", TIPPSE_KEY_F7|TIPPSE_KEY_MOD_SHIFT, 0},
-  {"\x1b[32~", TIPPSE_KEY_F8|TIPPSE_KEY_MOD_SHIFT, 0},
-  {"\x1b[33~", TIPPSE_KEY_F9|TIPPSE_KEY_MOD_SHIFT, 0},
-  {"\x1b[34~", TIPPSE_KEY_F10|TIPPSE_KEY_MOD_SHIFT, 0},
-  {"\x1b[4~", TIPPSE_KEY_LAST, 0},
-  {"\x1b[5~", TIPPSE_KEY_PAGEUP, 0},
-  {"\x1b[6~", TIPPSE_KEY_PAGEDOWN, 0},
-  {"\x1b[M???", TIPPSE_KEY_MOUSE, 0},
-  {"\x1b[<+;+;+M", TIPPSE_KEY_MOUSE, 0},
-  {"\x1b[<+;+;+m", TIPPSE_KEY_MOUSE, 0},
-  {"\x1b[Z", TIPPSE_KEY_TAB|TIPPSE_KEY_MOD_SHIFT, 0},
-  {"\x1bOA", TIPPSE_KEY_UP, 0},
-  {"\x1bOB", TIPPSE_KEY_DOWN, 0},
-  {"\x1bOC", TIPPSE_KEY_RIGHT, 0},
-  {"\x1bOD", TIPPSE_KEY_LEFT, 0},
-  {"\x1bOH", TIPPSE_KEY_FIRST, 0},
-  {"\x1bOF", TIPPSE_KEY_LAST, 0},
-  {"\x1bOP", TIPPSE_KEY_F1, 0},
-  {"\x1bOQ", TIPPSE_KEY_F2, 0},
-  {"\x1bOR", TIPPSE_KEY_F3, 0},
-  {"\x1bOS", TIPPSE_KEY_F4, 0},
-  {"\x1b\x1b", TIPPSE_KEY_ESCAPE, 0},
-  {"\x1c", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '#'},
-  {"\x1d", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '~'},
-  {"\x1e", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '^'},
-  {"\x1f", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '\\'},
-  {"\x20", TIPPSE_KEY_SPACE, 0},
-  {"\x7f", TIPPSE_KEY_BACKSPACE, 0},
+  {"\x00\xff", TIPPSE_KEY_SPACE|TIPPSE_KEY_MOD_CTRL, 0},
+  {"\x01\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'a'},
+  {"\x02\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'b'},
+  {"\x03\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'c'},
+  {"\x04\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'd'},
+  {"\x05\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'e'},
+  {"\x06\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'f'},
+  {"\x07\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'g'},
+  {"\x08\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'h'},
+  {"\t\xff", TIPPSE_KEY_TAB, 0},
+  {"\n\xff", TIPPSE_KEY_RETURN, 0},
+  {"\x0b\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'k'},
+  {"\x0c\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'l'},
+  {"\r\xff", TIPPSE_KEY_RETURN, 0},
+  {"\x0e\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'n'},
+  {"\x0f\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'o'},
+  {"\x10\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'p'},
+  {"\x11\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'q'},
+  {"\x12\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'r'},
+  {"\x13\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 's'},
+  {"\x14\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 't'},
+  {"\x15\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'u'},
+  {"\x16\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'v'},
+  {"\x17\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'w'},
+  {"\x18\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'x'},
+  {"\x19\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'y'},
+  {"\x1a\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, 'z'},
+  {"\x1b[A\xff", TIPPSE_KEY_UP, 0},
+  {"\x1b[B\xff", TIPPSE_KEY_DOWN, 0},
+  {"\x1b[C\xff", TIPPSE_KEY_RIGHT, 0},
+  {"\x1b[D\xff", TIPPSE_KEY_LEFT, 0},
+  {"\x1b[F\xff", TIPPSE_KEY_LAST, 0},
+  {"\x1b[H\xff", TIPPSE_KEY_FIRST, 0},
+  {"\x1b[1;#A\xff", TIPPSE_KEY_UP, 0},
+  {"\x1b[1;#B\xff", TIPPSE_KEY_DOWN, 0},
+  {"\x1b[1;#C\xff", TIPPSE_KEY_RIGHT, 0},
+  {"\x1b[1;#D\xff", TIPPSE_KEY_LEFT, 0},
+  {"\x1b[1;#F\xff", TIPPSE_KEY_LAST, 0},
+  {"\x1b[1;#H\xff", TIPPSE_KEY_FIRST, 0},
+  {"\x1b[1;#P\xff", TIPPSE_KEY_F1, 0},
+  {"\x1b[1;#Q\xff", TIPPSE_KEY_F2, 0},
+  {"\x1b[1;#R\xff", TIPPSE_KEY_F3, 0},
+  {"\x1b[1;#S\xff", TIPPSE_KEY_F4, 0},
+  {"\x1b[200~\xff", TIPPSE_KEY_BRACKET_PASTE_START, 0},
+  {"\x1b[201~\xff", TIPPSE_KEY_BRACKET_PASTE_STOP, 0},
+  {"\x1b[1;#~\xff", TIPPSE_KEY_FIRST, 0},
+  {"\x1b[15;#~\xff", TIPPSE_KEY_F5, 0},
+  {"\x1b[17;#~\xff", TIPPSE_KEY_F6, 0},
+  {"\x1b[18;#~\xff", TIPPSE_KEY_F7, 0},
+  {"\x1b[19;#~\xff", TIPPSE_KEY_F8, 0},
+  {"\x1b[20;#~\xff", TIPPSE_KEY_F9, 0},
+  {"\x1b[21;#~\xff", TIPPSE_KEY_F10, 0},
+  {"\x1b[23;#~\xff", TIPPSE_KEY_F11, 0},
+  {"\x1b[24;#~\xff", TIPPSE_KEY_F12, 0},
+  {"\x1b[2;#~\xff", TIPPSE_KEY_INSERT, 0},
+  {"\x1b[3;#~\xff", TIPPSE_KEY_DELETE, 0},
+  {"\x1b[4;#~\xff", TIPPSE_KEY_LAST, 0},
+  {"\x1b[5;#~\xff", TIPPSE_KEY_PAGEUP, 0},
+  {"\x1b[6;#~\xff", TIPPSE_KEY_PAGEDOWN, 0},
+  {"\x1b[1~\xff", TIPPSE_KEY_FIRST, 0},
+  {"\x1b[11~\xff", TIPPSE_KEY_F1, 0},
+  {"\x1b[12~\xff", TIPPSE_KEY_F2, 0},
+  {"\x1b[13~\xff", TIPPSE_KEY_F3, 0},
+  {"\x1b[14~\xff", TIPPSE_KEY_F4, 0},
+  {"\x1b[15~\xff", TIPPSE_KEY_F5, 0},
+  {"\x1b[17~\xff", TIPPSE_KEY_F6, 0},
+  {"\x1b[18~\xff", TIPPSE_KEY_F7, 0},
+  {"\x1b[19~\xff", TIPPSE_KEY_F8, 0},
+  {"\x1b[2~\xff", TIPPSE_KEY_INSERT, 0},
+  {"\x1b[20~\xff", TIPPSE_KEY_F9, 0},
+  {"\x1b[21~\xff", TIPPSE_KEY_F10, 0},
+  {"\x1b[23~\xff", TIPPSE_KEY_F1|TIPPSE_KEY_MOD_SHIFT, 0},
+  {"\x1b[24~\xff", TIPPSE_KEY_F2|TIPPSE_KEY_MOD_SHIFT, 0},
+  {"\x1b[25~\xff", TIPPSE_KEY_F3|TIPPSE_KEY_MOD_SHIFT, 0},
+  {"\x1b[26~\xff", TIPPSE_KEY_F4|TIPPSE_KEY_MOD_SHIFT, 0},
+  {"\x1b[28~\xff", TIPPSE_KEY_F5|TIPPSE_KEY_MOD_SHIFT, 0},
+  {"\x1b[29~\xff", TIPPSE_KEY_F6|TIPPSE_KEY_MOD_SHIFT, 0},
+  {"\x1b[3~\xff", TIPPSE_KEY_DELETE, 0},
+  {"\x1b[31~\xff", TIPPSE_KEY_F7|TIPPSE_KEY_MOD_SHIFT, 0},
+  {"\x1b[32~\xff", TIPPSE_KEY_F8|TIPPSE_KEY_MOD_SHIFT, 0},
+  {"\x1b[33~\xff", TIPPSE_KEY_F9|TIPPSE_KEY_MOD_SHIFT, 0},
+  {"\x1b[34~\xff", TIPPSE_KEY_F10|TIPPSE_KEY_MOD_SHIFT, 0},
+  {"\x1b[4~\xff", TIPPSE_KEY_LAST, 0},
+  {"\x1b[5~\xff", TIPPSE_KEY_PAGEUP, 0},
+  {"\x1b[6~\xff", TIPPSE_KEY_PAGEDOWN, 0},
+  {"\x1b[M???\xff", TIPPSE_KEY_MOUSE, 0},
+  {"\x1b[<+;+;+M\xff", TIPPSE_KEY_MOUSE, 0},
+  {"\x1b[<+;+;+m\xff", TIPPSE_KEY_MOUSE, 0},
+  {"\x1b[Z\xff", TIPPSE_KEY_TAB|TIPPSE_KEY_MOD_SHIFT, 0},
+  {"\x1bOA\xff", TIPPSE_KEY_UP, 0},
+  {"\x1bOB\xff", TIPPSE_KEY_DOWN, 0},
+  {"\x1bOC\xff", TIPPSE_KEY_RIGHT, 0},
+  {"\x1bOD\xff", TIPPSE_KEY_LEFT, 0},
+  {"\x1bOH\xff", TIPPSE_KEY_FIRST, 0},
+  {"\x1bOF\xff", TIPPSE_KEY_LAST, 0},
+  {"\x1bOP\xff", TIPPSE_KEY_F1, 0},
+  {"\x1bOQ\xff", TIPPSE_KEY_F2, 0},
+  {"\x1bOR\xff", TIPPSE_KEY_F3, 0},
+  {"\x1bOS\xff", TIPPSE_KEY_F4, 0},
+  {"\x1b\x1b\xff", TIPPSE_KEY_ESCAPE, 0},
+  {"\x1c\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '#'},
+  {"\x1d\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '~'},
+  {"\x1e\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '^'},
+  {"\x1f\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '\\'},
+  {"\x20\xff", TIPPSE_KEY_SPACE, 0},
+  {"\x7f\xff", TIPPSE_KEY_BACKSPACE, 0},
   {NULL, 0, 0}
 };
 
@@ -191,7 +194,7 @@ int main(int argc, const char** argv) {
 
   //encoding_utf8_build_tables();
 #ifndef _PERFORMANCE // allow human input :)
-  unsigned char input_buffer[1024];
+  uint8_t input_buffer[1024];
   size_t input_pos = 0;
   int64_t ansi_timeout = 0;
   while (!editor->close) {
@@ -235,7 +238,7 @@ int main(int argc, const char** argv) {
       int ret = select(nfds+1, &set_read, NULL, NULL, &tv);
       if (ret>0) {
         if (FD_ISSET(STDIN_FILENO, &set_read)) {
-          in = read(STDIN_FILENO, &input_buffer[input_pos], sizeof(input_buffer)-input_pos);
+          in = read(STDIN_FILENO, &input_buffer[input_pos], sizeof(input_buffer)-input_pos-1);
           if (in>0) {
             input_pos += (size_t)in;
             ansi_timeout = tick_count()+tick_ms(25);
@@ -270,128 +273,133 @@ int main(int argc, const char** argv) {
     }
 
     size_t check = 0;
-    while (1) {
-      size_t used = 0;
-      int keep = 0;
+    while (check!=input_pos) {
+      uint8_t* data = &input_buffer[check];
+      if (*data==0x1b && input_pos-check==1) {
+        break;
+      }
 
-      // TODO: use binary search for key finding process
+      size_t used = 0;
       for (size_t pos = 0; ansi_keys[pos].text; pos++) {
-        size_t c = 0;
+        uint8_t* text = (uint8_t*)ansi_keys[pos].text;
         size_t p = 0;
         int modifier = 0;
         for (; p<input_pos-check;) {
-          if (ansi_keys[pos].text[c]=='m') {
-            modifier = input_buffer[p+check]-'1';
-          } else if (ansi_keys[pos].text[c]=='?') {
-          } else if (ansi_keys[pos].text[c]=='+') {
-            c++;
-            while (input_buffer[p+check]>='0' && input_buffer[p+check]<='9') {
+          uint8_t c = *text;
+          if (c=='#') {
+            modifier = data[p]-'1';
+          } else if (c=='?') {
+          } else if (c=='+') {
+            if (data[p]>='0' && data[p]<='9') {
               p++;
+            } else {
+              text++;
             }
 
-          } else if ((ansi_keys[pos].text[c]==0 && c>0) || input_buffer[p+check]!=ansi_keys[pos].text[c]) {
+            continue;
+          } else if (c==0xff || data[p]!=c) {
             break;
           }
 
-          c++;
+          text++;
           p++;
         }
 
-        if (c==input_pos-check || (ansi_keys[pos].text[c]==0 && c>0)) {
-          keep = 1;
-          if (ansi_keys[pos].text[c]==0 && c>0) {
-            int key = ansi_keys[pos].key;
-            if (modifier&1) {
-              key |= TIPPSE_KEY_MOD_SHIFT;
-            }
+        if (*text==0xff) {
+          int key = ansi_keys[pos].key;
+          if (modifier&1) {
+            key |= TIPPSE_KEY_MOD_SHIFT;
+          }
 
-            if (modifier&2) {
-              key |= TIPPSE_KEY_MOD_ALT;
-            }
+          if (modifier&2) {
+            key |= TIPPSE_KEY_MOD_ALT;
+          }
 
-            if (modifier&4) {
-              key |= TIPPSE_KEY_MOD_CTRL;
-            }
+          if (modifier&4) {
+            key |= TIPPSE_KEY_MOD_CTRL;
+          }
 
-            codepoint_t cp = ansi_keys[pos].cp;
+          codepoint_t cp = ansi_keys[pos].cp;
 
-            if (!bracket_paste) {
-              if (key==TIPPSE_KEY_MOUSE) {
-                int buttons = 3;
-                if (input_buffer[2]=='<') {
-                  unsigned char* in = &input_buffer[2];
-                  for (int count = 0; count<3; count++) {
+          if (!bracket_paste) {
+            if (key==TIPPSE_KEY_MOUSE) {
+              int buttons = 3;
+              if (data[2]=='<') {
+                unsigned char* in = &data[2];
+                for (int count = 0; count<3; count++) {
+                  in++;
+                  int val = 0;
+                  while (*in>='0' && *in<='9') {
+                    val *= 10;
+                    val += (*in)-'0';
                     in++;
-                    int val = 0;
-                    while (*in>='0' && *in<='9') {
-                      val *= 10;
-                      val += (*in)-'0';
-                      in++;
-                    }
-
-
-                    if (count==0) buttons = val;
-                    if (count==1) mouse_x = val-1;
-                    if (count==2) mouse_y = val-1;
                   }
 
-                  if (*in=='m') {
-                    buttons = 3;
-                  }
-                } else {
-                  buttons = input_buffer[3];
-                  buttons -= 32;
-                  mouse_x = input_buffer[4]-33;
-                  mouse_y = input_buffer[5]-33;
+
+                  if (count==0) buttons = val;
+                  if (count==1) mouse_x = val-1;
+                  if (count==2) mouse_y = val-1;
                 }
 
-                if (buttons&4) key |= TIPPSE_KEY_MOD_SHIFT;
-                if (buttons&8) key |= TIPPSE_KEY_MOD_ALT;
-                if (buttons&16) key |= TIPPSE_KEY_MOD_CTRL;
-                buttons &= ~(4+8+16);
-
-                mouse_buttons_old = mouse_buttons;
-                if (buttons==3) {
-                  mouse_buttons &= ~TIPPSE_MOUSE_LBUTTON & ~TIPPSE_MOUSE_RBUTTON & ~TIPPSE_MOUSE_MBUTTON;
-                } else if (buttons==0) {
-                  mouse_buttons |= TIPPSE_MOUSE_LBUTTON;
-                } else if (buttons==1) {
-                  mouse_buttons |= TIPPSE_MOUSE_RBUTTON;
-                } else if (buttons==2) {
-                  mouse_buttons |= TIPPSE_MOUSE_MBUTTON;
+                if (*in=='m') {
+                  buttons = 3;
                 }
-
-                mouse_buttons &= ~TIPPSE_MOUSE_WHEEL_UP & ~TIPPSE_MOUSE_WHEEL_DOWN;
-                if (buttons==64) {
-                  mouse_buttons |= TIPPSE_MOUSE_WHEEL_UP;
-                } else if (buttons==65) {
-                  mouse_buttons |= TIPPSE_MOUSE_WHEEL_DOWN;
-                }
+              } else {
+                buttons = data[3]-32;
+                mouse_x = data[4]-33;
+                mouse_y = data[5]-33;
               }
 
-              editor_keypress(editor, key, cp, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
+              if (buttons&4) key |= TIPPSE_KEY_MOD_SHIFT;
+              if (buttons&8) key |= TIPPSE_KEY_MOD_ALT;
+              if (buttons&16) key |= TIPPSE_KEY_MOD_CTRL;
+              buttons &= ~(4+8+16);
+
+              mouse_buttons_old = mouse_buttons;
+              if (buttons==3) {
+                mouse_buttons &= ~TIPPSE_MOUSE_LBUTTON & ~TIPPSE_MOUSE_RBUTTON & ~TIPPSE_MOUSE_MBUTTON;
+              } else if (buttons==0) {
+                mouse_buttons |= TIPPSE_MOUSE_LBUTTON;
+              } else if (buttons==1) {
+                mouse_buttons |= TIPPSE_MOUSE_RBUTTON;
+              } else if (buttons==2) {
+                mouse_buttons |= TIPPSE_MOUSE_MBUTTON;
+              }
+
+              mouse_buttons &= ~TIPPSE_MOUSE_WHEEL_UP & ~TIPPSE_MOUSE_WHEEL_DOWN;
+              if (buttons==64) {
+                mouse_buttons |= TIPPSE_MOUSE_WHEEL_UP;
+              } else if (buttons==65) {
+                mouse_buttons |= TIPPSE_MOUSE_WHEEL_DOWN;
+              }
             }
 
-            if (key==TIPPSE_KEY_BRACKET_PASTE_START && !bracket_paste) {
-              bracket_paste = 1;
-            } else if (key==TIPPSE_KEY_BRACKET_PASTE_STOP && bracket_paste) {
-              bracket_paste = 0;
-            }
-
-            used = p;
-            break;
+            editor_keypress(editor, key, cp, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
           }
+
+          if (key==TIPPSE_KEY_BRACKET_PASTE_START && !bracket_paste) {
+            bracket_paste = 1;
+          } else if (key==TIPPSE_KEY_BRACKET_PASTE_STOP && bracket_paste) {
+            bracket_paste = 0;
+          }
+
+          used = p;
+          break;
         }
       }
 
-      if (!keep) {
+      if (used==0) {
         struct stream stream;
-        stream_from_plain(&stream, (const uint8_t*)&input_buffer[check], (size_t)((const uint8_t*)&input_buffer[input_pos]-(const uint8_t*)&input_buffer[check]));
+        stream_from_plain(&stream, data, (size_t)input_pos-check);
         codepoint_t cp = (*screen->encoding->decode)(NULL, &stream, &used);
         if (!bracket_paste && cp<UNICODE_CODEPOINT_MAX) {
           editor_keypress(editor, TIPPSE_KEY_CHARACTER, cp, mouse_buttons, mouse_buttons_old, mouse_x, mouse_y);
         }
         stream_destroy(&stream);
+
+        if (cp==UNICODE_CODEPOINT_BAD) {
+          used = 0;
+        }
       }
 
       if (used==0) {

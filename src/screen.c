@@ -22,11 +22,11 @@ static const char* screen_ansi_init =
   "\x1b[2J"      // Clear screen
   "\x1b[?2004h"  // Bracketed paste mode (Needed to catch insert key)
   "\x1b[?1002h"  // XTerm mouse mode (fallback/PuTTY)
-  "\x1b[?1006h"; // UTF-8 mouse mode
+  "\x1b[?1006h"; // SGR mouse mode
 
 // Screen ANSI restore
 static const char* screen_ansi_restore =
-  "\x1b[?1006l"  // Disable UTF-8 mouse mode
+  "\x1b[?1006l"  // Disable SGR mouse mode
   "\x1b[?1002l"  // Disable XTerm mouse mode
   "\x1b[?2004l"  // Non bracketed paste mode
   "\x1b""8"      // Restore cursor position
