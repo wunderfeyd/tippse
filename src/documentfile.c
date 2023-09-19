@@ -351,7 +351,9 @@ void document_file_pipe_entry(struct thread* thread) {
   base->pipe_operation = NULL;
 
   base->piped = TIPPSE_PIPE_DONE;
-  base->editor->update_signal(base);
+  if (base->editor) {
+    base->editor->update_signal(base);
+  }
 }
 
 // Create another process or thread and route the output into the file
@@ -401,7 +403,7 @@ void document_file_fill_pipe(struct document_file* base, uint8_t* buffer, size_t
   int signal = (base->pipe_queue->count==0)?1:0;
   list_insert(base->pipe_queue, base->pipe_queue->last, &block);
   mutex_unlock(&base->pipe_mutex);
-  if (signal) {
+  if (signal && base->editor) {
     base->editor->update_signal(base);
   }
 }
@@ -565,7 +567,9 @@ int document_file_save_plain(struct document_file* base, const char* filename) {
         break;
       }
       stream_next(&stream);
-      editor_process_message(base->editor, "Saving...", stream_offset(&stream), max);
+      if (base->editor) {
+        editor_process_message(base->editor, "Saving...", stream_offset(&stream), max);
+      }
     }
     stream_destroy(&stream);
   }
@@ -587,23 +591,33 @@ int document_file_save(struct document_file* base, const char* filename) {
 
       if (rename(tmpname, filename)==0) {
         document_file_load(base, filename, 1, 0);
-        editor_console_update(base->editor, "Saved!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
+        if (base->editor) {
+          editor_console_update(base->editor, "Saved!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
+        }
         success = 1;
       } else {
-        editor_console_update(base->editor, "Renaming failed!", SIZE_T_MAX, CONSOLE_TYPE_ERROR);
+        if (base->editor) {
+          editor_console_update(base->editor, "Renaming failed!", SIZE_T_MAX, CONSOLE_TYPE_ERROR);
+        }
       }
     } else {
-      editor_console_update(base->editor, "Writing failed!", SIZE_T_MAX, CONSOLE_TYPE_ERROR);
+      if (base->editor) {
+        editor_console_update(base->editor, "Writing failed!", SIZE_T_MAX, CONSOLE_TYPE_ERROR);
+      }
     }
 
     free(tmpname);
   } else {
     if (document_file_save_plain(base, filename)) {
       document_undo_mark_save_point(base);
-      editor_console_update(base->editor, "Saved!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
+      if (base->editor) {
+        editor_console_update(base->editor, "Saved!", SIZE_T_MAX, CONSOLE_TYPE_NORMAL);
+      }
       success = 1;
     } else {
-      editor_console_update(base->editor, "Writing failed!", SIZE_T_MAX, CONSOLE_TYPE_ERROR);
+      if (base->editor) {
+        editor_console_update(base->editor, "Writing failed!", SIZE_T_MAX, CONSOLE_TYPE_ERROR);
+      }
     }
 
     if (base->cache) {

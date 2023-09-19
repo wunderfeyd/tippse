@@ -772,7 +772,7 @@ void editor_intercept(struct editor* base, int command, struct config_command* a
     }
   } else if (command==TIPPSE_CMD_SPLIT_GRAB_ROTATE) {
     if (base->grab) {
-      base->grab->type ^= TIPPSE_SPLITTER_HORZ;
+      base->grab->type ^= TIPPSE_SPLITTER_HORZ|TIPPSE_SPLITTER_VERT;
     }
   } else if (command==TIPPSE_CMD_SPLIT_GRAB_PREV) {
     editor_grab_next(base, base->grab, 1);
