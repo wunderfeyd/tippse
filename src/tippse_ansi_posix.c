@@ -139,6 +139,16 @@ struct tippse_ansi_key ansi_keys[] = {
   {"\x1bOQ\xff", TIPPSE_KEY_F2, 0},
   {"\x1bOR\xff", TIPPSE_KEY_F3, 0},
   {"\x1bOS\xff", TIPPSE_KEY_F4, 0},
+  {"\x1bO#A\xff", TIPPSE_KEY_UP, 0},
+  {"\x1bO#B\xff", TIPPSE_KEY_DOWN, 0},
+  {"\x1bO#C\xff", TIPPSE_KEY_RIGHT, 0},
+  {"\x1bO#D\xff", TIPPSE_KEY_LEFT, 0},
+  {"\x1bO#H\xff", TIPPSE_KEY_FIRST, 0},
+  {"\x1bO#F\xff", TIPPSE_KEY_LAST, 0},
+  {"\x1bO#P\xff", TIPPSE_KEY_F1, 0},
+  {"\x1bO#Q\xff", TIPPSE_KEY_F2, 0},
+  {"\x1bO#R\xff", TIPPSE_KEY_F3, 0},
+  {"\x1bO#S\xff", TIPPSE_KEY_F4, 0},
   {"\x1b\x1b\xff", TIPPSE_KEY_ESCAPE, 0},
   {"\x1c\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '#'},
   {"\x1d\xff", TIPPSE_KEY_CHARACTER|TIPPSE_KEY_MOD_CTRL, '~'},
@@ -286,7 +296,7 @@ int main(int argc, const char** argv) {
         int modifier = 0;
         for (; p<input_pos-check;) {
           uint8_t c = *text;
-          if (c=='#') {
+          if (c=='#' && data[p]>='1' && data[p]<='9') {
             modifier = data[p]-'1';
           } else if (c=='?') {
           } else if (c=='+') {
