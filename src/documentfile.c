@@ -666,7 +666,7 @@ void document_file_detect_properties_stream(struct document_file* base, struct s
     int binary;
   };
 
-  struct encodings encodings[] = {{encoding_ascii_create, 1}, {encoding_cp850_create, 1}, {encoding_utf8_create, 2}, {encoding_utf16le_create, 2}, {encoding_utf16be_create, 2}};
+  struct encodings encodings[] = {{encoding_ascii_create, 1}, {encoding_cp850_create, 1}, {encoding_utf8_create, 3}, {encoding_utf16le_create, 2}, {encoding_utf16be_create, 2}};
   struct encoding_stats stats[sizeof(encodings)/sizeof(struct encodings)];
 
   base->binary = 0;
