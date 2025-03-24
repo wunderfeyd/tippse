@@ -27,6 +27,8 @@
 #define DEBUG_PAGERENDERDISPLAY 4
 #define DEBUG_LINERENDERTIMING 8
 
+// #define DEBUG_SPAN_TIMING
+
 int debug = DEBUG_NONE;
 int debug_draw = 0;
 int debug_relocates = 0;
@@ -308,6 +310,7 @@ TIPPSE_INLINE int document_text_render_lookahead_word_wrap(struct unicode_sequen
   struct stream alt_stream;
   int count = width0;
   size_t advance = 1;
+  bool_t alternated = 0;
   while (count<max) {
     struct unicode_sequence* sequence = unicode_sequencer_find(sequencer, advance);
 
@@ -317,11 +320,16 @@ TIPPSE_INLINE int document_text_render_lookahead_word_wrap(struct unicode_sequen
 
     count += unicode_width(&sequence->cp[0], sequence->length);
 
-    unicode_sequencer_alternate(&sequencer, advance, &alt_sequencer, &alt_stream);
+    if (!alternated) {
+      alternated |= unicode_sequencer_alternate(&sequencer, advance, &alt_sequencer, &alt_stream);
+    }
+
     advance++;
   }
 
-  unicode_sequencer_drop_alternate(sequencer, advance, &alt_sequencer, &alt_stream);
+  if (alternated) {
+    unicode_sequencer_drop_alternate(sequencer);
+  }
 
   if (count>=max) {
     count = width0;
@@ -338,6 +346,7 @@ bool_t document_text_render_whitespace_scan(struct document_text_render_info* re
   file_offset_t displacement = render_info->displacement;
   size_t advance = 0;
   bool_t whitespaced = 0;
+  bool_t alternated = 0;
   while (1) {
     if (displacement>=render_info->buffer->length) {
       struct range_tree_node* buffer_new = range_tree_node_next(render_info->buffer);
@@ -358,11 +367,16 @@ bool_t document_text_render_whitespace_scan(struct document_text_render_info* re
       break;
     }
 
-    unicode_sequencer_alternate(&sequencer, advance, &alt_sequencer, &alt_stream);
+    if (!alternated) {
+      alternated |= unicode_sequencer_alternate(&sequencer, advance, &alt_sequencer, &alt_stream);
+    }
+
     advance++;
   }
 
-  unicode_sequencer_drop_alternate(sequencer, advance, &alt_sequencer, &alt_stream);
+  if (alternated) {
+    unicode_sequencer_drop_alternate(sequencer);
+  }
 
   return whitespaced;
 }
@@ -557,6 +571,11 @@ void document_text_update_brackets(struct document_text_render_info* render_info
 // Render some pages until the position is found or pages are no longer dirty
 // TODO: find better visualization for debugging, find unnecessary render iterations and then optimize (as soon the code is "feature complete")
 int document_text_collect_span_base(struct document_text_render_info* render_info, struct document_view* view, struct document_file* file, const struct document_text_position* in, struct document_text_position* out, int dirty_pages, int cancel) {
+#ifdef DEBUG_SPAN_TIMING
+  fprintf(stderr, "span base %d\r\n", (int)in->type);
+  int64_t tick_debug = tick_count();
+#endif
+
   // TODO: Following initializations shouldn't be needed since the caller should check the type / verify
   if (out) {
     out->type = VISUAL_SEEK_NONE;
@@ -590,7 +609,7 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
 
   codepoint_t newline_cp1 = (file->newline==TIPPSE_NEWLINE_CR)?'\r':'\n';
   codepoint_t newline_cp2 = (file->newline==TIPPSE_NEWLINE_CRLF)?'\r':UNICODE_CODEPOINT_UNASSIGNED;
-  codepoint_t newline_cp3 = (newline_cp2==UNICODE_CODEPOINT_UNASSIGNED)?UNICODE_CODEPOINT_UNASSIGNED:newline_cp1;
+  codepoint_t newline_cp3 = (file->newline!=TIPPSE_NEWLINE_CRLF)?UNICODE_CODEPOINT_UNASSIGNED:newline_cp1;
   codepoint_t newline_cp4 = (file->newline==TIPPSE_NEWLINE_CR)?'\n':'\r';
   debug_pages_collect++;
 
@@ -599,11 +618,12 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
   render_info->file_type = file->type;
 
   if (document_text_split_buffer(render_info->buffer, file)) {
-    stream_destroy(&render_info->stream);
-    stream_from_page(&render_info->stream, render_info->buffer, render_info->displacement);
-    unicode_sequencer_clear(&render_info->sequencer, file->encoding, &render_info->stream);
     page_dirty = 1;
   }
+
+  stream_destroy(&render_info->stream);
+  stream_from_page(&render_info->stream, render_info->buffer, render_info->displacement);
+  unicode_sequencer_clear(&render_info->sequencer, file->encoding, &render_info->stream);
 
   editor_process_message(file->editor, "Locating...", render_info->offset, range_tree_length(&file->buffer));
 
@@ -715,20 +735,9 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
       page_dirty = (render_info->buffer && visuals->dirty)?1:0;
       debug_pages_collect++;
 
-      stream_destroy(&render_info->stream);
-      stream_from_page(&render_info->stream, render_info->buffer, render_info->displacement);
-      unicode_sequencer_clear(&render_info->sequencer, file->encoding, &render_info->stream);
-      render_info->sequence_next = NULL;
-      render_info->fill_next = -1;
-
-/*      if (page_dirty && render_info->buffer) {
-        size_t count = encoding_cache_range(&render_info->cache, &big_buffer[0], render_info->buffer->length+2048);
-        stream_destroy(&render_info->stream);
-        stream_from_plain(&render_info->stream, &big_buffer[0], count*sizeof(codepoint_t));
-        encoding_cache_clear(&render_info->cache,  encoding_native_static(), &render_info->stream);
-      }*/
-
-      editor_process_message(file->editor, "Locating...", render_info->offset, range_tree_length(&file->buffer));
+      if ((debug_pages_collect&255)==0) {
+        editor_process_message(file->editor, "Locating...", render_info->offset, range_tree_length(&file->buffer));
+      }
     }
 
     render_info->sequence = render_info->sequence_next?render_info->sequence_next:unicode_sequencer_find(&render_info->sequencer, 0);
@@ -743,11 +752,11 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
 
     int visual_detail_before = render_info->visual_detail;
 
-    int bracket_match = (*match)(render_info);
     if (render_info->keyword_length<=0) {
-      // 100ms
-      (*mark)(render_info, bracket_match);
+      (*mark)(render_info, 0);
     }
+
+    int bracket_match = (*match)(render_info);
 
     if (render_info->spell_length<=0 && spellcheck) {
       if ((render_info->visual_detail&VISUAL_DETAIL_WORD) && !(visual_detail_before&VISUAL_DETAIL_WORD)) {
@@ -777,11 +786,11 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
       } else if (in->type==VISUAL_SEEK_OFFSET) {
         drawn = (render_info->offset>=in->offset)?(4|2|1):1;
       } else if (in->type==VISUAL_SEEK_BRACKET_NEXT) {
-        bool_t bracket_correction = ((bracket_match&VISUAL_BRACKET_CLOSE) && ((bracket_match&VISUAL_BRACKET_MASK)==in->bracket))?1:0;
+        int bracket_correction = ((bracket_match&VISUAL_BRACKET_CLOSE) && ((bracket_match&VISUAL_BRACKET_MASK)==in->bracket))?1:0;
         drawn = (render_info->offset>=in->offset && render_info->depth_new[in->bracket]-bracket_correction==in->bracket_search)?(4|2|1):0;
         rendered = (render_info->offset>=in->offset && (out->type!=VISUAL_SEEK_NONE || (drawn&4)))?1:-1;
       } else if (in->type==VISUAL_SEEK_BRACKET_PREV) {
-        bool_t bracket_correction = ((bracket_match&VISUAL_BRACKET_CLOSE) && ((bracket_match&VISUAL_BRACKET_MASK)==in->bracket))?1:0;
+        int bracket_correction = ((bracket_match&VISUAL_BRACKET_CLOSE) && ((bracket_match&VISUAL_BRACKET_MASK)==in->bracket))?1:0;
         drawn = (render_info->depth_new[in->bracket]-bracket_correction==in->bracket_search && render_info->offset<=in->offset)?(0|1):0;
         if (render_info->offset>=in->offset) {
           rendered = (out->type!=VISUAL_SEEK_NONE || drawn)?1:-1;
@@ -980,6 +989,10 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
 
   render_info->indented = indented;
   render_info->bracketed_line = bracketed_line;
+
+#ifdef DEBUG_SPAN_TIMING
+  fprintf(stderr, "span timing %d\r\n", (int)(tick_count()-tick_debug));
+#endif
   return rendered;
 }
 
@@ -1054,10 +1067,11 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
     codepoint_t cp = render_info->sequence->cp[0];
     int visual_detail_before = render_info->visual_detail;
 
-    int bracket_match = (*match)(render_info);
     if (render_info->keyword_length<=0) {
-      (*mark)(render_info, bracket_match);
+      (*mark)(render_info, 0);
     }
+
+    int bracket_match = (*match)(render_info);
 
     if (render_info->spell_length<=0 && spellcheck) {
       if ((render_info->visual_detail&VISUAL_DETAIL_WORD) && !(visual_detail_before&VISUAL_DETAIL_WORD)) {
@@ -1183,10 +1197,11 @@ int document_text_render_span(struct document_text_render_info* render_info, str
     codepoint_t cp = render_info->sequence->cp[0];
     int visual_detail_before = render_info->visual_detail;
 
-    int bracket_match = (*match)(render_info);
     if (render_info->keyword_length<=0) {
-      (*mark)(render_info, bracket_match);
+      (*mark)(render_info, 0);
     }
+
+    int bracket_match = (*match)(render_info);
 
     if (render_info->spell_length<=0 && spellcheck) {
       if ((render_info->visual_detail&VISUAL_DETAIL_WORD) && !(visual_detail_before&VISUAL_DETAIL_WORD)) {

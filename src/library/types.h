@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef _MSC_VER
 #include <stdio.h>
@@ -24,13 +25,13 @@ typedef uint64_t file_offset_t;
 typedef int64_t position_t;
 
 // Type for code points
-typedef unsigned long codepoint_t;
+typedef uint32_t codepoint_t;
 
 // Type for unicode bit tables
 typedef uint16_t codepoint_table_t;
 
 // Type for boolean values (stdbool.h seems to degrade the performance ... TODO: check why)
-typedef long bool_t;
+typedef bool bool_t;
 
 // Max and min
 #define FILE_OFFSET_T_MAX (~(file_offset_t)0)

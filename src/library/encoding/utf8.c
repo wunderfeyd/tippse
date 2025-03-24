@@ -318,7 +318,6 @@ okay:;
 }
 
 codepoint_t encoding_utf8_decode(struct encoding* base, struct stream* stream, size_t* used) {
-
   if (UNLIKELY(stream_left(stream)<4)) {
     return encoding_utf8_decode_boundary(base, stream, used);
   }

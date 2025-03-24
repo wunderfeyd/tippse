@@ -785,7 +785,7 @@ void range_tree_node_update(struct range_tree_node* node, struct range_tree* tre
 // Return base offset of given node
 file_offset_t range_tree_node_offset(const struct range_tree_node* node) {
   file_offset_t offset = 0;
-  while (node->parent) {
+  while (node && node->parent) {
     if (node->parent->side[1]==node) {
       offset += node->parent->side[0]->length;
     }

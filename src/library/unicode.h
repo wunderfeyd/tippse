@@ -148,13 +148,16 @@ TIPPSE_INLINE void unicode_sequencer_decode(struct unicode_sequencer* base, stru
 
 // Return sequence from cache or lookup next sequence
 TIPPSE_INLINE struct unicode_sequence* unicode_sequencer_find(struct unicode_sequencer* base, size_t offset) {
-  size_t pos = (offset+base->start)&(UNICODE_SEQUENCER_MAX-1);
   if (offset+base->start>=base->end) {
-    unicode_sequencer_decode(base, &base->nodes[pos]);
-    base->end++;
+    if (base->start==base->end) {
+      base->start = base->end = 0;
+    }
+
+    unicode_sequencer_decode(base, &base->nodes[(base->end++)&(UNICODE_SEQUENCER_MAX-1)]);
   }
 
-  return &base->nodes[pos];
+  return &base->nodes[(offset+base->start)&(UNICODE_SEQUENCER_MAX-1)];
+
 }
 
 // Move to next sequence in cache
@@ -163,19 +166,20 @@ TIPPSE_INLINE void unicode_sequencer_advance(struct unicode_sequencer* base, siz
 }
 
 // Since the sequencer can hold some sequences only, the sequencer can be copied and used in forward mode then and we can switch back to the original cached sequence later
-TIPPSE_INLINE void unicode_sequencer_alternate(struct unicode_sequencer** base, size_t advance, struct unicode_sequencer* alt_sequencer, struct stream* alt_stream) {
+TIPPSE_INLINE bool_t unicode_sequencer_alternate(struct unicode_sequencer** base, size_t advance, struct unicode_sequencer* alt_sequencer, struct stream* alt_stream) {
   if (advance==UNICODE_SEQUENCER_MAX-1) {
     unicode_sequencer_clone(alt_sequencer, *base);
     *base = alt_sequencer;
     stream_clone(alt_stream, (*base)->stream);
     (*base)->stream = alt_stream;
+    return 1;
   }
+
+  return 0;
 }
 
 // Restore state from forward mode
-TIPPSE_INLINE void unicode_sequencer_drop_alternate(struct unicode_sequencer* base, size_t advance, struct unicode_sequencer* alt_sequencer, struct stream* alt_stream) {
-  if (advance>UNICODE_SEQUENCER_MAX-1) {
-    stream_destroy(alt_stream);
-  }
+TIPPSE_INLINE void unicode_sequencer_drop_alternate(struct unicode_sequencer* base) {
+  stream_destroy(base->stream);
 }
 #endif /* #ifndef TIPPSE_UNICODE_H */

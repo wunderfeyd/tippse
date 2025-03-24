@@ -135,7 +135,7 @@ void file_type_c_mark(struct document_text_render_info* render_info, int bracket
     }
   }
 
-  if (render_info->keyword_length==0 && (render_info->depth_new[1]>0 || (render_info->depth_new[1]==0 && bracket_match==(1|VISUAL_BRACKET_OPEN)))) {
+  if (render_info->keyword_length==0 && (render_info->depth_new[1]>0 || (render_info->depth_new[1]==0 && cp1=='['))) {
     flags = VISUAL_FLAG_COLOR_INDEX;
     render_info->keyword_length = 1;
   }
