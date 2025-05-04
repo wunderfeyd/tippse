@@ -658,7 +658,7 @@ uint8_t* interpret(const uint8_t* buffer, size_t size, size_t* outsize, const ch
 
                 printf("\r\n");*/
 
-                int decision = evaluate(evaltext, evalsize, (const char**)argspermut);
+                int decision = evaluate((const char*)evaltext, evalsize, (const char**)argspermut);
                 if (decision) {
                   size_t textsize = 0;
                   uint8_t* text = interpret(&buffer[hints[2]+1], hints[3]-(hints[2]+1), &textsize, (const char**)argspermut);
@@ -679,7 +679,7 @@ uint8_t* interpret(const uint8_t* buffer, size_t size, size_t* outsize, const ch
               free(argspermut);
               free(permutation);
             } else {
-              int decision = 1-evaluate(evaltext, evalsize, args);
+              int decision = 1-evaluate((const char*)evaltext, evalsize, args);
               if (decision!=1 || hint==4) {
                 size_t length = hints[2+decision]-(hints[1+decision]+1);
                 size_t textsize = 0;
