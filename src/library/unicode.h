@@ -6,9 +6,11 @@
 
 #define UNICODE_CODEPOINT_BOM 0xfeff
 #define UNICODE_CODEPOINT_MAX 0x110000
-#define UNICODE_CODEPOINT_BAD UNICODE_CODEPOINT_MAX+1
-#define UNICODE_CODEPOINT_UNASSIGNED UNICODE_CODEPOINT_MAX+2
-#define UNICODE_CODEPOINT_MAX_BAD 0x110000+4
+#define UNICODE_CODEPOINT_BAD (UNICODE_CODEPOINT_MAX+1)
+#define UNICODE_CODEPOINT_UNASSIGNED (UNICODE_CODEPOINT_MAX+2)
+#define UNICODE_CODEPOINT_MAX_BAD (0x110000+4)
+#define UNICODE_CODEPOINT_MASK 0xffffff
+#define UNICODE_CODEPOINT_MASK_SHIFT 24
 
 #define UNICODE_HINT_MAX (UNICODE_CODEPOINT_MAX_BAD+1)
 #define UNICODE_SEQUENCE_MAX 8
@@ -21,6 +23,8 @@
 #define UNICODE_HINT_MASK_WHITESPACES 0x20
 #define UNICODE_HINT_MASK_DIGITS 0x40
 #define UNICODE_HINT_MASK_WORDS 0x80
+#define UNICODE_HINT_MASK_BRACKET 0x3f00
+#define UNICODE_HINT_MASK_BRACKET_SHIFT 8
 
 struct unicode_sequence {
   size_t length;                            // Number of codepoints in cp[]
@@ -56,7 +60,6 @@ void unicode_decode_transform_append(struct trie* forward, size_t froms, codepoi
 void unicode_decode_rle(uint8_t* rle, codepoint_table_t mask);
 void unicode_update_combining_mark(codepoint_t codepoint);
 int unicode_combining_mark(codepoint_t codepoint);
-//size_t unicode_read_combined_sequence(struct encoding_cache* cache, size_t offset, codepoint_t* codepoints, size_t max, size_t* advance, size_t* length);
 void unicode_width_adjust(codepoint_t cp, int width);
 struct unicode_sequence* unicode_upper(struct unicode_sequencer* sequencer, size_t offset, size_t* advance, size_t* length);
 struct unicode_sequence* unicode_lower(struct unicode_sequencer* sequencer, size_t offset, size_t* advance, size_t* length);
@@ -103,6 +106,11 @@ TIPPSE_INLINE codepoint_table_t unicode_joiner(const codepoint_t codepoint) {
   return unicode_hint_check(codepoint, UNICODE_HINT_MASK_JOINER);
 }
 
+// Test if codepoint is standard bracket
+TIPPSE_INLINE int unicode_bracket(const codepoint_t codepoint) {
+  return unicode_hint_check(codepoint, UNICODE_HINT_MASK_BRACKET)>>UNICODE_HINT_MASK_BRACKET_SHIFT;
+}
+
 // Check visual width of unicode sequence
 TIPPSE_INLINE codepoint_table_t unicode_width(const codepoint_t* codepoints, size_t max) {
   if (max<=0) {
@@ -122,23 +130,20 @@ TIPPSE_INLINE void unicode_sequencer_read(struct unicode_sequencer* base) {
 
 // Decode sequence (combined unicodes with marks or joiner)
 TIPPSE_INLINE void unicode_sequencer_decode(struct unicode_sequencer* base, struct unicode_sequence* sequence) {
-  codepoint_t* codepoints = &sequence->cp[0];
-  codepoints[0] = base->last_cp;
+  sequence->cp[0] = base->last_cp;
   size_t size = base->last_size;
   unicode_sequencer_read(base);
 
   size_t length = 1;
   while (UNLIKELY(unicode_joiner(base->last_cp)) && length<UNICODE_SEQUENCE_MAX-1) {
     if (UNLIKELY(base->last_cp==0x200d)) { // Zero width joiner
-      codepoints[length] = base->last_cp;
+      sequence->cp[length++] = base->last_cp;
       size += base->last_size;
-      length++;
       unicode_sequencer_read(base);
     }
 
-    codepoints[length] = base->last_cp;
+    sequence->cp[length++] = base->last_cp;
     size += base->last_size;
-    length++;
     unicode_sequencer_read(base);
   }
 

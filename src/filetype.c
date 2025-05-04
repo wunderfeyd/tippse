@@ -76,22 +76,10 @@ int file_type_keyword_config(const struct file_type* base, struct unicode_sequen
   return (int)config_convert_int64_cache(last, &visual_color_codes[0]);
 }
 
-int file_type_bracket_match(const struct document_text_render_info* render_info) {
+int file_type_bracket_match(const struct document_text_render_info* render_info, struct unicode_sequence* sequence) {
   if ((render_info->visual_detail&(VISUAL_DETAIL_STRING0|VISUAL_DETAIL_STRING1|VISUAL_DETAIL_COMMENT0|VISUAL_DETAIL_COMMENT1))==0) {
-    codepoint_t cp = render_info->sequence->cp[0];
-    if (cp=='{') {
-      return 0|VISUAL_BRACKET_OPEN;
-    } else if (cp=='[') {
-      return 1|VISUAL_BRACKET_OPEN;
-    } else if (cp=='(') {
-      return 2|VISUAL_BRACKET_OPEN;
-    } else if (cp=='}') {
-      return 0|VISUAL_BRACKET_CLOSE;
-    } else if (cp==']') {
-      return 1|VISUAL_BRACKET_CLOSE;
-    } else if (cp==')') {
-      return 2|VISUAL_BRACKET_CLOSE;
-    }
+    codepoint_t cp = sequence->cp[0];
+    return unicode_bracket(cp);
   }
 
   return 0;

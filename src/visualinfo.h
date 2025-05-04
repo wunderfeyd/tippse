@@ -75,9 +75,9 @@
 #define VISUAL_SEEK_WORD_TRANSITION_PREV 8
 
 // Bracket definitions
-#define VISUAL_BRACKET_MASK 0xffff
-#define VISUAL_BRACKET_OPEN 0x10000
-#define VISUAL_BRACKET_CLOSE 0x20000
+#define VISUAL_BRACKET_MASK 0x3
+#define VISUAL_BRACKET_OPEN 0x8
+#define VISUAL_BRACKET_CLOSE 0x10
 #define VISUAL_BRACKET_MAX 3
 
 // Block structure for bracket matching and code folding

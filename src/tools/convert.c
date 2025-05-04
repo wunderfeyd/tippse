@@ -73,6 +73,17 @@ void write_file_bytes(const char* to, const char* name, uint8_t* output, size_t 
   }
 }
 
+// Read complete file into memory
+void write_file(const char* to,  uint8_t* output, size_t size) {
+  FILE* file = fopen(to, "w");
+  if (file) {
+    fwrite(output, 1, size, file);
+    fclose(file);
+  } else {
+    printf("Can't create file '%s'\r\n", to);
+  }
+}
+
 // Strip unwanted characters
 void reduce_file(uint8_t* buffer, size_t* size) {
   size_t size_org = *size;
@@ -451,6 +462,280 @@ void build_manual(const char* from, const char* to, const char* name, int reduce
   free(buffer);
 }
 
+int evaluate(const char* text, size_t length, const char** args) {
+  /*printf("eval ");
+  for (size_t n = 0; n<length; n++) {
+    printf("%c", text[n]);
+  }
+
+  printf("\r\n");*/
+  if (length==1) {
+    if (*text=='1') {
+      return 1;
+    } else if (*text=='0') {
+      return 0;
+    }
+  }
+
+  char* replaced = (char*)malloc(length*sizeof(char));
+  size_t unchanged = 0;
+  size_t pos = 0;
+  size_t replacedsize = 0;
+  while (pos<length) {
+    size_t left = length-pos;
+    if ((text[pos]>='a' && text[pos]<='z') || (text[pos]>='A' && text[pos]<='Z')) {
+      size_t next = pos+1;
+      while (next<length) {
+        if (!((text[next]>='a' && text[next]<='z') || (text[next]>='A' && text[next]<='Z') || (text[next]>='0' && text[next]<='9') || (text[next]=='_'))) {
+          break;
+        }
+
+        next++;
+      }
+
+      size_t arg = 0;
+      while (args[arg] && (strlen(args[arg])!=next-pos || strncmp(&text[pos], args[arg], next-pos)!=0)) {
+        arg++;
+      }
+
+      if (args[arg]) {
+        replaced[replacedsize++] = '1';
+      } else {
+        replaced[replacedsize++] = '0';
+      }
+
+      pos = next;
+    } else if (left>1 && text[pos]=='!' && text[pos+1]=='0') {
+      replaced[replacedsize++] = '1';
+      pos += 2;
+    } else if (left>1 && text[pos]=='!' && text[pos+1]=='1') {
+      replaced[replacedsize++] = '0';
+      pos += 2;
+    } else if (left>2 && text[pos]=='(' && text[pos+1]=='1' && text[pos+2]==')') {
+      replaced[replacedsize++] = '1';
+      pos += 3;
+    } else if (left>2 && text[pos]=='(' && (text[pos+1]=='0' || text[pos+1]=='2') && text[pos+2]==')') {
+      replaced[replacedsize++] = '0';
+      pos += 3;
+    } else if (left>3 && (text[pos]>='0' && text[pos]<='1') && text[pos+1]=='|' && text[pos+2]=='|' && (text[pos+3]>='0' && text[pos+3]<='1')) {
+      replaced[replacedsize++] = ((text[pos]=='1')|(text[pos+3]=='1'))?'1':'0';
+      pos += 4;
+    } else if (left>3 && (text[pos]>='0' && text[pos]<='1') && text[pos+1]=='&' && text[pos+2]=='&' && (text[pos+3]>='0' && text[pos+3]<='1')) {
+      replaced[replacedsize++] = ((text[pos]=='1')&(text[pos+3]=='1'))?'1':'0';
+      pos += 4;
+    } else if (left>3 && (text[pos]>='0' && text[pos]<='2') && text[pos+1]=='~' && text[pos+2]=='~' && (text[pos+3]>='0' && text[pos+3]<='2')) {
+      if ((text[pos]=='2' || text[pos+3]=='2') || (text[pos]=='1' && text[pos+3]=='1')) {
+        replaced[replacedsize++] = '2';
+      } else {
+        replaced[replacedsize++] = ((text[pos]=='1')|(text[pos+3]=='1'))?'1':'0';
+      }
+      pos += 4;
+    } else if (text[pos]!=' ' && text[pos]!='\t' && text[pos]!='\r' && text[pos]!='\n') {
+      replaced[replacedsize++] = text[pos];
+      unchanged++;
+      pos++;
+    }
+  }
+
+  if (unchanged==length) {
+    printf("can't evaluate\r\n");
+    exit(1);
+  }
+
+  int decision = evaluate(replaced, replacedsize, args);
+  free(replaced);
+  return decision;
+}
+
+uint8_t* interpret(const uint8_t* buffer, size_t size, size_t* outsize, const char** args) {
+  uint8_t* output = (uint8_t*)malloc(1024*1024*16+size);
+  size_t pos = 0;
+  size_t hint = 0;
+  size_t hints[16];
+  size_t depth = 0;
+  while (pos<size) {
+    if (buffer[pos]=='`') {
+      if (pos+1<size && buffer[pos+1]=='{') {
+        if (depth==0) {
+          hint = 0;
+          hints[hint++] = pos+2;
+        }
+
+        depth++;
+
+        if (depth>0) {
+          pos += 2;
+          continue;
+        }
+      }
+
+      if (pos+1<size && buffer[pos+1]=='}') {
+        depth--;
+        if (depth>0) {
+          pos += 2;
+          continue;
+        }
+
+        if (depth==0) {
+          if (hint<16) {
+            hints[hint++] = pos;
+          }
+
+          if (hint>2) {
+            size_t evalsize = hints[1]-hints[0];
+            const uint8_t* evaltext = &buffer[hints[0]];
+            if (hint>3 && evalsize>1 && evaltext[0]=='#') {
+              evalsize--;
+              evaltext++;
+              const uint8_t* argtext = &buffer[hints[1]+1];
+              size_t argsize = hints[2]-(hints[1]+1);
+              size_t argcount = 1;
+              for (size_t n = 0; n<argsize; n++) {
+                if (argtext[n]==',') {
+                  argcount++;
+                }
+              }
+
+              char** args = (char**)malloc((argcount)*sizeof(char*));
+              char** argspermut = (char**)malloc((argcount+1)*sizeof(char*));
+              int* permutation = (int*)malloc((argcount+1)*sizeof(int));
+              argcount = 0;
+              size_t last = 0;
+              for (size_t n = 0; ; n++) {
+                if (n==argsize || argtext[n]==',') {
+                  args[argcount] = (char*)malloc((n-last+1)*sizeof(char));
+                  for (size_t m = 0; m<n-last; m++) {
+                    args[argcount][m] = argtext[last+m];
+                  }
+
+                  args[argcount][n-last] = 0;
+                  argcount++;
+                  last = n+1;
+                }
+
+                if (n==argsize) {
+                  break;
+                }
+              }
+
+              for (size_t n = 0; n<argcount; n++) {
+                permutation[n] = 0;
+              }
+
+              while (1) {
+                int overflow = 0;
+                size_t permute = 0;
+                for (; permute<argcount; permute++) {
+                  permutation[permute]++;
+                  if (permutation[permute]!=2) {
+                    break;
+                  }
+
+                  permutation[permute] = 0;
+                }
+
+                if (permute==argcount) {
+                  break;
+                }
+
+                size_t argssize = 0;
+
+                for (size_t n = 0; n<argcount; n++) {
+                  if (permutation[n]==1) {
+                    argspermut[argssize++] = args[n];
+                  }
+                }
+
+
+                argspermut[argssize] = NULL;
+                /*printf("permut ");
+                for (size_t n = 0; n<argssize; n++) {
+                  for (size_t m = 0; argspermut[n][m]; m++) {
+                    printf("%c", argspermut[n][m]);
+                  }
+                  printf(",");
+                }
+
+                printf("\r\n");*/
+
+                int decision = evaluate(evaltext, evalsize, (const char**)argspermut);
+                if (decision) {
+                  size_t textsize = 0;
+                  uint8_t* text = interpret(&buffer[hints[2]+1], hints[3]-(hints[2]+1), &textsize, (const char**)argspermut);
+                  for (size_t n = 0; n<textsize; n++) {
+                    output[*outsize] = text[n];
+                    (*outsize)++;
+                  }
+
+                  free(text);
+                }
+              }
+
+              for (size_t n = 0; n<argcount; n++) {
+                free(args[n]);
+              }
+
+              free(args);
+              free(argspermut);
+              free(permutation);
+            } else {
+              int decision = 1-evaluate(evaltext, evalsize, args);
+              if (decision!=1 || hint==4) {
+                size_t length = hints[2+decision]-(hints[1+decision]+1);
+                size_t textsize = 0;
+                uint8_t* text = interpret(&buffer[hints[1+decision]+1], length, &textsize, args);
+                for (size_t n = 0; n<textsize; n++) {
+                  output[*outsize] = text[n];
+                  (*outsize)++;
+                }
+
+                free(text);
+              }
+            }
+          }
+        }
+
+        pos += 2;
+        continue;
+      }
+
+      if (depth==1) {
+        if (hint<16) {
+          hints[hint++] = pos;
+        }
+      }
+
+      pos++;
+    } else {
+      if (depth==0) {
+        output[*outsize] = buffer[pos];
+        (*outsize)++;
+      }
+
+      pos++;
+    }
+
+  }
+
+  return output;
+}
+
+void build_template(const char* from, const char* to, const char** args) {
+  size_t size;
+  uint8_t* buffer = read_file(from, &size);
+  if (!buffer) {
+    return;
+  }
+
+  size_t outsize = 0;
+  uint8_t* output = interpret(buffer, size, &outsize, args);
+
+  write_file(to, output, outsize);
+  free(output);
+
+  free(buffer);
+}
+
 int main(int argc, const char** argv) {
   if (argc>=2 && strcmp(argv[1], "--unicode")==0) {
     convert_widths("download/EastAsianWidth.txt", "output/unicode_widths.h");
@@ -463,6 +748,25 @@ int main(int argc, const char** argv) {
     convert_transform("download/NormalizationTest.txt", "output/unicode_normalization.h", "unicode_normalization", NULL, NULL, 0, 1, 2);
   } else if (argc>=6 && strcmp(argv[1], "--bin2c")==0) {
     build_manual(argv[2], argv[3], argv[4], (strcmp(argv[5], "reduce")==0)?1:0);
+  } else if (argc>=4 && strcmp(argv[1], "--template")==0) {
+    char** args = (char**)malloc((argc-4+1)*sizeof(char*));
+    {
+      int n = 0;
+      for (; n<argc-4; n++) {
+        args[n] = strdup(argv[n+4]);
+      }
+
+      args[n] = NULL;
+    }
+
+    build_template(argv[2], argv[3], (const char**)args);
+
+    for (int n = 0; n<argc-4; n++) {
+      free(args[n]);
+    }
+
+    free(args);
+    printf("Done\r\n");
   }
 
   return 0;

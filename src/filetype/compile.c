@@ -32,8 +32,8 @@ const char* file_type_compile_name(void) {
   return "Compile";
 }
 
-void file_type_compile_mark(struct document_text_render_info* render_info, int bracket_match) {
-  codepoint_t cp1 = render_info->sequence->cp[0];
+void file_type_compile_mark(struct document_text_render_info* render_info, struct unicode_sequencer* sequencer, struct unicode_sequence* sequence) {
+  codepoint_t cp1 = sequence->cp[0];
 
   int before = render_info->visual_detail;
   int after = before&~(VISUAL_DETAIL_INDENTATION|VISUAL_DETAIL_WORD);
@@ -65,7 +65,7 @@ void file_type_compile_mark(struct document_text_render_info* render_info, int b
     if (!(before&VISUAL_DETAIL_WORD) && (after&VISUAL_DETAIL_WORD)) {
       struct file_type_compile* self = (struct file_type_compile*)render_info->file_type;
       render_info->keyword_length = 0;
-      render_info->keyword_color = file_type_keyword_config(render_info->file_type, &render_info->sequencer, self->keywords, &render_info->keyword_length, 0);
+      render_info->keyword_color = file_type_keyword_config(render_info->file_type, sequencer, self->keywords, &render_info->keyword_length, 0);
       if (render_info->keyword_color==0) {
         render_info->keyword_length = 0;
       } else {

@@ -29,8 +29,8 @@ const char* file_type_text_name(void) {
   return "Text";
 }
 
-void file_type_text_mark(struct document_text_render_info* render_info, int bracket_match) {
-  codepoint_t cp1 = render_info->sequence->cp[0];
+void file_type_text_mark(struct document_text_render_info* render_info, struct unicode_sequencer* sequencer, struct unicode_sequence* sequence) {
+  codepoint_t cp1 = sequence->cp[0];
 
   int before = render_info->visual_detail;
   int after = before&~(VISUAL_DETAIL_INDENTATION|VISUAL_DETAIL_WORD);

@@ -21,8 +21,6 @@ struct document_text {
 // Saved state between two render calls
 struct document_text_render_info {
   int visual_detail;                // flags for visual details
-  struct unicode_sequence* sequence;  // current unicode sequence
-  struct unicode_sequence* sequence_next; // next unicode sequence
   struct range_tree* buffer_tree;   // access to document buffer, current page in tree
   struct range_tree_node* buffer;   // access to document buffer, current page in tree
   long indentations;                // number of normal identations in block
@@ -47,9 +45,6 @@ struct document_text_render_info {
   int keyword_color;                // keyword color
   long keyword_length;              // keyword length remaining
   long spell_length;                // spellcheck length remaining
-  int fill_next;                    // next decoded character width on screen
-  codepoint_t show_next;            // next codepoint to show
-  codepoint_t fill_code_next;       // next fill codepoint to use
   bool_t indented;                  // begin of line is indentation only?
   file_offset_t selection_displacement; // position in current selection page
   int depth_new[VISUAL_BRACKET_MAX]; //depth of bracket matching at cursor position
@@ -59,8 +54,6 @@ struct document_text_render_info {
   bool_t bracketed_line;            // bracket found on current line
   struct visual_bracket brackets_line[VISUAL_BRACKET_MAX]; // block structure for bracket matching at line
   bool_t append;                    // continue status?
-  struct stream stream;             // access to byte stream
-  struct unicode_sequencer sequencer; // access to Unicode sequencer cache
   struct file_type* file_type;      // File type information
   struct range_tree* selection_tree; // root of selection buffer
   const struct range_tree_node* selection; // access to selection buffer, current page in tree

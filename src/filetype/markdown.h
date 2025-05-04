@@ -12,7 +12,7 @@ struct file_type_markdown {
 
 struct file_type* file_type_markdown_create(struct config* config, const char* type_name);
 void file_type_markdown_destroy(struct file_type* base);
-void file_type_markdown_mark(struct document_text_render_info* render_info, int bracket_match);
+void file_type_markdown_mark(struct document_text_render_info* render_info, struct unicode_sequencer* sequencer, struct unicode_sequence* sequence);
 const char* file_type_markdown_name(void);
 
 #endif  /* #ifndef TIPPSE_FILETYPE_MARKDOWN_H */

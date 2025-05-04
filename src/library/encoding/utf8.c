@@ -327,11 +327,11 @@ codepoint_t encoding_utf8_decode(struct encoding* base, struct stream* stream, s
 
   const uint8_t* buffer = stream_buffer(stream);
   uint8_t c = buffer[use++];
-  PREFETCH(&buffer[use], 0, 0);
   if (LIKELY(c<0x80)) { // 0, 256, 128
     cp = c;
     goto okay2;
   } else {
+    PREFETCH(&buffer[use], 0, 0);
     if (c>=0xc2) { // 128, 256, 192
       if (c<0xe1) { // 194, 256, 225
         if (c>=0xe0) { // 194, 225, 209

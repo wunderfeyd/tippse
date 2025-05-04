@@ -29,10 +29,10 @@ const char* file_type_markdown_name(void) {
   return "markdown";
 }
 
-void file_type_markdown_mark(struct document_text_render_info* render_info, int bracket_match) {
-  codepoint_t cp1 = render_info->sequence->cp[0];
-  codepoint_t cp2 = unicode_sequencer_find(&render_info->sequencer, 1)->cp[0];
-  codepoint_t cp3 = unicode_sequencer_find(&render_info->sequencer, 2)->cp[0];
+void file_type_markdown_mark(struct document_text_render_info* render_info, struct unicode_sequencer* sequencer, struct unicode_sequence* sequence) {
+  codepoint_t cp1 = sequence->cp[0];
+  codepoint_t cp2 = unicode_sequencer_find(sequencer, 1)->cp[0];
+  codepoint_t cp3 = unicode_sequencer_find(sequencer, 2)->cp[0];
 
   int before = render_info->visual_detail;
   if (before&VISUAL_DETAIL_NEWLINE) {
@@ -48,7 +48,7 @@ void file_type_markdown_mark(struct document_text_render_info* render_info, int 
     after |= VISUAL_DETAIL_INDENTATION;
   } else if ((cp1>='0' && cp1<='9') && !(before&VISUAL_DETAIL_STOPPED_INDENTATION)) {
     for (size_t n = 0; n<10; n++) {
-      codepoint_t cp = unicode_sequencer_find(&render_info->sequencer, n+1)->cp[0];
+      codepoint_t cp = unicode_sequencer_find(sequencer, n+1)->cp[0];
       if (cp=='.') {
         flags = VISUAL_FLAG_COLOR_STRING;
         render_info->keyword_length = (int)n+2;

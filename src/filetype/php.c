@@ -32,12 +32,12 @@ const char* file_type_php_name(void) {
   return "PHP";
 }
 
-void file_type_php_mark(struct document_text_render_info* render_info, int bracket_match) {
+void file_type_php_mark(struct document_text_render_info* render_info, struct unicode_sequencer* sequencer, struct unicode_sequence* sequence) {
   int flags = 0;
   struct file_type_php* self = (struct file_type_php*)render_info->file_type;
 
-  codepoint_t cp1 = render_info->sequence->cp[0];
-  codepoint_t cp2 = unicode_sequencer_find(&render_info->sequencer, 1)->cp[0];
+  codepoint_t cp1 = sequence->cp[0];
+  codepoint_t cp2 = unicode_sequencer_find(sequencer, 1)->cp[0];
 
   render_info->keyword_length = 1;
   int before = render_info->visual_detail;
@@ -105,7 +105,7 @@ void file_type_php_mark(struct document_text_render_info* render_info, int brack
   } else {
     if (!(before&VISUAL_DETAIL_WORD) && (after&VISUAL_DETAIL_WORD)) {
       render_info->keyword_length = 0;
-      flags = file_type_keyword_config(render_info->file_type, &render_info->sequencer, self->keywords, &render_info->keyword_length, 0);
+      flags = file_type_keyword_config(render_info->file_type, sequencer, self->keywords, &render_info->keyword_length, 0);
     }
 
     if (flags==0) {
