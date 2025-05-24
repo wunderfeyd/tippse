@@ -977,6 +977,8 @@ int document_text_collect_span_base(struct document_text_render_info* render_inf
       render_info->y_view++;
       render_info->x = render_info->indentation+render_info->indentation_extra;
       render_info->xs = 0;
+
+      fill = document_text_fill_width_fillonly(render_info->x, show_invisibles, tabstop_width, sequence, newline_cp1, newline_cp2, file->newline);
     }
 
     if (cp!='\t' && cp!=' ' && cp!=newline_cp2) {
@@ -1150,6 +1152,8 @@ int document_text_prerender_span(struct document_text_render_info* render_info, 
 
       render_info->y_view++;
       render_info->x = render_info->indentation+render_info->indentation_extra;
+
+      fill = document_text_fill_width_fillonly(render_info->x, view->show_invisibles, file->tabstop_width, sequence, newline_cp1, newline_cp2, file->newline);
     }
 
     if (bracket_match) {
@@ -1352,6 +1356,8 @@ int document_text_render_span(struct document_text_render_info* render_info, str
 
       render_info->y_view++;
       render_info->x = render_info->indentation+render_info->indentation_extra;
+
+      fill = document_text_fill_width(render_info->x, view->show_invisibles, file->tabstop_width, sequence, newline_cp1, newline_cp2, &show, &fill_code);
       stop = 1;
     }
 
